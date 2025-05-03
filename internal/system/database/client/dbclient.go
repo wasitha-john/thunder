@@ -16,18 +16,17 @@
  * under the License.
  */
 
-package database
+package client
 
 import (
 	"database/sql"
-	"fmt"
 	"strings"
 
-	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
 
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
+	_ "modernc.org/sqlite"
 )
 
 // DBClientInterface defines the interface for database operations.
@@ -41,38 +40,12 @@ type DBClient struct {
 	db *sql.DB
 }
 
-// GetDriver creates a new DBClient instance for the given database type and configuration.
-func GetDriver(dbType string, cfg *config.Config) (DBClientInterface, error) {
+// NewDBClient creates a new instance of DBClient with the provided database connection.
+func NewDBClient(db *sql.DB) DBClientInterface {
 
-	var dsn string
-	var driverName string
-
-	switch dbType {
-	case "identity":
-		dbConfig := cfg.Database.Identity
-		switch dbConfig.Type {
-		case "postgres":
-			driverName = "postgres"
-			dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-				dbConfig.Hostname, dbConfig.Port, dbConfig.Username, dbConfig.Password, dbConfig.Name, dbConfig.SSLMode)
-		default:
-			return nil, fmt.Errorf("unsupported database type: %s", dbConfig.Type)
-		}
-	default:
-		return nil, fmt.Errorf("unsupported database type: %s", dbType)
+	return &DBClient{
+		db: db,
 	}
-
-	db, err := sql.Open(driverName, dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %v", err)
-	}
-
-	// Test the database connection.
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %v", err)
-	}
-
-	return &DBClient{db: db}, nil
 }
 
 // ExecuteQuery executes a SELECT query and returns the result as a slice of maps.
@@ -106,7 +79,8 @@ func (client *DBClient) ExecuteQuery(query string, args ...interface{}) ([]map[s
 
 		result := map[string]interface{}{}
 		for i, col := range columns {
-			result[col] = row[i]
+			// Normalize column names to lowercase for consistency.
+			result[strings.ToLower(col)] = row[i]
 		}
 		results = append(results, result)
 	}
@@ -118,13 +92,4 @@ func (client *DBClient) ExecuteQuery(query string, args ...interface{}) ([]map[s
 func (client *DBClient) Close() error {
 
 	return client.db.Close()
-}
-
-// ParseStringArray parses a comma-separated string into a slice of strings.
-func ParseStringArray(value interface{}) []string {
-
-	if value == nil {
-		return []string{}
-	}
-	return strings.Split(value.(string), ",")
 }

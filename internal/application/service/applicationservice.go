@@ -22,9 +22,9 @@ import (
 	"errors"
 
 	"github.com/asgardeo/thunder/internal/application/model"
-	"github.com/asgardeo/thunder/internal/system/config"
-	"github.com/asgardeo/thunder/internal/system/database"
+	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
+	"github.com/asgardeo/thunder/internal/utils"
 
 	"go.uber.org/zap"
 )
@@ -35,16 +35,12 @@ type ApplicationServiceInterface interface {
 }
 
 // ApplicationService is the default implementation of the ApplicationServiceInterface.
-type ApplicationService struct {
-	config *config.Config
-}
+type ApplicationService struct{}
 
 // GetApplicationService creates a new instance of ApplicationService.
-func GetApplicationService(config *config.Config) ApplicationServiceInterface {
+func GetApplicationService() ApplicationServiceInterface {
 
-	return &ApplicationService{
-		config: config,
-	}
+	return &ApplicationService{}
 }
 
 // GetOAuthApplication retrieves the OAuth application based on the client Id.
@@ -57,9 +53,9 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 		return nil, errors.New("client ID cannot be empty")
 	}
 
-	dbClient, err := database.GetDriver("identity", as.config)
+	dbClient, err := dbprovider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database driver", zap.Error(err))
+		logger.Error("Failed to get database client", zap.Error(err))
 		return nil, err
 	}
 	defer dbClient.Close()
@@ -95,7 +91,7 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 	redirectURIs := []string{}
 	if row["callback_uris"] != nil {
 		if uris, ok := row["callback_uris"].(string); ok {
-			redirectURIs = database.ParseStringArray(uris)
+			redirectURIs = utils.ParseStringArray(uris)
 		} else {
 			return nil, errors.New("failed to parse callback_uris as string")
 		}
@@ -104,7 +100,7 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 	allowedGrantTypes := []string{}
 	if row["grant_types"] != nil {
 		if grants, ok := row["grant_types"].(string); ok {
-			allowedGrantTypes = database.ParseStringArray(grants)
+			allowedGrantTypes = utils.ParseStringArray(grants)
 		} else {
 			return nil, errors.New("failed to parse grant_types as string")
 		}

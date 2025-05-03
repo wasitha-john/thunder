@@ -44,7 +44,7 @@ docker run -d -p 5432:5432 --name postgres \
 ### 🗂 Step 2: Initialize the Database
 
 ```bash
-docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/schema.sql
+docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/postgress.sql
 ```
 
 ---
@@ -83,14 +83,16 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 
 ## 🧪 Running Integration Tests
 
+Building the product with `make all` will run the integration tests by default. However if you want to run the tests manually, follow the steps below.
+
 ### 1️⃣ Build the Project
 
 ```bash
-make all
+make clean build
 ```
 
 ### 2️⃣ Run the Tests
 
 ```bash
-go run ./tests/integration/run_tests.go
+make test
 ```

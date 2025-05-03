@@ -20,7 +20,6 @@ package provider
 
 import (
 	"github.com/asgardeo/thunder/internal/application/service"
-	"github.com/asgardeo/thunder/internal/system/config"
 )
 
 // ApplicationProviderInterface defines the interface for the application provider.
@@ -29,20 +28,16 @@ type ApplicationProviderInterface interface {
 }
 
 // ApplicationProvider is the default implementation of the ApplicationProviderInterface.
-type ApplicationProvider struct {
-	config *config.Config
-}
+type ApplicationProvider struct{}
 
 // NewApplicationProvider creates a new instance of ApplicationProvider.
-func NewApplicationProvider(cfg *config.Config) ApplicationProviderInterface {
+func NewApplicationProvider() ApplicationProviderInterface {
 
-	return &ApplicationProvider{
-		config: cfg,
-	}
+	return &ApplicationProvider{}
 }
 
 // GetApplicationService returns the application service instance.
 func (ap *ApplicationProvider) GetApplicationService() service.ApplicationServiceInterface {
 
-	return service.GetApplicationService(ap.config)
+	return service.GetApplicationService()
 }

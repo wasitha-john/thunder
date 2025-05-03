@@ -31,17 +31,38 @@ DB_USERNAME=$5
 DB_PASSWORD=$6
 
 # Execute the database schema script
-SCHEMA_FILE="./dbscripts/schema.sql"
-if [ ! -f "$SCHEMA_FILE" ]; then
-  echo "Database schema file not found: $SCHEMA_FILE"
-  exit 1
-fi
-
 echo "Initializing the database..."
 
 case "$DB_TYPE" in
   postgres)
+    SCHEMA_FILE="./dbscripts/postgresql.sql"
+    if [ ! -f "$SCHEMA_FILE" ]; then
+      echo "Database schema file not found: $SCHEMA_FILE"
+      exit 1
+    fi
+
     PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOSTNAME" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" -f "$SCHEMA_FILE"
+    ;;
+  sqlite)
+    SCHEMA_FILE="dbscripts/sqlite.sql"
+    if [ ! -f "$SCHEMA_FILE" ]; then
+      echo "Database schema file not found: $SCHEMA_FILE"
+      exit 1
+    fi
+
+    # Ensure the directory for the database file exists
+    DB_DIR=$(dirname "$DB_NAME")
+    if [ ! -d "$DB_DIR" ]; then
+      echo "Database directory not found. Creating directory: $DB_DIR"
+      mkdir -p "$DB_DIR"
+    fi
+
+    if [ ! -f "$DB_NAME" ]; then
+      echo "Database file not found. Creating and initializing the database..."
+      sqlite3 "$DB_NAME" < "$SCHEMA_FILE"
+    else
+      echo "Database file already exists. Skipping initialization."
+    fi
     ;;
   *)
     echo "Unsupported database type: $DB_TYPE"

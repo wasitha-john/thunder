@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	serverPort = "8090"
+	serverPort = "8095"
 )
 
 func main() {
@@ -37,22 +37,35 @@ func main() {
 	err := testutils.UnzipProduct()
 	if err != nil {
 		fmt.Printf("Failed to unzip product: %v\n", err)
-		return // Use return instead of os.Exit(1)
+		return
 	}
 
-	// Step 2: Start the server
+	// Step 2: Replace the deployment.yaml file
+	err = testutils.ReplaceDeploymentYaml()
+	if err != nil {
+		fmt.Printf("Failed to replace deployment.yaml: %v\n", err)
+		return
+	}
+
+	// Step 3: Run the init script to create the SQLite database
+	err = testutils.RunInitScript()
+	if err != nil {
+		fmt.Printf("Failed to run init script: %v\n", err)
+		return
+	}
+
+	// Step 4: Start the server
 	serverCmd, err := testutils.StartServer(serverPort)
 	if err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
-		return // Use return instead of os.Exit(1)
+		return
 	}
 	defer testutils.StopServer(serverCmd)
 
-	// Wait for the server to start.
-	// TODO: Should listen for the health check endpoint instead of sleeping.
+	// Wait for the server to start
 	time.Sleep(5 * time.Second)
 
-	// Step 3: Run all tests
+	// Step 5: Run all tests
 	runTests()
 }
 
@@ -64,6 +77,5 @@ func runTests() {
 	err := cmd.Run()
 	if err != nil {
 		fmt.Printf("Tests failed: %v\n", err)
-		// Do not use os.Exit(1) here to ensure deferred functions are executed.
 	}
 }

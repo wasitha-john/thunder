@@ -53,7 +53,7 @@ func main() {
 	}
 
 	// Initialize the multiplexer and register services.
-	mux := initMultiPlexer(logger, cfg)
+	mux := initMultiPlexer(logger)
 	if mux == nil {
 		logger.Fatal("Failed to initialize multiplexer")
 	}
@@ -99,14 +99,19 @@ func initThunderConfigurations(logger *zap.Logger, thunderHome string) *config.C
 		logger.Fatal("Failed to load private key", zap.Error(err))
 	}
 
+	// Initialize runtime configurations.
+	if err := config.InitializeThunderRuntime(thunderHome, cfg); err != nil {
+		logger.Fatal("Failed to initialize thunder runtime", zap.Error(err))
+	}
+
 	return cfg
 }
 
 // initMultiPlexer initializes the HTTP multiplexer and registers the services.
-func initMultiPlexer(logger *zap.Logger, cfg *config.Config) *http.ServeMux {
+func initMultiPlexer(logger *zap.Logger) *http.ServeMux {
 
 	mux := http.NewServeMux()
-	serviceManager := managers.NewServiceManager(mux, cfg)
+	serviceManager := managers.NewServiceManager(mux)
 
 	// Register the services.
 	err := serviceManager.RegisterServices()

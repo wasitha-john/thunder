@@ -16,34 +16,15 @@
  * under the License.
  */
 
-package managers
+package utils
 
-import (
-	"net/http"
+import "strings"
 
-	"github.com/asgardeo/thunder/internal/services"
-)
+// ParseStringArray parses a comma-separated string into a slice of strings.
+func ParseStringArray(value interface{}) []string {
 
-type ServiceManagerInterface interface {
-	RegisterServices() error
-}
-
-type ServiceManager struct {
-	mux *http.ServeMux
-}
-
-// NewServiceManager creates a new instance of ServiceManager.
-func NewServiceManager(mux *http.ServeMux) ServiceManagerInterface {
-
-	return &ServiceManager{
-		mux: mux,
+	if value == nil {
+		return []string{}
 	}
-}
-
-func (sm *ServiceManager) RegisterServices() error {
-
-	// Register the token service.
-	services.NewTokenService(sm.mux)
-
-	return nil
+	return strings.Split(value.(string), ",")
 }

@@ -43,6 +43,7 @@ type DatabaseConfig struct {
 		Username string `yaml:"username"`
 		Password string `yaml:"password"`
 		SSLMode  string `yaml:"sslmode"`
+		Path     string `yaml:"path"`
 	}
 }
 
