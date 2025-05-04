@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	testServerURL = "https://localhost:8090"
+	testServerURL = "https://localhost:8095"
 	clientID      = "client123"
 	clientSecret  = "secret123"
 )
@@ -82,5 +82,11 @@ func (ts *TokenTestSuite) TestClientCredentialsGrant() {
 
 	if _, ok := respBody["access_token"]; !ok {
 		ts.T().Fatalf("Response does not contain access_token")
+	}
+	if _, ok := respBody["token_type"]; !ok {
+		ts.T().Fatalf("Response does not contain token_type")
+	}
+	if _, ok := respBody["expires_in"]; !ok {
+		ts.T().Fatalf("Response does not contain expires_in")
 	}
 }

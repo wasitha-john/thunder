@@ -22,21 +22,16 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/identity/oauth2/token"
-	"github.com/asgardeo/thunder/internal/system/config"
 )
 
 type TokenService struct {
 	tokenHandler *token.TokenHandler
-	config       *config.Config
 }
 
-func NewTokenService(mux *http.ServeMux, cfg *config.Config) *TokenService {
+func NewTokenService(mux *http.ServeMux) *TokenService {
 
 	instance := &TokenService{
-		tokenHandler: &token.TokenHandler{
-			Config: cfg,
-		},
-		config: cfg,
+		tokenHandler: &token.TokenHandler{},
 	}
 	instance.RegisterRoutes(mux)
 

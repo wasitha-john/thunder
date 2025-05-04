@@ -1,0 +1,12 @@
+server:
+  hostname: "localhost"
+  port: 8095
+
+security:
+  cert_file: "repository/resources/security/server.crt"
+  key_file: "repository/resources/security/server.key"
+
+database:
+  identity:
+    type: "sqlite"
+    path: "repository/database/thunderidentity.db"

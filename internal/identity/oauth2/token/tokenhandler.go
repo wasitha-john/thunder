@@ -27,16 +27,13 @@ import (
 	"github.com/asgardeo/thunder/internal/identity/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/identity/oauth2/granthandlers"
 	"github.com/asgardeo/thunder/internal/identity/oauth2/model"
-	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/utils"
 
 	"go.uber.org/zap"
 )
 
-type TokenHandler struct {
-	Config *config.Config
-}
+type TokenHandler struct{}
 
 // HandleTokenRequest handles the token request for OAuth 2.0.
 // It validates the client credentials and delegates to the appropriate grant handler.
@@ -119,7 +116,7 @@ func (th *TokenHandler) HandleTokenRequest(respWriter http.ResponseWriter, reque
 	}
 
 	// Retrieve the OAuth application based on the client Id.
-	appProvider := appprovider.NewApplicationProvider(th.Config)
+	appProvider := appprovider.NewApplicationProvider()
 	appService := appProvider.GetApplicationService()
 
 	oauthApp, err := appService.GetOAuthApplication(clientId)
