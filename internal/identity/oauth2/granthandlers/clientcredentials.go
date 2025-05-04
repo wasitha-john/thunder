@@ -75,6 +75,7 @@ func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	return &model.TokenResponse{
 		AccessToken: token,
 		TokenType:   constants.TOKEN_TYPE_BEARER,
+		Scope:       tokenRequest.Scope,
 		ExpiresIn:   3600,
 	}, nil
 }
