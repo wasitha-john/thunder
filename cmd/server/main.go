@@ -19,6 +19,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
@@ -47,7 +48,7 @@ func main() {
 	}
 
 	// Initialize the multiplexer and register services.
-	mux := initMultiPlexer(logger)
+	mux := initMultiplexer(logger)
 	if mux == nil {
 		logger.Fatal("Failed to initialize multiplexer")
 	}
@@ -101,8 +102,8 @@ func initThunderConfigurations(logger *log.Logger, thunderHome string) *config.C
 	return cfg
 }
 
-// initMultiPlexer initializes the HTTP multiplexer and registers the services.
-func initMultiPlexer(logger *log.Logger) *http.ServeMux {
+// initMultiplexer initializes the HTTP multiplexer and registers the services.
+func initMultiplexer(logger *log.Logger) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	serviceManager := managers.NewServiceManager(mux)
@@ -128,15 +129,16 @@ func startServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thu
 	// Build the server address using hostname and port from the configurations.
 	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Hostname, cfg.Server.Port)
 
-	server := &http.Server{
-		Addr:      serverAddr,
-		Handler:   mux,
-		TLSConfig: tlsConfig,
+	ln, err := tls.Listen("tcp", serverAddr, tlsConfig) // listener bound to port
+	if err != nil {
+		logger.Fatal("Failed to start TLS listener", log.Error(err))
 	}
 
-	logger.Info("Starting Asgardeo Thunder...", log.String("address", serverAddr))
+	logger.Info("Asgardeo Thunder started...", log.String("address", serverAddr))
 
-	if err := server.ListenAndServeTLS("", ""); err != nil {
-		logger.Fatal("Server failed to start", log.Error(err))
+	server := &http.Server{Handler: mux}
+
+	if err := server.Serve(ln); err != nil {
+		logger.Fatal("Failed to serve requests", log.Error(err))
 	}
 }

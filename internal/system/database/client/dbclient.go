@@ -65,7 +65,7 @@ func (client *DBClient) ExecuteQuery(query model.DBQuery, args ...interface{}) (
 		return nil, err
 	}
 
-	results := []map[string]interface{}{}
+	var results []map[string]interface{}
 	for rows.Next() {
 		row := make([]interface{}, len(columns))
 		rowPointers := make([]interface{}, len(columns))

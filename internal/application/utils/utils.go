@@ -30,16 +30,3 @@ func IsAllowedGrantType(oauthApplication *model.OAuthApplication, grantType stri
 	}
 	return false
 }
-
-func IsValidRedirectURI(oauthApplication *model.OAuthApplication, redirectURI string) bool {
-
-	// TODO: Provide support for callback uris with regex patterns.
-
-	// Check if the redirect URI is valid for the given OAuth application.
-	for _, allowedRedirectURI := range oauthApplication.RedirectURIs {
-		if redirectURI == allowedRedirectURI {
-			return true
-		}
-	}
-	return false
-}
