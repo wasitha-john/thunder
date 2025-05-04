@@ -20,8 +20,9 @@ package service
 
 import (
 	"errors"
+	"github.com/asgardeo/thunder/internal/application/store"
+	"github.com/google/uuid"
 
-	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -31,6 +32,11 @@ import (
 // ApplicationServiceInterface defines the interface for the application service.
 type ApplicationServiceInterface interface {
 	GetOAuthApplication(clientId string) (*model.OAuthApplication, error)
+	CreateApplication(app *model.Application) (*model.Application, error)
+	GetApplicationList() ([]model.Application, error)
+	GetApplication(appId string) (*model.Application, error)
+	UpdateApplication(appId string, app *model.Application) (*model.Application, error)
+	DeleteApplication(appId string) error
 }
 
 // ApplicationService is the default implementation of the ApplicationServiceInterface.
@@ -46,7 +52,6 @@ func GetApplicationService() ApplicationServiceInterface {
 func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuthApplication, error) {
 
 	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationService"))
-	logger.Info("Retrieving OAuth application", log.String("clientId", clientId))
 
 	if clientId == "" {
 		return nil, errors.New("client ID cannot be empty")
@@ -59,7 +64,7 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 	}
 	defer dbClient.Close()
 
-	results, err := dbClient.ExecuteQuery(constants.QueryGetApplicationByClientId, clientId)
+	results, err := dbClient.ExecuteQuery(store.QueryGetApplicationByClientId, clientId)
 	if err != nil {
 		return nil, err
 	}
@@ -103,4 +108,76 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 		RedirectURIs:      redirectURIs,
 		AllowedGrantTypes: allowedGrantTypes,
 	}, nil
+}
+
+// CreateApplication creates the application.
+func (as *ApplicationService) CreateApplication(app *model.Application) (*model.Application, error) {
+
+	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationService"))
+
+	app.Id = uuid.New().String()
+
+	// Create the application in the database.
+	err := store.CreateApplication(*app)
+	if err != nil {
+		logger.Error("Failed to create application", log.Error(err))
+		return nil, err
+	}
+	return app, nil
+}
+
+// GetApplicationList list the applications.
+func (as *ApplicationService) GetApplicationList() ([]model.Application, error) {
+
+	applications, err := store.GetApplicationList()
+	if err != nil {
+		return nil, err
+	}
+
+	return applications, nil
+}
+
+// GetApplication get the application for given app id.
+func (as *ApplicationService) GetApplication(appId string) (*model.Application, error) {
+
+	if appId == "" {
+		return nil, errors.New("application ID is empty")
+	}
+
+	application, err := store.GetApplication(appId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &application, nil
+}
+
+// UpdateApplication update the application for given app id.
+func (as *ApplicationService) UpdateApplication(appId string, app *model.Application) (*model.Application, error) {
+
+	if appId == "" {
+		return nil, errors.New("application ID is empty")
+	}
+
+	err := store.UpdateApplication(app)
+	if err != nil {
+		return nil, err
+	}
+
+	return app, nil
+}
+
+// DeleteApplication delete the application for given app id.
+func (as *ApplicationService) DeleteApplication(appId string) error {
+
+	if appId == "" {
+		return errors.New("application ID is empty")
+	}
+
+	err := store.DeleteApplication(appId)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

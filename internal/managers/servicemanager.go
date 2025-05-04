@@ -44,6 +44,8 @@ func (sm *ServiceManager) RegisterServices() error {
 
 	// Register the token service.
 	services.NewTokenService(sm.mux)
+	// Register the Application service.
+	services.NewApplicationService(sm.mux)
 
 	return nil
 }
