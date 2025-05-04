@@ -19,56 +19,123 @@
 package log
 
 import (
+	"errors"
+	"log/slog"
 	"os"
+	"sync"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/asgardeo/thunder/internal/system/constants"
 )
 
-var logger *zap.Logger
+var logger *Logger
+var mu sync.Mutex
 
-// InitLogger initializes the logger with a plain text format.
-func InitLogger() error {
-	// Define a custom encoder configuration for plain text logs
-	encoderConfig := zapcore.EncoderConfig{
-		TimeKey:        "timestamp",
-		LevelKey:       "level",
-		NameKey:        "logger",
-		CallerKey:      "caller",
-		MessageKey:     "msg",
-		StacktraceKey:  "stacktrace",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.CapitalLevelEncoder, // INFO, ERROR, etc.
-		EncodeTime:     zapcore.ISO8601TimeEncoder,  // Human-readable timestamps
-		EncodeDuration: zapcore.StringDurationEncoder,
-		EncodeCaller:   zapcore.ShortCallerEncoder, // Short file paths
-	}
-
-	// Create a core that writes logs to standard output with the custom encoder
-	core := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(encoderConfig), // Plain text encoder
-		zapcore.AddSync(zapcore.Lock(os.Stdout)), // Write to standard output
-		zapcore.InfoLevel,                        // Log level
-	)
-
-	// Build the logger
-	logger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
-	return nil
+// Logger is a wrapper around the slog logger.
+type Logger struct {
+	internal *slog.Logger
 }
 
-// GetLogger returns the initialized logger instance.
-func GetLogger() *zap.Logger {
+// GetLogger creates and returns a singleton instance of the logger.
+func GetLogger() *Logger {
+
+	mu.Lock()
+	defer mu.Unlock()
 
 	if logger == nil {
-		panic("Logger is not initialized. Call InitLogger() before using the logger.")
+		err := initLogger()
+		if err != nil {
+			panic("Failed to initialize logger: " + err.Error())
+		}
 	}
 	return logger
 }
 
-// Sync flushes any buffered log entries.
-func Sync() {
+// initLogger initializes the slog logger.
+func initLogger() error {
 
-	if logger != nil {
-		_ = logger.Sync()
+	// Read log level from the environment variable.
+	logLevel := os.Getenv(constants.LOG_LEVEL_ENVIRONMENT_VARIABLE)
+	if logLevel == "" {
+		logLevel = constants.DEFAULT_LOG_LEVEL
 	}
+	// Parse the log level.
+	level, err := parseLogLevel(logLevel)
+	if err != nil {
+		return errors.New("error parsing log level: " + err.Error())
+	}
+
+	handlerOptions := &slog.HandlerOptions{
+		Level: level,
+	}
+
+	logHandler := slog.NewTextHandler(os.Stdout, handlerOptions)
+	if logHandler == nil {
+		return errors.New("failed to create log handler")
+	}
+
+	logger = &Logger{
+		internal: slog.New(logHandler),
+	}
+
+	return nil
+}
+
+// With creates a new logger instance with additional fields.
+func (l *Logger) With(fields ...Field) *Logger {
+
+	return &Logger{
+		internal: l.internal.With(convertFields(fields)...),
+	}
+}
+
+// Info logs an informational message with custom fields.
+func (l *Logger) Info(msg string, fields ...Field) {
+
+	l.internal.Info(msg, convertFields(fields)...)
+}
+
+// Debug logs a debug message with custom fields.
+func (l *Logger) Debug(msg string, fields ...Field) {
+
+	l.internal.Debug(msg, convertFields(fields)...)
+}
+
+// Warn logs a warning message with custom fields.
+func (l *Logger) Warn(msg string, fields ...Field) {
+
+	l.internal.Warn(msg, convertFields(fields)...)
+}
+
+// Error logs an error message with custom fields.
+func (l *Logger) Error(msg string, fields ...Field) {
+
+	l.internal.Error(msg, convertFields(fields)...)
+}
+
+// Fatal logs a fatal message with custom fields and exits the application.
+func (l *Logger) Fatal(msg string, fields ...Field) {
+
+	l.internal.Error(msg, convertFields(fields)...)
+	os.Exit(1)
+}
+
+// parseLogLevel parses the log level string and returns the corresponding slog.Level.
+func parseLogLevel(logLevel string) (slog.Level, error) {
+
+	var level slog.Level
+	var err = level.UnmarshalText([]byte(logLevel))
+	if err != nil {
+		return slog.LevelError, err
+	}
+	return level, nil
+}
+
+// convertFields converts a slice of Field to a variadic list of slog.Attr.
+func convertFields(fields []Field) []any {
+
+	attrs := make([]any, len(fields))
+	for i, field := range fields {
+		attrs[i] = slog.Any(field.Key, field.Value)
+	}
+	return attrs
 }

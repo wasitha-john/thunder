@@ -30,17 +30,11 @@ import (
 	"github.com/asgardeo/thunder/internal/managers"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
-
-	"go.uber.org/zap"
 )
 
 func main() {
 
 	// Initialize the logger.
-	if err := log.InitLogger(); err != nil {
-		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
-	}
-	defer log.Sync()
 	logger := log.GetLogger()
 
 	// Get the Thunder home directory.
@@ -62,7 +56,7 @@ func main() {
 }
 
 // getThunderHome retrieves and return the Thunder home directory.
-func getThunderHome(logger *zap.Logger) string {
+func getThunderHome(logger *log.Logger) string {
 
 	// Parse project directory from command line arguments.
 	projectHome := ""
@@ -70,13 +64,13 @@ func getThunderHome(logger *zap.Logger) string {
 	flag.Parse()
 
 	if *projectHomeFlag != "" {
-		logger.Info("Using thunderHome from command line argument", zap.String("thunderHome", *projectHomeFlag))
+		logger.Info("Using thunderHome from command line argument", log.String("thunderHome", *projectHomeFlag))
 		projectHome = *projectHomeFlag
 	} else {
 		// If no command line argument is provided, use the current working directory.
 		dir, dirErr := os.Getwd()
 		if dirErr != nil {
-			logger.Fatal("Failed to get current working directory", zap.Error(dirErr))
+			logger.Fatal("Failed to get current working directory", log.Error(dirErr))
 		}
 		projectHome = dir
 	}
@@ -85,30 +79,30 @@ func getThunderHome(logger *zap.Logger) string {
 }
 
 // initThunderConfigurations initializes the Thunder configurations.
-func initThunderConfigurations(logger *zap.Logger, thunderHome string) *config.Config {
+func initThunderConfigurations(logger *log.Logger, thunderHome string) *config.Config {
 
 	// Load the configurations.
 	configFilePath := path.Join(thunderHome, "repository/conf/deployment.yaml")
 	cfg, err := config.LoadConfig(configFilePath)
 	if err != nil {
-		logger.Fatal("Failed to load configurations", zap.Error(err))
+		logger.Fatal("Failed to load configurations", log.Error(err))
 	}
 
 	// Load the server's private key for signing JWTs.
 	if err := jwt.LoadPrivateKey(cfg, thunderHome); err != nil {
-		logger.Fatal("Failed to load private key", zap.Error(err))
+		logger.Fatal("Failed to load private key", log.Error(err))
 	}
 
 	// Initialize runtime configurations.
 	if err := config.InitializeThunderRuntime(thunderHome, cfg); err != nil {
-		logger.Fatal("Failed to initialize thunder runtime", zap.Error(err))
+		logger.Fatal("Failed to initialize thunder runtime", log.Error(err))
 	}
 
 	return cfg
 }
 
 // initMultiPlexer initializes the HTTP multiplexer and registers the services.
-func initMultiPlexer(logger *zap.Logger) *http.ServeMux {
+func initMultiPlexer(logger *log.Logger) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	serviceManager := managers.NewServiceManager(mux)
@@ -116,19 +110,19 @@ func initMultiPlexer(logger *zap.Logger) *http.ServeMux {
 	// Register the services.
 	err := serviceManager.RegisterServices()
 	if err != nil {
-		logger.Fatal("Failed to register the services", zap.Error(err))
+		logger.Fatal("Failed to register the services", log.Error(err))
 	}
 
 	return mux
 }
 
 // startServer starts the HTTP server with the given configurations and multiplexer.
-func startServer(logger *zap.Logger, cfg *config.Config, mux *http.ServeMux, thunderHome string) {
+func startServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thunderHome string) {
 
 	// Get TLS configuration from the certificate and key files.
 	tlsConfig, err := cert.GetTLSConfig(cfg, thunderHome)
 	if err != nil {
-		logger.Fatal("Failed to load TLS configuration", zap.Error(err))
+		logger.Fatal("Failed to load TLS configuration", log.Error(err))
 	}
 
 	// Build the server address using hostname and port from the configurations.
@@ -140,9 +134,9 @@ func startServer(logger *zap.Logger, cfg *config.Config, mux *http.ServeMux, thu
 		TLSConfig: tlsConfig,
 	}
 
-	logger.Info("Starting Asgardeo Thunder...", zap.String("address", serverAddr))
+	logger.Info("Starting Asgardeo Thunder...", log.String("address", serverAddr))
 
 	if err := server.ListenAndServeTLS("", ""); err != nil {
-		logger.Fatal("Server failed to start", zap.Error(err))
+		logger.Fatal("Server failed to start", log.Error(err))
 	}
 }

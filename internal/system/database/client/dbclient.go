@@ -22,16 +22,16 @@ import (
 	"database/sql"
 	"strings"
 
+	"github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/log"
 
 	_ "github.com/lib/pq"
-	"go.uber.org/zap"
 	_ "modernc.org/sqlite"
 )
 
 // DBClientInterface defines the interface for database operations.
 type DBClientInterface interface {
-	ExecuteQuery(query string, args ...interface{}) ([]map[string]interface{}, error)
+	ExecuteQuery(query model.DBQuery, args ...interface{}) ([]map[string]interface{}, error)
 	Close() error
 }
 
@@ -49,12 +49,12 @@ func NewDBClient(db *sql.DB) DBClientInterface {
 }
 
 // ExecuteQuery executes a SELECT query and returns the result as a slice of maps.
-func (client *DBClient) ExecuteQuery(query string, args ...interface{}) ([]map[string]interface{}, error) {
+func (client *DBClient) ExecuteQuery(query model.DBQuery, args ...interface{}) ([]map[string]interface{}, error) {
 
-	logger := log.GetLogger()
-	logger.Info("Executing query", zap.String("query", query), zap.Any("args", args))
+	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "DBClient"))
+	logger.Info("Executing query", log.String("queryID", query.GetId()))
 
-	rows, err := client.db.Query(query, args...)
+	rows, err := client.db.Query(query.GetQuery(), args...)
 	if err != nil {
 		return nil, err
 	}

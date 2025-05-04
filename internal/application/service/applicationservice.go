@@ -21,12 +21,11 @@ package service
 import (
 	"errors"
 
+	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/utils"
-
-	"go.uber.org/zap"
 )
 
 // ApplicationServiceInterface defines the interface for the application service.
@@ -46,8 +45,8 @@ func GetApplicationService() ApplicationServiceInterface {
 // GetOAuthApplication retrieves the OAuth application based on the client Id.
 func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuthApplication, error) {
 
-	logger := log.GetLogger()
-	logger.Info("Retrieving OAuth application", zap.String("clientId", clientId))
+	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationService"))
+	logger.Info("Retrieving OAuth application", log.String("clientId", clientId))
 
 	if clientId == "" {
 		return nil, errors.New("client ID cannot be empty")
@@ -55,20 +54,12 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 
 	dbClient, err := dbprovider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", zap.Error(err))
+		logger.Error("Failed to get database client", log.Error(err))
 		return nil, err
 	}
 	defer dbClient.Close()
 
-	query := `
-		SELECT 
-			CONSUMER_KEY, CONSUMER_SECRET, CALLBACK_URIS, GRANT_TYPES 
-		FROM 
-			IDN_OAUTH_CONSUMER_APPS 
-		WHERE 
-			CONSUMER_KEY = $1
-	`
-	results, err := dbClient.ExecuteQuery(query, clientId)
+	results, err := dbClient.ExecuteQuery(constants.QueryGetApplicationByClientId, clientId)
 	if err != nil {
 		return nil, err
 	}

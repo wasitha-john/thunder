@@ -25,7 +25,7 @@ import (
 	"net/http"
 	"strings"
 
-	"go.uber.org/zap"
+	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 func ExtractBasicAuthCredentials(r *http.Request) (string, string, error) {
@@ -51,9 +51,10 @@ func ExtractBasicAuthCredentials(r *http.Request) (string, string, error) {
 }
 
 // WriteJSONError writes a JSON error response with the given details.
-func WriteJSONError(w http.ResponseWriter, logger *zap.Logger, errorCode, errorDescription string, statusCode int, responseHeaders []map[string]string) {
+func WriteJSONError(w http.ResponseWriter, errorCode, errorDescription string, statusCode int, responseHeaders []map[string]string) {
 
-	logger.Error("Error in HTTP response", zap.String("error", errorCode), zap.String("description", errorDescription))
+	logger := log.GetLogger()
+	logger.Error("Error in HTTP response", log.String("error", errorCode), log.String("description", errorDescription))
 
 	// Set the response headers.
 	for _, header := range responseHeaders {
