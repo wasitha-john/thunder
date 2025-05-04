@@ -29,14 +29,15 @@ import (
 )
 
 const (
-	TargetDir          = "./target"
-	ZipFilePattern     = "thunder-*.zip"
-	ExtractedDir       = "./target/.test"
-	ServerBinary       = "thunder"
-	DeploymentYamlPath = "./tests/integration/resources/deployment.yaml"
-	InitScriptPath     = "./scripts/init_script.sh"
-	DatabaseFilePath   = "repository/database/thunderidentity.db"
-	DatabaseSchemaFile = "dbscripts/sqlite.sql"
+	TargetDir                  = "./target"
+	ZipFilePattern             = "thunder-*.zip"
+	ExtractedDir               = "./target/.test"
+	ServerBinary               = "thunder"
+	TestDeploymentYamlPath     = "./tests/integration/resources/deployment.yaml"
+	TestDatabaseSchemaFilePath = "./tests/integration/resources/sqlite.sql"
+	InitScriptPath             = "./scripts/init_script.sh"
+	DatabaseFilePath           = "repository/database/thunderidentity.db"
+	DatabaseSchemaFile         = "dbscripts/sqlite.sql"
 )
 
 func UnzipProduct() error {
@@ -113,7 +114,7 @@ func getExtractedProductHome() (string, error) {
 	return filepath.Join(ExtractedDir, filepath.Base(zipFile[:len(zipFile)-4])), nil
 }
 
-func ReplaceDeploymentYaml() error {
+func ReplaceResources() error {
 
 	productHome, err := getExtractedProductHome()
 	if err != nil {
@@ -121,9 +122,15 @@ func ReplaceDeploymentYaml() error {
 	}
 
 	destPath := filepath.Join(productHome, "repository/conf/deployment.yaml")
-	err = copyFile(DeploymentYamlPath, destPath)
+	err = copyFile(TestDeploymentYamlPath, destPath)
 	if err != nil {
 		return fmt.Errorf("failed to replace deployment.yaml: %v", err)
+	}
+
+	destPath = filepath.Join(productHome, "dbscripts/sqlite.sql")
+	err = copyFile(TestDatabaseSchemaFilePath, destPath)
+	if err != nil {
+		return fmt.Errorf("failed to replace sqlite.sql: %v", err)
 	}
 
 	return nil

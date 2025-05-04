@@ -19,20 +19,26 @@
 package token
 
 import (
-	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 )
 
 const (
-	testServerURL = "https://localhost:8095"
-	clientID      = "client123"
-	clientSecret  = "secret123"
+	testServerURL   = "https://localhost:8095"
+	clientID        = "client123"
+	clientSecret    = "secret123"
+	requestedScopes = "internal_user_mgt_view internal_group_mgt_view internal_group_mgt_edit"
 )
+
+var expectedScopes = []string{
+	"internal_user_mgt_view",
+	"internal_group_mgt_view",
+}
 
 type TokenTestSuite struct {
 	suite.Suite
@@ -46,7 +52,7 @@ func TestTokenTestSuite(t *testing.T) {
 func (ts *TokenTestSuite) TestClientCredentialsGrant() {
 
 	// Prepare the request
-	reqBody := bytes.NewBufferString("grant_type=client_credentials")
+	reqBody := strings.NewReader("grant_type=client_credentials&scope=" + requestedScopes)
 	req, err := http.NewRequest("POST", testServerURL+"/oauth2/token", reqBody)
 	if err != nil {
 		ts.T().Fatalf("Failed to create request: %v", err)
@@ -88,5 +94,27 @@ func (ts *TokenTestSuite) TestClientCredentialsGrant() {
 	}
 	if _, ok := respBody["expires_in"]; !ok {
 		ts.T().Fatalf("Response does not contain expires_in")
+	}
+
+	// validate the scopes
+	if _, ok := respBody["scope"]; !ok {
+		ts.T().Fatalf("Response does not contain scope")
+	}
+
+	scopes := strings.Fields(respBody["scope"].(string))
+	if len(scopes) != len(expectedScopes) {
+		ts.T().Fatalf("Expected %d scopes, got %d", len(expectedScopes), len(scopes))
+	}
+	for _, expectedScope := range expectedScopes {
+		found := false
+		for _, scope := range scopes {
+			if scope == expectedScope {
+				found = true
+				break
+			}
+		}
+		if !found {
+			ts.T().Fatalf("Expected scope %s not found in response", expectedScope)
+		}
 	}
 }

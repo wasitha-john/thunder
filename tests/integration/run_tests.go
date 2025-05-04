@@ -40,10 +40,10 @@ func main() {
 		return
 	}
 
-	// Step 2: Replace the deployment.yaml file
-	err = testutils.ReplaceDeploymentYaml()
+	// Step 2: Replace the resource files in the unzipped directory.
+	err = testutils.ReplaceResources()
 	if err != nil {
-		fmt.Printf("Failed to replace deployment.yaml: %v\n", err)
+		fmt.Printf("Failed to replace resources: %v\n", err)
 		return
 	}
 

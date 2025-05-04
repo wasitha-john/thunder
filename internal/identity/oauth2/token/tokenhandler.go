@@ -27,6 +27,7 @@ import (
 	"github.com/asgardeo/thunder/internal/identity/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/identity/oauth2/granthandlers"
 	"github.com/asgardeo/thunder/internal/identity/oauth2/model"
+	scopeprovider "github.com/asgardeo/thunder/internal/identity/scope/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/utils"
 )
@@ -129,9 +130,16 @@ func (th *TokenHandler) HandleTokenRequest(respWriter http.ResponseWriter, reque
 		return
 	}
 
-	// TODO: Validate scopes.
-	// This could be handled in the grant handler.
-	// scopeError := scopeValidator.ValidateScopes(tokenRequest.Scope, oauthApp.GetScopes())
+	// Validate and filter scopes.
+	scopeValidatorProvider := scopeprovider.NewScopeValidatorProvider()
+	scopeValidator := scopeValidatorProvider.GetScopeValidator()
+
+	validScopes, scopeError := scopeValidator.ValidateScopes(tokenRequest.Scope, oauthApp.ClientId)
+	if scopeError != nil {
+		utils.WriteJSONError(respWriter, scopeError.Error, scopeError.ErrorDescription, http.StatusBadRequest, nil)
+		return
+	}
+	tokenRequest.Scope = validScopes
 
 	// Delegate to the grant handler.
 	tokenResponse, tokenError := grantHandler.HandleGrant(tokenRequest, oauthApp)
