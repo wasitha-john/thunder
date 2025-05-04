@@ -1,0 +1,17 @@
+server:
+  hostname: "localhost"
+  port: 8090
+
+security:
+  cert_file: "repository/resources/security/server.crt"
+  key_file: "repository/resources/security/server.key"
+
+database:
+  identity:
+    type: "postgres"
+    hostname: "localhost"
+    port: 5432
+    name: "thunderdb"
+    username: "asgthunder"
+    password: "asgthunder"
+    sslmode: "disable"
