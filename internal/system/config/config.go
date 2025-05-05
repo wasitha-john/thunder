@@ -34,23 +34,36 @@ type SecurityConfig struct {
 	KeyFile  string `yaml:"key_file"`
 }
 
+type DataSource struct {
+	Type     string `yaml:"type"`
+	Hostname string `yaml:"hostname"`
+	Port     int    `yaml:"port"`
+	Name     string `yaml:"name"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	SSLMode  string `yaml:"sslmode"`
+	Path     string `yaml:"path"`
+}
+
 type DatabaseConfig struct {
-	Identity struct {
-		Type     string `yaml:"type"`
-		Hostname string `yaml:"hostname"`
-		Port     int    `yaml:"port"`
-		Name     string `yaml:"name"`
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
-		SSLMode  string `yaml:"sslmode"`
-		Path     string `yaml:"path"`
-	}
+	Identity DataSource `yaml:"identity"`
+	Runtime  DataSource `yaml:"runtime"`
+}
+
+type FlowAuthn struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
+type OAuthConfig struct {
+	FlowAuthn FlowAuthn `yaml:"flow_authn"`
 }
 
 type Config struct {
 	Server   ServerConfig   `yaml:"server"`
 	Security SecurityConfig `yaml:"security"`
 	Database DatabaseConfig `yaml:"database"`
+	OAuth    OAuthConfig    `yaml:"oauth"`
 }
 
 // LoadConfig loads the configurations from the specified YAML file.

@@ -27,6 +27,12 @@ import (
 	"github.com/asgardeo/thunder/internal/system/database/client"
 )
 
+// dbConfig represents the local database configuration.
+type dbConfig struct {
+	dsn        string
+	driverName string
+}
+
 // DBProviderInterface defines the interface for getting database clients.
 type DBProviderInterface interface {
 	GetDBClient(dbName string) (client.DBClientInterface, error)
@@ -44,30 +50,25 @@ func NewDBProvider() DBProviderInterface {
 // GetDBClient returns a database client based on the provided database name.
 func (d *DBProvider) GetDBClient(dbName string) (client.DBClientInterface, error) {
 
-	var dsn string
-	var driverName string
-
 	// Create the database connection string based on the configured database type.
+	config := config.GetThunderRuntime().Config.Database
+	var dbConfig dbConfig
+	var err error
+
 	switch dbName {
 	case "identity":
-		dbConfig := config.GetThunderRuntime().Config.Database.Identity
-		switch dbConfig.Type {
-		case "postgres":
-			driverName = "postgres"
-			dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-				dbConfig.Hostname, dbConfig.Port, dbConfig.Username, dbConfig.Password,
-				dbConfig.Name, dbConfig.SSLMode)
-		case "sqlite":
-			driverName = "sqlite"
-			dsn = path.Join(config.GetThunderRuntime().ThunderHome, dbConfig.Path)
-		default:
-			return nil, fmt.Errorf("unsupported database type: %s", dbConfig.Type)
-		}
+		dbConfig, err = getDBConfig(config.Identity)
+	case "runtime":
+		dbConfig, err = getDBConfig(config.Runtime)
 	default:
 		return nil, fmt.Errorf("unsupported database name: %s", dbName)
 	}
 
-	db, err := sql.Open(driverName, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database config: %v", err)
+	}
+
+	db, err := sql.Open(dbConfig.driverName, dbConfig.dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
@@ -78,4 +79,23 @@ func (d *DBProvider) GetDBClient(dbName string) (client.DBClientInterface, error
 	}
 
 	return client.NewDBClient(db), nil
+}
+
+// getDBConfig returns the database configuration based on the provided data source.
+func getDBConfig(dataSource config.DataSource) (dbConfig, error) {
+
+	var dbConfig dbConfig
+
+	switch dataSource.Type {
+	case "postgres":
+		dbConfig.driverName = "postgres"
+		dbConfig.dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+			dataSource.Hostname, dataSource.Port, dataSource.Username, dataSource.Password,
+			dataSource.Name, dataSource.SSLMode)
+	case "sqlite":
+		dbConfig.driverName = "sqlite"
+		dbConfig.dsn = path.Join(config.GetThunderRuntime().ThunderHome, dataSource.Path)
+	}
+
+	return dbConfig, nil
 }

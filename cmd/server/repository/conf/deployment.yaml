@@ -15,3 +15,16 @@ database:
     username: "asgthunder"
     password: "asgthunder"
     sslmode: "disable"
+  runtime:
+    type: "postgres"
+    hostname: "localhost"
+    port: 5432
+    name: "runtimedb"
+    username: "asgthunder"
+    password: "asgthunder"
+    sslmode: "disable"
+
+oauth:
+  flow_authn:
+    username: "thunder"
+    password: "thunder"

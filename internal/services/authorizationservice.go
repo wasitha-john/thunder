@@ -16,26 +16,29 @@
  * under the License.
  */
 
-package model
+package services
 
 import (
-	"time"
+	"net/http"
 
-	oauthmodel "github.com/asgardeo/thunder/internal/identity/oauth2/model"
+	"github.com/asgardeo/thunder/internal/identity/oauth2/authz"
 )
 
-// TODO: Temporary adding the AuthenticatedUser struct here. Should be moved to a appropriate place.
-type AuthenticatedUser struct {
-	IsAuthenticated        bool
-	UserId                 string
-	Username               string
-	Domain                 string
-	AuthenticatedSubjectId string
-	Attributes             map[string]string
+type AuthorizationService struct {
+	authHandler *authz.AuthorizeHandler
 }
 
-type SessionData struct {
-	OAuthParameters oauthmodel.OAuthParameters
-	LoggedInUser    AuthenticatedUser
-	AuthTime        time.Time
+func NewAuthorizationService(mux *http.ServeMux) *AuthorizationService {
+
+	instance := &AuthorizationService{
+		authHandler: &authz.AuthorizeHandler{},
+	}
+	instance.RegisterRoutes(mux)
+
+	return instance
+}
+
+func (s *AuthorizationService) RegisterRoutes(mux *http.ServeMux) {
+
+	mux.HandleFunc("GET /oauth2/authorize", s.authHandler.HandleAuthorizeRequest)
 }

@@ -16,17 +16,13 @@
  * under the License.
  */
 
-package utils
+package server
 
-import "github.com/asgardeo/thunder/internal/application/model"
+import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 
-func IsAllowedGrantType(oauthApplication *model.OAuthApplication, grantType string) bool {
-
-	// Check if the grant type is allowed for the given OAuth application.
-	for _, allowedGrantType := range oauthApplication.AllowedGrantTypes {
-		if grantType == allowedGrantType {
-			return true
-		}
+var (
+	QueryAllowedOrigins = dbmodel.DBQuery{
+		Id:    "SOQ-00001",
+		Query: "SELECT ALLOWED_ORIGINS FROM IDN_OAUTH_ALLOWED_ORIGINS",
 	}
-	return false
-}
+)
