@@ -71,7 +71,7 @@ func main() {
 
 func runTests() {
 
-	cmd := exec.Command("go", "test", "./...")
+	cmd := exec.Command("go", "test", "-v", "./...")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
