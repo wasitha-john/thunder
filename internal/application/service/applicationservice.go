@@ -42,7 +42,7 @@ func GetApplicationService() ApplicationServiceInterface {
 	return &ApplicationService{}
 }
 
-// GetOAuthApplication retrieves the OAuth application based on the client Id.
+// GetOAuthApplication retrieves the OAuth application based on the client id.
 func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuthApplication, error) {
 
 	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationService"))
@@ -79,7 +79,7 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 		return nil, errors.New("failed to parse consumer_secret as string")
 	}
 
-	redirectURIs := []string{}
+	var redirectURIs []string
 	if row["callback_uris"] != nil {
 		if uris, ok := row["callback_uris"].(string); ok {
 			redirectURIs = utils.ParseStringArray(uris)
@@ -88,7 +88,7 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 		}
 	}
 
-	allowedGrantTypes := []string{}
+	var allowedGrantTypes []string
 	if row["grant_types"] != nil {
 		if grants, ok := row["grant_types"].(string); ok {
 			allowedGrantTypes = utils.ParseStringArray(grants)

@@ -114,7 +114,7 @@ func (th *TokenHandler) HandleTokenRequest(respWriter http.ResponseWriter, reque
 		return
 	}
 
-	// Retrieve the OAuth application based on the client Id.
+	// Retrieve the OAuth application based on the client id.
 	appProvider := appprovider.NewApplicationProvider()
 	appService := appProvider.GetApplicationService()
 

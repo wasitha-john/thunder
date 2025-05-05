@@ -65,8 +65,12 @@ func WriteJSONError(w http.ResponseWriter, errorCode, errorDescription string, s
 	w.Header().Set("Content-Type", "application/json")
 
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{
+	err := json.NewEncoder(w).Encode(map[string]string{
 		"error":             errorCode,
 		"error_description": errorDescription,
 	})
+	if err != nil {
+		logger.Error("Failed to write JSON error response", log.Error(err))
+		return
+	}
 }

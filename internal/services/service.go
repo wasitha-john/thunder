@@ -29,7 +29,7 @@ type Route struct {
 	HandlerFunc *http.HandlerFunc
 }
 
-// The Service struct defines the service that will handle the routes.
+// The ServiceInterface struct defines the service that will handle the routes.
 type ServiceInterface interface {
 	RegisterRoutes(mux *http.ServeMux)
 }
