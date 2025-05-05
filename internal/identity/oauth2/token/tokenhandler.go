@@ -50,6 +50,7 @@ func (th *TokenHandler) HandleTokenRequest(respWriter http.ResponseWriter, reque
 	grantType := request.FormValue(constants.GRANT_TYPE)
 	if grantType == "" {
 		utils.WriteJSONError(respWriter, constants.ERROR_INVALID_REQUEST, "Missing grant_type parameter", http.StatusBadRequest, nil)
+		return
 	}
 
 	var grantHandler granthandlers.GrantHandler
