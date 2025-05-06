@@ -5,6 +5,9 @@ REPOSITORY_DIR=cmd/server/repository
 OUTPUT_DIR=target
 BUILD_DIR=$(OUTPUT_DIR)/.build
 
+FRONTEND_DIR := frontend/loginportal
+BACKEND_DIR := cmd/server
+
 # Variable constants.
 VERSION=$(shell cat $(VERSION_FILE))
 # ZIP_FILE_NAME=${BINARY_NAME_PREFIX}-$(VERSION)
@@ -18,12 +21,17 @@ clean:
 	rm -rf $(OUTPUT_DIR)
 
 # Build project and package it.
-build: _build _package
+build: _build _build-frontend _package
 
 # Build the Go project.
 _build:
 	mkdir -p $(BUILD_DIR) && \
 	go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/server
+
+_build-frontend:
+	@echo "Building frontend..."
+	npm install --prefix $(FRONTEND_DIR)
+	npm run build --prefix $(FRONTEND_DIR)
 
 # Package the binary and repository directory into a zip file.
 _package:
@@ -33,6 +41,7 @@ _package:
 	cp $(VERSION_FILE) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
 	cp -r scripts $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
 	cp -r dbscripts $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
+	cp -r $(FRONTEND_DIR)/build $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/dist/ && \
 	cd $(OUTPUT_DIR) && zip -r $(PRODUCT_FOLDER).zip $(PRODUCT_FOLDER) && \
 	rm -rf $(PRODUCT_FOLDER) && \
 	rm -rf $(BUILD_DIR)
@@ -44,6 +53,15 @@ test: _integration-test
 _integration-test:
 	@echo "Running integration tests..."
 	@go run ./tests/integration/run_tests.go
+
+run: _build-frontend
+	@echo "Removing old build artifacts..."
+	@rm -rf $(BACKEND_DIR)/dist
+	@echo "Copying frontend build to backend static directory..."
+	@mkdir -p $(BACKEND_DIR)/dist
+	@cp -r $(FRONTEND_DIR)/build/* $(BACKEND_DIR)/dist/
+	@echo "Running the application..."
+	@go run -C $(BACKEND_DIR) .
 
 help:
 	@echo "Makefile targets:"

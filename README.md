@@ -28,6 +28,8 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 - Go 1.23+
 - Docker
 - cURL
+- Node.js 14+
+- React 19+
 
 ---
 
@@ -95,4 +97,28 @@ make clean build
 
 ```bash
 make test
+```
+
+## Running Development Environment
+
+### 🔧 Step 1: Start PostgreSQL
+
+```bash
+docker run -d -p 5432:5432 --name postgres \
+  -e POSTGRES_USER=asgthunder \
+  -e POSTGRES_PASSWORD=asgthunder \
+  -e POSTGRES_DB=thunderdb \
+  postgres
+```
+
+### 🗂 Step 2: Initialize the Database
+
+```bash
+docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/postgress.sql
+```
+
+### 🛠 Step 3: Run the Product
+
+```bash
+make run
 ```
