@@ -16,14 +16,14 @@
  * under the License.
  */
 
-package constants
+package model
 
-import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
-
-var (
-	QueryGetApplicationByClientId = dbmodel.DBQuery{
-		Id: "ASQ-00001",
-		Query: "SELECT CONSUMER_KEY, CONSUMER_SECRET, CALLBACK_URIS, GRANT_TYPES " +
-			"FROM IDN_OAUTH_CONSUMER_APPS WHERE CONSUMER_KEY = $1",
-	}
-)
+type Application struct {
+	Id                  string   `json:"id,omitempty"`
+	Name                string   `json:"name"`
+	Description         string   `json:"description"`
+	ClientId            string   `json:"client_id"`
+	ClientSecret        string   `json:"client_secret"`
+	CallbackURLs        []string `json:"callback_url"`
+	SupportedGrantTypes []string `json:"supported_grant_types"`
+}

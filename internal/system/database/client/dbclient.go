@@ -32,6 +32,7 @@ import (
 // DBClientInterface defines the interface for database operations.
 type DBClientInterface interface {
 	ExecuteQuery(query model.DBQuery, args ...interface{}) ([]map[string]interface{}, error)
+	BeginTx() (*sql.Tx, error)
 	Close() error
 }
 
@@ -92,4 +93,10 @@ func (client *DBClient) ExecuteQuery(query model.DBQuery, args ...interface{}) (
 func (client *DBClient) Close() error {
 
 	return client.db.Close()
+}
+
+// BeginTx starts a new database transaction.
+func (client *DBClient) BeginTx() (*sql.Tx, error) {
+
+	return client.db.Begin()
 }
