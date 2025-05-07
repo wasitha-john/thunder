@@ -29,15 +29,15 @@ import (
 )
 
 const (
-	TargetDir                  = "./target"
-	ZipFilePattern             = "thunder-*.zip"
-	ExtractedDir               = "./target/.test"
-	ServerBinary               = "thunder"
-	TestDeploymentYamlPath     = "./tests/integration/resources/deployment.yaml"
-	TestDatabaseSchemaFilePath = "./tests/integration/resources/sqlite.sql"
-	InitScriptPath             = "./scripts/init_script.sh"
-	DatabaseFilePath           = "repository/database/thunderidentity.db"
-	DatabaseSchemaFile         = "dbscripts/sqlite.sql"
+	TargetDir                   = "./target"
+	ZipFilePattern              = "thunder-*.zip"
+	ExtractedDir                = "./target/.test"
+	ServerBinary                = "thunder"
+	TestDeploymentYamlPath      = "./tests/integration/resources/deployment.yaml"
+	TestDatabaseSchemaDirectory = "./tests/integration/resources/dbscripts"
+	InitScriptPath              = "./scripts/init_script.sh"
+	DatabaseFileBasePath        = "repository/database/"
+	DatabaseSchemaFile          = "dbscripts/thunderdb/sqlite.sql"
 )
 
 func UnzipProduct() error {
@@ -127,10 +127,10 @@ func ReplaceResources() error {
 		return fmt.Errorf("failed to replace deployment.yaml: %v", err)
 	}
 
-	destPath = filepath.Join(productHome, "dbscripts/sqlite.sql")
-	err = copyFile(TestDatabaseSchemaFilePath, destPath)
+	destPath = filepath.Join(productHome, "dbscripts")
+	err = copyDirectory(TestDatabaseSchemaDirectory, destPath)
 	if err != nil {
-		return fmt.Errorf("failed to replace sqlite.sql: %v", err)
+		return fmt.Errorf("failed to replace database schema files: %v", err)
 	}
 
 	return nil
@@ -155,6 +155,43 @@ func copyFile(src, dest string) error {
 	return err
 }
 
+func copyDirectory(src, dest string) error {
+
+	srcDir, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcDir.Close()
+
+	entries, err := srcDir.Readdir(-1)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		destPath := filepath.Join(dest, entry.Name())
+
+		if entry.IsDir() {
+			err = os.MkdirAll(destPath, os.ModePerm)
+			if err != nil {
+				return err
+			}
+			err = copyDirectory(srcPath, destPath)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = copyFile(srcPath, destPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func RunInitScript() error {
 
 	productHome, err := getExtractedProductHome()
@@ -163,14 +200,23 @@ func RunInitScript() error {
 	}
 
 	initScript := filepath.Join(productHome, InitScriptPath)
-	dbPath := filepath.Join(productHome, DatabaseFilePath)
 
-	cmd := exec.Command("bash", initScript, "sqlite", "", "", dbPath, "", "")
+	thunderDbPath := filepath.Join(productHome, DatabaseFileBasePath, "thunderdb.db")
+	cmd := exec.Command("bash", initScript, "sqlite", "", "", thunderDbPath, "", "", "thunderdb")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to run init script: %v", err)
+		return fmt.Errorf("failed to run init script for thunderdb: %v", err)
+	}
+
+	runtimeDbPath := filepath.Join(productHome, DatabaseFileBasePath, "runtimedb.db")
+	cmd = exec.Command("bash", initScript, "sqlite", "", "", runtimeDbPath, "", "", "runtimedb")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to run init script for runtimedb: %v", err)
 	}
 
 	return nil

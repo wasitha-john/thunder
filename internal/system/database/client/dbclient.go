@@ -89,14 +89,14 @@ func (client *DBClient) ExecuteQuery(query model.DBQuery, args ...interface{}) (
 	return results, nil
 }
 
-// Close closes the database connection.
-func (client *DBClient) Close() error {
-
-	return client.db.Close()
-}
-
 // BeginTx starts a new database transaction.
 func (client *DBClient) BeginTx() (*sql.Tx, error) {
 
 	return client.db.Begin()
+}
+
+// Close closes the database connection.
+func (client *DBClient) Close() error {
+
+	return client.db.Close()
 }

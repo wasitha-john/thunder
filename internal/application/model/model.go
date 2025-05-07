@@ -24,3 +24,25 @@ type OAuthApplication struct {
 	RedirectURIs      []string
 	AllowedGrantTypes []string
 }
+
+// IsAllowedResponseType checks if the provided grant type is allowed.
+func (o *OAuthApplication) IsAllowedGrantType(grantType string) bool {
+
+	for _, allowedGrantType := range o.AllowedGrantTypes {
+		if grantType == allowedGrantType {
+			return true
+		}
+	}
+	return false
+}
+
+// IsValidRedirectURI checks if the provided redirect URI is valid.
+func (o *OAuthApplication) IsValidRedirectURI(redirectURI string) bool {
+
+	for _, allowedRedirectURI := range o.RedirectURIs {
+		if redirectURI == allowedRedirectURI {
+			return true
+		}
+	}
+	return false
+}

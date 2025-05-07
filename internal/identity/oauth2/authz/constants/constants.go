@@ -16,26 +16,12 @@
  * under the License.
  */
 
-package model
+package constants
 
-import (
-	"time"
-
-	oauthmodel "github.com/asgardeo/thunder/internal/identity/oauth2/model"
+// Authorization code states.
+const (
+	AUTH_CODE_STATE_ACTIVE   = "ACTIVE"
+	AUTH_CODE_STATE_INACTIVE = "INACTIVE"
+	AUTH_CODE_STATE_EXPIRED  = "EXPIRED"
+	AUTH_CODE_STATE_REVOKED  = "REVOKED"
 )
-
-// TODO: Temporary adding the AuthenticatedUser struct here. Should be moved to a appropriate place.
-type AuthenticatedUser struct {
-	IsAuthenticated        bool
-	UserId                 string
-	Username               string
-	Domain                 string
-	AuthenticatedSubjectId string
-	Attributes             map[string]string
-}
-
-type SessionData struct {
-	OAuthParameters oauthmodel.OAuthParameters
-	LoggedInUser    AuthenticatedUser
-	AuthTime        time.Time
-}

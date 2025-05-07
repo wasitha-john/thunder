@@ -1,0 +1,47 @@
+/*
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package constants
+
+import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
+
+var (
+	QueryInsertAuthorizationCode = dbmodel.DBQuery{
+		Id: "AZQ-00001",
+		Query: "INSERT INTO IDN_OAUTH2_AUTHZ_CODE (CODE_ID, AUTHORIZATION_CODE, CONSUMER_KEY, " +
+			"CALLBACK_URL, AUTHZ_USER, TIME_CREATED, EXPIRY_TIME, STATE)" +
+			"VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+	}
+
+	QueryInsertAuthorizationCodeScopes = dbmodel.DBQuery{
+		Id:    "AZQ-00002",
+		Query: "INSERT INTO IDN_OAUTH2_AUTHZ_CODE_SCOPE (CODE_ID, SCOPE) VALUES ($1, $2)",
+	}
+
+	QueryGetAuthorizationCode = dbmodel.DBQuery{
+		Id: "AZQ-00003",
+		Query: "SELECT CODE_ID, AUTHORIZATION_CODE, CALLBACK_URL, AUTHZ_USER, TIME_CREATED, " +
+			"EXPIRY_TIME, STATE FROM IDN_OAUTH2_AUTHZ_CODE WHERE " +
+			"CONSUMER_KEY = $1 AND AUTHORIZATION_CODE = $2",
+	}
+
+	QueryUpdateAuthorizationCodeState = dbmodel.DBQuery{
+		Id:    "AZQ-00004",
+		Query: "UPDATE IDN_OAUTH2_AUTHZ_CODE SET STATE = $1 WHERE CODE_ID = $2",
+	}
+)

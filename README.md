@@ -35,19 +35,35 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 
 ### 🔧 Step 1: Start PostgreSQL
 
-```bash
-docker run -d -p 5432:5432 --name postgres \
-  -e POSTGRES_USER=asgthunder \
-  -e POSTGRES_PASSWORD=asgthunder \
-  -e POSTGRES_DB=thunderdb \
-  postgres
-```
+- Create a Docker container for PostgreSQL with `thunderdb` database.
+
+  ```bash
+  docker run -d -p 5432:5432 --name postgres \
+    -e POSTGRES_USER=asgthunder \
+    -e POSTGRES_PASSWORD=asgthunder \
+    -e POSTGRES_DB=thunderdb \
+    postgres
+  ```
+
+- Create the `runtimedb` in the same PostgreSQL container.
+
+  ```bash
+  docker exec -it postgres psql -U asgthunder -d thunderdb -c "CREATE DATABASE runtimedb;"
+  ```
 
 ### 🗂 Step 2: Initialize the Database
 
-```bash
-docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/postgress.sql
-```
+- Populate the `thunderdb` database with the required tables and data.
+
+  ```bash
+  docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/thunderdb/postgress.sql
+  ```
+
+- Populate the `runtimedb` database with the required tables and data.
+
+  ```bash
+  docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/runtimedb/postgress.sql
+  ```
 
 ---
 
@@ -99,6 +115,8 @@ make clean build
 make test
 ```
 
+---
+
 ## Running Development Environment
 
 ### 🔧 Step 1: Start PostgreSQL
@@ -114,7 +132,7 @@ docker run -d -p 5432:5432 --name postgres \
 ### 🗂 Step 2: Initialize the Database
 
 ```bash
-docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/postgress.sql
+docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/thunderdb/postgress.sql
 ```
 
 ### 🛠 Step 3: Run the Product

@@ -9,4 +9,13 @@ security:
 database:
   identity:
     type: "sqlite"
-    path: "repository/database/thunderidentity.db"
+    path: "repository/database/thunderdb.db"
+  runtime:
+    type: "sqlite"
+    path: "repository/database/runtimedb.db"
+
+
+oauth:
+  flow_authn:
+    username: "thunder"
+    password: "thunder"

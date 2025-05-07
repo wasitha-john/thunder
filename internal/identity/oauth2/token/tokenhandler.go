@@ -23,11 +23,12 @@ import (
 	"net/http"
 
 	appprovider "github.com/asgardeo/thunder/internal/application/provider"
-	apputils "github.com/asgardeo/thunder/internal/application/utils"
 	"github.com/asgardeo/thunder/internal/identity/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/identity/oauth2/granthandlers"
 	"github.com/asgardeo/thunder/internal/identity/oauth2/model"
+	oauthutils "github.com/asgardeo/thunder/internal/identity/oauth2/utils"
 	scopeprovider "github.com/asgardeo/thunder/internal/identity/scope/provider"
+	"github.com/asgardeo/thunder/internal/server"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/utils"
 )
@@ -42,14 +43,16 @@ func (th *TokenHandler) HandleTokenRequest(respWriter http.ResponseWriter, reque
 
 	// Parse the form data from the request body.
 	if err := request.ParseForm(); err != nil {
-		utils.WriteJSONError(respWriter, constants.ERROR_INVALID_REQUEST, "Failed to parse request body", http.StatusBadRequest, nil)
+		utils.WriteJSONError(respWriter, constants.ERROR_INVALID_REQUEST,
+			"Failed to parse request body", http.StatusBadRequest, nil)
 		return
 	}
 
 	// Validate the grant_type.
 	grantType := request.FormValue(constants.GRANT_TYPE)
 	if grantType == "" {
-		utils.WriteJSONError(respWriter, constants.ERROR_INVALID_REQUEST, "Missing grant_type parameter", http.StatusBadRequest, nil)
+		utils.WriteJSONError(respWriter, constants.ERROR_INVALID_REQUEST,
+			"Missing grant_type parameter", http.StatusBadRequest, nil)
 		return
 	}
 
@@ -57,8 +60,11 @@ func (th *TokenHandler) HandleTokenRequest(respWriter http.ResponseWriter, reque
 	switch grantType {
 	case constants.GRANT_TYPE_CLIENT_CREDENTIALS:
 		grantHandler = &granthandlers.ClientCredentialsGrantHandler{}
+	case constants.GRANT_TYPE_AUTHORIZATION_CODE:
+		grantHandler = &granthandlers.AuthorizationCodeGrantHandler{}
 	default:
-		utils.WriteJSONError(respWriter, constants.ERROR_UNSUPPORTED_GRANT_TYPE, "Unsupported grant type", http.StatusBadRequest, nil)
+		utils.WriteJSONError(respWriter, constants.ERROR_UNSUPPORTED_GRANT_TYPE,
+			"Unsupported grant type", http.StatusBadRequest, nil)
 		return
 	}
 
@@ -73,10 +79,12 @@ func (th *TokenHandler) HandleTokenRequest(respWriter http.ResponseWriter, reque
 				responseHeaders := []map[string]string{
 					{"WWW-Authenticate": "Basic"},
 				}
-				utils.WriteJSONError(respWriter, constants.ERROR_INVALID_CLIENT, "Invalid client credentials", http.StatusUnauthorized, responseHeaders)
+				utils.WriteJSONError(respWriter, constants.ERROR_INVALID_CLIENT,
+					"Invalid client credentials", http.StatusUnauthorized, responseHeaders)
 				return
 			}
-			utils.WriteJSONError(respWriter, constants.ERROR_INVALID_CLIENT, "Invalid client credentials", http.StatusUnauthorized, nil)
+			utils.WriteJSONError(respWriter, constants.ERROR_INVALID_CLIENT,
+				"Invalid client credentials", http.StatusUnauthorized, nil)
 			return
 		}
 	}
@@ -84,14 +92,23 @@ func (th *TokenHandler) HandleTokenRequest(respWriter http.ResponseWriter, reque
 	// Check for client credentials in the request body.
 	clientIdFromBody := request.FormValue(constants.CLIENT_ID)
 	clientSecretFromBody := request.FormValue(constants.CLIENT_SECRET)
+
 	if clientIdFromBody != "" && clientSecretFromBody != "" {
 		if clientId != "" && clientSecret != "" {
-			utils.WriteJSONError(respWriter, constants.ERROR_INVALID_REQUEST, "Authorization information is provided in both header and body", http.StatusBadRequest, nil)
+			utils.WriteJSONError(respWriter, constants.ERROR_INVALID_REQUEST,
+				"Authorization information is provided in both header and body", http.StatusBadRequest, nil)
 			return
 		}
 
 		clientId = clientIdFromBody
 		clientSecret = clientSecretFromBody
+	} else {
+		if clientId == "" {
+			clientId = clientIdFromBody
+		}
+		if clientSecret == "" {
+			clientSecret = clientSecretFromBody
+		}
 	}
 
 	// Construct the token request.
@@ -121,13 +138,15 @@ func (th *TokenHandler) HandleTokenRequest(respWriter http.ResponseWriter, reque
 
 	oauthApp, err := appService.GetOAuthApplication(clientId)
 	if err != nil || oauthApp == nil {
-		utils.WriteJSONError(respWriter, constants.ERROR_INVALID_CLIENT, "Invalid client credentials", http.StatusUnauthorized, nil)
+		utils.WriteJSONError(respWriter, constants.ERROR_INVALID_CLIENT,
+			"Invalid client credentials", http.StatusUnauthorized, nil)
 		return
 	}
 
 	// Validate grant type against the application.
-	if !apputils.IsAllowedGrantType(oauthApp, tokenRequest.GrantType) {
-		utils.WriteJSONError(respWriter, constants.ERROR_UNAUTHORIZED_CLIENT, "The authenticated client is not authorized to use this grant type", http.StatusUnauthorized, nil)
+	if !oauthApp.IsAllowedGrantType(tokenRequest.GrantType) {
+		utils.WriteJSONError(respWriter, constants.ERROR_UNAUTHORIZED_CLIENT,
+			"The authenticated client is not authorized to use this grant type", http.StatusUnauthorized, nil)
 		return
 	}
 
@@ -156,6 +175,22 @@ func (th *TokenHandler) HandleTokenRequest(respWriter http.ResponseWriter, reque
 	respWriter.Header().Set("Content-Type", "application/json")
 	respWriter.Header().Set("Cache-Control", "no-store")
 	respWriter.Header().Set("Pragma", "no-cache")
+
+	// Retrieve allowed origins from the server configuration.
+	allowedOrigins, err := server.GetAllowedOrigins()
+	if err != nil {
+		logger.Error("Failed to get allowed origins", log.Error(err))
+		http.Error(respWriter, "Something went wrong", http.StatusInternalServerError)
+	}
+
+	// Set the CORS headers if allowed origins are configured.
+	allowedOrigin := oauthutils.GetAllowedOrigin(allowedOrigins, tokenRequest.RedirectUri)
+	if allowedOrigin != "" {
+		respWriter.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+		respWriter.Header().Set("Access-Control-Allow-Credentials", "true")
+		respWriter.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		respWriter.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	}
 
 	// Write the token response.
 	respWriter.WriteHeader(http.StatusOK)

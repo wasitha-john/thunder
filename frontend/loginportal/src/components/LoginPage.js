@@ -31,7 +31,7 @@ const LoginPage = () => {
       <div style={styles.container}>
         <div style={styles.appLogo}>🔐</div>
         <h1 style={styles.heading}>Login to Application</h1>
-        <form method="POST" action="https://localhost:8090/commonauth" style={styles.form}>
+        <form method="POST" action="https://localhost:8090/flow/authn" style={styles.form}>
           <label htmlFor="username">Username:</label>
           <input type="text" id="username" name="username" placeholder="Enter username" required style={styles.input} />
           <label htmlFor="password">Password:</label>

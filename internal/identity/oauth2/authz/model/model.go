@@ -21,21 +21,27 @@ package model
 import (
 	"time"
 
-	oauthmodel "github.com/asgardeo/thunder/internal/identity/oauth2/model"
+	sessionmodel "github.com/asgardeo/thunder/internal/identity/session/model"
 )
 
-// TODO: Temporary adding the AuthenticatedUser struct here. Should be moved to a appropriate place.
-type AuthenticatedUser struct {
-	IsAuthenticated        bool
-	UserId                 string
-	Username               string
-	Domain                 string
-	AuthenticatedSubjectId string
-	Attributes             map[string]string
+// OAuthMessage represents the OAuth message.
+type OAuthMessage struct {
+	RequestType        string
+	SessionData        *sessionmodel.SessionData
+	RequestHeaders     map[string][]string
+	RequestQueryParams map[string]string
+	RequestBodyParams  map[string]string
 }
 
-type SessionData struct {
-	OAuthParameters oauthmodel.OAuthParameters
-	LoggedInUser    AuthenticatedUser
-	AuthTime        time.Time
+// AuthorizationCode represents the authorization code.
+type AuthorizationCode struct {
+	CodeId           string
+	Code             string
+	ClientId         string
+	RedirectUri      string
+	AuthorizedUserId string
+	TimeCreated      time.Time
+	ExpiryTime       time.Time
+	Scopes           string
+	State            string
 }

@@ -18,26 +18,41 @@
 
 package constants
 
-// OAuth2 constants.
+// OAuth2 request parameters.
 const (
-	GRANT_TYPE    = "grant_type"
-	CLIENT_ID     = "client_id"
-	CLIENT_SECRET = "client_secret"
-	REDIRECT_URI  = "redirect_uri"
-	USERNAME      = "username"
-	PASSWORD      = "password"
-	SCOPE         = "scope"
-	CODE          = "code"
-	CODE_VERIFIER = "code_verifier"
-	REFRESH_TOKEN = "refresh_token"
-	RESPONSE_TYPE = "response_type"
-	STATE         = "state"
+	GRANT_TYPE        = "grant_type"
+	CLIENT_ID         = "client_id"
+	CLIENT_SECRET     = "client_secret"
+	REDIRECT_URI      = "redirect_uri"
+	USERNAME          = "username"
+	PASSWORD          = "password"
+	SCOPE             = "scope"
+	CODE              = "code"
+	CODE_VERIFIER     = "code_verifier"
+	REFRESH_TOKEN     = "refresh_token"
+	RESPONSE_TYPE     = "response_type"
+	STATE             = "state"
+	ERROR             = "error"
+	ERROR_DESCRIPTION = "error_description"
 )
 
 // Server OAuth constants.
 const (
 	SESSION_DATA_KEY         = "sessionDataKey"
 	SESSION_DATA_KEY_CONSENT = "sessionDataKeyConsent"
+
+	OAUTH_ERROR_CODE    = "oauthErrorCode"
+	OAUTH_ERROR_MESSAGE = "oauthErrorMsg"
+
+	AUTH_ERROR_CODE    = "AuthErrorCode"
+	AUTH_ERROR_MESSAGE = "AuthErrorMsg"
+)
+
+// Oauth message types.
+const (
+	TYPE_INITIAL_AUTHORIZATION_REQUEST         = "initialAuthorizationRequest"
+	TYPE_AUTHORIZATION_RESPONSE_FROM_FRAMEWORK = "authorizationResponseFromFramework"
+	TYPE_CONSENT_RESPONSE_FROM_USER            = "consentResponseFromUser"
 )
 
 // OAuth2 endpoints.
@@ -80,4 +95,5 @@ const (
 	ERROR_INVALID_SCOPE             = "invalid_scope"
 	ERROR_SERVER_ERROR              = "server_error"
 	ERROR_UNSUPPORTED_RESPONSE_TYPE = "unsupported_response_type"
+	ERROR_ACCESS_DENIED             = "access_denied"
 )

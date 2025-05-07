@@ -18,8 +18,8 @@
 # ----------------------------------------------------------------------------
 
 # Validate required arguments
-if [ "$#" -ne 6 ]; then
-  echo "Usage: $0 <db_type> <db_hostname> <db_port> <db_name> <db_username> <db_password>"
+if [ "$#" -ne 7 ]; then
+  echo "Usage: $0 <db_type> <db_hostname> <db_port> <db_name> <db_username> <db_password> <type>"
   exit 1
 fi
 
@@ -29,13 +29,25 @@ DB_PORT=$3
 DB_NAME=$4
 DB_USERNAME=$5
 DB_PASSWORD=$6
+TYPE=$7
 
-# Execute the database schema script
+# Check if the type is provided
+if [ -z "$TYPE" ]; then
+  echo "Type is not provided. Please provide a valid type."
+  exit 1
+fi
+
+# Check if the type is valid
+if [ "$TYPE" != "thunderdb" ] && [ "$TYPE" != "runtimedb" ]; then
+  echo "Invalid type provided. Please provide either 'thunderdb' or 'runtimedb'."
+  exit 1
+fi
+
 echo "Initializing the database..."
 
 case "$DB_TYPE" in
   postgres)
-    SCHEMA_FILE="./dbscripts/postgresql.sql"
+    SCHEMA_FILE="./dbscripts/$TYPE/postgresql.sql"
     if [ ! -f "$SCHEMA_FILE" ]; then
       echo "Database schema file not found: $SCHEMA_FILE"
       exit 1
@@ -44,7 +56,7 @@ case "$DB_TYPE" in
     PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOSTNAME" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" -f "$SCHEMA_FILE"
     ;;
   sqlite)
-    SCHEMA_FILE="dbscripts/sqlite.sql"
+    SCHEMA_FILE="dbscripts/$TYPE/sqlite.sql"
     if [ ! -f "$SCHEMA_FILE" ]; then
       echo "Database schema file not found: $SCHEMA_FILE"
       exit 1
