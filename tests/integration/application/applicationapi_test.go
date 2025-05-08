@@ -38,8 +38,8 @@ var (
 		Name:                "Test SPA",
 		Description:         "Initial testing App",
 		ClientID:            "client123",
-		CallbackURL:         []string{"http://example.com/callback"},
-		SupportedGrantTypes: []string{"client_credentials"},
+		CallbackURL:         []string{"https://localhost:3000"},
+		SupportedGrantTypes: []string{"client_credentials", "authorization_code"},
 	}
 
 	appToCreate = Application{

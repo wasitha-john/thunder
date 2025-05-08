@@ -1,9 +1,9 @@
 -- Table to store basic service provider (app) details.
 CREATE TABLE SP_APP (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    APP_NAME VARCHAR(255) NOT NULL,
     APP_ID VARCHAR(36) UNIQUE NOT NULL,
-    VERSION VARCHAR(50) NOT NULL
+    APP_NAME VARCHAR(255) NOT NULL,
+    DESCRIPTION VARCHAR(50) NOT NULL
 );
 
 -- Table to store OAuth configurations for SP apps.
@@ -72,7 +72,7 @@ CREATE TABLE AUTHORIZED_SCOPE (
 );
 
 -- Insert sample data into the tables.
-INSERT INTO SP_APP (APP_NAME, APP_ID, VERSION) VALUES ('Test SPA', '550e8400-e29b-41d4-a716-446655440000', '1.0');
+INSERT INTO SP_APP (APP_NAME, APP_ID, DESCRIPTION) VALUES ('Test SPA', '550e8400-e29b-41d4-a716-446655440000', 'Initial testing App');
 
 INSERT INTO IDN_OAUTH_CONSUMER_APPS (CONSUMER_KEY, CONSUMER_SECRET, APP_ID, CALLBACK_URIS, GRANT_TYPES)
 VALUES ('client123', 'secret123', '550e8400-e29b-41d4-a716-446655440000', 'https://localhost:3000', 'client_credentials,authorization_code');
