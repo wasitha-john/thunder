@@ -8,7 +8,7 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 
 ---
 
-## 🚀 Features
+## 🚀 Features (WIP)
 
 - ✅ **Standards-Based**
   - OAuth 2.1, OpenID Connect (OIDC)
