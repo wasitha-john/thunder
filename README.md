@@ -86,7 +86,7 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 - Copy the authorization code and exchange it for an access token using the following cURL command:
 
   ```bash
-  curl --location 'https://localhost:8090/oauth2/token' \
+  curl -k --location 'https://localhost:8090/oauth2/token' \
   --header 'Content-Type: application/x-www-form-urlencoded' \
   --header 'Authorization: Basic Y2xpZW50MTIzOnNlY3JldDEyMw==' \
   --data-urlencode 'grant_type=authorization_code' \
