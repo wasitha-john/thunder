@@ -32,26 +32,15 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 
 ---
 
-### 🛠 Step 1: Build the Product
+### 🛠 Step 1: Build and Run the Product
 
 ```bash
-make all
+make run
 ```
 
 ---
 
-### ▶️ Step 2: Run the Product
-
-```bash
-cd target
-unzip thunder-1.0.0-m1-SNAPSHOT.zip
-cd thunder-1.0.0-m1-SNAPSHOT
-./thunder
-```
-
----
-
-### 🔑 Step 3: Try Out the Product
+### 🔑 Step 2: Try Out the Product
 
 #### 1️⃣ Try Out Client Credentials Flow
 
