@@ -63,18 +63,10 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 
 - Enter the following credentials:
 
-  - **Username:** `thunder`
-  - **Password:** `thunder`
+  - **Username:** `thor`
+  - **Password:** `thor123`
 
     **Note:** The credentials can be configured in the `repository/conf/deployment.yaml` file under the `user_store` section.
-
-      Example:
-      ```yaml
-      user_store:
-        default_user:
-          username: "thor"
-          password: "thor123"
-      ```
 
 - After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
 
