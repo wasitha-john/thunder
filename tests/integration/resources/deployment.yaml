@@ -14,8 +14,7 @@ database:
     type: "sqlite"
     path: "repository/database/runtimedb.db"
 
-
-oauth:
-  auth_credentials:
-    username: "thunder"
-    password: "thunder"
+user_store:
+  default_user:
+    username: "thor"
+    password: "thor123"
