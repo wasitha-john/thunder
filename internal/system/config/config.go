@@ -50,20 +50,20 @@ type DatabaseConfig struct {
 	Runtime  DataSource `yaml:"runtime"`
 }
 
-type AuthCredentials struct {
+type DefaultUser struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 }
 
-type OAuthConfig struct {
-	AuthCredentials AuthCredentials `yaml:"auth_credentials"`
+type UserStore struct {
+	DefaultUser DefaultUser `yaml:"default_user"`
 }
 
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Security SecurityConfig `yaml:"security"`
-	Database DatabaseConfig `yaml:"database"`
-	OAuth    OAuthConfig    `yaml:"oauth"`
+	Server    ServerConfig   `yaml:"server"`
+	Security  SecurityConfig `yaml:"security"`
+	Database  DatabaseConfig `yaml:"database"`
+	UserStore UserStore      `yaml:"user_store"`
 }
 
 // LoadConfig loads the configurations from the specified YAML file.

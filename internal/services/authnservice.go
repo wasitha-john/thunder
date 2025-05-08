@@ -66,8 +66,8 @@ func (s *AuthenticationService) HandleAuthenticationRequest(w http.ResponseWrite
 
 	// Read the valid username and password from the configuration.
 	config := config.GetThunderRuntime().Config
-	validUsername := config.OAuth.AuthCredentials.Username
-	validPassword := config.OAuth.AuthCredentials.Password
+	validUsername := config.UserStore.DefaultUser.Username
+	validPassword := config.UserStore.DefaultUser.Password
 
 	// Create a new session data object.
 	newSessionDataKey := oauthutils.GenerateNewSessionDataKey()
