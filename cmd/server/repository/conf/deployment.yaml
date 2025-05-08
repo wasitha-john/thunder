@@ -8,23 +8,13 @@ security:
 
 database:
   identity:
-    type: "postgres"
-    hostname: "localhost"
-    port: 5432
-    name: "thunderdb"
-    username: "asgthunder"
-    password: "asgthunder"
-    sslmode: "disable"
+    type: "sqlite"
+    path: "repository/database/thunderdb.db"
   runtime:
-    type: "postgres"
-    hostname: "localhost"
-    port: 5432
-    name: "runtimedb"
-    username: "asgthunder"
-    password: "asgthunder"
-    sslmode: "disable"
+    type: "sqlite"
+    path: "repository/database/runtimedb.db"
 
 oauth:
-  flow_authn:
+  auth_credentials:
     username: "thunder"
     password: "thunder"

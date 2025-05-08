@@ -16,6 +16,6 @@ database:
 
 
 oauth:
-  flow_authn:
+  auth_credentials:
     username: "thunder"
     password: "thunder"

@@ -26,48 +26,13 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 ### ✅ Prerequisites
 
 - Go 1.23+
-- Docker
 - cURL
 - Node.js 14+
 - React 19+
 
 ---
 
-### 🔧 Step 1: Start PostgreSQL
-
-- Create a Docker container for PostgreSQL with `thunderdb` database.
-
-  ```bash
-  docker run -d -p 5432:5432 --name postgres \
-    -e POSTGRES_USER=asgthunder \
-    -e POSTGRES_PASSWORD=asgthunder \
-    -e POSTGRES_DB=thunderdb \
-    postgres
-  ```
-
-- Create the `runtimedb` in the same PostgreSQL container.
-
-  ```bash
-  docker exec -it postgres psql -U asgthunder -d thunderdb -c "CREATE DATABASE runtimedb;"
-  ```
-
-### 🗂 Step 2: Initialize the Database
-
-- Populate the `thunderdb` database with the required tables and data.
-
-  ```bash
-  docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/thunderdb/postgress.sql
-  ```
-
-- Populate the `runtimedb` database with the required tables and data.
-
-  ```bash
-  docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/runtimedb/postgress.sql
-  ```
-
----
-
-### 🛠 Step 3: Build the Product
+### 🛠 Step 1: Build the Product
 
 ```bash
 make all
@@ -75,7 +40,7 @@ make all
 
 ---
 
-### ▶️ Step 4: Run the Product
+### ▶️ Step 2: Run the Product
 
 ```bash
 cd target
@@ -86,7 +51,9 @@ cd thunder-1.0.0-m1-SNAPSHOT
 
 ---
 
-### 🔑 Step 5: Try Out Client Credentials Flow
+### 🔑 Step 3: Try Out the Product
+
+#### 1️⃣ Try Out Client Credentials Flow
 
 ```bash
 curl -k -X POST https://localhost:8090/oauth2/token \
@@ -97,13 +64,57 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 - **Client ID:** `client123`
 - **Client Secret:** `secret123`
 
+#### 2️⃣ Try Out Authorization Code Flow
+
+- Open the following URL in your browser:
+
+  ```bash
+  https://localhost:8090/oauth2/authorize?response_type=code&client_id=client123&redirect_uri=https://localhost:3000&scope=openid&state=state_1
+  ```
+
+- Enter the following credentials:
+
+  - **Username:** `thunder`
+  - **Password:** `thunder`
+
+    **Note:** The credentials can be configured in the `repository/conf/deployment.yaml` file under the `oauth.auth_credentials` section.
+
+      Example:
+      ```yaml
+      oauth:
+        auth_credentials:
+          username: "thunder"
+          password: "thunder"
+      ```
+
+- After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
+
+  ```bash
+
+  https://localhost:3000/?code=<code>&state=state_1
+  ```
+
+- Copy the authorization code and exchange it for an access token using the following cURL command:
+
+  ```bash
+  curl --location 'https://localhost:8090/oauth2/token' \
+  --header 'Content-Type: application/x-www-form-urlencoded' \
+  --header 'Authorization: Basic Y2xpZW50MTIzOnNlY3JldDEyMw==' \
+  --data-urlencode 'grant_type=authorization_code' \
+  --data-urlencode 'redirect_uri=https://localhost:3000' \
+  --data-urlencode 'code=<code>'
+  ```
+
+  - **Client ID:** `client123`
+  - **Client Secret:** `secret123`
+
 ---
 
 ## 🧪 Running Integration Tests
 
 Building the product with `make all` will run the integration tests by default. However if you want to run the tests manually, follow the steps below.
 
-### 1️⃣ Build the Project
+### 1️⃣ Build the Product
 
 ```bash
 make clean build
@@ -118,24 +129,6 @@ make test
 ---
 
 ## Running Development Environment
-
-### 🔧 Step 1: Start PostgreSQL
-
-```bash
-docker run -d -p 5432:5432 --name postgres \
-  -e POSTGRES_USER=asgthunder \
-  -e POSTGRES_PASSWORD=asgthunder \
-  -e POSTGRES_DB=thunderdb \
-  postgres
-```
-
-### 🗂 Step 2: Initialize the Database
-
-```bash
-docker exec -i postgres psql -U asgthunder -d thunderdb < dbscripts/thunderdb/postgress.sql
-```
-
-### 🛠 Step 3: Run the Product
 
 ```bash
 make run

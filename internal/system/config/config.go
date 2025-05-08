@@ -50,13 +50,13 @@ type DatabaseConfig struct {
 	Runtime  DataSource `yaml:"runtime"`
 }
 
-type FlowAuthn struct {
+type AuthCredentials struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 }
 
 type OAuthConfig struct {
-	FlowAuthn FlowAuthn `yaml:"flow_authn"`
+	AuthCredentials AuthCredentials `yaml:"auth_credentials"`
 }
 
 type Config struct {
