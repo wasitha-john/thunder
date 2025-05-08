@@ -21,12 +21,12 @@ package service
 import (
 	"errors"
 	"github.com/asgardeo/thunder/internal/application/store"
+	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
+	"github.com/asgardeo/thunder/internal/utils"
 	"github.com/google/uuid"
 
 	"github.com/asgardeo/thunder/internal/application/model"
-	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/internal/utils"
 )
 
 // ApplicationServiceInterface defines the interface for the application service.

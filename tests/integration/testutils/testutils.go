@@ -29,15 +29,14 @@ import (
 )
 
 const (
-	TargetDir                   = "./target"
+	TargetDir                   = "../../target"
 	ZipFilePattern              = "thunder-*.zip"
-	ExtractedDir                = "./target/.test"
+	ExtractedDir                = "../../target/.test"
 	ServerBinary                = "thunder"
-	TestDeploymentYamlPath      = "./tests/integration/resources/deployment.yaml"
-	TestDatabaseSchemaDirectory = "./tests/integration/resources/dbscripts"
+	TestDeploymentYamlPath      = "./resources/deployment.yaml"
+	TestDatabaseSchemaDirectory = "resources/dbscripts"
 	InitScriptPath              = "./scripts/init_script.sh"
 	DatabaseFileBasePath        = "repository/database/"
-	DatabaseSchemaFile          = "dbscripts/thunderdb/sqlite.sql"
 )
 
 func UnzipProduct() error {
@@ -116,6 +115,13 @@ func getExtractedProductHome() (string, error) {
 
 func ReplaceResources() error {
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Printf("Error getting current directory: %v", err)
+	} else {
+		log.Printf("Current working directory: %s", cwd)
+	}
+
 	productHome, err := getExtractedProductHome()
 	if err != nil {
 		return err
@@ -193,6 +199,13 @@ func copyDirectory(src, dest string) error {
 }
 
 func RunInitScript() error {
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Printf("Error getting current directory: %v", err)
+	} else {
+		log.Printf("Current working directory: %s", cwd)
+	}
 
 	productHome, err := getExtractedProductHome()
 	if err != nil {

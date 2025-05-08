@@ -1,12 +1,20 @@
 # Constants.
 VERSION_FILE=version.txt
 BINARY_NAME=thunder
-REPOSITORY_DIR=cmd/server/repository
+
+BACKEND_BASE_DIR := backend
+REPOSITORY_DIR=$(BACKEND_BASE_DIR)/cmd/server/repository
+
 OUTPUT_DIR=target
 BUILD_DIR=$(OUTPUT_DIR)/.build
 
 FRONTEND_DIR := frontend/loginportal
-BACKEND_DIR := cmd/server
+BACKEND_DIR := $(BACKEND_BASE_DIR)/cmd/server
+
+SERVER_SCRIPTS_DIR=$(BACKEND_BASE_DIR)/scripts
+SERVER_DB_SCRIPTS_DIR=$(BACKEND_BASE_DIR)/dbscripts
+
+
 
 # Variable constants.
 VERSION=$(shell cat $(VERSION_FILE))
@@ -26,7 +34,7 @@ build: _build _build-frontend _package
 # Build the Go project.
 _build:
 	mkdir -p $(BUILD_DIR) && \
-	go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/server
+	go build -C $(BACKEND_BASE_DIR) -o ../$(BUILD_DIR)/$(BINARY_NAME) ./cmd/server
 
 _build-frontend:
 	@echo "Building frontend..."
@@ -39,8 +47,8 @@ _package:
 	cp $(BUILD_DIR)/$(BINARY_NAME) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
 	cp -r $(REPOSITORY_DIR) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
 	cp $(VERSION_FILE) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
-	cp -r scripts $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
-	cp -r dbscripts $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
+	cp -r $(SERVER_SCRIPTS_DIR) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
+	cp -r $(SERVER_DB_SCRIPTS_DIR) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
 	cp -r $(FRONTEND_DIR)/build $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/dist/ && \
 	cd $(OUTPUT_DIR) && zip -r $(PRODUCT_FOLDER).zip $(PRODUCT_FOLDER) && \
 	rm -rf $(PRODUCT_FOLDER) && \
@@ -52,7 +60,7 @@ test: _integration-test
 # Run integration tests.
 _integration-test:
 	@echo "Running integration tests..."
-	@go run ./tests/integration/run_tests.go
+	@go run -C ./tests/integration ./main.go
 
 run: _build-frontend
 	@echo "Removing old build artifacts..."

@@ -38,7 +38,11 @@ jobs:
             ${{ runner.os }}-go-modules-
 
       - name: Install dependencies
-        run: go mod download
+        run: |
+          cd backend
+          go mod download
+          cd ../tests/integration
+          go mod download
 
       - name: Build and test
         run: make all
