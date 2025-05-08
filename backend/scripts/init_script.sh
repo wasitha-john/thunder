@@ -47,7 +47,7 @@ echo "Initializing the database..."
 
 case "$DB_TYPE" in
   postgres)
-    SCHEMA_FILE="./dbscripts/$TYPE/postgresql.sql"
+    SCHEMA_FILE="../../backend/dbscripts/$TYPE/postgresql.sql"
     if [ ! -f "$SCHEMA_FILE" ]; then
       echo "Database schema file not found: $SCHEMA_FILE"
       exit 1
@@ -56,7 +56,7 @@ case "$DB_TYPE" in
     PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOSTNAME" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" -f "$SCHEMA_FILE"
     ;;
   sqlite)
-    SCHEMA_FILE="dbscripts/$TYPE/sqlite.sql"
+    SCHEMA_FILE="../../backend/dbscripts/$TYPE/sqlite.sql"
     if [ ! -f "$SCHEMA_FILE" ]; then
       echo "Database schema file not found: $SCHEMA_FILE"
       exit 1
