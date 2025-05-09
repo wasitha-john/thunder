@@ -22,13 +22,13 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"github.com/asgardeo/thunder/internal/system/cert"
+	"github.com/asgardeo/thunder/internal/system/managers"
 	"net/http"
 	"os"
 	"path"
 
-	"github.com/asgardeo/thunder/internal/cert"
-	"github.com/asgardeo/thunder/internal/identity/jwt"
-	"github.com/asgardeo/thunder/internal/managers"
+	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
 )

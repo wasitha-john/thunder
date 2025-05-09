@@ -22,7 +22,7 @@ import (
 	"errors"
 	"github.com/asgardeo/thunder/internal/application/store"
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
-	"github.com/asgardeo/thunder/internal/utils"
+	"github.com/asgardeo/thunder/internal/system/utils"
 	"github.com/google/uuid"
 
 	"github.com/asgardeo/thunder/internal/application/model"

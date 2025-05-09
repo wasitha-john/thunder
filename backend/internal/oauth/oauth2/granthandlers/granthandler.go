@@ -20,7 +20,7 @@ package granthandlers
 
 import (
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/model"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
 // GrantHandler defines the interface for handling OAuth 2.0 grants.

@@ -21,7 +21,7 @@ package model
 import (
 	"time"
 
-	sessionmodel "github.com/asgardeo/thunder/internal/identity/session/model"
+	sessionmodel "github.com/asgardeo/thunder/internal/oauth/session/model"
 )
 
 // OAuthMessage represents the OAuth message.

@@ -22,8 +22,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/asgardeo/thunder/internal/identity/oauth2/authz/constants"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/authz/model"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/constants"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
 	"github.com/google/uuid"
 )
 

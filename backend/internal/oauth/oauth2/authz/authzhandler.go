@@ -19,20 +19,19 @@
 package authz
 
 import (
+	"github.com/asgardeo/thunder/internal/system/utils"
 	"net/http"
 	"time"
 
 	appprovider "github.com/asgardeo/thunder/internal/application/provider"
-	authzmodel "github.com/asgardeo/thunder/internal/identity/oauth2/authz/model"
-	authzutils "github.com/asgardeo/thunder/internal/identity/oauth2/authz/utils"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/constants"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/model"
-	oauthutils "github.com/asgardeo/thunder/internal/identity/oauth2/utils"
+	authzmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
+	authzutils "github.com/asgardeo/thunder/internal/oauth/oauth2/authz/utils"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
+	oauthutils "github.com/asgardeo/thunder/internal/oauth/oauth2/utils"
+	sessionmodel "github.com/asgardeo/thunder/internal/oauth/session/model"
+	sessionstore "github.com/asgardeo/thunder/internal/oauth/session/store"
 	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/internal/utils"
-
-	sessionmodel "github.com/asgardeo/thunder/internal/identity/session/model"
-	sessionstore "github.com/asgardeo/thunder/internal/identity/session/store"
 )
 
 type AuthorizeHandler struct {

@@ -20,44 +20,46 @@ package granthandlers
 
 import (
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
-	"github.com/asgardeo/thunder/internal/identity/jwt"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/authz"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/constants"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/model"
+	"github.com/asgardeo/thunder/internal/oauth/jwt"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
-// AuthorizationCodeGrantHandler handles the authorization code grant type.
-type AuthorizationCodeGrantHandler struct{}
+type ClientCredentialsGrantHandler struct{}
 
-// ValidateGrant validates the authorization code grant request.
-func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest) *model.ErrorResponse {
+// ValidateGrant validates the client credentials grant type.
+func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest) *model.ErrorResponse {
+
+	// Validate the grant type.
+	if tokenRequest.GrantType != constants.GRANT_TYPE_CLIENT_CREDENTIALS {
+		return &model.ErrorResponse{
+			Error:            constants.ERROR_UNSUPPORTED_GRANT_TYPE,
+			ErrorDescription: "Unsupported grant type",
+		}
+	}
+
+	// Validate the client ID and secret.
+	if tokenRequest.ClientId == "" || tokenRequest.ClientSecret == "" {
+		return &model.ErrorResponse{
+			Error:            constants.ERROR_INVALID_REQUEST,
+			ErrorDescription: "Client Id and secret are required",
+		}
+	}
 
 	return nil
 }
 
-// HandleGrant processes the authorization code grant request and generates a token response.
-func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
+// HandleGrant handles the client credentials grant type.
+func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthApplication) (*model.TokenResponse, *model.ErrorResponse) {
 
-	// TODO: Validate error responses according to spec.
-
-	// Validate the authorization code.
-	if tokenRequest.Code == "" {
+	// Validate the client credentials (hardcoded for now).
+	if tokenRequest.ClientId != oauthApp.ClientId || tokenRequest.ClientSecret != oauthApp.ClientSecret {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ERROR_INVALID_CLIENT,
-			ErrorDescription: "Authorization code is required",
+			ErrorDescription: "Invalid client credentials",
 		}
 	}
-
-	authCode, err := authz.GetAuthorizationCode(tokenRequest.ClientId, tokenRequest.Code)
-	if err != nil || authCode.Code == "" {
-		return nil, &model.ErrorResponse{
-			Error:            constants.ERROR_INVALID_GRANT,
-			ErrorDescription: "Invalid authorization code",
-		}
-	}
-
-	// TODO: Validate auth code params.
 
 	// Generate a JWT token for the client.
 	token, err := jwt.GenerateJWT(tokenRequest.ClientId)
