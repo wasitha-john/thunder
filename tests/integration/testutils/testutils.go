@@ -215,7 +215,8 @@ func RunInitScript() error {
 	initScript := filepath.Join(productHome, InitScriptPath)
 
 	thunderDbPath := filepath.Join(productHome, DatabaseFileBasePath, "thunderdb.db")
-	cmd := exec.Command("bash", initScript, "sqlite", "", "", thunderDbPath, "", "", "thunderdb")
+	cmd := exec.Command("bash", initScript, "-db", "thunderdb", "-type", "sqlite", "-name", thunderDbPath, "-recreate")
+
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
@@ -224,7 +225,8 @@ func RunInitScript() error {
 	}
 
 	runtimeDbPath := filepath.Join(productHome, DatabaseFileBasePath, "runtimedb.db")
-	cmd = exec.Command("bash", initScript, "sqlite", "", "", runtimeDbPath, "", "", "runtimedb")
+	cmd = exec.Command("bash", initScript, "-db", "runtimedb", "-type", "sqlite", "-name", runtimeDbPath, "-recreate")
+
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
