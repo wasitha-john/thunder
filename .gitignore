@@ -38,4 +38,4 @@ target/
 *.tgz
 
 # Frontend build artifacts
-cmd/server/dist/
+backend/cmd/server/dist/

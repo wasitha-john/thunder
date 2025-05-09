@@ -36,6 +36,7 @@ const (
 	TestDeploymentYamlPath      = "./resources/deployment.yaml"
 	TestDatabaseSchemaDirectory = "resources/dbscripts"
 	InitScriptPath              = "./scripts/init_script.sh"
+	DBScriptPath                = "./scripts/setup_db.sh"
 	DatabaseFileBasePath        = "repository/database/"
 )
 
@@ -114,6 +115,8 @@ func getExtractedProductHome() (string, error) {
 }
 
 func ReplaceResources() error {
+
+	log.Println("Replacing resources...")
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -200,6 +203,8 @@ func copyDirectory(src, dest string) error {
 
 func RunInitScript() error {
 
+	log.Println("Running init script...")
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		log.Printf("Error getting current directory: %v", err)
@@ -212,11 +217,14 @@ func RunInitScript() error {
 		return err
 	}
 
+	// Create databases.
 	initScript := filepath.Join(productHome, InitScriptPath)
 
+	// Create the thunderdb database.
+	thunderDBSchemaPath := filepath.Join(productHome, "dbscripts/thunderdb", "sqlite.sql")
 	thunderDbPath := filepath.Join(productHome, DatabaseFileBasePath, "thunderdb.db")
-	cmd := exec.Command("bash", initScript, "-db", "thunderdb", "-type", "sqlite", "-name", thunderDbPath, "-recreate")
-
+	cmd := exec.Command("bash", initScript, "-recreate", "-type", "sqlite", "-schema", thunderDBSchemaPath,
+		"-path", thunderDbPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
@@ -224,9 +232,11 @@ func RunInitScript() error {
 		return fmt.Errorf("failed to run init script for thunderdb: %v", err)
 	}
 
+	// Create the runtimedb database.
+	runtimeDBSchemaPath := filepath.Join(productHome, "dbscripts/runtimedb", "sqlite.sql")
 	runtimeDbPath := filepath.Join(productHome, DatabaseFileBasePath, "runtimedb.db")
-	cmd = exec.Command("bash", initScript, "-db", "runtimedb", "-type", "sqlite", "-name", runtimeDbPath, "-recreate")
-
+	cmd = exec.Command("bash", initScript, "-recreate", "-type", "sqlite", "-schema", runtimeDBSchemaPath,
+		"-path", runtimeDbPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()

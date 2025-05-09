@@ -17,118 +17,153 @@
 # under the License.
 # ----------------------------------------------------------------------------
 
-# Initialize variables
-DB=""
+# Script common variables.
 TYPE=""
+SCHEMA_FILE_PATH=""
+RECREATE="false"
+
+# Database connection details.
 HOST=""
 PORT=""
 NAME=""
+DB_PATH=""
 USERNAME=""
 PASSWORD=""
-RECREATE="false"
 
-# Parse named arguments
-while [[ "$#" -gt 0 ]]; do
-  case "$1" in
-    -db) DB="$2"; shift 2;;
-    -type) TYPE="$2"; shift 2;;
-    -host) HOST="$2"; shift 2;;
-    -port) PORT="$2"; shift 2;;
-    -name) NAME="$2"; shift 2;;
-    -username) USERNAME="$2"; shift 2;;
-    -password) PASSWORD="$2"; shift 2;;
-    -recreate) RECREATE="true"; shift;;
-    *) echo "Unknown parameter passed: $1"; exit 1;;
-  esac
-done
+print_help() {
+  echo ""
+  echo "Usage:"
+  echo "  $0 [OPTIONS]"
+  echo ""
+  echo "Options:"
+  printf "  %-12s %s\n" "-type" "Type of the database (e.g., postgres, sqlite) [required]"
+  printf "  %-12s %s\n" "-schema" "Path to the database schema file [required]"
+  printf "  %-12s %s\n" "-recreate" "Flag to recreate the database (no value needed)"
+  printf "  %-12s %s\n" "-host" "Database host (required for postgres)"
+  printf "  %-12s %s\n" "-port" "Database port (required for postgres)"
+  printf "  %-12s %s\n" "-name" "Database name [required]"
+  printf "  %-12s %s\n" "-path" "Path to the SQLite database file (required for sqlite)"
+  printf "  %-12s %s\n" "-username" "Database username (required for postgres)"
+  printf "  %-12s %s\n" "-password" "Database password (required for postgres)"
+  printf "  %-12s %s\n" "-h, --help" "Show this help message and exit"
+  echo ""
+}
 
-# Validate required arguments
-if [ -z "$DB" ] || [ -z "$TYPE" ] || [ -z "$NAME" ]; then
-  echo "Usage: $0 -db <db> -type <type> -name <name> [-host <host> -port <port> -username <username> -password <password> (required for postgres)]"
-  exit 1
-fi
+parse_args() {
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -type) TYPE="$2"; shift 2;;
+      -schema) SCHEMA_FILE_PATH="$2"; shift 2;;
+      -recreate) RECREATE="true"; shift;;
+      -host) HOST="$2"; shift 2;;
+      -port) PORT="$2"; shift 2;;
+      -name) NAME="$2"; shift 2;;
+      -path) DB_PATH="$2"; shift 2;;
+      -username) USERNAME="$2"; shift 2;;
+      -password) PASSWORD="$2"; shift 2;;
+      -h|--help) print_help; exit 0;;
+      *) echo "Unknown parameter passed: $1"; exit 1;;
+    esac
+  done
+}
 
-if [ "$TYPE" = "postgres" ]; then
-  if [ -z "$HOST" ] || [ -z "$PORT" ] || [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
-    echo "For postgres, -host, -port, -username, and -password are required."
+validate_inputs() {
+  if [ -z "$SCHEMA_FILE_PATH" ]; then
+    echo "Schema file path is required. Please provide it using -schema."
+    echo "Use -h or --help for usage information."
     exit 1
   fi
-fi
 
-# Check if the type is provided
-if [ -z "$DB" ]; then
-  echo "DB is not provided. Please provide a valid db type."
-  exit 1
-fi
+  if [ ! -f "$SCHEMA_FILE_PATH" ]; then
+    echo "Schema file not found: $SCHEMA_FILE_PATH"
+    exit 1
+  fi
 
-# Check if the type is valid
-if [ "$DB" != "thunderdb" ] && [ "$DB" != "runtimedb" ]; then
-  echo "Invalid DB type provided. Please provide either 'thunderdb' or 'runtimedb'."
-  exit 1
-fi
+  if [ -z "$TYPE" ]; then
+    echo "Database type is required. Please provide it using -type."
+    echo "Use -h or --help for usage information."
+    exit 1
+  fi
 
-echo "Initializing the database..."
-
-case "$TYPE" in
-  postgres)
-    SCHEMA_FILE="../../backend/dbscripts/$DB/postgresql.sql"
-    if [ ! -f "$SCHEMA_FILE" ]; then
-      echo "Database schema file not found: $SCHEMA_FILE"
+  if [ "$TYPE" = "postgres" ]; then
+    if [ -z "$HOST" ] || [ -z "$PORT" ] || [ -z "$NAME" ] || [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+      echo "PostgreSQL connection details are required. Please provide -host, -port, -name, -username, and -password."
+    echo "Use -h or --help for usage information."
       exit 1
     fi
-
-    if [ "$RECREATE" = "true" ]; then
-      echo "Dropping existing database..."
-      PGPASSWORD="$PASSWORD" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -c "DROP DATABASE IF EXISTS $NAME;"
-      if [ $? -ne 0 ]; then
-        echo "Failed to drop existing database."
-        exit 1
-      fi
-      echo "Creating new database..."
-      PGPASSWORD="$PASSWORD" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -c "CREATE DATABASE $NAME;"
-      if [ $? -ne 0 ]; then
-        echo "Failed to create new database."
-        exit 1
-      fi
-    fi
-
-    PGPASSWORD="$PASSWORD" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d "$NAME" -f "$SCHEMA_FILE"
-    ;;
-  sqlite)
-    SCHEMA_FILE="../../backend/dbscripts/$DB/sqlite.sql"
-    if [ ! -f "$SCHEMA_FILE" ]; then
-      echo "Database schema file not found: $SCHEMA_FILE"
+  elif [ "$TYPE" = "sqlite" ]; then
+    if [ -z "$DB_PATH" ]; then
+      echo "SQLite database path is required. Please provide it using -path."
+    echo "Use -h or --help for usage information."
       exit 1
     fi
-
-    # Ensure the directory for the database file exists
-    DB_DIR=$(dirname "$NAME")
-    if [ ! -d "$DB_DIR" ]; then
-      echo "Database directory not found. Creating directory: $DB_DIR"
-      mkdir -p "$DB_DIR"
-    fi
-
-    if [ "$RECREATE" = "true" ] && [ -f "$NAME" ]; then
-      echo "Removing existing SQLite database file..."
-      rm -f "$NAME"
-    fi
-
-    if [ ! -f "$NAME" ]; then
-      echo "Creating and initializing the database..."
-      sqlite3 "$NAME" < "$SCHEMA_FILE"
-    else
-      echo "Database file already exists. Skipping initialization."
-    fi
-    ;;
-  *)
+  else
     echo "Unsupported database type: $TYPE"
     exit 1
-    ;;
-esac
+  fi
+}
 
-if [ $? -eq 0 ]; then
-  echo "Database initialization completed successfully."
-else
-  echo "Database initialization failed."
-  exit 1
-fi
+init_postgres() {
+  if [ "$RECREATE" = "true" ]; then
+    echo "Dropping existing database..."
+    PGPASSWORD="$PASSWORD" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d postgres -c "DROP DATABASE IF EXISTS $NAME;"
+    [ $? -ne 0 ] && echo "Failed to drop database." && exit 1
+
+    echo "Creating database..."
+    PGPASSWORD="$PASSWORD" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d postgres -c "CREATE DATABASE $NAME;"
+    [ $? -ne 0 ] && echo "Failed to create database." && exit 1
+  else
+    echo "Checking if database exists..."
+    DB_EXISTS=$(PGPASSWORD="$PASSWORD" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname = '$NAME';" 2>/dev/null)
+
+    if [ "$DB_EXISTS" != "1" ]; then
+      echo "Database $NAME does not exist. Creating it..."
+      PGPASSWORD="$PASSWORD" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d postgres -c "CREATE DATABASE $NAME;"
+      [ $? -ne 0 ] && echo "Failed to create database." && exit 1
+    else
+      echo "Database $NAME already exists. Skipping creation."
+    fi
+  fi
+
+  echo "Running schema on PostgreSQL..."
+  PGPASSWORD="$PASSWORD" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d "$NAME" -f "$SCHEMA_FILE_PATH"
+  [ $? -ne 0 ] && echo "Failed to run schema on PostgreSQL." && exit 1
+}
+
+init_sqlite() {
+  DB_DIR=$(dirname "$DB_PATH")
+  [ ! -d "$DB_DIR" ] && echo "Creating database directory: $DB_DIR" && mkdir -p "$DB_DIR"
+
+  if [ "$RECREATE" = "true" ] && [ -f "$DB_PATH" ]; then
+    echo "Removing existing SQLite database file..."
+    rm -f "$DB_PATH" || { echo "Failed to remove existing database."; exit 1; }
+  fi
+
+  if [ ! -f "$DB_PATH" ]; then
+    echo "Creating and initializing SQLite database..."
+    sqlite3 "$DB_PATH" < "$SCHEMA_FILE_PATH"
+  else
+    echo "SQLite database already exists. Skipping initialization."
+  fi
+}
+
+init_database() {
+  echo "Initializing the database..."
+  case "$TYPE" in
+    postgres) init_postgres;;
+    sqlite) init_sqlite;;
+    *) echo "Unsupported database type: $TYPE"; exit 1;;
+  esac
+}
+
+main() {
+  echo "Running database init script..."
+  echo ""
+  parse_args "$@"
+  validate_inputs
+  init_database
+  echo ""
+  echo "Database setup script completed."
+}
+
+main "$@"
