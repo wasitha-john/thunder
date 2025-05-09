@@ -41,7 +41,7 @@ func (s *ApplicationService) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("POST /applications", s.applicationHandler.HandleApplicationPostRequest)
 	mux.HandleFunc("GET /applications", s.applicationHandler.HandleApplicationListRequest)
-	mux.HandleFunc("GET /application/", s.applicationHandler.HandleApplicationGetRequest)
-	mux.HandleFunc("PUT /application/", s.applicationHandler.HandleApplicationPutRequest)
-	mux.HandleFunc("DELETE /application/", s.applicationHandler.HandleApplicationDeleteRequest)
+	mux.HandleFunc("GET /applications/", s.applicationHandler.HandleApplicationGetRequest)
+	mux.HandleFunc("PUT /applications/", s.applicationHandler.HandleApplicationPutRequest)
+	mux.HandleFunc("DELETE /applications/", s.applicationHandler.HandleApplicationDeleteRequest)
 }

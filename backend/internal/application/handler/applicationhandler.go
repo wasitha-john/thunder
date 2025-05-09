@@ -28,6 +28,15 @@ import (
 	"sync"
 )
 
+// @title          Application Management API
+// @version        1.0
+// @description    This API is used to manage applications.
+//
+// @license.name   Apache 2.0
+// @license.url    http://www.apache.org/licenses/LICENSE-2.0.html
+//
+// @host           localhost:8090
+// @BasePath       /
 type ApplicationHandler struct {
 	store map[string]model.Application
 	mu    *sync.RWMutex
@@ -42,6 +51,17 @@ func NewApplicationHandler() *ApplicationHandler {
 }
 
 // HandleApplicationPostRequest handles the application request.
+//
+// @Summary      Create an application
+// @Description  Creates a new application with the provided details.
+// @Tags         applications
+// @Accept       json
+// @Produce      json
+// @Param        application  body  model.Application  true  "Application data"
+// @Success      201  {object}  model.Application
+// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
+// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
+// @Router       /applications [post]
 func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter, r *http.Request) {
 
 	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
@@ -75,6 +95,16 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 }
 
 // HandleApplicationListRequest handles the application request.
+//
+// @Summary      List applications
+// @Description  Retrieve a list of all applications.
+// @Tags         applications
+// @Accept       json
+// @Produce      json
+// @Success      200  {array}   model.Application
+// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
+// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
+// @Router       /applications [get]
 func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter, r *http.Request) {
 
 	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
@@ -100,6 +130,18 @@ func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter
 }
 
 // HandleApplicationGetRequest handles the application request.
+//
+// @Summary      Get an application by ID
+// @Description  Retrieve a specific application using its ID.
+// @Tags         applications
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Application ID"
+// @Success      200  {object}  model.Application
+// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
+// @Failure      404  {string}  "Not Found: The application with the specified ID does not exist."
+// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
+// @Router       /applications/{id} [get]
 func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter, r *http.Request) {
 
 	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
@@ -131,6 +173,19 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 }
 
 // HandleApplicationPutRequest handles the application request.
+//
+// @Summary      Update an application
+// @Description  Update the details of an existing application.
+// @Tags         applications
+// @Accept       json
+// @Produce      json
+// @Param        id           path   string            true  "Application ID"
+// @Param        application  body   model.Application  true  "Updated application data"
+// @Success      200  {object}  model.Application
+// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
+// @Failure      404  {string}  "Not Found: The application with the specified ID does not exist."
+// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
+// @Router       /applications/{id} [put]
 func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter, r *http.Request) {
 
 	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
@@ -165,6 +220,18 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 }
 
 // HandleApplicationDeleteRequest handles the application request.
+//
+// @Summary      Delete an application
+// @Description  Delete an application using its ID.
+// @Tags         applications
+// @Accept       json
+// @Produce      json
+// @Param        id   path   string  true  "Application ID"
+// @Success      204
+// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
+// @Failure      404  {string}  "Not Found: The application with the specified ID does not exist."
+// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
+// @Router       /applications/{id} [delete]
 func (ah *ApplicationHandler) HandleApplicationDeleteRequest(w http.ResponseWriter, r *http.Request) {
 
 	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
