@@ -61,7 +61,7 @@ func getThunderHome(logger *log.Logger) string {
 
 	// Parse project directory from command line arguments.
 	projectHome := ""
-	projectHomeFlag := flag.String("thunderHome", "", "Path to Asgardeo Thunder home directory")
+	projectHomeFlag := flag.String("thunderHome", "", "Path to Thunder home directory")
 	flag.Parse()
 
 	if *projectHomeFlag != "" {
@@ -137,7 +137,7 @@ func startServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thu
 		logger.Fatal("Failed to start TLS listener", log.Error(err))
 	}
 
-	logger.Info("Asgardeo Thunder started...", log.String("address", serverAddr))
+	logger.Info("WSO2 Thunder started...", log.String("address", serverAddr))
 
 	server := &http.Server{Handler: mux}
 

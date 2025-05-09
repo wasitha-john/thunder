@@ -47,7 +47,7 @@ const OAuth2ErrorPage = () => {
         </table>
         <div style={styles.footer}>
           <span style={styles.thunderLogo}>⚡</span>
-          <span>Powered by Asgardeo Thunder</span>
+          <span>Powered by WSO2 Thunder</span>
         </div>
       </div>
     </div>

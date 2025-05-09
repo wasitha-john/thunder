@@ -1,6 +1,6 @@
-# ⚡ Asgardeo Thunder — Cloud-Native Identity Management
+# ⚡ WSO2 Thunder — Identity Management
 
-**Asgardeo Thunder** is a modern, cloud-native identity management service. It empowers you to design tailored login, registration, and recovery flows using a flexible identity flow designer.
+**Thunder** is a modern, identity management service by WSO2. It empowers you to design tailored login, registration, and recovery flows using a flexible identity flow designer.
 
 Thunder secures users, applications, services, and AI agents by managing their identities and offering a complete suite of supporting capabilities.
 
