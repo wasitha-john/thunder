@@ -22,10 +22,10 @@ import (
 	"net/http"
 	"time"
 
-	oauthmodel "github.com/asgardeo/thunder/internal/identity/oauth2/model"
-	oauthutils "github.com/asgardeo/thunder/internal/identity/oauth2/utils"
-	model "github.com/asgardeo/thunder/internal/identity/session/model"
-	sessionstore "github.com/asgardeo/thunder/internal/identity/session/store"
+	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
+	oauthutils "github.com/asgardeo/thunder/internal/oauth/oauth2/utils"
+	model "github.com/asgardeo/thunder/internal/oauth/session/model"
+	sessionstore "github.com/asgardeo/thunder/internal/oauth/session/store"
 	"github.com/asgardeo/thunder/internal/system/config"
 )
 

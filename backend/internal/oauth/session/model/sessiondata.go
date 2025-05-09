@@ -21,7 +21,7 @@ package model
 import (
 	"time"
 
-	oauthmodel "github.com/asgardeo/thunder/internal/identity/oauth2/model"
+	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
 // TODO: Temporary adding the AuthenticatedUser struct here. Should be moved to a appropriate place.

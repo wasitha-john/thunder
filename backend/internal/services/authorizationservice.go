@@ -21,7 +21,7 @@ package services
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/identity/oauth2/authz"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz"
 )
 
 type AuthorizationService struct {

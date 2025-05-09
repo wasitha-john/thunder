@@ -21,7 +21,7 @@ package validator
 import (
 	"strings"
 
-	"github.com/asgardeo/thunder/internal/identity/scope/constants"
+	"github.com/asgardeo/thunder/internal/oauth/scope/constants"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 )

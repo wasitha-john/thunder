@@ -20,17 +20,17 @@ package token
 
 import (
 	"encoding/json"
+	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/utils"
 	"net/http"
 
 	appprovider "github.com/asgardeo/thunder/internal/application/provider"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/constants"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/granthandlers"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/model"
-	oauthutils "github.com/asgardeo/thunder/internal/identity/oauth2/utils"
-	scopeprovider "github.com/asgardeo/thunder/internal/identity/scope/provider"
-	"github.com/asgardeo/thunder/internal/server"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/granthandlers"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
+	oauthutils "github.com/asgardeo/thunder/internal/oauth/oauth2/utils"
+	scopeprovider "github.com/asgardeo/thunder/internal/oauth/scope/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/internal/utils"
 )
 
 type TokenHandler struct{}

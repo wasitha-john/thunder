@@ -18,7 +18,7 @@
 
 package provider
 
-import "github.com/asgardeo/thunder/internal/identity/scope/validator"
+import "github.com/asgardeo/thunder/internal/oauth/scope/validator"
 
 // ScopeValidatorProviderInterface defines the interface for providing a scope validator.
 type ScopeValidatorProviderInterface interface {

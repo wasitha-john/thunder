@@ -21,7 +21,7 @@ package server
 import (
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/internal/utils"
+	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // GetAllowedOrigins retrieves the allowed origins from the database.

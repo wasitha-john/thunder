@@ -21,7 +21,7 @@ package services
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/identity/oauth2/token"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/token"
 )
 
 type TokenService struct {

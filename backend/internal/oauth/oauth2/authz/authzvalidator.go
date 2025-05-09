@@ -19,8 +19,8 @@
 package authz
 
 import (
-	"github.com/asgardeo/thunder/internal/identity/oauth2/authz/model"
-	"github.com/asgardeo/thunder/internal/identity/oauth2/constants"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 )
 
 type AuthorizationValidator struct{}

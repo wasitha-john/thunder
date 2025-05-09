@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/asgardeo/thunder/internal/identity/session/model"
+	"github.com/asgardeo/thunder/internal/oauth/session/model"
 )
 
 type SessionDataStoreInterface interface {

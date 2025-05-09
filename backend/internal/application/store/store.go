@@ -24,7 +24,7 @@ import (
 	"github.com/asgardeo/thunder/internal/system/database/client"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/internal/utils"
+	"github.com/asgardeo/thunder/internal/system/utils"
 	"strings"
 )
 
