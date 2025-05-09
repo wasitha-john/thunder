@@ -19,9 +19,8 @@
 package managers
 
 import (
+	"github.com/asgardeo/thunder/internal/system/services"
 	"net/http"
-
-	"github.com/asgardeo/thunder/internal/services"
 )
 
 type ServiceManagerInterface interface {
