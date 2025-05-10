@@ -63,6 +63,7 @@ func main() {
 	defer testutils.StopServer(serverCmd)
 
 	// Wait for the server to start
+	fmt.Println("Waiting for the server to start...")
 	time.Sleep(5 * time.Second)
 
 	// Step 5: Run all tests
