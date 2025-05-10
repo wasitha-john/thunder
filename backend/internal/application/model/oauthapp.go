@@ -25,7 +25,7 @@ type OAuthApplication struct {
 	AllowedGrantTypes []string
 }
 
-// IsAllowedResponseType checks if the provided grant type is allowed.
+// IsAllowedGrantType checks if the provided grant type is allowed.
 func (o *OAuthApplication) IsAllowedGrantType(grantType string) bool {
 
 	for _, allowedGrantType := range o.AllowedGrantTypes {
