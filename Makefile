@@ -1,82 +1,55 @@
-# Constants.
+# ----------------------------------------------------------------------------
+# Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+#
+# WSO2 LLC. licenses this file to you under the Apache License,
+# Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# ----------------------------------------------------------------------------
+
+# Constants
 VERSION_FILE=version.txt
+VERSION=$(shell cat $(VERSION_FILE))
 BINARY_NAME=thunder
 
-BACKEND_BASE_DIR := backend
-REPOSITORY_DIR=$(BACKEND_BASE_DIR)/cmd/server/repository
+# Directories
+FRONTEND_DIR=frontend/loginportal
+BACKEND_DIR=backend/cmd/server
 
-OUTPUT_DIR=target
-BUILD_DIR=$(OUTPUT_DIR)/.build
+# Default target
+all: prepare clean build test
 
-FRONTEND_DIR := frontend/loginportal
-BACKEND_DIR := $(BACKEND_BASE_DIR)/cmd/server
+prepare:
+	chmod +x build.sh
 
-SERVER_SCRIPTS_DIR=$(BACKEND_BASE_DIR)/scripts
-SERVER_DB_SCRIPTS_DIR=$(BACKEND_BASE_DIR)/dbscripts
-
-
-
-# Variable constants.
-VERSION=$(shell cat $(VERSION_FILE))
-# ZIP_FILE_NAME=${BINARY_NAME_PREFIX}-$(VERSION)
-PRODUCT_FOLDER=$(BINARY_NAME)-$(VERSION)
-
-# Default target.
-all: clean build test
-
-# Clean up build artifacts.
 clean:
-	rm -rf $(OUTPUT_DIR)
+	./build.sh clean
 
-# Build project and package it.
-build: _build _build-frontend _package
+build:
+	./build.sh build
 
-# Build the Go project.
-_build:
-	mkdir -p $(BUILD_DIR) && \
-	go build -C $(BACKEND_BASE_DIR) -o ../$(BUILD_DIR)/$(BINARY_NAME) ./cmd/server
+test:
+	./build.sh test
 
-_build-frontend:
-	@echo "Building frontend..."
-	npm install --prefix $(FRONTEND_DIR)
-	npm run build --prefix $(FRONTEND_DIR)
-
-# Package the binary and repository directory into a zip file.
-_package:
-	mkdir -p $(OUTPUT_DIR)/$(PRODUCT_FOLDER) && \
-	cp $(BUILD_DIR)/$(BINARY_NAME) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
-	cp -r $(REPOSITORY_DIR) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
-	cp $(VERSION_FILE) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
-	cp -r $(SERVER_SCRIPTS_DIR) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
-	cp -r $(SERVER_DB_SCRIPTS_DIR) $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/ && \
-	cp -r $(FRONTEND_DIR)/build $(OUTPUT_DIR)/$(PRODUCT_FOLDER)/dist/ && \
-	cd $(OUTPUT_DIR) && zip -r $(PRODUCT_FOLDER).zip $(PRODUCT_FOLDER) && \
-	rm -rf $(PRODUCT_FOLDER) && \
-	rm -rf $(BUILD_DIR)
-
-# Run all tests.
-test: _integration-test
-
-# Run integration tests.
-_integration-test:
-	@echo "Running integration tests..."
-	@go run -C ./tests/integration ./main.go
-
-run: _build-frontend
-	@echo "Removing old build artifacts..."
-	@rm -rf $(BACKEND_DIR)/dist
-	@echo "Copying frontend build to backend static directory..."
-	@mkdir -p $(BACKEND_DIR)/dist
-	@cp -r $(FRONTEND_DIR)/build/* $(BACKEND_DIR)/dist/
-	@echo "Running the application..."
-	@go run -C $(BACKEND_DIR) .
+run:
+	./build.sh run
 
 help:
 	@echo "Makefile targets:"
-	@echo "  all          - Clean, build, and test the project."
-	@echo "  clean        - Remove build artifacts."
-	@echo "  build        - Build the Go project."
-	@echo "  test         - Run all tests."
-	@echo "  help         - Show the help message."
+	@echo "  all    - Clean, build, and test the project."
+	@echo "  clean  - Remove build artifacts."
+	@echo "  build  - Build the Go project and frontend, then package."
+	@echo "  test   - Run integration tests."
+	@echo "  run    - Build and run the application locally."
+	@echo "  help   - Show this help message."
 
-.PHONY: all clean build _build _package test _integration-test help
+.PHONY: all prepare clean build test run help

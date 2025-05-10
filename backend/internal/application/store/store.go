@@ -20,12 +20,13 @@ package store
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/system/database/client"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
-	"strings"
 )
 
 func CreateApplication(app model.Application) error {

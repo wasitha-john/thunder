@@ -1,0 +1,120 @@
+#!/bin/bash
+# ----------------------------------------------------------------------------
+# Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+#
+# WSO2 LLC. licenses this file to you under the Apache License,
+# Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# ----------------------------------------------------------------------------
+
+set -e
+
+VERSION_FILE=version.txt
+BINARY_NAME=thunder
+VERSION=$(cat "$VERSION_FILE")
+PRODUCT_FOLDER=${BINARY_NAME}-${VERSION}
+
+# Directories
+OUTPUT_DIR=target
+BUILD_DIR=$OUTPUT_DIR/.build
+FRONTEND_DIR=frontend/loginportal
+BACKEND_BASE_DIR=backend
+BACKEND_DIR=$BACKEND_BASE_DIR/cmd/server
+REPOSITORY_DIR=$BACKEND_BASE_DIR/cmd/server/repository
+SERVER_SCRIPTS_DIR=$BACKEND_BASE_DIR/scripts
+SERVER_DB_SCRIPTS_DIR=$BACKEND_BASE_DIR/dbscripts
+SECURITY_DIR=repository/resources/security
+
+function clean() {
+    echo "Cleaning build artifacts..."
+    rm -rf "$OUTPUT_DIR"
+}
+
+function build_backend() {
+    echo "Building Go backend..."
+    mkdir -p "$BUILD_DIR"
+    go build -C "$BACKEND_BASE_DIR" -o "../$BUILD_DIR/$BINARY_NAME" ./cmd/server
+}
+
+function build_frontend() {
+    echo "Building frontend..."
+    npm install --prefix "$FRONTEND_DIR"
+    npm run build --prefix "$FRONTEND_DIR"
+}
+
+function package() {
+    echo "Packaging artifacts..."
+    mkdir -p "$OUTPUT_DIR/$PRODUCT_FOLDER"
+    cp "$BUILD_DIR/$BINARY_NAME" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
+    cp -r "$REPOSITORY_DIR" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
+    cp "$VERSION_FILE" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
+    cp -r "$SERVER_SCRIPTS_DIR" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
+    cp -r "$SERVER_DB_SCRIPTS_DIR" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
+    cp -r "$FRONTEND_DIR/build" "$OUTPUT_DIR/$PRODUCT_FOLDER/dist/"
+    mkdir -p "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR"
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR/server.key" \
+        -out "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR/server.crt" \
+        -subj "/O=WSO2/OU=Thunder/CN=localhost"
+    (cd "$OUTPUT_DIR" && zip -r "$PRODUCT_FOLDER.zip" "$PRODUCT_FOLDER")
+    rm -rf "$OUTPUT_DIR/$PRODUCT_FOLDER" "$BUILD_DIR"
+}
+
+function test_integration() {
+    echo "Running integration tests..."
+    go run -C ./tests/integration ./main.go
+}
+
+function run() {
+    echo "Building frontend for runtime..."
+    build_frontend
+    echo "Syncing frontend build to backend..."
+    rm -rf "$BACKEND_DIR/dist"
+    mkdir -p "$BACKEND_DIR/dist"
+    cp -r "$FRONTEND_DIR/build/"* "$BACKEND_DIR/dist/"
+
+    echo "Ensuring server certificates exist..."
+    if [[ ! -f "$BACKEND_DIR/$SECURITY_DIR/server.crt" || ! -f "$BACKEND_DIR/$SECURITY_DIR/server.key" ]]; then
+        mkdir -p "$BACKEND_DIR/$SECURITY_DIR"
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout "$BACKEND_DIR/$SECURITY_DIR/server.key" \
+            -out "$BACKEND_DIR/$SECURITY_DIR/server.crt" \
+            -subj "/O=WSO2/OU=Thunder/CN=localhost"
+    else
+        echo "Certificates already exist."
+    fi
+
+    echo "Running application..."
+    go run -C "$BACKEND_DIR" .
+}
+
+case "$1" in
+    clean)
+        clean
+        ;;
+    build)
+        build_backend
+        build_frontend
+        package
+        ;;
+    test)
+        test_integration
+        ;;
+    run)
+        run
+        ;;
+    *)
+        echo "Usage: ./build.sh {clean|build|test|run}"
+        exit 1
+        ;;
+esac

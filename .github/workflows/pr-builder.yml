@@ -45,4 +45,6 @@ jobs:
           go mod download
 
       - name: Build and test
-        run: make all
+        run: |
+          set -e
+          make all

@@ -94,7 +94,7 @@ func getDBConfig(dataSource config.DataSource) (dbConfig, error) {
 			dataSource.Name, dataSource.SSLMode)
 	case "sqlite":
 		dbConfig.driverName = "sqlite"
-		dbConfig.dsn = fmt.Sprintf("%s?_journal_mode=WAL&_busy_timeout=3000",
+		dbConfig.dsn = fmt.Sprintf("%s?_journal_mode=WAL&_busy_timeout=5000",
 			path.Join(config.GetThunderRuntime().ThunderHome, dataSource.Path))
 	}
 

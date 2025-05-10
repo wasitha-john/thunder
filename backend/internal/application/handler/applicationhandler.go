@@ -20,12 +20,13 @@ package handler
 
 import (
 	"encoding/json"
-	"github.com/asgardeo/thunder/internal/application/model"
-	appprovider "github.com/asgardeo/thunder/internal/application/provider"
-	"github.com/asgardeo/thunder/internal/system/log"
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/asgardeo/thunder/internal/application/model"
+	appprovider "github.com/asgardeo/thunder/internal/application/provider"
+	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 // @title          Application Management API
@@ -146,7 +147,7 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 
 	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
 
-	id := strings.TrimPrefix(r.URL.Path, "/application/")
+	id := strings.TrimPrefix(r.URL.Path, "/applications/")
 	if id == "" {
 		http.Error(w, "Missing application id", http.StatusBadRequest)
 		return
@@ -190,7 +191,7 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 
 	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
 
-	id := strings.TrimPrefix(r.URL.Path, "/application/")
+	id := strings.TrimPrefix(r.URL.Path, "/applications/")
 	if id == "" {
 		http.Error(w, "Missing application id", http.StatusBadRequest)
 		return
@@ -236,7 +237,7 @@ func (ah *ApplicationHandler) HandleApplicationDeleteRequest(w http.ResponseWrit
 
 	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
 
-	id := strings.TrimPrefix(r.URL.Path, "/application/")
+	id := strings.TrimPrefix(r.URL.Path, "/applications/")
 	if id == "" {
 		http.Error(w, "Missing application id", http.StatusBadRequest)
 		return

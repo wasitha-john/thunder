@@ -23,9 +23,11 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/suite"
+	"io"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
 )
 
 const (
@@ -172,7 +174,7 @@ func (ts *ApplicationAPITestSuite) TestApplicationUpdate() {
 	}
 
 	reqBody := bytes.NewReader(appJSON)
-	req, err := http.NewRequest("PUT", testServerURL+"/application/"+createdAppID, reqBody)
+	req, err := http.NewRequest("PUT", testServerURL+"/applications/"+createdAppID, reqBody)
 	if err != nil {
 		ts.T().Fatalf("Failed to create update request: %v", err)
 	}
@@ -208,7 +210,7 @@ func (ts *ApplicationAPITestSuite) TestApplicationUpdate() {
 
 func retrieveAndValidateApplicationDetails(ts *ApplicationAPITestSuite, expectedApp Application) {
 
-	req, err := http.NewRequest("GET", testServerURL+"/application/"+expectedApp.ID, nil)
+	req, err := http.NewRequest("GET", testServerURL+"/applications/"+expectedApp.ID, nil)
 	if err != nil {
 		ts.T().Fatalf("Failed to create get request: %v", err)
 	}
@@ -227,6 +229,13 @@ func retrieveAndValidateApplicationDetails(ts *ApplicationAPITestSuite, expected
 
 	if resp.StatusCode != http.StatusOK {
 		ts.T().Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	// Check if the response Content-Type is application/json
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		rawBody, _ := io.ReadAll(resp.Body)
+		ts.T().Fatalf("Unexpected Content-Type: %s. Raw body: %s", contentType, string(rawBody))
 	}
 
 	var app Application
@@ -287,7 +296,7 @@ func createApplication(ts *ApplicationAPITestSuite) (string, error) {
 
 func deleteApplication(appID string) error {
 
-	req, err := http.NewRequest("DELETE", testServerURL+"/application/"+appID, nil)
+	req, err := http.NewRequest("DELETE", testServerURL+"/applications/"+appID, nil)
 	if err != nil {
 		return err
 	}

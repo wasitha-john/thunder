@@ -63,19 +63,21 @@ func main() {
 	defer testutils.StopServer(serverCmd)
 
 	// Wait for the server to start
+	fmt.Println("Waiting for the server to start...")
 	time.Sleep(5 * time.Second)
 
 	// Step 5: Run all tests
-	runTests()
+	err = runTests()
+	if err != nil {
+		fmt.Printf("there are test failures: %v\n", err)
+		testutils.StopServer(serverCmd)
+		os.Exit(1)
+	}
 }
 
-func runTests() {
-
+func runTests() error {
 	cmd := exec.Command("go", "test", "-v", "./...")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		fmt.Printf("Tests failed: %v\n", err)
-	}
+	return cmd.Run()
 }
