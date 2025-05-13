@@ -25,13 +25,13 @@ import (
 )
 
 type AuthorizationService struct {
-	authHandler *authz.AuthorizeHandler
+	authHandler authz.AuthorizeHandlerInterface
 }
 
 func NewAuthorizationService(mux *http.ServeMux) *AuthorizationService {
 
 	instance := &AuthorizationService{
-		authHandler: &authz.AuthorizeHandler{},
+		authHandler: authz.NewAuthorizeHandler(),
 	}
 	instance.RegisterRoutes(mux)
 

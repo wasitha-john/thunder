@@ -45,31 +45,25 @@ type SessionDataStore struct {
 	mu             sync.RWMutex
 }
 
-var instance *SessionDataStore
-var mu sync.Mutex
+var (
+	instance *SessionDataStore
+	once     sync.Once
+)
 
 // GetSessionDataStore returns a singleton instance of SessionDataStore.
 func GetSessionDataStore() SessionDataStoreInterface {
-
-	if instance == nil {
-		mu.Lock()
-		defer mu.Unlock()
-
-		if instance == nil {
-			instance = &SessionDataStore{
-				sessionStore: make(map[string]sessionStoreEntry),
-				// Set a default validity period.
-				validityPeriod: 10 * time.Minute,
-			}
+	once.Do(func() {
+		instance = &SessionDataStore{
+			sessionStore:   make(map[string]sessionStoreEntry),
+			validityPeriod: 10 * time.Minute, // Set a default validity period.
 		}
-	}
+	})
 
 	return instance
 }
 
 // AddSession adds a session data entry to the session store.
 func (sds *SessionDataStore) AddSession(key string, value model.SessionData) {
-
 	if key == "" {
 		return
 	}
@@ -85,20 +79,22 @@ func (sds *SessionDataStore) AddSession(key string, value model.SessionData) {
 
 // GetSession retrieves a session data entry from the session store.
 func (sdc *SessionDataStore) GetSession(key string) (bool, model.SessionData) {
-
 	if key == "" {
 		return false, model.SessionData{}
 	}
 
 	sdc.mu.RLock()
-	defer sdc.mu.RUnlock()
+	entry, exists := sdc.sessionStore[key]
+	sdc.mu.RUnlock()
 
-	if entry, exists := sdc.sessionStore[key]; exists {
+	if exists {
 		if time.Now().Before(entry.expiryTime) {
 			return true, entry.sessionData
 		} else {
 			// Remove the expired entry.
+			sdc.mu.Lock()
 			delete(sdc.sessionStore, key)
+			sdc.mu.Unlock()
 		}
 	}
 
@@ -107,7 +103,6 @@ func (sdc *SessionDataStore) GetSession(key string) (bool, model.SessionData) {
 
 // ClearSession removes a specific session data entry from the session store.
 func (sdc *SessionDataStore) ClearSession(key string) {
-
 	if key == "" {
 		return
 	}
@@ -119,7 +114,6 @@ func (sdc *SessionDataStore) ClearSession(key string) {
 
 // ClearSessionStore removes all session data entries from the session store.
 func (sdc *SessionDataStore) ClearSessionStore() {
-
 	sdc.mu.Lock()
 	defer sdc.mu.Unlock()
 
