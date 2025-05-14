@@ -19,9 +19,10 @@
 package authz
 
 import (
-	"github.com/asgardeo/thunder/internal/system/utils"
 	"net/http"
 	"time"
+
+	"github.com/asgardeo/thunder/internal/system/utils"
 
 	appprovider "github.com/asgardeo/thunder/internal/application/provider"
 	authzmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
@@ -34,61 +35,72 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
+// AuthorizeHandlerInterface defines the interface for handling OAuth2 authorization requests.
+type AuthorizeHandlerInterface interface {
+	HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request)
+}
+
+// AuthorizeHandler implements the AuthorizeHandlerInterface for handling OAuth2 authorization requests.
 type AuthorizeHandler struct {
-	authValidator *AuthorizationValidator
+	authValidator AuthorizationValidatorInterface
+}
+
+// NewAuthorizeHandler creates a new instance of AuthorizeHandler.
+func NewAuthorizeHandler() AuthorizeHandlerInterface {
+	return &AuthorizeHandler{
+		authValidator: NewAuthorizationValidator(),
+	}
 }
 
 // HandleAuthorizeRequest handles the OAuth2 authorization request.
-func (ah *AuthorizeHandler) HandleAuthorizeRequest(responseWriter http.ResponseWriter, request *http.Request) {
-
+func (ah *AuthorizeHandler) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger()
 
 	// Construct the OAuthMessage.
-	oAuthMessage, err := oauthutils.GetOAuthMessage(request, responseWriter)
+	oAuthMessage, err := oauthutils.GetOAuthMessage(r, w)
 	if err != nil {
 		logger.Error("Failed to construct OAuthMessage", log.Error(err))
-		utils.WriteJSONError(responseWriter, constants.ERROR_INVALID_REQUEST,
+		utils.WriteJSONError(w, constants.ERROR_INVALID_REQUEST,
 			"Invalid authorization request", http.StatusBadRequest, nil)
 		return
 	}
 	if oAuthMessage == nil {
 		logger.Error("OAuthMessage is nil")
-		utils.WriteJSONError(responseWriter, constants.ERROR_INVALID_REQUEST,
+		utils.WriteJSONError(w, constants.ERROR_INVALID_REQUEST,
 			"Invalid authorization request", http.StatusBadRequest, nil)
 		return
 	}
 
 	switch oAuthMessage.RequestType {
 	case constants.TYPE_INITIAL_AUTHORIZATION_REQUEST:
-		ah.handleInitialAuthorizationRequest(oAuthMessage, responseWriter, request)
+		ah.handleInitialAuthorizationRequest(oAuthMessage, w, r)
 	case constants.TYPE_AUTHORIZATION_RESPONSE_FROM_FRAMEWORK:
-		ah.handleAuthenticationResponse(oAuthMessage, responseWriter, request)
+		ah.handleAuthenticationResponse(oAuthMessage, w, r)
 	case constants.TYPE_CONSENT_RESPONSE_FROM_USER:
 	// TODO: Handle the consent response from the user.
 	default:
 		// Handle the case where the request is not recognized.
-		utils.WriteJSONError(responseWriter, constants.ERROR_INVALID_REQUEST,
+		utils.WriteJSONError(w, constants.ERROR_INVALID_REQUEST,
 			"Invalid authorization request", http.StatusBadRequest, nil)
 	}
 }
 
 // handleInitialAuthorizationRequest handles the initial authorization request from the client.
-func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(oAuthMessage *authzmodel.OAuthMessage,
-	responseWriter http.ResponseWriter, request *http.Request) {
-
+func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(msg *authzmodel.OAuthMessage,
+	w http.ResponseWriter, r *http.Request) {
 	// Validate the authorization request.
-	errorCode, errorMessage := ah.authValidator.ValidateInitialAuthorizationRequest(oAuthMessage)
+	errorCode, errorMessage := ah.authValidator.validateInitialAuthorizationRequest(msg)
 	if errorCode != "" {
-		oauthutils.RedirectToErrorPage(responseWriter, request, errorCode, errorMessage)
+		oauthutils.RedirectToErrorPage(w, r, errorCode, errorMessage)
 		return
 	}
 
 	// Extract required parameters.
-	clientId := oAuthMessage.RequestQueryParams[constants.CLIENT_ID]
-	redirectUri := oAuthMessage.RequestQueryParams[constants.REDIRECT_URI]
-	scope := oAuthMessage.RequestQueryParams[constants.SCOPE]
-	state := oAuthMessage.RequestQueryParams[constants.STATE]
-	responseType := oAuthMessage.RequestQueryParams[constants.RESPONSE_TYPE]
+	clientId := msg.RequestQueryParams[constants.CLIENT_ID]
+	redirectUri := msg.RequestQueryParams[constants.REDIRECT_URI]
+	scope := msg.RequestQueryParams[constants.SCOPE]
+	state := msg.RequestQueryParams[constants.STATE]
+	responseType := msg.RequestQueryParams[constants.RESPONSE_TYPE]
 
 	// Retrieve the OAuth application based on the client Id.
 	appProvider := appprovider.NewApplicationProvider()
@@ -96,19 +108,19 @@ func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(oAuthMessage *auth
 
 	oauthApp, err := appService.GetOAuthApplication(clientId)
 	if err != nil || oauthApp == nil {
-		oauthutils.RedirectToErrorPage(responseWriter, request, constants.ERROR_INVALID_CLIENT, "Invalid client_id")
+		oauthutils.RedirectToErrorPage(w, r, constants.ERROR_INVALID_CLIENT, "Invalid client_id")
 		return
 	}
 
 	// Validate the redirect URI against the registered application.
 	if !oauthApp.IsValidRedirectURI(redirectUri) {
-		oauthutils.RedirectToErrorPage(responseWriter, request, constants.ERROR_INVALID_REQUEST,
+		oauthutils.RedirectToErrorPage(w, r, constants.ERROR_INVALID_REQUEST,
 			"Your application's redirect URL does not match with the registered redirect URLs.")
 		return
 	}
 
 	// Get query params sent in the request.
-	queryParams := oAuthMessage.RequestQueryParams
+	queryParams := msg.RequestQueryParams
 
 	// Construct session data.
 	oauthParams := model.OAuthParameters{
@@ -134,23 +146,22 @@ func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(oAuthMessage *auth
 	// Append required query parameters to the redirect URI.
 	loginPageUri, err := oauthutils.GetLoginPageRedirectUri(queryParams)
 	if err != nil {
-		oauthutils.RedirectToErrorPage(responseWriter, request, constants.ERROR_SERVER_ERROR,
+		oauthutils.RedirectToErrorPage(w, r, constants.ERROR_SERVER_ERROR,
 			"Failed to redirect to login page")
 	} else {
 		// Redirect user-agent to the login page.
-		http.Redirect(responseWriter, request, loginPageUri, http.StatusFound)
+		http.Redirect(w, r, loginPageUri, http.StatusFound)
 	}
 }
 
-func (ah *AuthorizeHandler) handleAuthenticationResponse(oAuthMessage *authzmodel.OAuthMessage,
-	responseWriter http.ResponseWriter, request *http.Request) {
-
+func (ah *AuthorizeHandler) handleAuthenticationResponse(msg *authzmodel.OAuthMessage,
+	w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger()
 
 	// Validate the session data.
-	sessionData := oAuthMessage.SessionData
+	sessionData := msg.SessionData
 	if sessionData == nil {
-		oauthutils.RedirectToErrorPage(responseWriter, request, constants.ERROR_INVALID_REQUEST,
+		oauthutils.RedirectToErrorPage(w, r, constants.ERROR_INVALID_REQUEST,
 			"Invalid authorization request")
 		return
 	}
@@ -170,22 +181,22 @@ func (ah *AuthorizeHandler) handleAuthenticationResponse(oAuthMessage *authzmode
 		redirectUri, err := oauthutils.GetUriWithQueryParams(redirectUri, queryParams)
 		if err != nil {
 			logger.Error("Failed to construct redirect URI", log.Error(err))
-			oauthutils.RedirectToErrorPage(responseWriter, request, constants.ERROR_SERVER_ERROR,
+			oauthutils.RedirectToErrorPage(w, r, constants.ERROR_SERVER_ERROR,
 				"Failed to redirect to login page")
 			return
 		}
 
-		http.Redirect(responseWriter, request, redirectUri, http.StatusFound)
+		http.Redirect(w, r, redirectUri, http.StatusFound)
 	}
 
 	// TODO: Do user authorization.
 	//  Should validate for the scopes as well.
 
 	// Generate the authorization code.
-	authzCode, err := authzutils.GetAuthorizationCode(oAuthMessage)
+	authzCode, err := authzutils.GetAuthorizationCode(msg)
 	if err != nil {
 		logger.Error("Failed to generate authorization code", log.Error(err))
-		oauthutils.RedirectToErrorPage(responseWriter, request, constants.ERROR_SERVER_ERROR,
+		oauthutils.RedirectToErrorPage(w, r, constants.ERROR_SERVER_ERROR,
 			"Failed to generate authorization code")
 		return
 	}
@@ -194,7 +205,7 @@ func (ah *AuthorizeHandler) handleAuthenticationResponse(oAuthMessage *authzmode
 	persistErr := InsertAuthorizationCode(authzCode)
 	if persistErr != nil {
 		logger.Error("Failed to persist authorization code", log.Error(persistErr))
-		oauthutils.RedirectToErrorPage(responseWriter, request, constants.ERROR_SERVER_ERROR,
+		oauthutils.RedirectToErrorPage(w, r, constants.ERROR_SERVER_ERROR,
 			"Failed to generate authorization code")
 		return
 	}
@@ -204,5 +215,5 @@ func (ah *AuthorizeHandler) handleAuthenticationResponse(oAuthMessage *authzmode
 	if sessionData.OAuthParameters.State != "" {
 		redirectUri += "&state=" + sessionData.OAuthParameters.State
 	}
-	http.Redirect(responseWriter, request, redirectUri, http.StatusFound)
+	http.Redirect(w, r, redirectUri, http.StatusFound)
 }

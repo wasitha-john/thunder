@@ -23,15 +23,25 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 )
 
+// AuthorizationValidatorInterface defines the interface for validating OAuth2 authorization requests.
+type AuthorizationValidatorInterface interface {
+	validateInitialAuthorizationRequest(msg *model.OAuthMessage) (string, string)
+}
+
+// AuthorizationValidator implements the AuthorizationValidatorInterface for validating OAuth2 authorization requests.
 type AuthorizationValidator struct{}
 
-func (av *AuthorizationValidator) ValidateInitialAuthorizationRequest(
-	oAuthMessage *model.OAuthMessage) (string, string) {
+// NewAuthorizationValidator creates a new instance of AuthorizationValidator.
+func NewAuthorizationValidator() AuthorizationValidatorInterface {
+	return &AuthorizationValidator{}
+}
 
+// validateInitialAuthorizationRequest validates the initial authorization request parameters.
+func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model.OAuthMessage) (string, string) {
 	// Extract required parameters.
-	responseType := oAuthMessage.RequestQueryParams[constants.RESPONSE_TYPE]
-	clientId := oAuthMessage.RequestQueryParams[constants.CLIENT_ID]
-	redirectUri := oAuthMessage.RequestQueryParams[constants.REDIRECT_URI]
+	responseType := msg.RequestQueryParams[constants.RESPONSE_TYPE]
+	clientId := msg.RequestQueryParams[constants.CLIENT_ID]
+	redirectUri := msg.RequestQueryParams[constants.REDIRECT_URI]
 	// scope := oAuthMessage.RequestQueryParams[constants.SCOPE]
 	// state := oAuthMessage.RequestQueryParams[constants.STATE]
 

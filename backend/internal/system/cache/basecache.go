@@ -56,7 +56,6 @@ type BaseCache struct {
 
 // NewBaseCache creates a new instance of BaseCache.
 func NewBaseCache() *BaseCache {
-
 	return &BaseCache{
 		cache: make(map[CacheKey]*CacheEntry),
 	}
@@ -64,7 +63,6 @@ func NewBaseCache() *BaseCache {
 
 // AddToCache adds an entry to the cache with a validity period.
 func (bc *BaseCache) AddToCache(key CacheKey, entry *CacheEntry) {
-
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 	bc.cache[CacheKey(key)] = entry
@@ -72,14 +70,15 @@ func (bc *BaseCache) AddToCache(key CacheKey, entry *CacheEntry) {
 
 // GetValueFromCache retrieves a value from the cache if it is still valid.
 func (bc *BaseCache) GetValueFromCache(key CacheKey) *CacheEntry {
-
 	bc.mu.RLock()
-	defer bc.mu.RUnlock()
-
 	entry, exists := bc.cache[CacheKey(key)]
+	bc.mu.RUnlock()
+
 	if !exists || time.Now().After(entry.ExpiryTime) {
 		// Remove the expired entry.
+		bc.mu.Lock()
 		delete(bc.cache, CacheKey(key))
+		bc.mu.Unlock()
 
 		return nil
 	}
@@ -89,7 +88,6 @@ func (bc *BaseCache) GetValueFromCache(key CacheKey) *CacheEntry {
 
 // ClearCacheEntry removes a specific entry from the cache.
 func (bc *BaseCache) ClearCacheEntry(key CacheKey) {
-
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 	delete(bc.cache, CacheKey(key))
@@ -97,7 +95,6 @@ func (bc *BaseCache) ClearCacheEntry(key CacheKey) {
 
 // ClearCache removes all entries from the cache.
 func (bc *BaseCache) ClearCache() {
-
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 	bc.cache = make(map[CacheKey]*CacheEntry)

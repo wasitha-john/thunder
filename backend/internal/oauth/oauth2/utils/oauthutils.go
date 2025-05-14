@@ -34,21 +34,21 @@ import (
 	"github.com/google/uuid"
 )
 
-func GetOAuthMessage(request *http.Request, responseWriter http.ResponseWriter) (*authzmodel.OAuthMessage, error) {
+func GetOAuthMessage(r *http.Request, w http.ResponseWriter) (*authzmodel.OAuthMessage, error) {
 
-	if request == nil || responseWriter == nil {
+	if r == nil || w == nil {
 		return nil, errors.New("request or response writer is nil")
 	}
 
 	logger := log.GetLogger()
 
 	// Parse the query parameters.
-	if err := request.ParseForm(); err != nil {
+	if err := r.ParseForm(); err != nil {
 		return nil, errors.New("failed to parse form data: " + err.Error())
 	}
 
 	// Check if the session data is already stored with a session data key.
-	sessionDataKey := request.FormValue(constants.SESSION_DATA_KEY)
+	sessionDataKey := r.FormValue(constants.SESSION_DATA_KEY)
 	var sessionData sessionmodel.SessionData
 	if sessionDataKey != "" {
 		sessionDataStore := sessionstore.GetSessionDataStore()
@@ -63,10 +63,10 @@ func GetOAuthMessage(request *http.Request, responseWriter http.ResponseWriter) 
 	// Determine the request type.
 	// TODO: Add other required request types.
 	var requestType string
-	if sessionDataKey != "" && request.FormValue(constants.SESSION_DATA_KEY_CONSENT) == "" {
+	if sessionDataKey != "" && r.FormValue(constants.SESSION_DATA_KEY_CONSENT) == "" {
 		requestType = constants.TYPE_AUTHORIZATION_RESPONSE_FROM_FRAMEWORK
-	} else if request.FormValue(constants.CLIENT_ID) != "" && sessionDataKey == "" &&
-		request.FormValue(constants.SESSION_DATA_KEY_CONSENT) == "" {
+	} else if r.FormValue(constants.CLIENT_ID) != "" && sessionDataKey == "" &&
+		r.FormValue(constants.SESSION_DATA_KEY_CONSENT) == "" {
 		requestType = constants.TYPE_INITIAL_AUTHORIZATION_REQUEST
 	} else {
 		return nil, errors.New("invalid request type")
@@ -74,7 +74,7 @@ func GetOAuthMessage(request *http.Request, responseWriter http.ResponseWriter) 
 
 	// Extract headers.
 	headers := make(map[string][]string)
-	for name, values := range request.Header {
+	for name, values := range r.Header {
 		if len(values) > 0 {
 			headers[name] = append([]string{}, values...)
 		}
@@ -82,7 +82,7 @@ func GetOAuthMessage(request *http.Request, responseWriter http.ResponseWriter) 
 
 	// Extract query parameters.
 	queryParams := make(map[string]string)
-	for key, values := range request.URL.Query() {
+	for key, values := range r.URL.Query() {
 		if len(values) > 0 {
 			queryParams[key] = values[0]
 		}
@@ -90,7 +90,7 @@ func GetOAuthMessage(request *http.Request, responseWriter http.ResponseWriter) 
 
 	// Extract form/body parameters.
 	bodyParams := make(map[string]string)
-	for key, values := range request.PostForm {
+	for key, values := range r.PostForm {
 		if len(values) > 0 {
 			bodyParams[key] = values[0]
 		}
@@ -157,16 +157,16 @@ func GetErrorPageURL(queryParams map[string]string) (string, error) {
 }
 
 // RedirectToErrorPage redirects the user to the error page with the given error details.
-func RedirectToErrorPage(responseWriter http.ResponseWriter, request *http.Request, errorCode, errorMessage string) {
+func RedirectToErrorPage(w http.ResponseWriter, r *http.Request, code, msg string) {
 
-	if responseWriter == nil || request == nil {
+	if w == nil || r == nil {
 		log.GetLogger().Error("Response writer or request is nil. Cannot redirect to error page.")
 		return
 	}
 
 	queryParams := map[string]string{
-		constants.OAUTH_ERROR_CODE:    errorCode,
-		constants.OAUTH_ERROR_MESSAGE: errorMessage,
+		constants.OAUTH_ERROR_CODE:    code,
+		constants.OAUTH_ERROR_MESSAGE: msg,
 	}
 	redirectURL, err := GetErrorPageURL(queryParams)
 	if err != nil {
@@ -176,7 +176,7 @@ func RedirectToErrorPage(responseWriter http.ResponseWriter, request *http.Reque
 	log.GetLogger().Info("Redirecting to error page: " + redirectURL)
 
 	// Redirect with the request object.
-	http.Redirect(responseWriter, request, redirectURL, http.StatusFound)
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
 // GenerateNewSessionDataKey generates and returns a session data key.

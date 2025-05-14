@@ -27,8 +27,10 @@ import (
 	"github.com/asgardeo/thunder/internal/system/constants"
 )
 
-var logger *Logger
-var mu sync.Mutex
+var (
+	logger *Logger
+	once   sync.Once
+)
 
 // Logger is a wrapper around the slog logger.
 type Logger struct {
@@ -37,22 +39,17 @@ type Logger struct {
 
 // GetLogger creates and returns a singleton instance of the logger.
 func GetLogger() *Logger {
-
-	mu.Lock()
-	defer mu.Unlock()
-
-	if logger == nil {
+	once.Do(func() {
 		err := initLogger()
 		if err != nil {
 			panic("Failed to initialize logger: " + err.Error())
 		}
-	}
+	})
 	return logger
 }
 
 // initLogger initializes the slog logger.
 func initLogger() error {
-
 	// Read log level from the environment variable.
 	logLevel := os.Getenv(constants.LOG_LEVEL_ENVIRONMENT_VARIABLE)
 	if logLevel == "" {
@@ -82,7 +79,6 @@ func initLogger() error {
 
 // With creates a new logger instance with additional fields.
 func (l *Logger) With(fields ...Field) *Logger {
-
 	return &Logger{
 		internal: l.internal.With(convertFields(fields)...),
 	}
@@ -90,38 +86,32 @@ func (l *Logger) With(fields ...Field) *Logger {
 
 // Info logs an informational message with custom fields.
 func (l *Logger) Info(msg string, fields ...Field) {
-
 	l.internal.Info(msg, convertFields(fields)...)
 }
 
 // Debug logs a debug message with custom fields.
 func (l *Logger) Debug(msg string, fields ...Field) {
-
 	l.internal.Debug(msg, convertFields(fields)...)
 }
 
 // Warn logs a warning message with custom fields.
 func (l *Logger) Warn(msg string, fields ...Field) {
-
 	l.internal.Warn(msg, convertFields(fields)...)
 }
 
 // Error logs an error message with custom fields.
 func (l *Logger) Error(msg string, fields ...Field) {
-
 	l.internal.Error(msg, convertFields(fields)...)
 }
 
 // Fatal logs a fatal message with custom fields and exits the application.
 func (l *Logger) Fatal(msg string, fields ...Field) {
-
 	l.internal.Error(msg, convertFields(fields)...)
 	os.Exit(1)
 }
 
 // parseLogLevel parses the log level string and returns the corresponding slog.Level.
 func parseLogLevel(logLevel string) (slog.Level, error) {
-
 	var level slog.Level
 	var err = level.UnmarshalText([]byte(logLevel))
 	if err != nil {
@@ -132,7 +122,6 @@ func parseLogLevel(logLevel string) (slog.Level, error) {
 
 // convertFields converts a slice of Field to a variadic list of slog.Attr.
 func convertFields(fields []Field) []any {
-
 	attrs := make([]any, len(fields))
 	for i, field := range fields {
 		attrs[i] = slog.Any(field.Key, field.Value)
