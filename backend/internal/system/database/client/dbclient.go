@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package client provides database client implementations for executing queries and managing transactions.
 package client
 
 import (
@@ -43,7 +44,6 @@ type DBClient struct {
 
 // NewDBClient creates a new instance of DBClient with the provided database connection.
 func NewDBClient(db *sql.DB) DBClientInterface {
-
 	return &DBClient{
 		db: db,
 	}
@@ -51,15 +51,18 @@ func NewDBClient(db *sql.DB) DBClientInterface {
 
 // ExecuteQuery executes a SELECT query and returns the result as a slice of maps.
 func (client *DBClient) ExecuteQuery(query model.DBQuery, args ...interface{}) ([]map[string]interface{}, error) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "DBClient"))
-	logger.Info("Executing query", log.String("queryID", query.GetId()))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "DBClient"))
+	logger.Info("Executing query", log.String("queryID", query.GetID()))
 
 	rows, err := client.db.Query(query.GetQuery(), args...)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			logger.Error("Error closing rows", log.Error(closeErr))
+		}
+	}()
 
 	columns, err := rows.Columns()
 	if err != nil {
@@ -91,12 +94,10 @@ func (client *DBClient) ExecuteQuery(query model.DBQuery, args ...interface{}) (
 
 // BeginTx starts a new database transaction.
 func (client *DBClient) BeginTx() (*sql.Tx, error) {
-
 	return client.db.Begin()
 }
 
 // Close closes the database connection.
 func (client *DBClient) Close() error {
-
 	return client.db.Close()
 }

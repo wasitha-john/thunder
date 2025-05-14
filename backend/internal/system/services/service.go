@@ -16,11 +16,10 @@
  * under the License.
  */
 
+// Package services provides a way to register and manage HTTP routes for the server.
 package services
 
 import "net/http"
-
-// Package services provides a way to register and manage HTTP routes for the server.
 
 // The Route struct represents an HTTP route with its method, path, and handler function.
 type Route struct {
@@ -37,8 +36,8 @@ type ServiceInterface interface {
 // The AbstractService struct is an empty struct that can be embedded in other services.
 type AbstractService struct{}
 
+// RegisterRoutes is a method that can be overridden by concrete services to register their routes.
 func (s *AbstractService) RegisterRoutes(mux *http.ServeMux) {
-
 	// This method can be overridden by concrete services to register their routes.
 	// For example:
 	// mux.HandleFunc("/example", s.ExampleHandler)

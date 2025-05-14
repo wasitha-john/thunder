@@ -16,11 +16,13 @@
  * under the License.
  */
 
+// Package model defines the data structures used in the OAuth2 module.
 package model
 
+// TokenRequest represents the OAuth2 token request.
 type TokenRequest struct {
 	GrantType    string `json:"grant_type"`
-	ClientId     string `json:"client_id"`
+	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 	Scope        string `json:"scope,omitempty"`
 	Username     string `json:"username,omitempty"`
@@ -28,9 +30,10 @@ type TokenRequest struct {
 	RefreshToken string `json:"refresh_token,omitempty"`
 	CodeVerifier string `json:"code_verifier,omitempty"`
 	Code         string `json:"code,omitempty"`
-	RedirectUri  string `json:"redirect_uri,omitempty"`
+	RedirectURI  string `json:"redirect_uri,omitempty"`
 }
 
+// TokenResponse represents the OAuth2 token response.
 type TokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	TokenType    string `json:"token_type"`

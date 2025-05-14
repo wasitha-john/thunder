@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package log provides a structured wrapper around the log package.
 package log
 
 import (
@@ -51,9 +52,9 @@ func GetLogger() *Logger {
 // initLogger initializes the slog logger.
 func initLogger() error {
 	// Read log level from the environment variable.
-	logLevel := os.Getenv(constants.LOG_LEVEL_ENVIRONMENT_VARIABLE)
+	logLevel := os.Getenv(constants.LogLevelEnvironmentVariable)
 	if logLevel == "" {
-		logLevel = constants.DEFAULT_LOG_LEVEL
+		logLevel = constants.DefaultLogLevel
 	}
 	// Parse the log level.
 	level, err := parseLogLevel(logLevel)

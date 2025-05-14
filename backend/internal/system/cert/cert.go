@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package cert provides utilities for managing TLS certificates.
 package cert
 
 import (
@@ -29,7 +30,6 @@ import (
 
 // GetTLSConfig loads the TLS configuration from the certificate and key files.
 func GetTLSConfig(cfg *config.Config, currentDirectory string) (*tls.Config, error) {
-
 	certFilePath := path.Join(currentDirectory, cfg.Security.CertFile)
 	keyFilePath := path.Join(currentDirectory, cfg.Security.KeyFile)
 
@@ -50,5 +50,6 @@ func GetTLSConfig(cfg *config.Config, currentDirectory string) (*tls.Config, err
 	// Return the TLS configuration.
 	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12, // Enforce minimum TLS version 1.2
 	}, nil
 }

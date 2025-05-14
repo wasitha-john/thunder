@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package utils provides utility functions for HTTP operations.
 package utils
 
 import (
@@ -28,8 +29,8 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
+// ExtractBasicAuthCredentials extracts the basic authentication credentials from the request header.
 func ExtractBasicAuthCredentials(r *http.Request) (string, string, error) {
-
 	authHeader := r.Header.Get("Authorization")
 	if !strings.HasPrefix(authHeader, "Basic ") {
 		return "", "", errors.New("invalid authorization header")
@@ -52,7 +53,6 @@ func ExtractBasicAuthCredentials(r *http.Request) (string, string, error) {
 
 // WriteJSONError writes a JSON error response with the given details.
 func WriteJSONError(w http.ResponseWriter, code, desc string, statusCode int, respHeaders []map[string]string) {
-
 	logger := log.GetLogger()
 	logger.Error("Error in HTTP response", log.String("error", code), log.String("description", desc))
 

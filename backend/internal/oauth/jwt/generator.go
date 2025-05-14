@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package jwt provides functionality for generating and managing JWT tokens.
 package jwt
 
 import (
@@ -29,6 +30,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/asgardeo/thunder/internal/system/config"
@@ -36,9 +38,10 @@ import (
 
 var privateKey *rsa.PrivateKey
 
+// LoadPrivateKey loads the private key from the specified file path in the configuration.
 func LoadPrivateKey(cfg *config.Config, currentDirectory string) error {
-
 	keyFilePath := path.Join(currentDirectory, cfg.Security.KeyFile)
+	keyFilePath = filepath.Clean(keyFilePath)
 
 	// Check if the key file exists.
 	if _, err := os.Stat(keyFilePath); os.IsNotExist(err) {
@@ -81,8 +84,7 @@ func LoadPrivateKey(cfg *config.Config, currentDirectory string) error {
 }
 
 // GenerateJWT generates a standard JWT signed with the server's private key.
-func GenerateJWT(clientId string) (string, error) {
-
+func GenerateJWT(clientID string) (string, error) {
 	if privateKey == nil {
 		return "", errors.New("private key not loaded")
 	}
@@ -99,10 +101,10 @@ func GenerateJWT(clientId string) (string, error) {
 
 	// Create the JWT payload.
 	payload := map[string]interface{}{
-		"sub": clientId,
+		"sub": clientID,
 		"aut": "APPLICATION",
 		"iss": "https://wso2.com",
-		"aud": clientId,
+		"aud": clientID,
 		"exp": time.Now().Add(time.Hour).Unix(),
 		"iat": time.Now().Unix(),
 		"jti": "1234567890",

@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package utils provides utility functions for OAuth2 operations.
 package utils
 
 import (
@@ -31,11 +32,12 @@ import (
 	sessionstore "github.com/asgardeo/thunder/internal/oauth/session/store"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
+
 	"github.com/google/uuid"
 )
 
+// GetOAuthMessage extracts the OAuth message from the request and response writer.
 func GetOAuthMessage(r *http.Request, w http.ResponseWriter) (*authzmodel.OAuthMessage, error) {
-
 	if r == nil || w == nil {
 		return nil, errors.New("request or response writer is nil")
 	}
@@ -48,7 +50,7 @@ func GetOAuthMessage(r *http.Request, w http.ResponseWriter) (*authzmodel.OAuthM
 	}
 
 	// Check if the session data is already stored with a session data key.
-	sessionDataKey := r.FormValue(constants.SESSION_DATA_KEY)
+	sessionDataKey := r.FormValue(constants.SessionDataKey)
 	var sessionData sessionmodel.SessionData
 	if sessionDataKey != "" {
 		sessionDataStore := sessionstore.GetSessionDataStore()
@@ -63,11 +65,11 @@ func GetOAuthMessage(r *http.Request, w http.ResponseWriter) (*authzmodel.OAuthM
 	// Determine the request type.
 	// TODO: Add other required request types.
 	var requestType string
-	if sessionDataKey != "" && r.FormValue(constants.SESSION_DATA_KEY_CONSENT) == "" {
-		requestType = constants.TYPE_AUTHORIZATION_RESPONSE_FROM_FRAMEWORK
-	} else if r.FormValue(constants.CLIENT_ID) != "" && sessionDataKey == "" &&
-		r.FormValue(constants.SESSION_DATA_KEY_CONSENT) == "" {
-		requestType = constants.TYPE_INITIAL_AUTHORIZATION_REQUEST
+	if sessionDataKey != "" && r.FormValue(constants.SessionDataKeyConsent) == "" {
+		requestType = constants.TypeAuthorizationResponseFromFramework
+	} else if r.FormValue(constants.ClientID) != "" && sessionDataKey == "" &&
+		r.FormValue(constants.SessionDataKeyConsent) == "" {
+		requestType = constants.TypeInitialAuthorizationRequest
 	} else {
 		return nil, errors.New("invalid request type")
 	}
@@ -105,68 +107,64 @@ func GetOAuthMessage(r *http.Request, w http.ResponseWriter) (*authzmodel.OAuthM
 	}, nil
 }
 
-// GetUriWithQueryParams constructs a URI with the given query parameters.
-func GetUriWithQueryParams(uri string, queryParams map[string]string) (string, error) {
-
+// GetURIWithQueryParams constructs a URI with the given query parameters.
+func GetURIWithQueryParams(uri string, queryParams map[string]string) (string, error) {
 	// Parse the URI.
-	parsedUrl, err := url.Parse(uri)
+	parsedURL, err := url.Parse(uri)
 	if err != nil {
 		return "", errors.New("failed to parse the return URI: " + err.Error())
 	}
 
 	// Return the URI if there are no query parameters.
 	if len(queryParams) == 0 {
-		return parsedUrl.String(), nil
+		return parsedURL.String(), nil
 	}
 
 	// Add the query parameters to the URI.
-	query := parsedUrl.Query()
+	query := parsedURL.Query()
 	for key, value := range queryParams {
 		query.Add(key, value)
 	}
-	parsedUrl.RawQuery = query.Encode()
+	parsedURL.RawQuery = query.Encode()
 
 	// Return the constructed URI.
-	return parsedUrl.String(), nil
+	return parsedURL.String(), nil
 }
 
-// GetLoginPageRedirectUri returns the login page URL with the given query parameters.
-func GetLoginPageRedirectUri(queryParams map[string]string) (string, error) {
-
+// GetLoginPageRedirectURI returns the login page URL with the given query parameters.
+func GetLoginPageRedirectURI(queryParams map[string]string) (string, error) {
 	serverConfig := config.GetThunderRuntime().Config.Server
-	loginPageUrl := (&url.URL{
+	loginPageURL := (&url.URL{
 		Scheme: "https",
 		Host:   fmt.Sprintf("%s:%d", serverConfig.Hostname, serverConfig.Port),
 		Path:   "login",
 	}).String()
 
-	return GetUriWithQueryParams(loginPageUrl, queryParams)
+	return GetURIWithQueryParams(loginPageURL, queryParams)
 }
 
 // GetErrorPageURL returns the server error page URL.
 func GetErrorPageURL(queryParams map[string]string) (string, error) {
-
 	serverConfig := config.GetThunderRuntime().Config.Server
-	errorPageUrl := (&url.URL{
+	errorPageURL := (&url.URL{
 		Scheme: "https",
 		Host:   fmt.Sprintf("%s:%d", serverConfig.Hostname, serverConfig.Port),
 		Path:   "oauth2_error",
 	}).String()
 
-	return GetUriWithQueryParams(errorPageUrl, queryParams)
+	return GetURIWithQueryParams(errorPageURL, queryParams)
 }
 
 // RedirectToErrorPage redirects the user to the error page with the given error details.
 func RedirectToErrorPage(w http.ResponseWriter, r *http.Request, code, msg string) {
-
 	if w == nil || r == nil {
 		log.GetLogger().Error("Response writer or request is nil. Cannot redirect to error page.")
 		return
 	}
 
 	queryParams := map[string]string{
-		constants.OAUTH_ERROR_CODE:    code,
-		constants.OAUTH_ERROR_MESSAGE: msg,
+		constants.OAuthErrorCode:    code,
+		constants.OAuthErrorMessage: msg,
 	}
 	redirectURL, err := GetErrorPageURL(queryParams)
 	if err != nil {
@@ -181,18 +179,17 @@ func RedirectToErrorPage(w http.ResponseWriter, r *http.Request, code, msg strin
 
 // GenerateNewSessionDataKey generates and returns a session data key.
 func GenerateNewSessionDataKey() string {
-
 	return uuid.New().String()
 }
 
-func GetAllowedOrigin(allowedOrigins []string, redirectUri string) string {
-
+// GetAllowedOrigin checks if the redirect URI is allowed and returns the allowed origin.
+func GetAllowedOrigin(allowedOrigins []string, redirectURI string) string {
 	if len(allowedOrigins) == 0 {
 		return ""
 	}
 
 	for _, allowedOrigin := range allowedOrigins {
-		if strings.Contains(redirectUri, allowedOrigin) {
+		if strings.Contains(redirectURI, allowedOrigin) {
 			return allowedOrigin
 		}
 	}

@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package handler provides HTTP handlers for managing application-related API requests.
 package handler
 
 import (
@@ -29,6 +30,8 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
+// ApplicationHandler defines the handler for managing application API requests.
+//
 // @title          Application Management API
 // @version        1.0
 // @description    This API is used to manage applications.
@@ -43,8 +46,8 @@ type ApplicationHandler struct {
 	mu    *sync.RWMutex
 }
 
+// NewApplicationHandler creates a new instance of ApplicationHandler.
 func NewApplicationHandler() *ApplicationHandler {
-
 	return &ApplicationHandler{
 		store: make(map[string]model.Application),
 		mu:    &sync.RWMutex{},
@@ -64,8 +67,7 @@ func NewApplicationHandler() *ApplicationHandler {
 // @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
 // @Router       /applications [post]
 func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter, r *http.Request) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
 	var appInCreationRequest model.Application
 	if err := json.NewDecoder(r.Body).Decode(&appInCreationRequest); err != nil {
@@ -92,7 +94,7 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 	}
 
 	// Log the application creation response.
-	logger.Debug("Application POST response sent", log.String("app id", createdApplication.Id))
+	logger.Debug("Application POST response sent", log.String("app id", createdApplication.ID))
 }
 
 // HandleApplicationListRequest handles the application request.
@@ -107,8 +109,7 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 // @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
 // @Router       /applications [get]
 func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter, r *http.Request) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
 	// Get the application list using the application service.
 	appProvider := appprovider.NewApplicationProvider()
@@ -144,8 +145,7 @@ func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter
 // @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
 // @Router       /applications/{id} [get]
 func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter, r *http.Request) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
 	id := strings.TrimPrefix(r.URL.Path, "/applications/")
 	if id == "" {
@@ -188,8 +188,7 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 // @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
 // @Router       /applications/{id} [put]
 func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter, r *http.Request) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
 	id := strings.TrimPrefix(r.URL.Path, "/applications/")
 	if id == "" {
@@ -202,7 +201,7 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	updatedApp.Id = id
+	updatedApp.ID = id
 
 	// Update the application using the application service.
 	appProvider := appprovider.NewApplicationProvider()
@@ -214,7 +213,11 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(application)
+	err = json.NewEncoder(w).Encode(application)
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 
 	// Log the application response.
 	logger.Debug("Application PUT response sent", log.String("app id", id))
@@ -234,8 +237,7 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 // @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
 // @Router       /applications/{id} [delete]
 func (ah *ApplicationHandler) HandleApplicationDeleteRequest(w http.ResponseWriter, r *http.Request) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
 	id := strings.TrimPrefix(r.URL.Path, "/applications/")
 	if id == "" {

@@ -19,16 +19,18 @@
 package services
 
 import (
-	"github.com/asgardeo/thunder/internal/application/handler"
 	"net/http"
+
+	"github.com/asgardeo/thunder/internal/application/handler"
 )
 
+// ApplicationService defines the service for handling application-related requests.
 type ApplicationService struct {
 	applicationHandler *handler.ApplicationHandler
 }
 
+// NewApplicationService creates a new instance of ApplicationService.
 func NewApplicationService(mux *http.ServeMux) *ApplicationService {
-
 	instance := &ApplicationService{
 		applicationHandler: handler.NewApplicationHandler(),
 	}
@@ -37,8 +39,8 @@ func NewApplicationService(mux *http.ServeMux) *ApplicationService {
 	return instance
 }
 
+// RegisterRoutes registers the routes for the ApplicationService.
 func (s *ApplicationService) RegisterRoutes(mux *http.ServeMux) {
-
 	mux.HandleFunc("POST /applications", s.applicationHandler.HandleApplicationPostRequest)
 	mux.HandleFunc("GET /applications", s.applicationHandler.HandleApplicationListRequest)
 	mux.HandleFunc("GET /applications/", s.applicationHandler.HandleApplicationGetRequest)

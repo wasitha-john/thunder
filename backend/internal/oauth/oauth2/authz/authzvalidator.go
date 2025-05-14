@@ -39,24 +39,22 @@ func NewAuthorizationValidator() AuthorizationValidatorInterface {
 // validateInitialAuthorizationRequest validates the initial authorization request parameters.
 func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model.OAuthMessage) (string, string) {
 	// Extract required parameters.
-	responseType := msg.RequestQueryParams[constants.RESPONSE_TYPE]
-	clientId := msg.RequestQueryParams[constants.CLIENT_ID]
-	redirectUri := msg.RequestQueryParams[constants.REDIRECT_URI]
-	// scope := oAuthMessage.RequestQueryParams[constants.SCOPE]
-	// state := oAuthMessage.RequestQueryParams[constants.STATE]
+	responseType := msg.RequestQueryParams[constants.ResponseType]
+	clientID := msg.RequestQueryParams[constants.ClientID]
+	redirectURI := msg.RequestQueryParams[constants.RedirectURI]
 
 	// Validate the authorization request.
 	if responseType == "" {
-		return constants.ERROR_INVALID_REQUEST, "Missing response_type parameter"
+		return constants.ErrorInvalidRequest, "Missing response_type parameter"
 	}
-	if responseType != constants.RESPONSE_TYPE_CODE {
-		return constants.ERROR_UNSUPPORTED_RESPONSE_TYPE, "Unsupported response type"
+	if responseType != constants.ResponseTypeCode {
+		return constants.ErrorUnsupportedResponseType, "Unsupported response type"
 	}
-	if clientId == "" {
-		return constants.ERROR_INVALID_REQUEST, "Missing client_id parameter"
+	if clientID == "" {
+		return constants.ErrorInvalidRequest, "Missing client_id parameter"
 	}
-	if redirectUri == "" {
-		return constants.ERROR_INVALID_REQUEST, "Missing redirect_uri parameter"
+	if redirectURI == "" {
+		return constants.ErrorInvalidRequest, "Missing redirect_uri parameter"
 	}
 
 	return "", ""

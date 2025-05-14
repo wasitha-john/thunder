@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package cache provides utilities for managing in-memory caching.
 package cache
 
 import (
@@ -30,7 +31,6 @@ type CacheKey struct {
 
 // ToString returns the string representation of the CacheKey.
 func (key CacheKey) ToString() string {
-
 	return key.Key
 }
 
@@ -65,19 +65,19 @@ func NewBaseCache() *BaseCache {
 func (bc *BaseCache) AddToCache(key CacheKey, entry *CacheEntry) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
-	bc.cache[CacheKey(key)] = entry
+	bc.cache[key] = entry
 }
 
 // GetValueFromCache retrieves a value from the cache if it is still valid.
 func (bc *BaseCache) GetValueFromCache(key CacheKey) *CacheEntry {
 	bc.mu.RLock()
-	entry, exists := bc.cache[CacheKey(key)]
+	entry, exists := bc.cache[key]
 	bc.mu.RUnlock()
 
 	if !exists || time.Now().After(entry.ExpiryTime) {
 		// Remove the expired entry.
 		bc.mu.Lock()
-		delete(bc.cache, CacheKey(key))
+		delete(bc.cache, key)
 		bc.mu.Unlock()
 
 		return nil
@@ -90,7 +90,7 @@ func (bc *BaseCache) GetValueFromCache(key CacheKey) *CacheEntry {
 func (bc *BaseCache) ClearCacheEntry(key CacheKey) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
-	delete(bc.cache, CacheKey(key))
+	delete(bc.cache, key)
 }
 
 // ClearCache removes all entries from the cache.

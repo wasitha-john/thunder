@@ -16,27 +16,30 @@
  * under the License.
  */
 
+// Package service provides application-related business logic and operations.
 package service
 
 import (
 	"errors"
-	"github.com/asgardeo/thunder/internal/application/store"
-	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
-	"github.com/asgardeo/thunder/internal/system/utils"
-	"github.com/google/uuid"
+	"fmt"
 
 	"github.com/asgardeo/thunder/internal/application/model"
+	"github.com/asgardeo/thunder/internal/application/store"
+	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
+	"github.com/asgardeo/thunder/internal/system/utils"
+
+	"github.com/google/uuid"
 )
 
 // ApplicationServiceInterface defines the interface for the application service.
 type ApplicationServiceInterface interface {
-	GetOAuthApplication(clientId string) (*model.OAuthApplication, error)
+	GetOAuthApplication(clientID string) (*model.OAuthApplication, error)
 	CreateApplication(app *model.Application) (*model.Application, error)
 	GetApplicationList() ([]model.Application, error)
-	GetApplication(appId string) (*model.Application, error)
-	UpdateApplication(appId string, app *model.Application) (*model.Application, error)
-	DeleteApplication(appId string) error
+	GetApplication(appID string) (*model.Application, error)
+	UpdateApplication(appID string, app *model.Application) (*model.Application, error)
+	DeleteApplication(appID string) error
 }
 
 // ApplicationService is the default implementation of the ApplicationServiceInterface.
@@ -44,27 +47,29 @@ type ApplicationService struct{}
 
 // GetApplicationService creates a new instance of ApplicationService.
 func GetApplicationService() ApplicationServiceInterface {
-
 	return &ApplicationService{}
 }
 
 // GetOAuthApplication retrieves the OAuth application based on the client id.
-func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuthApplication, error) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationService"))
-
-	if clientId == "" {
+func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuthApplication, error) {
+	if clientID == "" {
 		return nil, errors.New("client ID cannot be empty")
 	}
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 
 	dbClient, err := dbprovider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return nil, err
 	}
-	defer dbClient.Close()
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
 
-	results, err := dbClient.ExecuteQuery(store.QueryGetApplicationByClientId, clientId)
+	results, err := dbClient.ExecuteQuery(store.QueryGetApplicationByClientID, clientID)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +79,7 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 
 	row := results[0]
 
-	clientId, ok := row["consumer_key"].(string)
+	clientID, ok := row["consumer_key"].(string)
 	if !ok {
 		return nil, errors.New("failed to parse consumer_key as string")
 	}
@@ -103,7 +108,7 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 	}
 
 	return &model.OAuthApplication{
-		ClientId:          clientId,
+		ClientID:          clientID,
 		ClientSecret:      clientSecret,
 		RedirectURIs:      redirectURIs,
 		AllowedGrantTypes: allowedGrantTypes,
@@ -112,10 +117,8 @@ func (as *ApplicationService) GetOAuthApplication(clientId string) (*model.OAuth
 
 // CreateApplication creates the application.
 func (as *ApplicationService) CreateApplication(app *model.Application) (*model.Application, error) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationService"))
-
-	app.Id = uuid.New().String()
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
+	app.ID = uuid.New().String()
 
 	// Create the application in the database.
 	err := store.CreateApplication(*app)
@@ -128,7 +131,6 @@ func (as *ApplicationService) CreateApplication(app *model.Application) (*model.
 
 // GetApplicationList list the applications.
 func (as *ApplicationService) GetApplicationList() ([]model.Application, error) {
-
 	applications, err := store.GetApplicationList()
 	if err != nil {
 		return nil, err
@@ -138,13 +140,12 @@ func (as *ApplicationService) GetApplicationList() ([]model.Application, error) 
 }
 
 // GetApplication get the application for given app id.
-func (as *ApplicationService) GetApplication(appId string) (*model.Application, error) {
-
-	if appId == "" {
+func (as *ApplicationService) GetApplication(appID string) (*model.Application, error) {
+	if appID == "" {
 		return nil, errors.New("application ID is empty")
 	}
 
-	application, err := store.GetApplication(appId)
+	application, err := store.GetApplication(appID)
 	if err != nil {
 		return nil, err
 	}
@@ -153,9 +154,8 @@ func (as *ApplicationService) GetApplication(appId string) (*model.Application, 
 }
 
 // UpdateApplication update the application for given app id.
-func (as *ApplicationService) UpdateApplication(appId string, app *model.Application) (*model.Application, error) {
-
-	if appId == "" {
+func (as *ApplicationService) UpdateApplication(appID string, app *model.Application) (*model.Application, error) {
+	if appID == "" {
 		return nil, errors.New("application ID is empty")
 	}
 
@@ -168,13 +168,12 @@ func (as *ApplicationService) UpdateApplication(appId string, app *model.Applica
 }
 
 // DeleteApplication delete the application for given app id.
-func (as *ApplicationService) DeleteApplication(appId string) error {
-
-	if appId == "" {
+func (as *ApplicationService) DeleteApplication(appID string) error {
+	if appID == "" {
 		return errors.New("application ID is empty")
 	}
 
-	err := store.DeleteApplication(appId)
+	err := store.DeleteApplication(appID)
 	if err != nil {
 		return err
 	}

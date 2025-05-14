@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package validator provides functionality for validating scopes.
 package validator
 
 import (
@@ -26,9 +27,15 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
+// ScopeError represents an error during scope validation.
+type ScopeError struct {
+	Error            string
+	ErrorDescription string
+}
+
 // ScopeValidatorInterface defines the interface for scope validation.
 type ScopeValidatorInterface interface {
-	ValidateScopes(requestedScopes, clientId string) (string, *ScopeError)
+	ValidateScopes(requestedScopes, clientID string) (string, *ScopeError)
 }
 
 // APIScopeValidator is the implementation of API scope validation.
@@ -40,13 +47,12 @@ func NewAPIScopeValidator() *APIScopeValidator {
 }
 
 // ValidateScopes validates and filters the requested scopes against the authorized scopes for the application.
-func (sv *APIScopeValidator) ValidateScopes(requestedScopes, clientId string) (string, *ScopeError) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "APIScopeValidator"))
-
+func (sv *APIScopeValidator) ValidateScopes(requestedScopes, clientID string) (string, *ScopeError) {
 	if requestedScopes == "" {
 		return "", nil
 	}
+
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "APIScopeValidator"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
@@ -56,10 +62,14 @@ func (sv *APIScopeValidator) ValidateScopes(requestedScopes, clientId string) (s
 			ErrorDescription: "Failed to validate scopes",
 		}
 	}
-	defer dbClient.Close()
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Error closing database client", log.Error(closeErr))
+		}
+	}()
 
 	// Query authorized scopes for the client.
-	results, err := dbClient.ExecuteQuery(constants.QueryGetAuthorizedScopesByClientId, clientId)
+	results, err := dbClient.ExecuteQuery(constants.QueryGetAuthorizedScopesByClientID, clientID)
 	if err != nil {
 		logger.Error("Failed to execute scope query", log.Error(err))
 		return "", &ScopeError{
@@ -86,10 +96,4 @@ func (sv *APIScopeValidator) ValidateScopes(requestedScopes, clientId string) (s
 	}
 
 	return strings.Join(validScopes, " "), nil
-}
-
-// ScopeError represents an error during scope validation.
-type ScopeError struct {
-	Error            string
-	ErrorDescription string
 }

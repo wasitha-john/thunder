@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package store provides functionality for managing auth session data storage.
 package store
 
 import (
@@ -25,6 +26,7 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/session/model"
 )
 
+// SessionDataStoreInterface defines the interface for session data storage.
 type SessionDataStoreInterface interface {
 	AddSession(key string, value model.SessionData)
 	GetSession(key string) (bool, model.SessionData)

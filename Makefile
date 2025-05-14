@@ -25,6 +25,16 @@ BINARY_NAME=thunder
 FRONTEND_DIR=frontend/loginportal
 BACKEND_DIR=backend/cmd/server
 
+# Tools
+PROJECT_DIR := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))/backend
+PROJECT_BIN_DIR := $(PROJECT_DIR)/bin
+TOOL_BIN ?= $(PROJECT_BIN_DIR)/tools
+GOLANGCI_LINT ?= $(TOOL_BIN)/golangci-lint
+GOLANGCI_LINT_VERSION ?= v1.64.8
+
+$(TOOL_BIN):
+	mkdir -p $(TOOL_BIN)
+
 # Default target
 all: prepare clean build test
 
@@ -43,6 +53,9 @@ test:
 run:
 	./build.sh run
 
+lint: golangci-lint
+	cd backend && $(GOLANGCI_LINT) run ./...
+
 help:
 	@echo "Makefile targets:"
 	@echo "  all    - Clean, build, and test the project."
@@ -50,6 +63,19 @@ help:
 	@echo "  build  - Build the Go project and frontend, then package."
 	@echo "  test   - Run integration tests."
 	@echo "  run    - Build and run the application locally."
+	@echo "  lint   - Run golangci-lint on the project."
 	@echo "  help   - Show this help message."
 
-.PHONY: all prepare clean build test run help
+.PHONY: all prepare clean build test run lint help
+
+.PHONY: go_install_tool golangci-lint
+
+define go_install_tool
+	cd /tmp && \
+	GOBIN=$(TOOL_BIN) go install $(2)@$(3)
+endef
+
+golangci-lint: $(GOLANGCI_LINT)
+
+$(GOLANGCI_LINT): $(TOOL_BIN)
+	$(call go_install_tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))

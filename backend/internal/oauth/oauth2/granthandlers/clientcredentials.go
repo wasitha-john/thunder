@@ -25,23 +25,23 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
+// ClientCredentialsGrantHandler handles the client credentials grant type.
 type ClientCredentialsGrantHandler struct{}
 
 // ValidateGrant validates the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest) *model.ErrorResponse {
-
 	// Validate the grant type.
-	if tokenRequest.GrantType != constants.GRANT_TYPE_CLIENT_CREDENTIALS {
+	if tokenRequest.GrantType != constants.GrantTypeClientCredentials {
 		return &model.ErrorResponse{
-			Error:            constants.ERROR_UNSUPPORTED_GRANT_TYPE,
+			Error:            constants.ErrorUnsupportedGrantType,
 			ErrorDescription: "Unsupported grant type",
 		}
 	}
 
 	// Validate the client ID and secret.
-	if tokenRequest.ClientId == "" || tokenRequest.ClientSecret == "" {
+	if tokenRequest.ClientID == "" || tokenRequest.ClientSecret == "" {
 		return &model.ErrorResponse{
-			Error:            constants.ERROR_INVALID_REQUEST,
+			Error:            constants.ErrorInvalidRequest,
 			ErrorDescription: "Client Id and secret are required",
 		}
 	}
@@ -52,21 +52,20 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 // HandleGrant handles the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthApplication) (*model.TokenResponse, *model.ErrorResponse) {
-
 	// Validate the client credentials (hardcoded for now).
-	if tokenRequest.ClientId != oauthApp.ClientId || tokenRequest.ClientSecret != oauthApp.ClientSecret {
+	if tokenRequest.ClientID != oauthApp.ClientID || tokenRequest.ClientSecret != oauthApp.ClientSecret {
 		return nil, &model.ErrorResponse{
-			Error:            constants.ERROR_INVALID_CLIENT,
+			Error:            constants.ErrorInvalidClient,
 			ErrorDescription: "Invalid client credentials",
 		}
 	}
 
 	// Generate a JWT token for the client.
-	token, err := jwt.GenerateJWT(tokenRequest.ClientId)
+	token, err := jwt.GenerateJWT(tokenRequest.ClientID)
 	if err != nil {
 		// TODO: Need to validate the error type and return appropriate error response.
 		return nil, &model.ErrorResponse{
-			Error:            constants.ERROR_SERVER_ERROR,
+			Error:            constants.ErrorServerError,
 			ErrorDescription: "Failed to generate token",
 		}
 	}
@@ -74,7 +73,7 @@ func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	// Return the token response.
 	return &model.TokenResponse{
 		AccessToken: token,
-		TokenType:   constants.TOKEN_TYPE_BEARER,
+		TokenType:   constants.TokenTypeBearer,
 		Scope:       tokenRequest.Scope,
 		ExpiresIn:   3600,
 	}, nil

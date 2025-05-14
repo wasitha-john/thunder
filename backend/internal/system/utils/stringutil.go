@@ -22,7 +22,6 @@ import "strings"
 
 // ParseStringArray parses a comma-separated string into a slice of strings.
 func ParseStringArray(value interface{}) []string {
-
 	if value == nil {
 		return []string{}
 	}

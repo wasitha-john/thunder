@@ -31,28 +31,25 @@ type AuthorizationCodeGrantHandler struct{}
 
 // ValidateGrant validates the authorization code grant request.
 func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest) *model.ErrorResponse {
-
 	return nil
 }
 
 // HandleGrant processes the authorization code grant request and generates a token response.
 func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthApplication) (*model.TokenResponse, *model.ErrorResponse) {
-
 	// TODO: Validate error responses according to spec.
-
 	// Validate the authorization code.
 	if tokenRequest.Code == "" {
 		return nil, &model.ErrorResponse{
-			Error:            constants.ERROR_INVALID_CLIENT,
+			Error:            constants.ErrorInvalidClient,
 			ErrorDescription: "Authorization code is required",
 		}
 	}
 
-	authCode, err := authz.GetAuthorizationCode(tokenRequest.ClientId, tokenRequest.Code)
+	authCode, err := authz.GetAuthorizationCode(tokenRequest.ClientID, tokenRequest.Code)
 	if err != nil || authCode.Code == "" {
 		return nil, &model.ErrorResponse{
-			Error:            constants.ERROR_INVALID_GRANT,
+			Error:            constants.ErrorInvalidGrant,
 			ErrorDescription: "Invalid authorization code",
 		}
 	}
@@ -60,11 +57,11 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	// TODO: Validate auth code params.
 
 	// Generate a JWT token for the client.
-	token, err := jwt.GenerateJWT(tokenRequest.ClientId)
+	token, err := jwt.GenerateJWT(tokenRequest.ClientID)
 	if err != nil {
 		// TODO: Need to validate the error type and return appropriate error response.
 		return nil, &model.ErrorResponse{
-			Error:            constants.ERROR_SERVER_ERROR,
+			Error:            constants.ErrorServerError,
 			ErrorDescription: "Failed to generate token",
 		}
 	}
@@ -72,7 +69,7 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	// Return the token response.
 	return &model.TokenResponse{
 		AccessToken: token,
-		TokenType:   constants.TOKEN_TYPE_BEARER,
+		TokenType:   constants.TokenTypeBearer,
 		Scope:       tokenRequest.Scope,
 		ExpiresIn:   3600,
 	}, nil

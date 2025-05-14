@@ -16,9 +16,12 @@
  * under the License.
  */
 
+// Package constants defines global constants used across the system module.
 package constants
 
 const (
-	LOG_LEVEL_ENVIRONMENT_VARIABLE = "LOG_LEVEL"
-	DEFAULT_LOG_LEVEL              = "info"
+	// LogLevelEnvironmentVariable is the environment variable name for the log level.
+	LogLevelEnvironmentVariable = "LOG_LEVEL"
+	// DefaultLogLevel is the default log level used if not specified.
+	DefaultLogLevel = "info"
 )

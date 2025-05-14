@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package provider provides functionality for managing scope validator instances.
 package provider
 
 import "github.com/asgardeo/thunder/internal/oauth/scope/validator"
@@ -30,12 +31,10 @@ type ScopeValidatorProvider struct{}
 
 // NewScopeValidatorProvider creates a new instance of ScopeValidatorProvider.
 func NewScopeValidatorProvider() ScopeValidatorProviderInterface {
-
 	return &ScopeValidatorProvider{}
 }
 
 // GetScopeValidator returns the scope validator instance.
 func (svp *ScopeValidatorProvider) GetScopeValidator() validator.ScopeValidatorInterface {
-
 	return validator.NewAPIScopeValidator()
 }

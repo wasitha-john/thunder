@@ -18,8 +18,9 @@
 
 package model
 
+// OAuthApplication represents an OAuth application details.
 type OAuthApplication struct {
-	ClientId          string
+	ClientID          string
 	ClientSecret      string
 	RedirectURIs      []string
 	AllowedGrantTypes []string
@@ -27,7 +28,6 @@ type OAuthApplication struct {
 
 // IsAllowedGrantType checks if the provided grant type is allowed.
 func (o *OAuthApplication) IsAllowedGrantType(grantType string) bool {
-
 	for _, allowedGrantType := range o.AllowedGrantTypes {
 		if grantType == allowedGrantType {
 			return true
@@ -38,7 +38,6 @@ func (o *OAuthApplication) IsAllowedGrantType(grantType string) bool {
 
 // IsValidRedirectURI checks if the provided redirect URI is valid.
 func (o *OAuthApplication) IsValidRedirectURI(redirectURI string) bool {
-
 	for _, allowedRedirectURI := range o.RedirectURIs {
 		if redirectURI == allowedRedirectURI {
 			return true

@@ -19,5 +19,6 @@
 package log
 
 const (
-	LOGGER_KEY_COMPONENT_NAME = "component"
+	// LoggerKeyComponentName is the key used to identify the component name in the logger.
+	LoggerKeyComponentName = "component"
 )

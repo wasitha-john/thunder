@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package model defines the data structures for OAuth2 authorization.
 package model
 
 import (
@@ -35,11 +36,11 @@ type OAuthMessage struct {
 
 // AuthorizationCode represents the authorization code.
 type AuthorizationCode struct {
-	CodeId           string
+	CodeID           string
 	Code             string
-	ClientId         string
-	RedirectUri      string
-	AuthorizedUserId string
+	ClientID         string
+	RedirectURI      string
+	AuthorizedUserID string
 	TimeCreated      time.Time
 	ExpiryTime       time.Time
 	Scopes           string

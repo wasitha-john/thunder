@@ -16,84 +16,85 @@
  * under the License.
  */
 
+// Package constants defines constants used across the OAuth2 module.
 package constants
 
 // OAuth2 request parameters.
 const (
-	GRANT_TYPE        = "grant_type"
-	CLIENT_ID         = "client_id"
-	CLIENT_SECRET     = "client_secret"
-	REDIRECT_URI      = "redirect_uri"
-	USERNAME          = "username"
-	PASSWORD          = "password"
-	SCOPE             = "scope"
-	CODE              = "code"
-	CODE_VERIFIER     = "code_verifier"
-	REFRESH_TOKEN     = "refresh_token"
-	RESPONSE_TYPE     = "response_type"
-	STATE             = "state"
-	ERROR             = "error"
-	ERROR_DESCRIPTION = "error_description"
+	GrantType        = "grant_type"
+	ClientID         = "client_id"
+	ClientSecret     = "client_secret"
+	RedirectURI      = "redirect_uri"
+	Username         = "username"
+	Password         = "password"
+	Scope            = "scope"
+	Code             = "code"
+	CodeVerifier     = "code_verifier"
+	RefreshToken     = "refresh_token"
+	ResponseType     = "response_type"
+	State            = "state"
+	Error            = "error"
+	ErrorDescription = "error_description"
 )
 
 // Server OAuth constants.
 const (
-	SESSION_DATA_KEY         = "sessionDataKey"
-	SESSION_DATA_KEY_CONSENT = "sessionDataKeyConsent"
+	SessionDataKey        = "sessionDataKey"
+	SessionDataKeyConsent = "sessionDataKeyConsent"
 
-	OAUTH_ERROR_CODE    = "oauthErrorCode"
-	OAUTH_ERROR_MESSAGE = "oauthErrorMsg"
+	OAuthErrorCode    = "oauthErrorCode"
+	OAuthErrorMessage = "oauthErrorMsg"
 
-	AUTH_ERROR_CODE    = "AuthErrorCode"
-	AUTH_ERROR_MESSAGE = "AuthErrorMsg"
+	AuthErrorCode    = "AuthErrorCode"
+	AuthErrorMessage = "AuthErrorMsg"
 )
 
 // Oauth message types.
 const (
-	TYPE_INITIAL_AUTHORIZATION_REQUEST         = "initialAuthorizationRequest"
-	TYPE_AUTHORIZATION_RESPONSE_FROM_FRAMEWORK = "authorizationResponseFromFramework"
-	TYPE_CONSENT_RESPONSE_FROM_USER            = "consentResponseFromUser"
+	TypeInitialAuthorizationRequest        = "initialAuthorizationRequest"
+	TypeAuthorizationResponseFromFramework = "authorizationResponseFromFramework"
+	TypeConsentResponseFromUser            = "consentResponseFromUser"
 )
 
 // OAuth2 endpoints.
 const (
-	OAUTH2_TOKEN_ENDPOINT         = "/oauth2/token"
-	OAUTH2_AUTHORIZATION_ENDPOINT = "/oauth2/authorize"
-	OAUTH2_INTROSPECT_ENDPOINT    = "/oauth2/introspect"
-	OAUTH2_REVOKE_ENDPOINT        = "/oauth2/revoke"
-	OAUTH2_USERINFO_ENDPOINT      = "/oauth2/userinfo"
-	OAUTH2_JWKS_URI               = "/oauth2/jwks"
-	OAUTH2_LOGOUT_ENDPOINT        = "/oauth2/logout"
+	OAuth2TokenEndpoint         = "/oauth2/token" // #nosec G101
+	OAuth2AuthorizationEndpoint = "/oauth2/authorize"
+	OAuth2IntrospectionEndpoint = "/oauth2/introspect"
+	OAuth2RevokeEndpoint        = "/oauth2/revoke"
+	OAuth2UserInfoEndpoint      = "/oauth2/userinfo"
+	OAuth2JWKSEndpoint          = "/oauth2/jwks"
+	OAuth2LogoutEndpoint        = "/oauth2/logout"
 )
 
 // OAuth2 grant types.
 const (
-	GRANT_TYPE_AUTHORIZATION_CODE = "authorization_code"
-	GRANT_TYPE_CLIENT_CREDENTIALS = "client_credentials"
-	GRANT_TYPE_PASSWORD           = "password"
-	GRANT_TYPE_IMPLICIT           = "implicit"
-	GRANT_TYPE_REFRESH_TOKEN      = "refresh_token"
+	GrantTypeAuthorizationCode = "authorization_code"
+	GrantTypeClientCredentials = "client_credentials"
+	GrantTypePassword          = "password"
+	GrantTypeImplicit          = "implicit"
+	GrantTypeRefreshToken      = "refresh_token"
 )
 
 // OAuth2 response types.
 const (
-	RESPONSE_TYPE_CODE = "code"
+	ResponseTypeCode = "code"
 )
 
 // OAuth2 token types.
 const (
-	TOKEN_TYPE_BEARER = "Bearer"
+	TokenTypeBearer = "Bearer"
 )
 
 // OAuth2 error codes.
 const (
-	ERROR_INVALID_REQUEST           = "invalid_request"
-	ERROR_INVALID_CLIENT            = "invalid_client"
-	ERROR_INVALID_GRANT             = "invalid_grant"
-	ERROR_UNAUTHORIZED_CLIENT       = "unauthorized_client"
-	ERROR_UNSUPPORTED_GRANT_TYPE    = "unsupported_grant_type"
-	ERROR_INVALID_SCOPE             = "invalid_scope"
-	ERROR_SERVER_ERROR              = "server_error"
-	ERROR_UNSUPPORTED_RESPONSE_TYPE = "unsupported_response_type"
-	ERROR_ACCESS_DENIED             = "access_denied"
+	ErrorInvalidRequest          = "invalid_request"
+	ErrorInvalidClient           = "invalid_client"
+	ErrorInvalidGrant            = "invalid_grant"
+	ErrorUnauthorizedClient      = "unauthorized_client"
+	ErrorUnsupportedGrantType    = "unsupported_grant_type"
+	ErrorInvalidScope            = "invalid_scope"
+	ErrorServerError             = "server_error"
+	ErrorUnsupportedResponseType = "unsupported_response_type"
+	ErrorAccessDenied            = "access_denied"
 )

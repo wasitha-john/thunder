@@ -28,6 +28,7 @@ go.work.sum
 
 # Project build directory
 target/
+backend/bin/
 
 # IDE settings, swap files, and temporary artifacts
 .idea

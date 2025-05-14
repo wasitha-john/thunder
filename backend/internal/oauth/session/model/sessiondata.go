@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package model defines the data structures for managing auth session data.
 package model
 
 import (
@@ -24,16 +25,18 @@ import (
 	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
+// AuthenticatedUser represents the user information of an authenticated user.
 // TODO: Temporary adding the AuthenticatedUser struct here. Should be moved to a appropriate place.
 type AuthenticatedUser struct {
 	IsAuthenticated        bool
-	UserId                 string
+	UserID                 string
 	Username               string
 	Domain                 string
-	AuthenticatedSubjectId string
+	AuthenticatedSubjectID string
 	Attributes             map[string]string
 }
 
+// SessionData represents the session data for the authentication.
 type SessionData struct {
 	OAuthParameters oauthmodel.OAuthParameters
 	LoggedInUser    AuthenticatedUser
