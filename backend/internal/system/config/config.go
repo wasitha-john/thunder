@@ -50,6 +50,7 @@ type DataSource struct {
 	Password string `yaml:"password"`
 	SSLMode  string `yaml:"sslmode"`
 	Path     string `yaml:"path"`
+	Options  string `yaml:"options"`
 }
 
 // DatabaseConfig holds the different database configuration details.
