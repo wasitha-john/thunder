@@ -16,24 +16,31 @@
  * under the License.
  */
 
+// Package config provides structures and functions for loading and managing server configurations.
 package config
 
 import (
 	"os"
+	"path/filepath"
 
-	"gopkg.in/yaml.v3"
+	"github.com/asgardeo/thunder/internal/system/log"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
+// ServerConfig holds the server configuration details.
 type ServerConfig struct {
 	Hostname string `yaml:"hostname"`
 	Port     int    `yaml:"port"`
 }
 
+// SecurityConfig holds the security configuration details.
 type SecurityConfig struct {
 	CertFile string `yaml:"cert_file"`
 	KeyFile  string `yaml:"key_file"`
 }
 
+// DataSource holds the individual database connection details.
 type DataSource struct {
 	Type     string `yaml:"type"`
 	Hostname string `yaml:"hostname"`
@@ -43,22 +50,27 @@ type DataSource struct {
 	Password string `yaml:"password"`
 	SSLMode  string `yaml:"sslmode"`
 	Path     string `yaml:"path"`
+	Options  string `yaml:"options"`
 }
 
+// DatabaseConfig holds the different database configuration details.
 type DatabaseConfig struct {
 	Identity DataSource `yaml:"identity"`
 	Runtime  DataSource `yaml:"runtime"`
 }
 
+// DefaultUser holds the default user configuration details.
 type DefaultUser struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 }
 
+// UserStore holds the user store configuration details.
 type UserStore struct {
 	DefaultUser DefaultUser `yaml:"default_user"`
 }
 
+// Config holds the complete configuration details of the server.
 type Config struct {
 	Server    ServerConfig   `yaml:"server"`
 	Security  SecurityConfig `yaml:"security"`
@@ -68,13 +80,18 @@ type Config struct {
 
 // LoadConfig loads the configurations from the specified YAML file.
 func LoadConfig(path string) (*Config, error) {
-
 	var cfg Config
+	path = filepath.Clean(path)
+
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if ferr := file.Close(); ferr != nil {
+			log.GetLogger().Error("Failed to close config file", log.Error(ferr))
+		}
+	}()
 
 	decoder := yaml.NewDecoder(file)
 	if err := decoder.Decode(&cfg); err != nil {

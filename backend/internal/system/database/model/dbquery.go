@@ -26,20 +26,18 @@ type DBQueryInterface interface {
 
 // DBQuery represents database queries with an identifier and the SQL query string.
 type DBQuery struct {
-	// Id is the unique identifier for the query.
-	Id string `json:"id"`
+	// ID is the unique identifier for the query.
+	ID string `json:"id"`
 	// Query is the SQL query string.
 	Query string `json:"query"`
 }
 
-// GetId returns the unique identifier for the query.
-func (d *DBQuery) GetId() string {
-
-	return d.Id
+// GetID returns the unique identifier for the query.
+func (d *DBQuery) GetID() string {
+	return d.ID
 }
 
 // GetQuery returns the SQL query string.
 func (d *DBQuery) GetQuery() string {
-
 	return d.Query
 }

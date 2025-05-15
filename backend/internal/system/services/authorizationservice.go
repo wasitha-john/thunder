@@ -24,12 +24,13 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz"
 )
 
+// AuthorizationService defines the service for handling OAuth2 authorization requests.
 type AuthorizationService struct {
 	authHandler authz.AuthorizeHandlerInterface
 }
 
+// NewAuthorizationService creates a new instance of AuthorizationService.
 func NewAuthorizationService(mux *http.ServeMux) *AuthorizationService {
-
 	instance := &AuthorizationService{
 		authHandler: authz.NewAuthorizeHandler(),
 	}
@@ -38,7 +39,7 @@ func NewAuthorizationService(mux *http.ServeMux) *AuthorizationService {
 	return instance
 }
 
+// RegisterRoutes registers the routes for the AuthorizationService.
 func (s *AuthorizationService) RegisterRoutes(mux *http.ServeMux) {
-
 	mux.HandleFunc("GET /oauth2/authorize", s.authHandler.HandleAuthorizeRequest)
 }

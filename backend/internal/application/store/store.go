@@ -16,55 +16,42 @@
  * under the License.
  */
 
+// Package store provides functionality for handling application data persistence.
 package store
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/system/database/client"
+	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
+// CreateApplication creates a new application in the database.
 func CreateApplication(app model.Application) error {
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
-	if err != nil {
-		return fmt.Errorf("failed to get database client: %w", err)
-	}
-	defer dbClient.Close()
-
-	tx, err := dbClient.BeginTx()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
-	_, err = tx.Exec(QueryCreateApplication.Query, app.Id, app.Name, app.Description)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to create SP application: %w", err)
+	queries := []func(tx dbmodel.TxInterface) error{
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(QueryCreateApplication.Query, app.ID, app.Name, app.Description)
+			return err
+		},
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(QueryCreateOAuthApplication.Query, app.ID, app.ClientID, app.ClientSecret,
+				strings.Join(app.CallbackURLs, ","), strings.Join(app.SupportedGrantTypes, ","))
+			return err
+		},
 	}
 
-	_, err = tx.Exec(QueryCreateOAuthApplication.Query, app.Id, app.ClientId, app.ClientSecret,
-		strings.Join(app.CallbackURLs, ","), strings.Join(app.SupportedGrantTypes, ","))
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to create OAuth application: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	return nil
+	return executeTransaction(queries)
 }
 
+// GetApplicationList retrieves a list of applications from the database.
 func GetApplicationList() ([]model.Application, error) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationPersistence"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationPersistence"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
@@ -75,7 +62,6 @@ func GetApplicationList() ([]model.Application, error) {
 		err := dbc.Close()
 		if err != nil {
 			logger.Error("Failed to close database client", log.Error(err))
-			err = fmt.Errorf("failed to close database client: %w", err)
 		}
 	}(dbClient)
 
@@ -99,18 +85,23 @@ func GetApplicationList() ([]model.Application, error) {
 	return applications, nil
 }
 
+// GetApplication retrieves a specific application by its ID from the database.
 func GetApplication(id string) (model.Application, error) {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationStore"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return model.Application{}, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer dbClient.Close()
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
 
-	results, err := dbClient.ExecuteQuery(QueryGetApplicationByAppId, id)
+	results, err := dbClient.ExecuteQuery(QueryGetApplicationByAppID, id)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return model.Application{}, fmt.Errorf("failed to execute query: %w", err)
@@ -136,50 +127,40 @@ func GetApplication(id string) (model.Application, error) {
 	return application, nil
 }
 
+// UpdateApplication updates an existing application in the database.
 func UpdateApplication(app *model.Application) error {
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
-	if err != nil {
-		return fmt.Errorf("failed to get database client: %w", err)
-	}
-	defer dbClient.Close()
-
-	tx, err := dbClient.BeginTx()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
-	_, err = tx.Exec(QueryUpdateApplicationByAppId.Query, app.Id, app.Name, app.Description)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to create SP application: %w", err)
+	queries := []func(tx dbmodel.TxInterface) error{
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(QueryUpdateApplicationByAppID.Query, app.ID, app.Name, app.Description)
+			return err
+		},
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(QueryUpdateOAuthApplicationByAppID.Query, app.ID, app.ClientID, app.ClientSecret,
+				strings.Join(app.CallbackURLs, ","), strings.Join(app.SupportedGrantTypes, ","))
+			return err
+		},
 	}
 
-	_, err = tx.Exec(QueryUpdateOAuthApplicationByAppId.Query, app.Id, app.ClientId, app.ClientSecret,
-		strings.Join(app.CallbackURLs, ","), strings.Join(app.SupportedGrantTypes, ","))
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to create OAuth application: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-	return nil
+	return executeTransaction(queries)
 }
 
+// DeleteApplication deletes an application from the database by its ID.
 func DeleteApplication(id string) error {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationStore"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer dbClient.Close()
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
 
-	_, err = dbClient.ExecuteQuery(QueryDeleteApplicationByAppId, id)
+	_, err = dbClient.ExecuteQuery(QueryDeleteApplicationByAppID, id)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
@@ -188,11 +169,11 @@ func DeleteApplication(id string) error {
 	return nil
 }
 
+// buildApplicationFromResultRow constructs an Application object from a database result row.
 func buildApplicationFromResultRow(row map[string]interface{}) (model.Application, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "ApplicationStore"))
-
-	appId, ok := row["app_id"].(string)
+	appID, ok := row["app_id"].(string)
 	if !ok {
 		logger.Error("failed to parse app_id as string")
 		return model.Application{}, fmt.Errorf("failed to parse app_id as string")
@@ -210,7 +191,7 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		return model.Application{}, fmt.Errorf("failed to parse description as string")
 	}
 
-	clientId, ok := row["consumer_key"].(string)
+	clientID, ok := row["consumer_key"].(string)
 	if !ok {
 		logger.Error("failed to parse consumer_key as string")
 		return model.Application{}, fmt.Errorf("failed to parse consumer_key as string")
@@ -237,13 +218,50 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 	}
 
 	application := model.Application{
-		Id:                  appId,
+		ID:                  appID,
 		Name:                appName,
 		Description:         description,
-		ClientId:            clientId,
+		ClientID:            clientID,
 		ClientSecret:        "***",
 		CallbackURLs:        redirectURIs,
 		SupportedGrantTypes: allowedGrantTypes,
 	}
 	return application, nil
+}
+
+// executeTransaction is a helper function to handle database transactions.
+func executeTransaction(queries []func(tx dbmodel.TxInterface) error) error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		return fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
+
+	tx, err := dbClient.BeginTx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	for _, query := range queries {
+		if err := query(tx); err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
+				err = errors.Join(err, errors.New("failed to rollback transaction: "+rollbackErr.Error()))
+			}
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }

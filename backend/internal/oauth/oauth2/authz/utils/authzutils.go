@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package utils provides utility functions for OAuth2 authorization operations.
 package utils
 
 import (
@@ -24,29 +25,28 @@ import (
 
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
+
 	"github.com/google/uuid"
 )
 
 // GetAuthorizationCode generates an authorization code based on the provided OAuth message.
 func GetAuthorizationCode(oAuthMessage *model.OAuthMessage) (model.AuthorizationCode, error) {
-
 	sessionData := oAuthMessage.SessionData
-
-	clientId := sessionData.OAuthParameters.ClientId
-	if clientId == "" {
-		clientId = oAuthMessage.RequestQueryParams["client_id"]
+	clientID := sessionData.OAuthParameters.ClientID
+	if clientID == "" {
+		clientID = oAuthMessage.RequestQueryParams["client_id"]
 	}
-	redirectUri := sessionData.OAuthParameters.RedirectUri
-	if redirectUri == "" {
-		redirectUri = oAuthMessage.RequestQueryParams["redirect_uri"]
+	redirectURI := sessionData.OAuthParameters.RedirectURI
+	if redirectURI == "" {
+		redirectURI = oAuthMessage.RequestQueryParams["redirect_uri"]
 	}
 
-	if clientId == "" || redirectUri == "" {
+	if clientID == "" || redirectURI == "" {
 		return model.AuthorizationCode{}, errors.New("client_id or redirect_uri is missing")
 	}
 
-	authUserId := sessionData.LoggedInUser.UserId
-	if authUserId == "" {
+	authUserID := sessionData.LoggedInUser.UserID
+	if authUserID == "" {
 		return model.AuthorizationCode{}, errors.New("authenticated user not found")
 	}
 
@@ -64,14 +64,14 @@ func GetAuthorizationCode(oAuthMessage *model.OAuthMessage) (model.Authorization
 	expiryTime := authTime.Add(10 * time.Minute)
 
 	return model.AuthorizationCode{
-		CodeId:           uuid.New().String(),
+		CodeID:           uuid.New().String(),
 		Code:             uuid.New().String(),
-		ClientId:         clientId,
-		RedirectUri:      redirectUri,
-		AuthorizedUserId: authUserId,
+		ClientID:         clientID,
+		RedirectURI:      redirectURI,
+		AuthorizedUserID: authUserID,
 		TimeCreated:      authTime,
 		ExpiryTime:       expiryTime,
 		Scopes:           scope,
-		State:            constants.AUTH_CODE_STATE_ACTIVE,
+		State:            constants.AuthCodeStateActive,
 	}, nil
 }

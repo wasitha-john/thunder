@@ -1,5 +1,3 @@
-github.com/asgardeo/thunder v0.0.0-20250508060748-43a04ef10339 h1:l3UC3fx7cUqhAW02ltnyhheZSkiLVw4o8h9sUFFnEPg=
-github.com/asgardeo/thunder v0.0.0-20250508060748-43a04ef10339/go.mod h1:mv9vOBSsTO4lPF5KvjjEVEnKUVtj8QO5q0FD+GvD3OE=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e h1:ijClszYn+mADRFY17kjQEVQ1XRhq2/JR1M3sGqeJoxs=

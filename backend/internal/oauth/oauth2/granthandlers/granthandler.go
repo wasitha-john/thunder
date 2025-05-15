@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package granthandlers provides an interface and implementations for handling OAuth 2.0 grant types.
 package granthandlers
 
 import (

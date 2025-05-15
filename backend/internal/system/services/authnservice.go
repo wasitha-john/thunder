@@ -24,28 +24,29 @@ import (
 
 	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	oauthutils "github.com/asgardeo/thunder/internal/oauth/oauth2/utils"
-	model "github.com/asgardeo/thunder/internal/oauth/session/model"
+	"github.com/asgardeo/thunder/internal/oauth/session/model"
 	sessionstore "github.com/asgardeo/thunder/internal/oauth/session/store"
 	"github.com/asgardeo/thunder/internal/system/config"
 )
 
-// Dummy authentication service for handling authentication requests.
+// AuthenticationService defines the service for handling authentication requests.
+// This is a dummy implementation for the authentication service.
 type AuthenticationService struct{}
 
+// NewAuthenticationService creates a new instance of AuthenticationService.
 func NewAuthenticationService(mux *http.ServeMux) *AuthenticationService {
-
 	instance := &AuthenticationService{}
 	instance.RegisterRoutes(mux)
 	return instance
 }
 
+// RegisterRoutes registers the routes for the AuthenticationService.
 func (s *AuthenticationService) RegisterRoutes(mux *http.ServeMux) {
-
 	mux.HandleFunc("POST /flow/authn", s.HandleAuthenticationRequest)
 }
 
+// HandleAuthenticationRequest handles the authentication request.
 func (s *AuthenticationService) HandleAuthenticationRequest(w http.ResponseWriter, r *http.Request) {
-
 	// Parse form data
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Failed to parse form data", http.StatusBadRequest)
@@ -74,8 +75,8 @@ func (s *AuthenticationService) HandleAuthenticationRequest(w http.ResponseWrite
 	newSessionData := &model.SessionData{
 		OAuthParameters: oauthmodel.OAuthParameters{
 			SessionDataKey: newSessionDataKey,
-			ClientId:       sessionData.OAuthParameters.ClientId,
-			RedirectUri:    sessionData.OAuthParameters.RedirectUri,
+			ClientID:       sessionData.OAuthParameters.ClientID,
+			RedirectURI:    sessionData.OAuthParameters.RedirectURI,
 			Scopes:         sessionData.OAuthParameters.Scopes,
 			State:          sessionData.OAuthParameters.State,
 		},
@@ -85,10 +86,10 @@ func (s *AuthenticationService) HandleAuthenticationRequest(w http.ResponseWrite
 	if username == validUsername && password == validPassword {
 		newSessionData.LoggedInUser = model.AuthenticatedUser{
 			IsAuthenticated:        true,
-			UserId:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+			UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
 			Username:               username,
 			Domain:                 "PRIMARY",
-			AuthenticatedSubjectId: username + "@carbon.super",
+			AuthenticatedSubjectID: username + "@carbon.super",
 			Attributes: map[string]string{
 				"email":     "admin@wso2.com",
 				"firstName": "Admin",
@@ -106,15 +107,15 @@ func (s *AuthenticationService) HandleAuthenticationRequest(w http.ResponseWrite
 	sessionDataStore.AddSession(newSessionDataKey, *newSessionData)
 
 	// Construct the redirect URI with the new session data key.
-	redirectUri := "https://localhost:8090/oauth2/authorize"
+	redirectURI := "https://localhost:8090/oauth2/authorize"
 	queryParams := map[string]string{
 		"sessionDataKey": newSessionDataKey,
 	}
-	redirectUri, err := oauthutils.GetUriWithQueryParams(redirectUri, queryParams)
+	redirectURI, err := oauthutils.GetURIWithQueryParams(redirectURI, queryParams)
 	if err != nil {
 		http.Error(w, "Failed to construct redirect URI", http.StatusInternalServerError)
 		return
 	}
 
-	http.Redirect(w, r, redirectUri, http.StatusFound)
+	http.Redirect(w, r, redirectURI, http.StatusFound)
 }

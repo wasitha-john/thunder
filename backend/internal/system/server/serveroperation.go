@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package server provides server wide operations and utilities.
 package server
 
 import (
@@ -26,7 +27,6 @@ import (
 
 // GetAllowedOrigins retrieves the allowed origins from the database.
 func GetAllowedOrigins() ([]string, error) {
-
 	logger := log.GetLogger()
 
 	dbClient, err := dbprovider.NewDBProvider().GetDBClient("identity")
@@ -34,7 +34,11 @@ func GetAllowedOrigins() ([]string, error) {
 		logger.Error("Failed to get database client", log.Error(err))
 		return nil, err
 	}
-	defer dbClient.Close()
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Error closing database client", log.Error(closeErr))
+		}
+	}()
 
 	results, err := dbClient.ExecuteQuery(QueryAllowedOrigins)
 	if err != nil {

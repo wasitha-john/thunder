@@ -16,14 +16,14 @@
  * under the License.
  */
 
+// Package constants defines constants related to OAuth scopes.
 package constants
 
 import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 
-var (
-	QueryGetAuthorizedScopesByClientId = dbmodel.DBQuery{
-		Id: "SCQ-00001",
-		Query: "SELECT s.NAME FROM AUTHORIZED_SCOPE as ascope JOIN SCOPE as s ON ascope.SCOPE_ID = s.UUID " +
-			"JOIN IDN_OAUTH_CONSUMER_APPS as apps ON ascope.APP_ID = apps.APP_ID WHERE apps.CONSUMER_KEY = $1",
-	}
-)
+// QueryGetAuthorizedScopesByClientID is the query to retrieve authorized scopes by client ID.
+var QueryGetAuthorizedScopesByClientID = dbmodel.DBQuery{
+	ID: "SCQ-00001",
+	Query: "SELECT s.NAME FROM AUTHORIZED_SCOPE as ascope JOIN SCOPE as s ON ascope.SCOPE_ID = s.UUID " +
+		"JOIN IDN_OAUTH_CONSUMER_APPS as apps ON ascope.APP_ID = apps.APP_ID WHERE apps.CONSUMER_KEY = $1",
+}

@@ -142,6 +142,7 @@ init_sqlite() {
   if [ ! -f "$DB_PATH" ]; then
     echo "Creating and initializing SQLite database..."
     sqlite3 "$DB_PATH" < "$SCHEMA_FILE_PATH"
+    sqlite3 "$DB_PATH" "PRAGMA journal_mode=WAL;" # Enable WAL mode.
   else
     echo "SQLite database already exists. Skipping initialization."
   fi

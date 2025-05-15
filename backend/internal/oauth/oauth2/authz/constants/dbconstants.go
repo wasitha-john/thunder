@@ -20,28 +20,30 @@ package constants
 
 import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 
-var (
-	QueryInsertAuthorizationCode = dbmodel.DBQuery{
-		Id: "AZQ-00001",
-		Query: "INSERT INTO IDN_OAUTH2_AUTHZ_CODE (CODE_ID, AUTHORIZATION_CODE, CONSUMER_KEY, " +
-			"CALLBACK_URL, AUTHZ_USER, TIME_CREATED, EXPIRY_TIME, STATE)" +
-			"VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-	}
+// QueryInsertAuthorizationCode is the query to insert a new authorization code into the database.
+var QueryInsertAuthorizationCode = dbmodel.DBQuery{
+	ID: "AZQ-00001",
+	Query: "INSERT INTO IDN_OAUTH2_AUTHZ_CODE (CODE_ID, AUTHORIZATION_CODE, CONSUMER_KEY, " +
+		"CALLBACK_URL, AUTHZ_USER, TIME_CREATED, EXPIRY_TIME, STATE)" +
+		"VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+}
 
-	QueryInsertAuthorizationCodeScopes = dbmodel.DBQuery{
-		Id:    "AZQ-00002",
-		Query: "INSERT INTO IDN_OAUTH2_AUTHZ_CODE_SCOPE (CODE_ID, SCOPE) VALUES ($1, $2)",
-	}
+// QueryInsertAuthorizationCodeScopes is the query to insert scopes for an authorization code.
+var QueryInsertAuthorizationCodeScopes = dbmodel.DBQuery{
+	ID:    "AZQ-00002",
+	Query: "INSERT INTO IDN_OAUTH2_AUTHZ_CODE_SCOPE (CODE_ID, SCOPE) VALUES ($1, $2)",
+}
 
-	QueryGetAuthorizationCode = dbmodel.DBQuery{
-		Id: "AZQ-00003",
-		Query: "SELECT CODE_ID, AUTHORIZATION_CODE, CALLBACK_URL, AUTHZ_USER, TIME_CREATED, " +
-			"EXPIRY_TIME, STATE FROM IDN_OAUTH2_AUTHZ_CODE WHERE " +
-			"CONSUMER_KEY = $1 AND AUTHORIZATION_CODE = $2",
-	}
+// QueryGetAuthorizationCode is the query to retrieve an authorization code by client ID and code.
+var QueryGetAuthorizationCode = dbmodel.DBQuery{
+	ID: "AZQ-00003",
+	Query: "SELECT CODE_ID, AUTHORIZATION_CODE, CALLBACK_URL, AUTHZ_USER, TIME_CREATED, " +
+		"EXPIRY_TIME, STATE FROM IDN_OAUTH2_AUTHZ_CODE WHERE " +
+		"CONSUMER_KEY = $1 AND AUTHORIZATION_CODE = $2",
+}
 
-	QueryUpdateAuthorizationCodeState = dbmodel.DBQuery{
-		Id:    "AZQ-00004",
-		Query: "UPDATE IDN_OAUTH2_AUTHZ_CODE SET STATE = $1 WHERE CODE_ID = $2",
-	}
-)
+// QueryUpdateAuthorizationCodeState is the query to update the state of an authorization code.
+var QueryUpdateAuthorizationCodeState = dbmodel.DBQuery{
+	ID:    "AZQ-00004",
+	Query: "UPDATE IDN_OAUTH2_AUTHZ_CODE SET STATE = $1 WHERE CODE_ID = $2",
+}

@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package provider provides functionality for managing database connections and clients.
 package provider
 
 import (
@@ -43,47 +44,38 @@ type DBProvider struct{}
 
 // NewDBProvider creates a new instance of DBProvider.
 func NewDBProvider() DBProviderInterface {
-
 	return &DBProvider{}
 }
 
 // GetDBClient returns a database client based on the provided database name.
 func (d *DBProvider) GetDBClient(dbName string) (client.DBClientInterface, error) {
-
 	// Create the database connection string based on the configured database type.
 	config := config.GetThunderRuntime().Config.Database
 	var dbConfig dbConfig
-	var err error
-
 	switch dbName {
 	case "identity":
-		dbConfig, err = getDBConfig(config.Identity)
+		dbConfig = getDBConfig(config.Identity)
 	case "runtime":
-		dbConfig, err = getDBConfig(config.Runtime)
+		dbConfig = getDBConfig(config.Runtime)
 	default:
 		return nil, fmt.Errorf("unsupported database name: %s", dbName)
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to get database config: %v", err)
-	}
-
 	db, err := sql.Open(dbConfig.driverName, dbConfig.dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %v", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	// Test the database connection.
 	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %v", err)
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	return client.NewDBClient(db), nil
 }
 
 // getDBConfig returns the database configuration based on the provided data source.
-func getDBConfig(dataSource config.DataSource) (dbConfig, error) {
-
+func getDBConfig(dataSource config.DataSource) dbConfig {
 	var dbConfig dbConfig
 
 	switch dataSource.Type {
@@ -94,9 +86,12 @@ func getDBConfig(dataSource config.DataSource) (dbConfig, error) {
 			dataSource.Name, dataSource.SSLMode)
 	case "sqlite":
 		dbConfig.driverName = "sqlite"
-		dbConfig.dsn = fmt.Sprintf("%s?_journal_mode=WAL&_busy_timeout=5000",
-			path.Join(config.GetThunderRuntime().ThunderHome, dataSource.Path))
+		options := dataSource.Options
+		if options != "" && options[0] != '?' {
+			options = "?" + options
+		}
+		dbConfig.dsn = fmt.Sprintf("%s%s", path.Join(config.GetThunderRuntime().ThunderHome, dataSource.Path), options)
 	}
 
-	return dbConfig, nil
+	return dbConfig
 }

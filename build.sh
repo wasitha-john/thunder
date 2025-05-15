@@ -62,10 +62,22 @@ function package() {
     cp -r "$SERVER_DB_SCRIPTS_DIR" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
     cp -r "$FRONTEND_DIR/build" "$OUTPUT_DIR/$PRODUCT_FOLDER/dist/"
     mkdir -p "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR"
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR/server.key" \
-        -out "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR/server.crt" \
-        -subj "/O=WSO2/OU=Thunder/CN=localhost"
+
+    echo "Generating SSL certificates..."
+    OPENSSL_ERR=$(
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR/server.key" \
+            -out "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR/server.crt" \
+            -subj "/O=WSO2/OU=Thunder/CN=localhost" \
+            > /dev/null 2>&1
+    )
+    if [[ $? -ne 0 ]]; then
+        echo "Error generating SSL certificates: $OPENSSL_ERR"
+        exit 1
+    fi
+    echo "Certificates generated successfully."
+    
+    echo "Creating zip file..."
     (cd "$OUTPUT_DIR" && zip -r "$PRODUCT_FOLDER.zip" "$PRODUCT_FOLDER")
     rm -rf "$OUTPUT_DIR/$PRODUCT_FOLDER" "$BUILD_DIR"
 }
@@ -86,10 +98,20 @@ function run() {
     echo "Ensuring server certificates exist..."
     if [[ ! -f "$BACKEND_DIR/$SECURITY_DIR/server.crt" || ! -f "$BACKEND_DIR/$SECURITY_DIR/server.key" ]]; then
         mkdir -p "$BACKEND_DIR/$SECURITY_DIR"
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-            -keyout "$BACKEND_DIR/$SECURITY_DIR/server.key" \
-            -out "$BACKEND_DIR/$SECURITY_DIR/server.crt" \
-            -subj "/O=WSO2/OU=Thunder/CN=localhost"
+
+        echo "Generating SSL certificates..."
+        OPENSSL_ERR=$(
+            openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout "$BACKEND_DIR/$SECURITY_DIR/server.key" \
+                -out "$BACKEND_DIR/$SECURITY_DIR/server.crt" \
+                -subj "/O=WSO2/OU=Thunder/CN=localhost" \
+                > /dev/null 2>&1
+        )
+        if [[ $? -ne 0 ]]; then
+            echo "Error generating SSL certificates: $OPENSSL_ERR"
+            exit 1
+        fi
+        echo "Certificates generated successfully."
     else
         echo "Certificates already exist."
     fi

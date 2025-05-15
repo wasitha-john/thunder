@@ -21,45 +21,53 @@ package store
 import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 
 var (
-	QueryGetApplicationByClientId = dbmodel.DBQuery{
-		Id: "ASQ-APP_MGT-00",
+	// QueryGetApplicationByClientID is the query to retrieve application details by client ID.
+	QueryGetApplicationByClientID = dbmodel.DBQuery{
+		ID: "ASQ-APP_MGT-00",
 		Query: "SELECT CONSUMER_KEY, CONSUMER_SECRET, CALLBACK_URIS, GRANT_TYPES " +
 			"FROM IDN_OAUTH_CONSUMER_APPS WHERE CONSUMER_KEY = $1",
 	}
 
+	// QueryCreateApplication is the query to create a new application with basic details.
 	QueryCreateApplication = dbmodel.DBQuery{
-		Id:    "ASQ-APP_MGT-01",
+		ID:    "ASQ-APP_MGT-01",
 		Query: "INSERT INTO SP_APP (APP_ID, APP_NAME, DESCRIPTION) VALUES ($1, $2, $3)",
 	}
+	// QueryCreateOAuthApplication is the query to create a new OAuth application.
 	QueryCreateOAuthApplication = dbmodel.DBQuery{
-		Id: "ASQ-APP_MGT-02",
+		ID: "ASQ-APP_MGT-02",
 		Query: "INSERT INTO IDN_OAUTH_CONSUMER_APPS (APP_ID, CONSUMER_KEY, CONSUMER_SECRET, CALLBACK_URIS, GRANT_TYPES) " +
 			"VALUES ($1, $2, $3, $4, $5)",
 	}
-	QueryGetApplicationByAppId = dbmodel.DBQuery{
-		Id: "ASQ-APP_MGT-03",
+	// QueryGetApplicationByAppID is the query to retrieve application details by app ID.
+	QueryGetApplicationByAppID = dbmodel.DBQuery{
+		ID: "ASQ-APP_MGT-03",
 		Query: "SELECT sp.APP_ID, sp.APP_NAME, sp.DESCRIPTION," +
 			"oauth.CONSUMER_KEY, oauth.CALLBACK_URIS, oauth.GRANT_TYPES " +
 			"FROM SP_APP sp JOIN IDN_OAUTH_CONSUMER_APPS oauth ON sp.APP_ID = oauth.APP_ID " +
 			"WHERE sp.APP_ID = $1",
 	}
+	// QueryGetApplicationList is the query to list all the applications.
 	QueryGetApplicationList = dbmodel.DBQuery{
-		Id: "ASQ-APP_MGT-04",
+		ID: "ASQ-APP_MGT-04",
 		Query: "SELECT sp.APP_ID, sp.APP_NAME, sp.DESCRIPTION," +
 			"oauth.CONSUMER_KEY, oauth.CALLBACK_URIS, oauth.GRANT_TYPES " +
 			"FROM SP_APP sp JOIN IDN_OAUTH_CONSUMER_APPS oauth ON sp.APP_ID = oauth.APP_ID",
 	}
-	QueryUpdateApplicationByAppId = dbmodel.DBQuery{
-		Id:    "ASQ-APP_MGT-05",
+	// QueryUpdateApplicationByAppID is the query to update application details by app ID.
+	QueryUpdateApplicationByAppID = dbmodel.DBQuery{
+		ID:    "ASQ-APP_MGT-05",
 		Query: "UPDATE SP_APP SET APP_NAME = $2, DESCRIPTION = $3 WHERE APP_ID = $1;",
 	}
-	QueryUpdateOAuthApplicationByAppId = dbmodel.DBQuery{
-		Id: "ASQ-APP_MGT-05",
+	// QueryUpdateOAuthApplicationByAppID is the query to update OAuth application details by app ID.
+	QueryUpdateOAuthApplicationByAppID = dbmodel.DBQuery{
+		ID: "ASQ-APP_MGT-05",
 		Query: "UPDATE IDN_OAUTH_CONSUMER_APPS " +
 			"SET CONSUMER_KEY = $2, CONSUMER_SECRET = $3, CALLBACK_URIS = $4, GRANT_TYPES = $5 WHERE APP_ID = $1",
 	}
-	QueryDeleteApplicationByAppId = dbmodel.DBQuery{
-		Id:    "ASQ-APP_MGT-06",
+	// QueryDeleteApplicationByAppID is the query to delete an application by app ID.
+	QueryDeleteApplicationByAppID = dbmodel.DBQuery{
+		ID:    "ASQ-APP_MGT-06",
 		Query: "DELETE FROM SP_APP WHERE APP_ID = $1",
 	}
 )

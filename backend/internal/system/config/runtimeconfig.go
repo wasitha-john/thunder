@@ -33,7 +33,6 @@ var (
 
 // InitializeThunderRuntime initializes the ThunderRuntime configuration.
 func InitializeThunderRuntime(thunderHome string, config *Config) error {
-
 	once.Do(func() {
 		runtimeConfig = &ThunderRuntime{
 			ThunderHome: thunderHome,
@@ -46,7 +45,6 @@ func InitializeThunderRuntime(thunderHome string, config *Config) error {
 
 // GetThunderRuntime returns the ThunderRuntime configuration.
 func GetThunderRuntime() *ThunderRuntime {
-
 	if runtimeConfig == nil {
 		panic("ThunderRuntime is not initialized")
 	}

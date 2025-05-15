@@ -20,9 +20,8 @@ package server
 
 import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 
-var (
-	QueryAllowedOrigins = dbmodel.DBQuery{
-		Id:    "SOQ-00001",
-		Query: "SELECT ALLOWED_ORIGINS FROM IDN_OAUTH_ALLOWED_ORIGINS",
-	}
-)
+// QueryAllowedOrigins is the query to retrieve allowed origins.
+var QueryAllowedOrigins = dbmodel.DBQuery{
+	ID:    "SOQ-00001",
+	Query: "SELECT ALLOWED_ORIGINS FROM IDN_OAUTH_ALLOWED_ORIGINS",
+}

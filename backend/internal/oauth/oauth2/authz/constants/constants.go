@@ -16,12 +16,13 @@
  * under the License.
  */
 
+// Package constants defines constants related to OAuth2 authorization.
 package constants
 
 // Authorization code states.
 const (
-	AUTH_CODE_STATE_ACTIVE   = "ACTIVE"
-	AUTH_CODE_STATE_INACTIVE = "INACTIVE"
-	AUTH_CODE_STATE_EXPIRED  = "EXPIRED"
-	AUTH_CODE_STATE_REVOKED  = "REVOKED"
+	AuthCodeStateActive   = "ACTIVE"
+	AuthCodeStateInactive = "INACTIVE"
+	AuthCodeStateExpired  = "EXPIRED"
+	AuthCodeStateRevoked  = "REVOKED"
 )

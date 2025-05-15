@@ -16,13 +16,15 @@
  * under the License.
  */
 
+// Package model defines the data structures for the application module.
 package model
 
+// Application represents an application with its details.
 type Application struct {
-	Id                  string   `json:"id,omitempty"`
+	ID                  string   `json:"id,omitempty"`
 	Name                string   `json:"name"`
 	Description         string   `json:"description"`
-	ClientId            string   `json:"client_id"`
+	ClientID            string   `json:"client_id"`
 	ClientSecret        string   `json:"client_secret"`
 	CallbackURLs        []string `json:"callback_url"`
 	SupportedGrantTypes []string `json:"supported_grant_types"`
