@@ -16,7 +16,6 @@
  * under the License.
  */
 
-// Package model defines the data structures and interfaces for database operations.
 package model
 
 // DBQueryInterface defines the interface for database queries.
