@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	authzmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
@@ -63,7 +64,6 @@ func GetOAuthMessage(r *http.Request, w http.ResponseWriter) (*authzmodel.OAuthM
 	}
 
 	// Determine the request type.
-	// TODO: Add other required request types.
 	var requestType string
 	if sessionDataKey != "" && r.FormValue(constants.SessionDataKeyConsent) == "" {
 		requestType = constants.TypeAuthorizationResponseFromFramework
@@ -118,6 +118,11 @@ func GetURIWithQueryParams(uri string, queryParams map[string]string) (string, e
 	// Return the URI if there are no query parameters.
 	if len(queryParams) == 0 {
 		return parsedURL.String(), nil
+	}
+
+	// Validate the error params if present.
+	if err := validateErrorParams(queryParams[constants.Error], queryParams[constants.ErrorDescription]); err != nil {
+		return "", err
 	}
 
 	// Add the query parameters to the URI.
@@ -195,4 +200,23 @@ func GetAllowedOrigin(allowedOrigins []string, redirectURI string) string {
 	}
 
 	return ""
+}
+
+// validateErrorParams validates the error code and error description parameters.
+func validateErrorParams(err, desc string) error {
+	// Define a regex pattern for the allowed character set: %x20-21 / %x23-5B / %x5D-7E
+	allowedCharPattern := `^[\x20-\x21\x23-\x5B\x5D-\x7E]*$`
+	allowedCharRegex := regexp.MustCompile(allowedCharPattern)
+
+	// Validate the error code.
+	if err != "" && !allowedCharRegex.MatchString(err) {
+		return fmt.Errorf("invalid error code: %s", err)
+	}
+
+	// Validate the error description.
+	if desc != "" && !allowedCharRegex.MatchString(desc) {
+		return fmt.Errorf("invalid error description: %s", desc)
+	}
+
+	return nil
 }

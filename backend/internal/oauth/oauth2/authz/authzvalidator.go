@@ -19,13 +19,16 @@
 package authz
 
 import (
+	appmodel "github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
+	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 // AuthorizationValidatorInterface defines the interface for validating OAuth2 authorization requests.
 type AuthorizationValidatorInterface interface {
-	validateInitialAuthorizationRequest(msg *model.OAuthMessage) (string, string)
+	validateInitialAuthorizationRequest(msg *model.OAuthMessage,
+		app *appmodel.OAuthApplication) (bool, string, string)
 }
 
 // AuthorizationValidator implements the AuthorizationValidatorInterface for validating OAuth2 authorization requests.
@@ -37,25 +40,38 @@ func NewAuthorizationValidator() AuthorizationValidatorInterface {
 }
 
 // validateInitialAuthorizationRequest validates the initial authorization request parameters.
-func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model.OAuthMessage) (string, string) {
+func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model.OAuthMessage,
+	app *appmodel.OAuthApplication) (bool, string, string) {
+	logger := log.GetLogger()
+
 	// Extract required parameters.
 	responseType := msg.RequestQueryParams[constants.ResponseType]
 	clientID := msg.RequestQueryParams[constants.ClientID]
 	redirectURI := msg.RequestQueryParams[constants.RedirectURI]
 
-	// Validate the authorization request.
-	if responseType == "" {
-		return constants.ErrorInvalidRequest, "Missing response_type parameter"
-	}
-	if responseType != constants.ResponseTypeCode {
-		return constants.ErrorUnsupportedResponseType, "Unsupported response type"
-	}
 	if clientID == "" {
-		return constants.ErrorInvalidRequest, "Missing client_id parameter"
-	}
-	if redirectURI == "" {
-		return constants.ErrorInvalidRequest, "Missing redirect_uri parameter"
+		return false, constants.ErrorInvalidRequest, "Missing client_id parameter"
 	}
 
-	return "", ""
+	// Validate if the authorization code grant type is allowed for the app.
+	if !app.IsAllowedGrantType(constants.GrantTypeAuthorizationCode) {
+		return false, constants.ErrorUnsupportedGrantType,
+			"Authorization code grant type is not allowed for the client"
+	}
+
+	// Validate the redirect URI against the registered application.
+	if err := app.ValidateRedirectURI(redirectURI); err != nil {
+		logger.Error("Validation failed for redirect URI", log.Error(err))
+		return false, constants.ErrorInvalidRequest, "Invalid redirect URI"
+	}
+
+	// Validate the authorization request.
+	if responseType == "" {
+		return true, constants.ErrorInvalidRequest, "Missing response_type parameter"
+	}
+	if responseType != constants.ResponseTypeCode {
+		return true, constants.ErrorUnsupportedResponseType, "Unsupported response type"
+	}
+
+	return false, "", ""
 }
