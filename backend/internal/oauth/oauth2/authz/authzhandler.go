@@ -170,13 +170,22 @@ func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(msg *authzmodel.OA
 	// Add other required query parameters.
 	queryParams[constants.SessionDataKey] = oauthParams.SessionDataKey
 
+	// Add insecure warning if the redirect URI is not using TLS.
+	parsedRedirectURI, err := utils.ParseURL(oauthParams.RedirectURI)
+	if err != nil {
+		oauthutils.RedirectToErrorPage(w, r, constants.ErrorServerError, "Failed to redirect to login page")
+		return
+	}
+	if parsedRedirectURI.Scheme == "http" {
+		queryParams[constants.ShowInsecureWarning] = "true"
+	}
+
 	// Append required query parameters to the redirect URI.
 	loginPageURI, err := oauthutils.GetLoginPageRedirectURI(queryParams)
 	if err != nil {
 		oauthutils.RedirectToErrorPage(w, r, constants.ErrorServerError,
 			"Failed to redirect to login page")
 	} else {
-		// Redirect user-agent to the login page.
 		http.Redirect(w, r, loginPageURI, http.StatusFound)
 	}
 }

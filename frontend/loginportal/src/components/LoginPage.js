@@ -20,15 +20,25 @@ import React, { useEffect, useState } from 'react';
 
 const LoginPage = () => {
   const [sessionDataKey, setSessionDataKey] = useState('');
+  const [insecureWarning, setInsecureWarning] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSessionDataKey(params.get('sessionDataKey') || '');
+    setInsecureWarning(params.get('showInsecureWarning') === 'true');
   }, []);
 
   return (
     <div style={styles.body}>
       <div style={styles.container}>
+        {insecureWarning && (
+          <div style={styles.warning}>
+            <span style={styles.warningEmoji}>⚠️</span>
+            <span style={styles.warningText}>
+              You are about to access a non-secure site. Proceed with caution!
+            </span>
+          </div>
+        )}
         <div style={styles.appLogo}>🔐</div>
         <h1 style={styles.heading}>Login to Application</h1>
         <form method="POST" action="https://localhost:8090/flow/authn" style={styles.form}>
@@ -108,6 +118,30 @@ const styles = {
   footer: {
     marginTop: 30,
     fontSize: 14,
+  },
+  warning: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    border: '2px solid #c49f0c',
+    color: '#c49f0c',
+    padding: 10,
+    borderRadius: 4,
+    marginBottom: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: '1.5',
+    maxWidth: '350px',
+    margin: '0 auto',
+    gap: 10,
+  },
+  warningEmoji: {
+    fontSize: 24,
+    color: '#1E1E2F',
+  },
+  warningText: {
+    fontSize: 16,
   },
 };
 

@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -73,4 +74,13 @@ func WriteJSONError(w http.ResponseWriter, code, desc string, statusCode int, re
 		logger.Error("Failed to write JSON error response", log.Error(err))
 		return
 	}
+}
+
+// ParseURL parses the given URL string and returns a URL object.
+func ParseURL(urlStr string) (*url.URL, error) {
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return nil, err
+	}
+	return parsedURL, nil
 }

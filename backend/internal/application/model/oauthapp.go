@@ -23,6 +23,7 @@ import (
 	"net/url"
 
 	"github.com/asgardeo/thunder/internal/system/log"
+	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // OAuthApplication represents an OAuth application details.
@@ -47,11 +48,6 @@ func (o *OAuthApplication) IsAllowedGrantType(grantType string) bool {
 func (o *OAuthApplication) ValidateRedirectURI(redirectURI string) error {
 	logger := log.GetLogger()
 
-	// Server should require pre-registered redirect URIs.
-	if len(o.RedirectURIs) == 0 {
-		return fmt.Errorf("no redirect URIs are configured for the application")
-	}
-
 	// Check if the redirect URI is empty.
 	if redirectURI == "" {
 		// Check if multiple redirect URIs are registered.
@@ -74,7 +70,7 @@ func (o *OAuthApplication) ValidateRedirectURI(redirectURI string) error {
 	}
 
 	// Parse the redirect URI.
-	parsedRedirectURI, err := url.Parse(redirectURI)
+	parsedRedirectURI, err := utils.ParseURL(redirectURI)
 	if err != nil {
 		logger.Error("Failed to parse redirect URI", log.Error(err))
 		return fmt.Errorf("invalid redirect URI: %s", err.Error())
@@ -82,11 +78,6 @@ func (o *OAuthApplication) ValidateRedirectURI(redirectURI string) error {
 	// Check if it is a fragment URI.
 	if parsedRedirectURI.Fragment != "" {
 		return fmt.Errorf("redirect URI must not contain a fragment component")
-	}
-
-	// Warn if the redirect URI is not using TLS.
-	if parsedRedirectURI.Scheme == "http" {
-		logger.Warn("Redirect URI is not using TLS")
 	}
 
 	return nil
