@@ -57,7 +57,7 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	// TODO: Validate auth code params.
 
 	// Generate a JWT token for the client.
-	token, err := jwt.GenerateJWT(tokenRequest.ClientID)
+	token, err := jwt.GenerateJWT(authCode.AuthorizedUserID, authCode.ClientID)
 	if err != nil {
 		// TODO: Need to validate the error type and return appropriate error response.
 		return nil, &model.ErrorResponse{

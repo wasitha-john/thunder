@@ -34,6 +34,8 @@ import (
 	"time"
 
 	"github.com/asgardeo/thunder/internal/system/config"
+
+	"github.com/google/uuid"
 )
 
 var privateKey *rsa.PrivateKey
@@ -84,10 +86,12 @@ func LoadPrivateKey(cfg *config.Config, currentDirectory string) error {
 }
 
 // GenerateJWT generates a standard JWT signed with the server's private key.
-func GenerateJWT(clientID string) (string, error) {
+func GenerateJWT(sub, aud string) (string, error) {
 	if privateKey == nil {
 		return "", errors.New("private key not loaded")
 	}
+
+	config := config.GetThunderRuntime().Config
 
 	// Create the JWT header.
 	header := map[string]string{
@@ -99,15 +103,22 @@ func GenerateJWT(clientID string) (string, error) {
 		return "", err
 	}
 
+	// Calculate the expiration time based on the validity period.
+	validityPeriod := config.OAuth.JWT.ValidityPeriod
+	if validityPeriod == 0 {
+		validityPeriod = 3600 // Default to 1 hour if not set.
+	}
+	expirationTime := time.Now().Add(time.Duration(validityPeriod) * time.Second).Unix()
+
 	// Create the JWT payload.
 	payload := map[string]interface{}{
-		"sub": clientID,
-		"aut": "APPLICATION",
-		"iss": "https://wso2.com",
-		"aud": clientID,
-		"exp": time.Now().Add(time.Hour).Unix(),
+		"sub": sub,
+		"iss": config.OAuth.JWT.Issuer,
+		"aud": aud,
+		"exp": expirationTime,
 		"iat": time.Now().Unix(),
-		"jti": "1234567890",
+		"nbf": time.Now().Unix(),
+		"jti": uuid.New().String(),
 	}
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
