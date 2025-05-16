@@ -16,20 +16,12 @@
  * under the License.
  */
 
-// Package model defines the data structures for managing auth session data.
-package model
+// Package utils provides utility functions for session management.
+package utils
 
-import (
-	"time"
+import "github.com/google/uuid"
 
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
-	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
-)
-
-// SessionData represents the session data for the authentication.
-type SessionData struct {
-	OAuthParameters      oauthmodel.OAuthParameters
-	AuthTime             time.Time
-	CurrentAuthenticator string
-	AuthenticatedUser    authnmodel.AuthenticatedUser
+// GenerateNewSessionDataKey generates and returns a new session data key.
+func GenerateNewSessionDataKey() string {
+	return uuid.New().String()
 }

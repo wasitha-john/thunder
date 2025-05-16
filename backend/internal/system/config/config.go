@@ -81,13 +81,32 @@ type OAuthConfig struct {
 	JWT JWTConfig `yaml:"jwt"`
 }
 
+// Authenticator holds the configuration details for an individual authenticator.
+type Authenticator struct {
+	Name         string   `yaml:"name"`
+	ID           string   `yaml:"id"`
+	Type         string   `yaml:"type"`
+	DisplayName  string   `yaml:"display_name"`
+	Description  string   `yaml:"description"`
+	ClientID     string   `yaml:"client_id"`
+	ClientSecret string   `yaml:"client_secret"`
+	RedirectURI  string   `yaml:"redirect_uri"`
+	Scopes       []string `yaml:"scopes"`
+}
+
+// AuthenticatorConfig holds the configuration details for the authenticators.
+type AuthenticatorConfig struct {
+	DefaultAuthenticator Authenticator `yaml:"default"`
+}
+
 // Config holds the complete configuration details of the server.
 type Config struct {
-	Server    ServerConfig   `yaml:"server"`
-	Security  SecurityConfig `yaml:"security"`
-	Database  DatabaseConfig `yaml:"database"`
-	UserStore UserStore      `yaml:"user_store"`
-	OAuth     OAuthConfig    `yaml:"oauth"`
+	Server        ServerConfig        `yaml:"server"`
+	Security      SecurityConfig      `yaml:"security"`
+	Database      DatabaseConfig      `yaml:"database"`
+	UserStore     UserStore           `yaml:"user_store"`
+	OAuth         OAuthConfig         `yaml:"oauth"`
+	Authenticator AuthenticatorConfig `yaml:"authenticator"`
 }
 
 // LoadConfig loads the configurations from the specified YAML file.

@@ -45,7 +45,7 @@ func GetAuthorizationCode(oAuthMessage *model.OAuthMessage) (model.Authorization
 		return model.AuthorizationCode{}, errors.New("client_id or redirect_uri is missing")
 	}
 
-	authUserID := sessionData.LoggedInUser.UserID
+	authUserID := sessionData.AuthenticatedUser.UserID
 	if authUserID == "" {
 		return model.AuthorizationCode{}, errors.New("authenticated user not found")
 	}

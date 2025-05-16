@@ -16,7 +16,6 @@
  * under the License.
  */
 
-// Package utils provides utility functions for HTTP operations.
 package utils
 
 import (
@@ -83,4 +82,28 @@ func ParseURL(urlStr string) (*url.URL, error) {
 		return nil, err
 	}
 	return parsedURL, nil
+}
+
+// GetURIWithQueryParams constructs a URI with the given query parameters.
+func GetURIWithQueryParams(uri string, queryParams map[string]string) (string, error) {
+	// Parse the URI.
+	parsedURL, err := ParseURL(uri)
+	if err != nil {
+		return "", errors.New("failed to parse the return URI: " + err.Error())
+	}
+
+	// Return the URI if there are no query parameters.
+	if len(queryParams) == 0 {
+		return parsedURL.String(), nil
+	}
+
+	// Add the query parameters to the URI.
+	query := parsedURL.Query()
+	for key, value := range queryParams {
+		query.Add(key, value)
+	}
+	parsedURL.RawQuery = query.Encode()
+
+	// Return the constructed URI.
+	return parsedURL.String(), nil
 }

@@ -16,20 +16,22 @@
  * under the License.
  */
 
-// Package model defines the data structures for managing auth session data.
-package model
+// Package utils provides utility functions for server wide operations.
+package utils
 
-import (
-	"time"
+import "strings"
 
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
-	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
-)
+// GetAllowedOrigin checks if the redirect URI is allowed and returns the allowed origin.
+func GetAllowedOrigin(allowedOrigins []string, redirectURI string) string {
+	if len(allowedOrigins) == 0 {
+		return ""
+	}
 
-// SessionData represents the session data for the authentication.
-type SessionData struct {
-	OAuthParameters      oauthmodel.OAuthParameters
-	AuthTime             time.Time
-	CurrentAuthenticator string
-	AuthenticatedUser    authnmodel.AuthenticatedUser
+	for _, allowedOrigin := range allowedOrigins {
+		if strings.Contains(redirectURI, allowedOrigin) {
+			return allowedOrigin
+		}
+	}
+
+	return ""
 }

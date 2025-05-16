@@ -30,7 +30,6 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/granthandlers"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
-	oauthutils "github.com/asgardeo/thunder/internal/oauth/oauth2/utils"
 	scopeprovider "github.com/asgardeo/thunder/internal/oauth/scope/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
@@ -188,7 +187,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Set the CORS headers if allowed origins are configured.
-	allowedOrigin := oauthutils.GetAllowedOrigin(allowedOrigins, tokenRequest.RedirectURI)
+	allowedOrigin := utils.GetAllowedOrigin(allowedOrigins, tokenRequest.RedirectURI)
 	if allowedOrigin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
