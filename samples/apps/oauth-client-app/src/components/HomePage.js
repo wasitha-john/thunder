@@ -17,11 +17,19 @@
  */
 
 import React from 'react';
+import { decodeJwt } from '../services/jwtService';
 
 const HomePage = ({ token }) => {
     const handleBackToLogin = () => {
-        window.location.href = '/'; // Redirect to the login page and refresh
+        // Redirect to the login page and refresh.
+        window.location.href = '/';
     };
+
+    // Decode the token if available.
+    let decodedToken = null;
+    if (token) {
+        decodedToken = decodeJwt(token);
+    }
 
     return (
         <div className="home-container">
@@ -30,6 +38,27 @@ const HomePage = ({ token }) => {
                 <div className="token-container">
                     <h2>Access Token:</h2>
                     <p className="token">{token}</p>
+                    {decodedToken && (
+                        <div>
+                            <h2>Decoded Token:</h2>
+                            <div className="decoded-token-container">
+                                <div className="decoded-token-section">
+                                    <h3>Header:</h3>
+                                    <pre className="decoded-token">
+                                        {JSON.stringify(decodedToken.header, null, 2)}
+                                    </pre>
+                                    <h3>Payload:</h3>
+                                    <pre className="decoded-token">
+                                        {JSON.stringify(decodedToken.payload, null, 2)}
+                                    </pre>
+                                </div>
+                                <div className="decoded-token-section">
+                                    <h3>Signature:</h3>
+                                    <pre className="decoded-token">{decodedToken.signature}</pre>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <p>No token available. Please log in.</p>

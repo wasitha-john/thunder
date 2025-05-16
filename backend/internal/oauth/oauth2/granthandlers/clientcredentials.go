@@ -61,7 +61,7 @@ func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	}
 
 	// Generate a JWT token for the client.
-	token, err := jwt.GenerateJWT(tokenRequest.ClientID)
+	token, err := jwt.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID)
 	if err != nil {
 		// TODO: Need to validate the error type and return appropriate error response.
 		return nil, &model.ErrorResponse{

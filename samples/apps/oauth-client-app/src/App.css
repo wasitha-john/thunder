@@ -52,19 +52,22 @@ div {
 }
 
 .home-container {
+    font-family: Arial, sans-serif;
     text-align: center;
     padding: 20px;
+    background-color: #f4f4f9;
+    color: #333;
 }
 
 .token-container {
-    margin-top: 20px;
+    margin: 20px 0;
     padding: 15px;
     border: 1px solid #4a90e2;
     border-radius: 5px;
-    background-color: #f9f9f9;
+    background-color: #e9ecef;
     display: inline-block;
     text-align: left;
-    max-width: 90%;
+    max-width: 60%;
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
@@ -73,11 +76,53 @@ div {
     word-wrap: break-word;
     font-family: 'Courier New', Courier, monospace;
     color: #333;
-    background-color: #e8f4ff;
+    background-color: #e0f1ff;
     padding: 10px;
     border-radius: 5px;
     overflow-wrap: break-word;
     max-width: 100%;
+}
+
+.decoded-token-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    word-wrap: break-word;
+}
+
+.decoded-token-section {
+    flex: 1;
+    margin-right: 10px;
+    word-wrap: break-word;
+    min-width: 30%;
+}
+
+.decoded-token-section:last-child {
+    margin-right: 0;
+}
+
+.decoded-token {
+    text-align: left;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    color: #333;
+    background-color: #e0f1ff;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.token-container h2,
+.decoded-token-container h3 {
+    color: #4a90e2;
+    margin-bottom: 10px;
 }
 
 .back-to-login-button {
@@ -90,12 +135,12 @@ div {
     border: none;
     border-radius: 5px;
     cursor: pointer;
+    transition: background-color 0.3s ease;
 }
 
 .back-to-login-button:hover {
     background-color: #357ab8;
 }
-
 
 .login-page {
     display: flex;

@@ -70,12 +70,24 @@ type UserStore struct {
 	DefaultUser DefaultUser `yaml:"default_user"`
 }
 
+// JWTConfig holds the JWT configuration details.
+type JWTConfig struct {
+	Issuer         string `yaml:"issuer"`
+	ValidityPeriod int64  `yaml:"validity_period"`
+}
+
+// OAuthConfig holds the OAuth configuration details.
+type OAuthConfig struct {
+	JWT JWTConfig `yaml:"jwt"`
+}
+
 // Config holds the complete configuration details of the server.
 type Config struct {
 	Server    ServerConfig   `yaml:"server"`
 	Security  SecurityConfig `yaml:"security"`
 	Database  DatabaseConfig `yaml:"database"`
 	UserStore UserStore      `yaml:"user_store"`
+	OAuth     OAuthConfig    `yaml:"oauth"`
 }
 
 // LoadConfig loads the configurations from the specified YAML file.
