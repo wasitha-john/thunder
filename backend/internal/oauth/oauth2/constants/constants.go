@@ -45,8 +45,7 @@ const (
 	OAuthErrorCode    = "oauthErrorCode"
 	OAuthErrorMessage = "oauthErrorMsg"
 
-	AuthErrorCode    = "AuthErrorCode"
-	AuthErrorMessage = "AuthErrorMsg"
+	ShowInsecureWarning = "showInsecureWarning"
 )
 
 // Oauth message types.

@@ -52,7 +52,7 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 // HandleGrant handles the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthApplication) (*model.TokenResponse, *model.ErrorResponse) {
-	// Validate the client credentials (hardcoded for now).
+	// Validate the client credentials.
 	if tokenRequest.ClientID != oauthApp.ClientID || tokenRequest.ClientSecret != oauthApp.ClientSecret {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorInvalidClient,
@@ -63,7 +63,6 @@ func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	// Generate a JWT token for the client.
 	token, err := jwt.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID)
 	if err != nil {
-		// TODO: Need to validate the error type and return appropriate error response.
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
 			ErrorDescription: "Failed to generate token",

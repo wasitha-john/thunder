@@ -117,6 +117,22 @@ func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuth
 
 // CreateApplication creates the application.
 func (as *ApplicationService) CreateApplication(app *model.Application) (*model.Application, error) {
+	if app == nil {
+		return nil, errors.New("application is nil")
+	}
+	if app.Name == "" {
+		return nil, errors.New("application name cannot be empty")
+	}
+	if app.ClientID == "" {
+		return nil, errors.New("client ID cannot be empty")
+	}
+	if app.ClientSecret == "" {
+		return nil, errors.New("client secret cannot be empty")
+	}
+	if len(app.CallbackURLs) == 0 {
+		return nil, errors.New("at least one callback URL is required")
+	}
+
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 	app.ID = uuid.New().String()
 
@@ -157,6 +173,21 @@ func (as *ApplicationService) GetApplication(appID string) (*model.Application, 
 func (as *ApplicationService) UpdateApplication(appID string, app *model.Application) (*model.Application, error) {
 	if appID == "" {
 		return nil, errors.New("application ID is empty")
+	}
+	if app == nil {
+		return nil, errors.New("application is nil")
+	}
+	if app.Name == "" {
+		return nil, errors.New("application name cannot be empty")
+	}
+	if app.ClientID == "" {
+		return nil, errors.New("client ID cannot be empty")
+	}
+	if app.ClientSecret == "" {
+		return nil, errors.New("client secret cannot be empty")
+	}
+	if len(app.CallbackURLs) == 0 {
+		return nil, errors.New("at least one callback URL is required")
 	}
 
 	err := store.UpdateApplication(app)
