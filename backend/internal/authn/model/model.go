@@ -16,20 +16,29 @@
  * under the License.
  */
 
-// Package model defines the data structures for managing auth session data.
+// Package model defines the data structures for authentication flow.
 package model
 
 import (
+	"context"
 	"time"
-
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
-	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
-// SessionData represents the session data for the authentication.
-type SessionData struct {
-	OAuthParameters      oauthmodel.OAuthParameters
-	AuthTime             time.Time
-	CurrentAuthenticator string
-	AuthenticatedUser    authnmodel.AuthenticatedUser
+// AuthenticatedUser represents the user information of an authenticated user.
+type AuthenticatedUser struct {
+	IsAuthenticated        bool
+	UserID                 string
+	Username               string
+	Domain                 string
+	AuthenticatedSubjectID string
+	Attributes             map[string]string
+}
+
+// AuthenticationContext represents the context of an authentication session.
+type AuthenticationContext struct {
+	context.Context
+	SessionDataKey     string
+	RequestQueryParams map[string]string
+	AuthenticatedUser  AuthenticatedUser
+	AuthTime           time.Time
 }

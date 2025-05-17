@@ -25,3 +25,11 @@ oauth:
   jwt:
     issuer: "thunder"
     validity_period: 3600
+
+authenticator:
+  default:
+    name: "BasicAuthenticator"
+    id: "147b3c7e-0a2f-4d8b-9c5f-a03800000001"
+    type: "local"
+    display_name: "Username & Password"
+    description: "Login with username and password"

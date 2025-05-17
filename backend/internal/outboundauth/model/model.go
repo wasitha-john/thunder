@@ -16,20 +16,14 @@
  * under the License.
  */
 
-// Package model defines the data structures for managing auth session data.
+// Package model defines the data structures for outbound authenticators.
 package model
 
-import (
-	"time"
-
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
-	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
-)
-
-// SessionData represents the session data for the authentication.
-type SessionData struct {
-	OAuthParameters      oauthmodel.OAuthParameters
-	AuthTime             time.Time
-	CurrentAuthenticator string
-	AuthenticatedUser    authnmodel.AuthenticatedUser
+// AuthenticatorConfig holds the common configurations for an authenticator.
+type AuthenticatorConfig struct {
+	Name        string `yaml:"name"`
+	ID          string `yaml:"id"`
+	DisplayName string `yaml:"display_name"`
+	Description string `yaml:"description"`
+	Type        string `yaml:"type"`
 }
