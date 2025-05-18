@@ -83,20 +83,22 @@ type OAuthConfig struct {
 
 // Authenticator holds the configuration details for an individual authenticator.
 type Authenticator struct {
-	Name         string   `yaml:"name"`
-	ID           string   `yaml:"id"`
-	Type         string   `yaml:"type"`
-	DisplayName  string   `yaml:"display_name"`
-	Description  string   `yaml:"description"`
-	ClientID     string   `yaml:"client_id"`
-	ClientSecret string   `yaml:"client_secret"`
-	RedirectURI  string   `yaml:"redirect_uri"`
-	Scopes       []string `yaml:"scopes"`
+	Name             string            `yaml:"name"`
+	ID               string            `yaml:"id"`
+	Type             string            `yaml:"type"`
+	DisplayName      string            `yaml:"display_name"`
+	Description      string            `yaml:"description"`
+	ClientID         string            `yaml:"client_id"`
+	ClientSecret     string            `yaml:"client_secret"`
+	RedirectURI      string            `yaml:"redirect_uri"`
+	Scopes           []string          `yaml:"scopes"`
+	AdditionalParams map[string]string `yaml:"additional_params"`
 }
 
 // AuthenticatorConfig holds the configuration details for the authenticators.
 type AuthenticatorConfig struct {
-	DefaultAuthenticator Authenticator `yaml:"default"`
+	DefaultAuthenticator string          `yaml:"default"`
+	Authenticators       []Authenticator `yaml:"authenticators"`
 }
 
 // Config holds the complete configuration details of the server.

@@ -21,6 +21,7 @@ package authn
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
@@ -32,8 +33,9 @@ import (
 	sessionutils "github.com/asgardeo/thunder/internal/oauth/session/utils"
 	"github.com/asgardeo/thunder/internal/outboundauth"
 	"github.com/asgardeo/thunder/internal/outboundauth/basicauth"
-	authrmodel "github.com/asgardeo/thunder/internal/outboundauth/model"
+	"github.com/asgardeo/thunder/internal/outboundauth/github"
 	"github.com/asgardeo/thunder/internal/system/config"
+	"github.com/asgardeo/thunder/internal/system/log"
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
@@ -49,8 +51,13 @@ func NewAuthenticationHandler() *AuthenticationHandler {
 // InitAuthenticationFlow initializes the authentication process.
 func (ah *AuthenticationHandler) InitAuthenticationFlow(w http.ResponseWriter, r *http.Request,
 	ctx *authnmodel.AuthenticationContext) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "AuthenticationHandler"))
+	logger.Info("Initializing authentication flow.")
+
 	// Handle the authentication request with the selected authenticator.
-	authr := getDefaultAuthenticator()
+	selectedAuthenticator := r.URL.Query().Get("authenticator")
+	authr := getAuthenticator(selectedAuthenticator)
+	logger.Debug("Selected authenticator: ", log.String("authenticator", authr.GetName()))
 
 	// Check if the session data is already stored with a session data key.
 	sessionDataKey := ctx.SessionDataKey
@@ -75,22 +82,65 @@ func (ah *AuthenticationHandler) InitAuthenticationFlow(w http.ResponseWriter, r
 
 // HandleAuthenticationRequest handles the authentication request received.
 func (ah *AuthenticationHandler) HandleAuthenticationRequest(w http.ResponseWriter, r *http.Request) {
-	// Parse form data.
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Failed to parse form data", http.StatusBadRequest)
-		return
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "AuthenticationHandler"))
+	logger.Info("Handling authentication request.")
+
+	var sessionDataKey, state string
+	if r.Method == http.MethodGet {
+		logger.Debug("Processing GET request received for authentication flow endpoint.")
+
+		// Extract session data key from the query parameters.
+		sessionDataKey = r.URL.Query().Get(oauthconstants.SessionDataKey)
+		state = r.URL.Query().Get(oauthconstants.State)
+	} else {
+		logger.Debug("Processing POST request received for authentication flow endpoint.")
+
+		// Parse form data.
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Failed to parse form data", http.StatusBadRequest)
+			return
+		}
+
+		// Extract session data key from the form data.
+		sessionDataKey = r.FormValue(oauthconstants.SessionDataKey)
+		state = r.FormValue(oauthconstants.State)
 	}
-	sessionDataKey := r.FormValue("sessionDataKey")
+
+	if sessionDataKey == "" {
+		if state == "" {
+			http.Error(w, "Session data key or state parameter not found", http.StatusBadRequest)
+			return
+		}
+
+		logger.Info("Extracting session data key from state parameter.")
+
+		// Extract session data key from the state parameter for federated flows.
+		sessionDataKey = strings.Split(state, ",")[0]
+		if sessionDataKey == "" {
+			logger.Error("Session data key not found in state parameter.")
+			http.Error(w, "Invalid state parameter", http.StatusBadRequest)
+			return
+		}
+	}
 
 	// Check if the session data is already stored with a session data key.
+	logger.Info("Retrieving session data for session data key", log.String("sessionDataKey", sessionDataKey))
 	sessionDataStore := sessionstore.GetSessionDataStore()
 	ok, sessionData := sessionDataStore.GetSession(sessionDataKey)
 	if !ok {
+		logger.Error("Session data not found for session data key", log.String("sessionDataKey", sessionDataKey))
 		http.Error(w, "Session data not found for session data key", http.StatusBadRequest)
 		return
 	}
 
-	authr := getDefaultAuthenticator()
+	// Check for the current authenticator in the session data.
+	if sessionData.CurrentAuthenticator == "" {
+		logger.Error("Current authenticator not found in session data.")
+		http.Error(w, "Current authenticator not found in session data", http.StatusBadRequest)
+		return
+	}
+	authr := getAuthenticator(sessionData.CurrentAuthenticator)
+	logger.Debug("Selected authenticator", log.String("authenticator", authr.GetName()))
 
 	// Create a new session data object.
 	newSessionDataKey := sessionutils.GenerateNewSessionDataKey()
@@ -140,29 +190,42 @@ func (ah *AuthenticationHandler) HandleAuthenticationRequest(w http.ResponseWrit
 	http.Redirect(w, r, redirectURI, http.StatusFound)
 }
 
-// getDefaultAuthenticator retrieves the configured default authenticator.
-func getDefaultAuthenticator() outboundauth.AuthenticatorInterface {
-	authConfig := config.GetThunderRuntime().Config.Authenticator
-	defaultAuthenticator := authConfig.DefaultAuthenticator
-
-	switch defaultAuthenticator.Name {
-	case "BasicAuthenticator":
-		return basicauth.NewBasicAuthenticator(
-			&authrmodel.AuthenticatorConfig{
-				Name:        defaultAuthenticator.Name,
-				DisplayName: defaultAuthenticator.DisplayName,
-				ID:          defaultAuthenticator.ID,
-				Type:        defaultAuthenticator.Type,
-			},
-		)
-	default:
-		return basicauth.NewBasicAuthenticator(
-			&authrmodel.AuthenticatorConfig{
-				Name:        "BasicAuthenticator",
-				DisplayName: "Username & Password",
-				ID:          "123e4567-e89b-12d3-a456-426614174000",
-				Type:        "local",
-			},
-		)
+// getAuthenticator retrieves the authenticator based on the provided name.
+func getAuthenticator(authrName string) outboundauth.AuthenticatorInterface {
+	// If the authenticator is not specified, use the default authenticator.
+	if authrName == "" {
+		authrName = config.GetThunderRuntime().Config.Authenticator.DefaultAuthenticator
 	}
+
+	switch authrName {
+	case "BasicAuthenticator":
+		return basicauth.NewBasicAuthenticator(getAuthenticatorConfig(authrName))
+	case "GithubAuthenticator":
+		return github.NewGithubAuthenticator(getAuthenticatorConfig(authrName))
+	default:
+		return basicauth.NewBasicAuthenticator(getAuthenticatorConfig("BasicAuthenticator"))
+	}
+}
+
+// getAuthenticatorConfig retrieves the configuration for the specified authenticator.
+func getAuthenticatorConfig(authrName string) *config.Authenticator {
+	authConfig := config.GetThunderRuntime().Config.Authenticator
+	authenticators := authConfig.Authenticators
+
+	for _, authenticator := range authenticators {
+		if authenticator.Name == authrName {
+			return &authenticator
+		}
+	}
+
+	if authrName == "BasicAuthenticator" {
+		return &config.Authenticator{
+			Name:        "BasicAuthenticator",
+			DisplayName: "Username & Password",
+			ID:          "123e4567-e89b-12d3-a456-426614174000",
+			Type:        "local",
+		}
+	}
+
+	return nil
 }

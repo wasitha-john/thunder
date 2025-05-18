@@ -24,6 +24,7 @@ import (
 
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
 	"github.com/asgardeo/thunder/internal/outboundauth/model"
+	"github.com/asgardeo/thunder/internal/system/config"
 )
 
 // AbstractAuthenticator provides a base implementation for authenticators.
@@ -32,9 +33,14 @@ type AbstractAuthenticator struct {
 }
 
 // NewAbstractAuthenticator creates a new instance of AbstractAuthenticator.
-func NewAbstractAuthenticator(config *model.AuthenticatorConfig) *AbstractAuthenticator {
+func NewAbstractAuthenticator(config *config.Authenticator) *AbstractAuthenticator {
 	return &AbstractAuthenticator{
-		authenticatorConfig: config,
+		authenticatorConfig: &model.AuthenticatorConfig{
+			Name:        config.Name,
+			ID:          config.ID,
+			DisplayName: config.DisplayName,
+			Description: config.Description,
+		},
 	}
 }
 

@@ -27,3 +27,17 @@ type AuthenticatorConfig struct {
 	Description string `yaml:"description"`
 	Type        string `yaml:"type"`
 }
+
+// OIDCAuthenticatorConfig holds the configuration details for the OIDC authenticator.
+type OIDCAuthenticatorConfig struct {
+	AuthorizationEndpoint string            `yaml:"authorization_endpoint"`
+	TokenEndpoint         string            `yaml:"token_endpoint"`
+	UserInfoEndpoint      string            `yaml:"userinfo_endpoint"`
+	LogoutEndpoint        string            `yaml:"logout_endpoint"`
+	ClientID              string            `yaml:"client_id"`
+	ClientSecret          string            `yaml:"client_secret"`
+	RedirectURI           string            `yaml:"redirect_uri"`
+	Scopes                []string          `yaml:"scopes"`
+	AdditionalParams      map[string]string `yaml:"additional_params"`
+	Properties            map[string]string `yaml:"properties"`
+}

@@ -89,6 +89,37 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   - **Client ID:** `client123`
   - **Client Secret:** `secret123`
 
+#### 3️⃣ Configure Login with Github
+
+- Create an OAuth application in your Github account following the instructions given in the [Github documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app).
+  - Configure the urls as follows:
+    - **Homepage URL:** `https://localhost:8090`
+    - **Authorization callback URL:** `https://localhost:8090/flow/authn`
+  - Copy the **Client ID** and **Client Secret**.
+
+- Open the deployment.yaml file in the `backend/cmd/server/repository/conf` directory and add the following configurations:
+
+  ```yaml
+  authenticator:
+    default: "GithubAuthenticator"
+    authenticators:
+      - name: "GithubAuthenticator"
+        id: "147b3c7e-0a2f-4d8b-9c5f-a03800000002"
+        type: "federated"
+        display_name: "Github"
+        description: "Login with Github"
+        client_id: "<client_id>"
+        client_secret: "<client_secret>"
+        redirect_uri: "https://localhost:8090/flow/authn"
+        scopes:
+          - "user:email"
+          - "read:user"
+        additional_params:  # Optional parameters.
+          prompt: "select_account"
+  ```
+
+- Restart the server.
+
 ---
 
 ## 🧪 Running Integration Tests
