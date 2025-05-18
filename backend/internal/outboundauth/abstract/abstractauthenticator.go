@@ -37,7 +37,6 @@ func NewAbstractAuthenticator(config *config.Authenticator) *AbstractAuthenticat
 	return &AbstractAuthenticator{
 		authenticatorConfig: &model.AuthenticatorConfig{
 			Name:        config.Name,
-			ID:          config.ID,
 			DisplayName: config.DisplayName,
 			Description: config.Description,
 		},

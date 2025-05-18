@@ -104,7 +104,6 @@ curl -k -X POST https://localhost:8090/oauth2/token \
     default: "GithubAuthenticator"
     authenticators:
       - name: "GithubAuthenticator"
-        id: "147b3c7e-0a2f-4d8b-9c5f-a03800000002"
         type: "federated"
         display_name: "Github"
         description: "Login with Github"

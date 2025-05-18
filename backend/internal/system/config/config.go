@@ -84,7 +84,6 @@ type OAuthConfig struct {
 // Authenticator holds the configuration details for an individual authenticator.
 type Authenticator struct {
 	Name             string            `yaml:"name"`
-	ID               string            `yaml:"id"`
 	Type             string            `yaml:"type"`
 	DisplayName      string            `yaml:"display_name"`
 	Description      string            `yaml:"description"`

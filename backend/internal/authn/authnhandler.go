@@ -222,7 +222,6 @@ func getAuthenticatorConfig(authrName string) *config.Authenticator {
 		return &config.Authenticator{
 			Name:        "BasicAuthenticator",
 			DisplayName: "Username & Password",
-			ID:          "123e4567-e89b-12d3-a456-426614174000",
 			Type:        "local",
 		}
 	}
