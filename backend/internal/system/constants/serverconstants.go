@@ -25,3 +25,15 @@ const (
 	// DefaultLogLevel is the default log level used if not specified.
 	DefaultLogLevel = "info"
 )
+
+// AuthorizationHeaderName is the name of the authorization header used in HTTP requests.
+const AuthorizationHeaderName = "Authorization"
+
+// AcceptHeaderName is the name of the accept header used in HTTP requests.
+const AcceptHeaderName = "Accept"
+
+// ContentTypeHeaderName is the name of the content type header used in HTTP requests.
+const ContentTypeHeaderName = "Content-Type"
+
+// TokenTypeBearer is the token type used in bearer authentication.
+const TokenTypeBearer = "Bearer"

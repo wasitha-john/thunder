@@ -40,5 +40,11 @@ func NewAuthenticationService(mux *http.ServeMux) *AuthenticationService {
 
 // RegisterRoutes registers the routes for the AuthenticationService.
 func (s *AuthenticationService) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /flow/authn", s.authHandler.HandleAuthenticationRequest)
+	mux.HandleFunc("/flow/authn", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost || r.Method == http.MethodGet {
+			s.authHandler.HandleAuthenticationRequest(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 }

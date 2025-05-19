@@ -28,7 +28,6 @@ import (
 	authnutils "github.com/asgardeo/thunder/internal/authn/utils"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/outboundauth/abstract"
-	"github.com/asgardeo/thunder/internal/outboundauth/model"
 	"github.com/asgardeo/thunder/internal/system/config"
 )
 
@@ -38,7 +37,7 @@ type BasicAuthenticator struct {
 }
 
 // NewBasicAuthenticator creates a new Basic Authenticator.
-func NewBasicAuthenticator(config *model.AuthenticatorConfig) *BasicAuthenticator {
+func NewBasicAuthenticator(config *config.Authenticator) *BasicAuthenticator {
 	return &BasicAuthenticator{
 		AbstractAuthenticator: abstract.NewAbstractAuthenticator(config),
 	}
