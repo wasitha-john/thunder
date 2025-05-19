@@ -20,6 +20,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/user/model"
 	userprovider "github.com/asgardeo/thunder/internal/user/provider"
@@ -60,15 +61,15 @@ func NewUserHandler() *UserHandler {
 // @Param        user  body  model.User  true  "User data"
 // @Success      201  {object}  model.User
 // @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
+// @Failure      500  {string}  "Internal Server Error"
 // @Router       /users [post]
 func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Request) {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
 	var userInCreationRequest model.User
 	if err := json.NewDecoder(r.Body).Decode(&userInCreationRequest); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Bad Request: The request body is malformed or contains invalid data.", http.StatusBadRequest)
 		return
 	}
 
@@ -77,7 +78,12 @@ func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 	userService := userProvider.GetUserService()
 	createdUser, err := userService.CreateUser(&userInCreationRequest)
 	if err != nil {
-		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		if errors.Is(err, model.ErrBadAttributesInRequest) {
+			http.Error(w, "Bad Request: The attributes element is malformed or contains invalid data.", http.StatusBadRequest)
+		} else {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
@@ -86,7 +92,7 @@ func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 
 	err = json.NewEncoder(w).Encode(createdUser)
 	if err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
@@ -102,26 +108,25 @@ func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 // @Accept       json
 // @Produce      json
 // @Success      200  {array}   model.User
-// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
+// @Failure      500  {string}  "Internal Server Error"
 // @Router       /users [get]
 func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Request) {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
 	// Get the user list using the user service.
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
 	users, err := userService.GetUserList()
 	if err != nil {
-		http.Error(w, "Failed get user list", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(users)
 	if err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
@@ -131,24 +136,24 @@ func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Requ
 
 // HandleUserGetRequest handles the user request.
 //
-// @Summary      Get an user by ID
-// @Description  Retrieve a specific user using its ID.
+// @Summary      Get an user by id
+// @Description  Retrieve a specific user using its id.
 // @Tags         users
 // @Accept       json
 // @Produce      json
-// @Param        id   path      string  true  "User ID"
+// @Param        id   path      string  true  "User id"
 // @Success      200  {object}  model.User
-// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      404  {string}  "Not Found: The user with the specified ID does not exist."
-// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
+// @Failure      400  {string}  "Bad Request: Missing user id."
+// @Failure      404  {string}  "Not Found: The user with the specified id does not exist."
+// @Failure      500  {string}  "Internal Server Error"
 // @Router       /users/{id} [get]
 func (ah *UserHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Request) {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
 	id := strings.TrimPrefix(r.URL.Path, "/users/")
 	if id == "" {
-		http.Error(w, "Missing user id", http.StatusBadRequest)
+		http.Error(w, "Bad Request: Missing user id.", http.StatusBadRequest)
 		return
 	}
 
@@ -157,14 +162,18 @@ func (ah *UserHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Reque
 	userService := userProvider.GetUserService()
 	user, err := userService.GetUser(id)
 	if err != nil {
-		http.Error(w, "Failed get user", http.StatusInternalServerError)
+		if errors.Is(err, model.ErrUserNotFound) {
+			http.Error(w, "Not Found: The user with the specified id does not exist.", http.StatusNotFound)
+		} else {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(user)
 	if err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
@@ -179,26 +188,27 @@ func (ah *UserHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Reque
 // @Tags         users
 // @Accept       json
 // @Produce      json
-// @Param        id           path   string            true  "User ID"
+// @Param        id           path   string            true  "User id"
 // @Param        user  body   model.User  true  "Updated user data"
 // @Success      200  {object}  model.User
-// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      404  {string}  "Not Found: The user with the specified ID does not exist."
-// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
+// @Failure      400  {string}  "Bad Request: Missing user id."
+// @Failure      404  {string}  "Not Found: The user with the specified id does not exist."
+// @Failure      404  {string}  "Bad Request: The request body is malformed or contains invalid data."
+// @Failure      500  {string}  "Internal Server Error"
 // @Router       /users/{id} [put]
 func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Request) {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
 	id := strings.TrimPrefix(r.URL.Path, "/users/")
 	if id == "" {
-		http.Error(w, "Missing user id", http.StatusBadRequest)
+		http.Error(w, "Bad Request: Missing user id.", http.StatusBadRequest)
 		return
 	}
 
 	var updatedUser model.User
 	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Bad Request: The request body is malformed or contains invalid data.", http.StatusBadRequest)
 		return
 	}
 	updatedUser.Id = id
@@ -208,7 +218,13 @@ func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 	userService := userProvider.GetUserService()
 	user, err := userService.UpdateUser(id, &updatedUser)
 	if err != nil {
-		http.Error(w, "Failed get user", http.StatusInternalServerError)
+		if errors.Is(err, model.ErrUserNotFound) {
+			http.Error(w, "Not Found: The user with the specified id does not exist.", http.StatusNotFound)
+		} else if errors.Is(err, model.ErrBadAttributesInRequest) {
+			http.Error(w, "Bad Request: The attributes element is malformed or contains invalid data.", http.StatusBadRequest)
+		} else {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -222,23 +238,22 @@ func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 // HandleUserDeleteRequest handles the user request.
 //
 // @Summary      Delete an user
-// @Description  Delete an user using its ID.
+// @Description  Delete an user using its id.
 // @Tags         users
 // @Accept       json
 // @Produce      json
-// @Param        id   path   string  true  "User ID"
+// @Param        id   path   string  true  "User id"
 // @Success      204
-// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      404  {string}  "Not Found: The user with the specified ID does not exist."
-// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
+// @Failure      400  {string}  "Bad Request: Missing user id."
+// @Failure      500  {string}  "Internal Server Error"
 // @Router       /users/{id} [delete]
 func (ah *UserHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Request) {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
 	id := strings.TrimPrefix(r.URL.Path, "/users/")
 	if id == "" {
-		http.Error(w, "Missing user id", http.StatusBadRequest)
+		http.Error(w, "Bad Request: Missing user id.", http.StatusBadRequest)
 		return
 	}
 
@@ -247,7 +262,7 @@ func (ah *UserHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Re
 	userService := userProvider.GetUserService()
 	err := userService.DeleteUser(id)
 	if err != nil {
-		http.Error(w, "Failed delete user", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 

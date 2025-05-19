@@ -48,7 +48,7 @@ func GetUserService() UserServiceInterface {
 // CreateUser creates the user.
 func (as *UserService) CreateUser(user *model.User) (*model.User, error) {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserService"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserService"))
 
 	user.Id = uuid.New().String()
 

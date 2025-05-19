@@ -18,7 +18,10 @@
 
 package model
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"errors"
+)
 
 type User struct {
 	Id         string          `json:"id,omitempty"`
@@ -26,3 +29,7 @@ type User struct {
 	Type       string          `json:"type,omitempty"`
 	Attributes json.RawMessage `json:"attributes,omitempty"`
 }
+
+var ErrUserNotFound = errors.New("user not found")
+
+var ErrBadAttributesInRequest = errors.New("failed to marshal attributes")

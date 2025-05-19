@@ -29,7 +29,7 @@ import (
 
 func CreateUser(user model.User) error {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserPersistence"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
@@ -48,10 +48,10 @@ func CreateUser(user model.User) error {
 	attributes, err := json.Marshal(user.Attributes)
 	if err != nil {
 		logger.Error("Failed to marshal attributes", log.Error(err))
-		return fmt.Errorf("failed to marshal attributes: %w", err)
+		return model.ErrBadAttributesInRequest
 	}
 
-	_, err = dbClient.ExecuteQuery(QueryCreateUser, user.Id, user.OrgId, user.Type, string(attributes))
+	_, err = dbClient.Execute(QueryCreateUser, user.Id, user.OrgId, user.Type, string(attributes))
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
@@ -62,7 +62,7 @@ func CreateUser(user model.User) error {
 
 func GetUserList() ([]model.User, error) {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserPersistence"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
@@ -77,7 +77,7 @@ func GetUserList() ([]model.User, error) {
 		}
 	}(dbClient)
 
-	results, err := dbClient.ExecuteQuery(QueryGetUserList)
+	results, err := dbClient.Query(QueryGetUserList)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return nil, fmt.Errorf("failed to execute query: %w", err)
@@ -99,7 +99,7 @@ func GetUserList() ([]model.User, error) {
 
 func GetUser(id string) (model.User, error) {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserStore"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
@@ -108,7 +108,7 @@ func GetUser(id string) (model.User, error) {
 	}
 	defer dbClient.Close()
 
-	results, err := dbClient.ExecuteQuery(QueryGetUserByUserId, id)
+	results, err := dbClient.Query(QueryGetUserByUserId, id)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return model.User{}, fmt.Errorf("failed to execute query: %w", err)
@@ -116,7 +116,7 @@ func GetUser(id string) (model.User, error) {
 
 	if len(results) == 0 {
 		logger.Error("user not found with id: " + id)
-		return model.User{}, fmt.Errorf("user not found")
+		return model.User{}, model.ErrUserNotFound
 	}
 
 	if len(results) != 1 {
@@ -136,41 +136,7 @@ func GetUser(id string) (model.User, error) {
 
 func UpdateUser(user *model.User) error {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserStore"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
-	if err != nil {
-		return fmt.Errorf("failed to get database client: %w", err)
-	}
-	defer dbClient.Close()
-
-	tx, err := dbClient.BeginTx()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
-	// Convert attributes to JSON string
-	attributes, err := json.Marshal(user.Attributes)
-	if err != nil {
-		logger.Error("Failed to marshal attributes", log.Error(err))
-		return fmt.Errorf("failed to marshal attributes: %w", err)
-	}
-
-	_, err = tx.Exec(QueryUpdateUserByUserId.Query, user.Id, user.OrgId, user.Type, string(attributes))
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to create SP user: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-	return nil
-}
-
-func DeleteUser(id string) error {
-
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserStore"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
@@ -179,10 +145,46 @@ func DeleteUser(id string) error {
 	}
 	defer dbClient.Close()
 
-	_, err = dbClient.ExecuteQuery(QueryDeleteUserByUserId, id)
+	// Convert attributes to JSON string
+	attributes, err := json.Marshal(user.Attributes)
+	if err != nil {
+		logger.Error("Failed to marshal attributes", log.Error(err))
+		return model.ErrBadAttributesInRequest
+	}
+
+	rowsAffected, err := dbClient.Execute(QueryUpdateUserByUserId, user.Id, user.OrgId, user.Type, string(attributes))
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		logger.Error("user not found with id: " + user.Id)
+		return model.ErrUserNotFound
+	}
+
+	return nil
+}
+
+func DeleteUser(id string) error {
+
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer dbClient.Close()
+
+	rowsAffected, err := dbClient.Execute(QueryDeleteUserByUserId, id)
+	if err != nil {
+		logger.Error("Failed to execute query", log.Error(err))
+		return fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		logger.Error("user not found with id: " + id)
 	}
 
 	return nil
@@ -190,7 +192,7 @@ func DeleteUser(id string) error {
 
 func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
 
-	logger := log.GetLogger().With(log.String(log.LOGGER_KEY_COMPONENT_NAME, "UserStore"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
 	userId, ok := row["user_id"].(string)
 	if !ok {
