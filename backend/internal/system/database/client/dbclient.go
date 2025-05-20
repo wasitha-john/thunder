@@ -32,8 +32,13 @@ import (
 
 // DBClientInterface defines the interface for database operations.
 type DBClientInterface interface {
-	ExecuteQuery(query model.DBQuery, args ...interface{}) ([]map[string]interface{}, error)
+	// Query executes a sql query that returns rows, typically a SELECT, and returns the result as a slice of maps.
+	Query(query model.DBQuery, args ...interface{}) ([]map[string]interface{}, error)
+	// Execute executes a sql query without returning data in any rows, and returns number of rows affected.
+	Execute(query model.DBQuery, args ...interface{}) (int64, error)
+	// BeginTx starts a new database transaction.
 	BeginTx() (model.TxInterface, error)
+	// Close closes the database connection.
 	Close() error
 }
 
@@ -49,8 +54,8 @@ func NewDBClient(db *sql.DB) DBClientInterface {
 	}
 }
 
-// ExecuteQuery executes a SELECT query and returns the result as a slice of maps.
-func (client *DBClient) ExecuteQuery(query model.DBQuery, args ...interface{}) ([]map[string]interface{}, error) {
+// Query executes a sql query that returns rows, typically a SELECT, and returns the result as a slice of maps.
+func (client *DBClient) Query(query model.DBQuery, args ...interface{}) ([]map[string]interface{}, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "DBClient"))
 	logger.Info("Executing query", log.String("queryID", query.GetID()))
 
@@ -90,6 +95,24 @@ func (client *DBClient) ExecuteQuery(query model.DBQuery, args ...interface{}) (
 	}
 
 	return results, nil
+}
+
+// Execute executes a sql query without returning data in any rows, and returns number of rows affected.
+func (client *DBClient) Execute(query model.DBQuery, args ...interface{}) (int64, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "DBClient"))
+	logger.Info("Executing query", log.String("queryID", query.GetID()))
+
+	res, err := client.db.Exec(query.GetQuery(), args...)
+	if err != nil {
+		return 0, err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, nil
 }
 
 // BeginTx starts a new database transaction.

@@ -69,7 +69,7 @@ func (sv *APIScopeValidator) ValidateScopes(requestedScopes, clientID string) (s
 	}()
 
 	// Query authorized scopes for the client.
-	results, err := dbClient.ExecuteQuery(constants.QueryGetAuthorizedScopesByClientID, clientID)
+	results, err := dbClient.Query(constants.QueryGetAuthorizedScopesByClientID, clientID)
 	if err != nil {
 		logger.Error("Failed to execute scope query", log.Error(err))
 		return "", &ScopeError{

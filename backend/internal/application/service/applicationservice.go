@@ -69,7 +69,7 @@ func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuth
 		}
 	}()
 
-	results, err := dbClient.ExecuteQuery(store.QueryGetApplicationByClientID, clientID)
+	results, err := dbClient.Query(store.QueryGetApplicationByClientID, clientID)
 	if err != nil {
 		return nil, err
 	}
