@@ -16,19 +16,20 @@
  * under the License.
  */
 
+// Package store provides the implementation for user persistence operations.
 package store
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/asgardeo/thunder/internal/system/database/client"
+
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/user/model"
 )
 
+// CreateUser handles the user creation in the database.
 func CreateUser(user model.User) error {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -36,13 +37,12 @@ func CreateUser(user model.User) error {
 		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func(dbc client.DBClientInterface) {
-		err := dbc.Close()
-		if err != nil {
-			logger.Error("Failed to close database client", log.Error(err))
-			err = fmt.Errorf("failed to close database client: %w", err)
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
 		}
-	}(dbClient)
+	}()
 
 	// Convert attributes to JSON string
 	attributes, err := json.Marshal(user.Attributes)
@@ -51,7 +51,7 @@ func CreateUser(user model.User) error {
 		return model.ErrBadAttributesInRequest
 	}
 
-	_, err = dbClient.Execute(QueryCreateUser, user.Id, user.OrgId, user.Type, string(attributes))
+	_, err = dbClient.Execute(QueryCreateUser, user.ID, user.OrgID, user.Type, string(attributes))
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
@@ -60,8 +60,8 @@ func CreateUser(user model.User) error {
 	return nil
 }
 
+// GetUserList retrieves a list of users from the database.
 func GetUserList() ([]model.User, error) {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -69,13 +69,12 @@ func GetUserList() ([]model.User, error) {
 		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func(dbc client.DBClientInterface) {
-		err := dbc.Close()
-		if err != nil {
-			logger.Error("Failed to close database client", log.Error(err))
-			err = fmt.Errorf("failed to close database client: %w", err)
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
 		}
-	}(dbClient)
+	}()
 
 	results, err := dbClient.Query(QueryGetUserList)
 	if err != nil {
@@ -97,8 +96,8 @@ func GetUserList() ([]model.User, error) {
 	return users, nil
 }
 
+// GetUser retrieves a specific user by its ID from the database.
 func GetUser(id string) (model.User, error) {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -106,9 +105,14 @@ func GetUser(id string) (model.User, error) {
 		logger.Error("Failed to get database client", log.Error(err))
 		return model.User{}, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer dbClient.Close()
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
 
-	results, err := dbClient.Query(QueryGetUserByUserId, id)
+	results, err := dbClient.Query(QueryGetUserByUserID, id)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return model.User{}, fmt.Errorf("failed to execute query: %w", err)
@@ -134,8 +138,8 @@ func GetUser(id string) (model.User, error) {
 	return user, nil
 }
 
+// UpdateUser updates the user in the database.
 func UpdateUser(user *model.User) error {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -143,7 +147,12 @@ func UpdateUser(user *model.User) error {
 		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer dbClient.Close()
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
 
 	// Convert attributes to JSON string
 	attributes, err := json.Marshal(user.Attributes)
@@ -152,22 +161,22 @@ func UpdateUser(user *model.User) error {
 		return model.ErrBadAttributesInRequest
 	}
 
-	rowsAffected, err := dbClient.Execute(QueryUpdateUserByUserId, user.Id, user.OrgId, user.Type, string(attributes))
+	rowsAffected, err := dbClient.Execute(QueryUpdateUserByUserID, user.ID, user.OrgID, user.Type, string(attributes))
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if rowsAffected == 0 {
-		logger.Error("user not found with id: " + user.Id)
+		logger.Error("user not found with id: " + user.ID)
 		return model.ErrUserNotFound
 	}
 
 	return nil
 }
 
+// DeleteUser deletes the user from the database.
 func DeleteUser(id string) error {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -175,9 +184,14 @@ func DeleteUser(id string) error {
 		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer dbClient.Close()
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
 
-	rowsAffected, err := dbClient.Execute(QueryDeleteUserByUserId, id)
+	rowsAffected, err := dbClient.Execute(QueryDeleteUserByUserID, id)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
@@ -191,16 +205,15 @@ func DeleteUser(id string) error {
 }
 
 func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
-	userId, ok := row["user_id"].(string)
+	userID, ok := row["user_id"].(string)
 	if !ok {
 		logger.Error("failed to parse user_id as string")
 		return model.User{}, fmt.Errorf("failed to parse user_id as string")
 	}
 
-	orgId, ok := row["org_id"].(string)
+	orgID, ok := row["org_id"].(string)
 	if !ok {
 		logger.Error("failed to parse org_id as string")
 		return model.User{}, fmt.Errorf("failed to parse org_id as string")
@@ -219,13 +232,14 @@ func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
 	case []byte:
 		attributes = string(v) // Convert byte slice to string
 	default:
-		logger.Error("failed to parse attributes", log.Any("raw_value", row["attributes"]), log.String("type", fmt.Sprintf("%T", row["attributes"])))
+		logger.Error("failed to parse attributes", log.Any("raw_value", row["attributes"]), log.String("type",
+			fmt.Sprintf("%T", row["attributes"])))
 		return model.User{}, fmt.Errorf("failed to parse attributes as string")
 	}
 
 	user := model.User{
-		Id:    userId,
-		OrgId: orgId,
+		ID:    userID,
+		OrgID: orgID,
 		Type:  userType,
 	}
 

@@ -19,26 +19,28 @@
 package services
 
 import (
-	"github.com/asgardeo/thunder/internal/user/handler"
 	"net/http"
+
+	"github.com/asgardeo/thunder/internal/user/handler"
 )
 
+// UserService is the service for user management operations.
 type UserService struct {
 	userHandler *handler.UserHandler
 }
 
+// NewUserService creates a new instance of UserService.
 func NewUserService(mux *http.ServeMux) *UserService {
-
 	instance := &UserService{
-		userHandler: handler.NewUserHandler(),
+		userHandler: &handler.UserHandler{},
 	}
 	instance.RegisterRoutes(mux)
 
 	return instance
 }
 
+// RegisterRoutes registers the routes for user management operations.
 func (s *UserService) RegisterRoutes(mux *http.ServeMux) {
-
 	mux.HandleFunc("POST /users", s.userHandler.HandleUserPostRequest)
 	mux.HandleFunc("GET /users", s.userHandler.HandleUserListRequest)
 	mux.HandleFunc("GET /users/", s.userHandler.HandleUserGetRequest)

@@ -16,28 +16,34 @@
  * under the License.
  */
 
+// Package store provides the implementation for user persistence operations.
 package store
 
 import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 
 var (
+	// QueryCreateUser is the query to create a new user.
 	QueryCreateUser = dbmodel.DBQuery{
 		ID:    "ASQ-USER_MGT-01",
 		Query: "INSERT INTO \"USER\" (USER_ID, ORG_ID, TYPE, ATTRIBUTES) VALUES ($1, $2, $3, $4)",
 	}
-	QueryGetUserByUserId = dbmodel.DBQuery{
+	// QueryGetUserByUserID is the query to get a user by user ID.
+	QueryGetUserByUserID = dbmodel.DBQuery{
 		ID:    "ASQ-USER_MGT-02",
 		Query: "SELECT USER_ID, ORG_ID, TYPE, ATTRIBUTES FROM \"USER\" WHERE USER_ID = $1",
 	}
+	// QueryGetUserList is the query to get a list of users.
 	QueryGetUserList = dbmodel.DBQuery{
 		ID:    "ASQ-USER_MGT-03",
 		Query: "SELECT USER_ID, ORG_ID, TYPE, ATTRIBUTES FROM \"USER\"",
 	}
-	QueryUpdateUserByUserId = dbmodel.DBQuery{
+	// QueryUpdateUserByUserID is the query to update a user by user ID.
+	QueryUpdateUserByUserID = dbmodel.DBQuery{
 		ID:    "ASQ-USER_MGT-04",
 		Query: "UPDATE \"USER\" SET ORG_ID = $2, TYPE = $3, ATTRIBUTES = $4 WHERE USER_ID = $1;",
 	}
-	QueryDeleteUserByUserId = dbmodel.DBQuery{
+	// QueryDeleteUserByUserID is the query to delete a user by user ID.
+	QueryDeleteUserByUserID = dbmodel.DBQuery{
 		ID:    "ASQ-USER_MGT-05",
 		Query: "DELETE FROM \"USER\" WHERE USER_ID = $1",
 	}

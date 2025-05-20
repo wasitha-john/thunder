@@ -16,19 +16,22 @@
  * under the License.
  */
 
+// Package handler provides the implementation for user management operations.
 package handler
 
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"strings"
+
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/user/model"
 	userprovider "github.com/asgardeo/thunder/internal/user/provider"
-	"net/http"
-	"strings"
-	"sync"
 )
 
+// UserHandler is the handler for user management operations.
+//
 // @title          User Management API
 // @version        1.0
 // @description    This API is used to manage users.
@@ -39,16 +42,6 @@ import (
 // @host           localhost:8090
 // @BasePath       /
 type UserHandler struct {
-	store map[string]model.User
-	mu    *sync.RWMutex
-}
-
-func NewUserHandler() *UserHandler {
-
-	return &UserHandler{
-		store: make(map[string]model.User),
-		mu:    &sync.RWMutex{},
-	}
 }
 
 // HandleUserPostRequest handles the user request.
@@ -64,7 +57,6 @@ func NewUserHandler() *UserHandler {
 // @Failure      500  {string}  "Internal Server Error"
 // @Router       /users [post]
 func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Request) {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
 	var userInCreationRequest model.User
@@ -97,7 +89,7 @@ func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Log the user creation response.
-	logger.Debug("User POST response sent", log.String("user id", createdUser.Id))
+	logger.Debug("User POST response sent", log.String("user id", createdUser.ID))
 }
 
 // HandleUserListRequest handles the user request.
@@ -111,7 +103,6 @@ func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 // @Failure      500  {string}  "Internal Server Error"
 // @Router       /users [get]
 func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Request) {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
 	// Get the user list using the user service.
@@ -148,7 +139,6 @@ func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Requ
 // @Failure      500  {string}  "Internal Server Error"
 // @Router       /users/{id} [get]
 func (ah *UserHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Request) {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
 	id := strings.TrimPrefix(r.URL.Path, "/users/")
@@ -197,7 +187,6 @@ func (ah *UserHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Reque
 // @Failure      500  {string}  "Internal Server Error"
 // @Router       /users/{id} [put]
 func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Request) {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
 	id := strings.TrimPrefix(r.URL.Path, "/users/")
@@ -211,7 +200,7 @@ func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Bad Request: The request body is malformed or contains invalid data.", http.StatusBadRequest)
 		return
 	}
-	updatedUser.Id = id
+	updatedUser.ID = id
 
 	// Update the user using the user service.
 	userProvider := userprovider.NewUserProvider()
@@ -229,7 +218,11 @@ func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	err = json.NewEncoder(w).Encode(user)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 
 	// Log the user response.
 	logger.Debug("User PUT response sent", log.String("user id", id))
@@ -248,7 +241,6 @@ func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 // @Failure      500  {string}  "Internal Server Error"
 // @Router       /users/{id} [delete]
 func (ah *UserHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Request) {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
 	id := strings.TrimPrefix(r.URL.Path, "/users/")

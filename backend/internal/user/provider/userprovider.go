@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package provider provides the implementation for user management operations.
 package provider
 
 import (
@@ -32,12 +33,10 @@ type UserProvider struct{}
 
 // NewUserProvider creates a new instance of UserProvider.
 func NewUserProvider() UserProviderInterface {
-
 	return &UserProvider{}
 }
 
 // GetUserService returns the user service instance.
 func (ap *UserProvider) GetUserService() service.UserServiceInterface {
-
 	return service.GetUserService()
 }

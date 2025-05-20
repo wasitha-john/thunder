@@ -16,24 +16,26 @@
  * under the License.
  */
 
+// Package service provides the implementation for user management operations.
 package service
 
 import (
 	"errors"
-	"github.com/asgardeo/thunder/internal/user/store"
+
 	"github.com/google/uuid"
 
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/user/model"
+	"github.com/asgardeo/thunder/internal/user/store"
 )
 
 // UserServiceInterface defines the interface for the user service.
 type UserServiceInterface interface {
 	CreateUser(user *model.User) (*model.User, error)
 	GetUserList() ([]model.User, error)
-	GetUser(userId string) (*model.User, error)
-	UpdateUser(userId string, user *model.User) (*model.User, error)
-	DeleteUser(userId string) error
+	GetUser(userID string) (*model.User, error)
+	UpdateUser(userID string, user *model.User) (*model.User, error)
+	DeleteUser(userID string) error
 }
 
 // UserService is the default implementation of the UserServiceInterface.
@@ -41,16 +43,14 @@ type UserService struct{}
 
 // GetUserService creates a new instance of UserService.
 func GetUserService() UserServiceInterface {
-
 	return &UserService{}
 }
 
 // CreateUser creates the user.
 func (as *UserService) CreateUser(user *model.User) (*model.User, error) {
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserService"))
 
-	user.Id = uuid.New().String()
+	user.ID = uuid.New().String()
 
 	// Create the user in the database.
 	err := store.CreateUser(*user)
@@ -63,7 +63,6 @@ func (as *UserService) CreateUser(user *model.User) (*model.User, error) {
 
 // GetUserList list the users.
 func (as *UserService) GetUserList() ([]model.User, error) {
-
 	users, err := store.GetUserList()
 	if err != nil {
 		return nil, err
@@ -73,13 +72,12 @@ func (as *UserService) GetUserList() ([]model.User, error) {
 }
 
 // GetUser get the user for given user id.
-func (as *UserService) GetUser(userId string) (*model.User, error) {
-
-	if userId == "" {
+func (as *UserService) GetUser(userID string) (*model.User, error) {
+	if userID == "" {
 		return nil, errors.New("user ID is empty")
 	}
 
-	user, err := store.GetUser(userId)
+	user, err := store.GetUser(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -88,9 +86,8 @@ func (as *UserService) GetUser(userId string) (*model.User, error) {
 }
 
 // UpdateUser update the user for given user id.
-func (as *UserService) UpdateUser(userId string, user *model.User) (*model.User, error) {
-
-	if userId == "" {
+func (as *UserService) UpdateUser(userID string, user *model.User) (*model.User, error) {
+	if userID == "" {
 		return nil, errors.New("user ID is empty")
 	}
 
@@ -103,13 +100,12 @@ func (as *UserService) UpdateUser(userId string, user *model.User) (*model.User,
 }
 
 // DeleteUser delete the user for given user id.
-func (as *UserService) DeleteUser(userId string) error {
-
-	if userId == "" {
+func (as *UserService) DeleteUser(userID string) error {
+	if userID == "" {
 		return errors.New("user ID is empty")
 	}
 
-	err := store.DeleteUser(userId)
+	err := store.DeleteUser(userID)
 	if err != nil {
 		return err
 	}

@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package model defines the data structures and interfaces for user management.
 package model
 
 import (
@@ -23,13 +24,16 @@ import (
 	"errors"
 )
 
+// User represents a user in the system.
 type User struct {
-	Id         string          `json:"id,omitempty"`
-	OrgId      string          `json:"org_id,omitempty"`
+	ID         string          `json:"id,omitempty"`
+	OrgID      string          `json:"org_id,omitempty"`
 	Type       string          `json:"type,omitempty"`
 	Attributes json.RawMessage `json:"attributes,omitempty"`
 }
 
+// ErrUserNotFound is returned when the user is not found in the system.
 var ErrUserNotFound = errors.New("user not found")
 
+// ErrBadAttributesInRequest is returned when the attributes in the request are invalid.
 var ErrBadAttributesInRequest = errors.New("failed to marshal attributes")
