@@ -7,7 +7,7 @@ gate_client:
   port: 9090
 
 security:
-  cert_file: "repository/resources/security/server.crt"
+  cert_file: "repository/resources/security/server.cert"
   key_file: "repository/resources/security/server.key"
 
 database:

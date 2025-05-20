@@ -36,6 +36,10 @@ REPOSITORY_DIR=$BACKEND_BASE_DIR/cmd/server/repository
 SERVER_SCRIPTS_DIR=$BACKEND_BASE_DIR/scripts
 SERVER_DB_SCRIPTS_DIR=$BACKEND_BASE_DIR/dbscripts
 SECURITY_DIR=repository/resources/security
+FRONTEND_BASE_DIR=frontend
+FRONTEND_GATE_APP_DIR=$FRONTEND_BASE_DIR/apps/gate
+SAMPLE_BASE_DIR=samples
+SAMPLE_OAUTH_APP_DIR=$SAMPLE_BASE_DIR/apps/oauth
 
 function clean() {
     echo "Cleaning build artifacts..."
@@ -71,7 +75,7 @@ function package() {
         exit 1
     fi
     echo "Certificates generated successfully."
-    
+
     echo "Creating zip file..."
     (cd "$OUTPUT_DIR" && zip -r "$PRODUCT_FOLDER.zip" "$PRODUCT_FOLDER")
     rm -rf "$OUTPUT_DIR/$PRODUCT_FOLDER" "$BUILD_DIR"
@@ -80,6 +84,32 @@ function package() {
 function test_integration() {
     echo "Running integration tests..."
     go run -C ./tests/integration ./main.go
+}
+
+function ensure_certificates() {
+    local cert_dir=$1
+    local cert_name_prefix="server"
+    local cert_file="$cert_dir/${cert_name_prefix}.cert"
+    local key_file="$cert_dir/${cert_name_prefix}.key"
+
+    if [[ ! -f "$cert_file" || ! -f "$key_file" ]]; then
+        mkdir -p "$cert_dir"
+        echo "Generating SSL certificates in $cert_dir..."
+        OPENSSL_ERR=$(
+            openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout "$key_file" \
+                -out "$cert_file" \
+                -subj "/O=WSO2/OU=Thunder/CN=localhost" \
+                > /dev/null 2>&1
+        )
+        if [[ $? -ne 0 ]]; then
+            echo "Error generating SSL certificates: $OPENSSL_ERR"
+            exit 1
+        fi
+        echo "Certificates generated successfully in $cert_dir."
+    else
+        echo "Certificates already exist in $cert_dir."
+    fi
 }
 
 function run() {
@@ -93,24 +123,13 @@ function run() {
     package
 
     echo "=== Ensuring server certificates exist ==="
-    if [[ ! -f "$BACKEND_DIR/$SECURITY_DIR/server.crt" || ! -f "$BACKEND_DIR/$SECURITY_DIR/server.key" ]]; then
-        mkdir -p "$BACKEND_DIR/$SECURITY_DIR"
-        echo "Generating SSL certificates..."
-        OPENSSL_ERR=$(
-            openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout "$BACKEND_DIR/$SECURITY_DIR/server.key" \
-                -out "$BACKEND_DIR/$SECURITY_DIR/server.crt" \
-                -subj "/O=WSO2/OU=Thunder/CN=localhost" \
-                > /dev/null 2>&1
-        )
-        if [[ $? -ne 0 ]]; then
-            echo "Error generating SSL certificates: $OPENSSL_ERR"
-            exit 1
-        fi
-        echo "Certificates generated successfully."
-    else
-        echo "Certificates already exist."
-    fi
+    ensure_certificates "$BACKEND_DIR/$SECURITY_DIR"
+
+    echo "=== Ensuring portal certificates exist ==="
+    ensure_certificates "$FRONTEND_GATE_APP_DIR"
+
+    echo "=== Ensuring Sample app certificates exist ==="
+    ensure_certificates "$SAMPLE_OAUTH_APP_DIR"
 
     # Kill known ports
     function kill_port() {
