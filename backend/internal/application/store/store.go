@@ -65,7 +65,7 @@ func GetApplicationList() ([]model.Application, error) {
 		}
 	}(dbClient)
 
-	results, err := dbClient.ExecuteQuery(QueryGetApplicationList)
+	results, err := dbClient.Query(QueryGetApplicationList)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return nil, fmt.Errorf("failed to execute query: %w", err)
@@ -101,7 +101,7 @@ func GetApplication(id string) (model.Application, error) {
 		}
 	}()
 
-	results, err := dbClient.ExecuteQuery(QueryGetApplicationByAppID, id)
+	results, err := dbClient.Query(QueryGetApplicationByAppID, id)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return model.Application{}, fmt.Errorf("failed to execute query: %w", err)
@@ -160,7 +160,7 @@ func DeleteApplication(id string) error {
 		}
 	}()
 
-	_, err = dbClient.ExecuteQuery(QueryDeleteApplicationByAppID, id)
+	_, err = dbClient.Execute(QueryDeleteApplicationByAppID, id)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)

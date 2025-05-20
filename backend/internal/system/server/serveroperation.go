@@ -40,7 +40,7 @@ func GetAllowedOrigins() ([]string, error) {
 		}
 	}()
 
-	results, err := dbClient.ExecuteQuery(QueryAllowedOrigins)
+	results, err := dbClient.Query(QueryAllowedOrigins)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return nil, err

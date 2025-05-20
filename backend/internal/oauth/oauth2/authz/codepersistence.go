@@ -102,7 +102,7 @@ func GetAuthorizationCode(clientID, authCode string) (model.AuthorizationCode, e
 		}
 	}()
 
-	results, err := dbClient.ExecuteQuery(constants.QueryGetAuthorizationCode, clientID, authCode)
+	results, err := dbClient.Query(constants.QueryGetAuthorizationCode, clientID, authCode)
 	if err != nil {
 		return model.AuthorizationCode{}, errors.New("error while retrieving authorization code: " + err.Error())
 	}
@@ -148,7 +148,7 @@ func updateAuthorizationCodeState(authzCode model.AuthorizationCode, newState st
 		}
 	}()
 
-	_, err = dbClient.ExecuteQuery(constants.QueryUpdateAuthorizationCodeState, newState, authzCode.CodeID)
+	_, err = dbClient.Execute(constants.QueryUpdateAuthorizationCodeState, newState, authzCode.CodeID)
 	return err
 }
 
