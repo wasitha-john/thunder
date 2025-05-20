@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { redirect } from 'next/navigation';
+import { redirect } from "next/navigation";
 
-export default function RootPage() {
-  redirect('/login');
+export default function RootPage(): void {
+  redirect("/login");
 }

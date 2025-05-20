@@ -21,27 +21,28 @@ import ThemeToggle from '@oxygen-ui/react/src/components/ThemeToggle/ThemeToggle
 import Grid from '@oxygen-ui/react/src/components/Grid/Grid';
 import Paper from '@oxygen-ui/react/src/components/Paper/Paper';
 import Typography from '@oxygen-ui/react/src/components/Typography/Typography';
-import AppConfig from "@/configs/app.json";
-import BaseLayout from "@/layouts/base";
+import AppConfig from '@/configs/app.json';
+import BaseLayout from '@/layouts/base';
 import SideImage from '@/images/layout-image';
-import type { Metadata } from "next";
+import type {Metadata} from 'next';
+import {ReactElement} from 'react';
 
 export const metadata: Metadata = {
-  title: "Gate",
-  description: "This the gate of your app",
+  title: 'Gate',
+  description: 'This the gate of your app',
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
+}>): ReactElement {
   return (
     <BaseLayout>
-      <Box sx={{ height: '100vh', display: 'flex' }}>
-        <Grid container sx={{ flex: 1 }}>
+      <Box sx={{height: '100vh', display: 'flex'}}>
+        <Grid container sx={{flex: 1}}>
           <Grid
-            size={{ xs: 12, md: 6 }}
+            size={{xs: 12, md: 6}}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -51,17 +52,17 @@ export default function RootLayout({
           >
             <Box>
               <SideImage />
-              <Typography variant="h4" sx={{ mb: 2 }}>
+              <Typography variant="h4" sx={{mb: 2}}>
                 Welcome!
               </Typography>
               <Typography variant="body1">
-                This login is powered by { AppConfig.productName }.<br />
+                This login is powered by {AppConfig.productName}.<br />
                 Which empowers developers to implement login experiences in no time.
               </Typography>
             </Box>
           </Grid>
 
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid size={{xs: 12, md: 6}}>
             <Paper
               sx={{
                 display: 'flex',
@@ -70,8 +71,9 @@ export default function RootLayout({
                 height: '100%',
                 flexDirection: 'column',
                 position: 'relative',
-            }}>
-              <Box sx={{ position: 'absolute', right: '4rem' }}>
+              }}
+            >
+              <Box sx={{position: 'absolute', right: '4rem'}}>
                 <ThemeToggle />
               </Box>
               <Box
@@ -81,14 +83,13 @@ export default function RootLayout({
                   padding: 4,
                   width: '100%',
                   maxWidth: 500,
-                  margin: 'auto'
-              }}>
+                  margin: 'auto',
+                }}
+              >
                 <Box>
                   {children}
-                  <Box component="footer" sx={{ mt: 10 }}>
-                    <Typography sx={{ textAlign: 'center' }}>
-                      © Copyright {new Date().getFullYear()}
-                    </Typography>
+                  <Box component="footer" sx={{mt: 10}}>
+                    <Typography sx={{textAlign: 'center'}}>© Copyright {new Date().getFullYear()}</Typography>
                   </Box>
                 </Box>
               </Box>

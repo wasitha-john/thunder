@@ -16,17 +16,18 @@
  * under the License.
  */
 
-import Box from '@oxygen-ui/react/src/components/Box/Box';
-import Typography from '@oxygen-ui/react/src/components/Typography/Typography';
-import Link from 'next/link';
+import Box from "@oxygen-ui/react/src/components/Box/Box";
+import Typography from "@oxygen-ui/react/src/components/Typography/Typography";
+import Link from "next/link";
+import { ReactElement } from "react";
 
-export default function NotFound() {
+export default function NotFound(): ReactElement {
   return (
     <Box>
-      <Typography variant='h4' sx={{ mb: 2 }}>404 - Page Not Found</Typography>
-      <Typography variant='body1'>
-        Sorry, the page you are looking for does not exist.
+      <Typography variant="h4" sx={{ mb: 2 }}>
+        404 - Page Not Found
       </Typography>
+      <Typography variant="body1">Sorry, the page you are looking for does not exist.</Typography>
       <Link href="/" className="text-blue-600 hover:underline">
         Go back home
       </Link>

@@ -17,15 +17,14 @@
  */
 
 import type { Metadata } from "next";
-import LoginPageContent from './content';
+import LoginPageContent from "./content";
+import { ReactElement } from "react";
 
 export const metadata: Metadata = {
-  title: 'Login',
-  description: 'Login to your application',
+  title: "Login",
+  description: "Login to your application",
 };
 
-export default function LoginPage() {
-  return (
-    <LoginPageContent />
-  );
+export default function LoginPage(): ReactElement {
+  return <LoginPageContent />;
 }
