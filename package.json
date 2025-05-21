@@ -4,7 +4,6 @@
   "license": "MIT",
   "scripts": {
     "start": "pnpm i && make run",
-    "run": "make run",
     "dev": "pnpm i && pnpm build && pnpm --filter gate dev",
     "sample": "pnpm --filter oauth dev",
     "build": "nx run-many --target=build --all",
