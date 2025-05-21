@@ -41,6 +41,9 @@ FRONTEND_GATE_APP_DIR=$FRONTEND_BASE_DIR/apps/gate
 SAMPLE_BASE_DIR=samples
 SAMPLE_OAUTH_APP_DIR=$SAMPLE_BASE_DIR/apps/oauth
 
+GOOS=darwin
+GOARCH=amd64
+
 function clean() {
     echo "Cleaning build artifacts..."
     rm -rf "$OUTPUT_DIR"
@@ -49,7 +52,11 @@ function clean() {
 function build_backend() {
     echo "Building Go backend..."
     mkdir -p "$BUILD_DIR"
-    go build -C "$BACKEND_BASE_DIR" -o "../$BUILD_DIR/$BINARY_NAME" ./cmd/server
+
+    GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build -C "$BACKEND_BASE_DIR" \
+    -x -ldflags "-X \"main.version=$VERSION\" \
+    -X \"main.buildDate=$$(date -u '+%Y-%m-%d %H:%M:%S UTC')\"" \
+    -o "../$BUILD_DIR/$BINARY_NAME" ./cmd/server
 }
 
 function package() {
