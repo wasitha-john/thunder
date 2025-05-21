@@ -31,4 +31,8 @@ export default defineConfig({
     port: 3000,
     host: 'localhost',
   },
+  preview: {
+    port: 3000,
+    host: 'localhost'
+  }
 })
