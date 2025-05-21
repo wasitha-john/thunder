@@ -138,7 +138,7 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 - And run this command
 
   ```bash
-  pnpm oauth-sample
+  pnpm sample
   ```
 
 - Enter the following credentials:
