@@ -25,8 +25,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
-
-	"github.com/google/uuid"
+	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // GetAuthorizationCode generates an authorization code based on the provided OAuth message.
@@ -64,8 +63,8 @@ func GetAuthorizationCode(oAuthMessage *model.OAuthMessage) (model.Authorization
 	expiryTime := authTime.Add(10 * time.Minute)
 
 	return model.AuthorizationCode{
-		CodeID:           uuid.New().String(),
-		Code:             uuid.New().String(),
+		CodeID:           utils.GenerateUUID(),
+		Code:             utils.GenerateUUID(),
 		ClientID:         clientID,
 		RedirectURI:      redirectURI,
 		AuthorizedUserID: authUserID,
