@@ -16,10 +16,10 @@
  * under the License.
  */
 
-import Box from "@oxygen-ui/react/src/components/Box/Box";
-import Typography from "@oxygen-ui/react/src/components/Typography/Typography";
-import Link from "next/link";
-import { ReactElement } from "react";
+import Box from '@oxygen-ui/react/src/components/Box/Box';
+import Typography from '@oxygen-ui/react/src/components/Typography/Typography';
+import Link from 'next/link';
+import { ReactElement } from 'react';
 
 export default function NotFound(): ReactElement {
   return (

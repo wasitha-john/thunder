@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /*
  * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
@@ -18,23 +18,23 @@
  * under the License.
  */
 
-import Alert from "@oxygen-ui/react/src/components/Alert/Alert";
-import Box from "@oxygen-ui/react/src/components/Box/Box";
-import Button from "@oxygen-ui/react/src/components/Button/Button";
-import Checkbox from "@oxygen-ui/react/src/components/Checkbox/Checkbox";
-import Divider from "@oxygen-ui/react/src/components/Divider/Divider";
-import FormControlLabel from "@oxygen-ui/react/src/components/FormControlLabel/FormControlLabel";
-import OutlinedInput from "@oxygen-ui/react/src/components/OutlinedInput/OutlinedInput";
-import Link from "@oxygen-ui/react/src/components/Link/Link";
-import InputLabel from "@oxygen-ui/react/src/components/InputLabel/InputLabel";
-import Typography from "@oxygen-ui/react/src/components/Typography/Typography";
-import AppConfig from "@/configs/app.json";
-import GoogleIcon from "@/images/google-icon";
-import GitHubIcon from "@/images/github-icon";
-import React, { useState, useEffect, ReactElement } from "react";
+import Alert from '@oxygen-ui/react/src/components/Alert/Alert';
+import Box from '@oxygen-ui/react/src/components/Box/Box';
+import Button from '@oxygen-ui/react/src/components/Button/Button';
+import Checkbox from '@oxygen-ui/react/src/components/Checkbox/Checkbox';
+import Divider from '@oxygen-ui/react/src/components/Divider/Divider';
+import FormControlLabel from '@oxygen-ui/react/src/components/FormControlLabel/FormControlLabel';
+import OutlinedInput from '@oxygen-ui/react/src/components/OutlinedInput/OutlinedInput';
+import Link from '@oxygen-ui/react/src/components/Link/Link';
+import InputLabel from '@oxygen-ui/react/src/components/InputLabel/InputLabel';
+import Typography from '@oxygen-ui/react/src/components/Typography/Typography';
+import AppConfig from '@/configs/app.json';
+import GoogleIcon from '@/images/google-icon';
+import GitHubIcon from '@/images/github-icon';
+import React, { useState, useEffect, ReactElement } from 'react';
 
 const LoginPageContent = function (): ReactElement {
-  const [sessionDataKey, setSessionDataKey] = useState<string>("");
+  const [sessionDataKey, setSessionDataKey] = useState<string>('');
   const [insecureWarning, setInsecureWarning] = useState<boolean>(false);
 
   const [showSignUp] = useState<boolean>(false);
@@ -46,8 +46,8 @@ const LoginPageContent = function (): ReactElement {
   useEffect(() => {
     const params: URLSearchParams = new URLSearchParams(window.location.search);
 
-    setSessionDataKey(params.get("sessionDataKey") || "");
-    setInsecureWarning(params.get("showInsecureWarning") === "true");
+    setSessionDataKey(params.get('sessionDataKey') || '');
+    setInsecureWarning(params.get('showInsecureWarning') === 'true');
   }, []);
 
   return (
@@ -115,9 +115,9 @@ const LoginPageContent = function (): ReactElement {
         {(showRememberMe || showForgotPassword) && (
           <Box
             sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
             }}
           >
             {showRememberMe && (

@@ -16,28 +16,28 @@
  * under the License.
  */
 
-import ThemeProvider from "@oxygen-ui/react/src/contexts/ThemeProvider";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Metadata } from "next";
-import "../globals.css";
-import { NextFontWithVariable } from "next/dist/compiled/@next/font";
-import { ReactElement } from "react";
+import ThemeProvider from '@oxygen-ui/react/src/contexts/ThemeProvider';
+import { Geist, Geist_Mono } from 'next/font/google';
+import { Metadata } from 'next';
+import '../globals.css';
+import { NextFontWithVariable } from 'next/dist/compiled/@next/font';
+import { ReactElement } from 'react';
 
 export const metadata: Metadata = {
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
   },
 };
 
 const geistSans: NextFontWithVariable = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono: NextFontWithVariable = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
 export default function RootLayout({

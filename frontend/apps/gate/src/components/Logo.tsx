@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /*
  * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
@@ -18,14 +18,14 @@
  * under the License.
  */
 
-import { useColorScheme } from "@oxygen-ui/react/src/hooks/useColorScheme";
-import Image from "next/image";
-import { ReactElement } from "react";
+import { useColorScheme } from '@oxygen-ui/react/src/hooks/useColorScheme';
+import Image from 'next/image';
+import { ReactElement } from 'react';
 
 export default function Logo(): ReactElement {
   const { mode } = useColorScheme();
 
-  const logoSrc: string = mode === "dark" ? "/images/logo-dark.svg" : "/images/logo-light.svg";
+  const logoSrc: string = mode === 'dark' ? '/images/logo-dark.svg' : '/images/logo-light.svg';
 
   return <Image src={logoSrc} alt="Logo" width={200} height={50} priority />;
 }

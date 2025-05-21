@@ -16,13 +16,13 @@
  * under the License.
  */
 
-import type { Metadata } from "next";
-import LoginPageContent from "./content";
-import { ReactElement } from "react";
+import type { Metadata } from 'next';
+import LoginPageContent from './content';
+import { ReactElement } from 'react';
 
 export const metadata: Metadata = {
-  title: "Login",
-  description: "Login to your application",
+  title: 'Login',
+  description: 'Login to your application',
 };
 
 export default function LoginPage(): ReactElement {

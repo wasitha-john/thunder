@@ -24,8 +24,8 @@ import Typography from '@oxygen-ui/react/src/components/Typography/Typography';
 import AppConfig from '@/configs/app.json';
 import BaseLayout from '@/layouts/base';
 import SideImage from '@/images/layout-image';
-import type {Metadata} from 'next';
-import {ReactElement} from 'react';
+import type { Metadata } from 'next';
+import { ReactElement } from 'react';
 
 export const metadata: Metadata = {
   title: 'Gate',
@@ -39,10 +39,10 @@ export default function RootLayout({
 }>): ReactElement {
   return (
     <BaseLayout>
-      <Box sx={{height: '100vh', display: 'flex'}}>
-        <Grid container sx={{flex: 1}}>
+      <Box sx={{ height: '100vh', display: 'flex' }}>
+        <Grid container sx={{ flex: 1 }}>
           <Grid
-            size={{xs: 12, md: 6}}
+            size={{ xs: 12, md: 6 }}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -52,7 +52,7 @@ export default function RootLayout({
           >
             <Box>
               <SideImage />
-              <Typography variant="h4" sx={{mb: 2}}>
+              <Typography variant="h4" sx={{ mb: 2 }}>
                 Welcome!
               </Typography>
               <Typography variant="body1">
@@ -62,7 +62,7 @@ export default function RootLayout({
             </Box>
           </Grid>
 
-          <Grid size={{xs: 12, md: 6}}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Paper
               sx={{
                 display: 'flex',
@@ -73,7 +73,7 @@ export default function RootLayout({
                 position: 'relative',
               }}
             >
-              <Box sx={{position: 'absolute', right: '4rem'}}>
+              <Box sx={{ position: 'absolute', right: '4rem' }}>
                 <ThemeToggle />
               </Box>
               <Box
@@ -88,8 +88,8 @@ export default function RootLayout({
               >
                 <Box>
                   {children}
-                  <Box component="footer" sx={{mt: 10}}>
-                    <Typography sx={{textAlign: 'center'}}>© Copyright {new Date().getFullYear()}</Typography>
+                  <Box component="footer" sx={{ mt: 10 }}>
+                    <Typography sx={{ textAlign: 'center' }}>© Copyright {new Date().getFullYear()}</Typography>
                   </Box>
                 </Box>
               </Box>

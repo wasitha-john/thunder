@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /*
  * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
@@ -18,22 +18,22 @@
  * under the License.
  */
 
-import Alert from "@oxygen-ui/react/src/components/Alert/Alert";
-import AlertTitle from "@oxygen-ui/react/src/components/AlertTitle/AlertTitle";
-import Typography from "@oxygen-ui/react/src/components/Typography/Typography";
-import React, { useState, useEffect, ReactElement } from "react";
+import Alert from '@oxygen-ui/react/src/components/Alert/Alert';
+import AlertTitle from '@oxygen-ui/react/src/components/AlertTitle/AlertTitle';
+import Typography from '@oxygen-ui/react/src/components/Typography/Typography';
+import React, { useState, useEffect, ReactElement } from 'react';
 
-const FallbackErrorMessage: string = "Sorry, but we encountered an error while processing your request.";
+const FallbackErrorMessage: string = 'Sorry, but we encountered an error while processing your request.';
 
 export default function ErrorPage(): ReactElement {
-  const [errorCode, setErrorCode] = useState("");
+  const [errorCode, setErrorCode] = useState('');
   const [errorMsg, setErrorMsg] = useState(FallbackErrorMessage);
 
   useEffect(() => {
     const params: URLSearchParams = new URLSearchParams(window.location.search);
 
-    setErrorCode(params.get("oauthErrorCode") || "");
-    setErrorMsg(params.get("oauthErrorMsg") || FallbackErrorMessage);
+    setErrorCode(params.get('oauthErrorCode') || '');
+    setErrorMsg(params.get('oauthErrorMsg') || FallbackErrorMessage);
   }, []);
 
   return (
@@ -44,7 +44,7 @@ export default function ErrorPage(): ReactElement {
       <Typography variant="body1" sx={{ mt: 3 }}>
         {errorMsg}
       </Typography>
-      {errorCode !== "" && (
+      {errorCode !== '' && (
         <Typography variant="body1" sx={{ mt: 2 }}>
           Error Code: {errorCode}
         </Typography>
