@@ -69,23 +69,12 @@ function package() {
     cp -r "$SERVER_DB_SCRIPTS_DIR" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
     mkdir -p "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR"
 
-    echo "Generating SSL certificates..."
-    OPENSSL_ERR=$(
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-            -keyout "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR/server.key" \
-            -out "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR/server.crt" \
-            -subj "/O=WSO2/OU=Thunder/CN=localhost" \
-            > /dev/null 2>&1
-    )
-    if [[ $? -ne 0 ]]; then
-        echo "Error generating SSL certificates: $OPENSSL_ERR"
-        exit 1
-    fi
-    echo "Certificates generated successfully."
+    echo "=== Ensuring server certificates exist in the distribution ==="
+    ensure_certificates "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR"
 
     echo "Creating zip file..."
     (cd "$OUTPUT_DIR" && zip -r "$PRODUCT_FOLDER.zip" "$PRODUCT_FOLDER")
-    rm -rf "$OUTPUT_DIR/$PRODUCT_FOLDER" "$BUILD_DIR"
+    rm -rf "${OUTPUT_DIR:?}/$PRODUCT_FOLDER" "$BUILD_DIR"
 }
 
 function test_integration() {
