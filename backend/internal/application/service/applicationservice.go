@@ -28,8 +28,6 @@ import (
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
-
-	"github.com/google/uuid"
 )
 
 // ApplicationServiceInterface defines the interface for the application service.
@@ -134,7 +132,7 @@ func (as *ApplicationService) CreateApplication(app *model.Application) (*model.
 	}
 
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
-	app.ID = uuid.New().String()
+	app.ID = utils.GenerateUUID()
 
 	// Create the application in the database.
 	err := store.CreateApplication(*app)
