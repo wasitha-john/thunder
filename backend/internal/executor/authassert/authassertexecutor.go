@@ -1,0 +1,98 @@
+/*
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+// Package authassert provides the authentication assertion executor for a flow.
+package authassert
+
+import (
+	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
+	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/oauth/jwt"
+	"github.com/asgardeo/thunder/internal/system/log"
+)
+
+// AuthAssertExecutor is an executor that handles authentication assertions in the flow.
+type AuthAssertExecutor struct {
+	internal flowmodel.Executor
+}
+
+// NewAuthAssertExecutor creates a new instance of AuthAssertExecutor.
+func NewAuthAssertExecutor(id, name string) flowmodel.ExecutorInterface {
+	return &AuthAssertExecutor{
+		internal: flowmodel.Executor{
+			Properties: flowmodel.ExecutorProperties{
+				ID:   id,
+				Name: name,
+			},
+		},
+	}
+}
+
+// GetID returns the ID of the AuthAssertExecutor.
+func (a *AuthAssertExecutor) GetID() string {
+	return a.internal.GetID()
+}
+
+// GetName returns the name of the AuthAssertExecutor.
+func (a *AuthAssertExecutor) GetName() string {
+	return a.internal.GetName()
+}
+
+// GetProperties returns the properties of the AuthAssertExecutor.
+func (a *AuthAssertExecutor) GetProperties() flowmodel.ExecutorProperties {
+	return a.internal.Properties
+}
+
+// Execute executes the authentication assertion logic.
+func (a *AuthAssertExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.ExecutorResponse, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "AuthAssertExecutor"))
+	logger.Debug("Executing authentication assertion executor",
+		log.String("executorID", a.GetID()), log.String("flowID", ctx.FlowID))
+
+	exeResp := &flowmodel.ExecutorResponse{
+		Status: flowconst.FlowStatusComplete,
+	}
+
+	if ctx.AuthenticatedUser != nil && ctx.AuthenticatedUser.IsAuthenticated {
+		tokenSub := ""
+		if ctx.AuthenticatedUser.AuthenticatedSubjectID != "" {
+			tokenSub = ctx.AuthenticatedUser.AuthenticatedSubjectID
+		}
+		token, err := jwt.GenerateJWT(tokenSub, ctx.AppID)
+		if err != nil {
+			logger.Error("Failed to generate JWT token", log.Error(err))
+			exeResp.Status = flowconst.FlowStatusError
+			exeResp.Error = "Failed to generate JWT token: " + err.Error()
+			return exeResp, nil
+		}
+
+		logger.Debug("Generated JWT token for authentication assertion",
+			log.String("executorID", a.GetID()), log.String("flowID", ctx.FlowID))
+
+		exeResp.Assertion = token
+	} else {
+		exeResp.Status = flowconst.FlowStatusError
+		exeResp.Error = "User is not authenticated"
+	}
+
+	logger.Debug("Authentication assertion executor execution completed",
+		log.String("executorID", a.GetID()), log.String("flowID", ctx.FlowID),
+		log.String("status", exeResp.Status))
+
+	return exeResp, nil
+}

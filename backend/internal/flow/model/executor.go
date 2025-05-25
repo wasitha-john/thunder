@@ -18,42 +18,57 @@
 
 package model
 
-const (
-	// NodeTypeTaskExecution represents a task execution node
-	NodeTypeTaskExecution = "TASK_EXECUTION"
-	// NodeTypePromptOnly represents a prompt-only node
-	NodeTypePromptOnly = "PROMPT_ONLY"
-	// NodeTypeDecision represents a decision node
-	NodeTypeDecision = "DECISION"
-)
-
 // ExecutorResponse represents the response from an executor
-type ExecutorResponse struct{}
+type ExecutorResponse struct {
+	Status         string            `json:"status"`
+	Type           string            `json:"type"`
+	Error          string            `json:"error,omitempty"`
+	RequiredData   []InputData       `json:"required_data,omitempty"`
+	AdditionalInfo map[string]string `json:"additional_info,omitempty"`
+	Assertion      string            `json:"assertion,omitempty"`
+}
+
+// ExecutorProperties holds the properties of an executor.
+type ExecutorProperties struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	DisplayName string            `json:"display_name"`
+	Properties  map[string]string `json:"properties,omitempty"`
+}
 
 // ExecutorInterface defines the interface for executors.
 type ExecutorInterface interface {
 	Execute(ctx *FlowContext) (*ExecutorResponse, error)
 	GetID() string
 	GetName() string
+	GetProperties() ExecutorProperties
 }
 
-// // Executor represents the basic implementation of an executor.
-// type Executor struct {
-// 	ID   string
-// 	Name string
-// }
+var _ ExecutorInterface = (*Executor)(nil)
 
-// // NewExecutor creates a new executor with the given ID and name.
-// func NewExecutor(id string, name string) ExecutorInterface {
-// 	return &Executor{
-// 		ID:   id,
-// 		Name: name,
-// 	}
-// }
+// Executor represents the basic implementation of an executor.
+type Executor struct {
+	Properties ExecutorProperties
+}
 
-// // Execute executes the executor logic.
-// func (e *Executor) Execute(ctx *model.FlowContext) (*model.ExecutorResponse, error) {
-// 	// Implement the logic for executing the executor
-// 	// This is just a placeholder implementation
-// 	return &model.ExecutorResponse{}, nil
-// }
+// GetID returns the ID of the executor.
+func (e *Executor) GetID() string {
+	return e.Properties.ID
+}
+
+// GetName returns the name of the executor.
+func (e *Executor) GetName() string {
+	return e.Properties.Name
+}
+
+// GetProperties returns the properties of the executor.
+func (e *Executor) GetProperties() ExecutorProperties {
+	return e.Properties
+}
+
+// Execute executes the executor logic.
+func (e *Executor) Execute(ctx *FlowContext) (*ExecutorResponse, error) {
+	// Implement the logic for executing the executor here.
+	// This is just a placeholder implementation
+	return &ExecutorResponse{}, nil
+}

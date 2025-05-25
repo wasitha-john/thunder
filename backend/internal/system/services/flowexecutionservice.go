@@ -42,7 +42,7 @@ func NewFlowExecutionService(mux *http.ServeMux) *FlowExecutionService {
 // RegisterRoutes registers the routes for the FlowExecutionService.
 func (s *FlowExecutionService) RegisterRoutes(mux *http.ServeMux) {
 	// TODO: Modify this according to the new wrapper implementation.
-	mux.HandleFunc("GET /flow/execution", s.flowExecutionHandler.HandleFlowExecutionRequest)
+	mux.HandleFunc("POST /flow/execution", s.flowExecutionHandler.HandleFlowExecutionRequest)
 }
 
 // TODO: Write the flow composer API.

@@ -20,6 +20,8 @@ package model
 
 import (
 	"errors"
+
+	"github.com/asgardeo/thunder/internal/flow/constants"
 )
 
 // NodeInterface defines the interface for nodes in the graph
@@ -50,8 +52,7 @@ type Node struct {
 	nextNodeID     string
 	previousNodeID string
 	inputData      []InputData
-	// TODO: Set the executor
-	executor ExecutorInterface
+	executor       ExecutorInterface
 }
 
 // NewNode creates a new Node with the given parameters
@@ -72,7 +73,27 @@ func (n *Node) Execute(ctx *FlowContext) (*ExecutorResponse, error) {
 	if n.executor == nil {
 		return nil, errors.New("executor is not set")
 	}
-	return n.executor.Execute(ctx)
+
+	execResp, err := n.executor.Execute(ctx)
+	if err != nil {
+		return nil, errors.New("error executing node executor: " + err.Error())
+	}
+
+	if execResp.Status == constants.ExecutorStatusComplete {
+		execResp.Status = constants.FlowStatusComplete
+		execResp.Type = ""
+	} else if execResp.Status == constants.ExecutorStatusUserInputRequired {
+		execResp.Status = constants.FlowStatusIncomplete
+		execResp.Type = constants.FlowStepTypeView
+	} else if execResp.Status == constants.ExecutorStatusExternalRedirection {
+		execResp.Status = constants.FlowStatusIncomplete
+		execResp.Type = constants.FlowStepTypeRedirection
+	} else {
+		execResp.Status = constants.FlowStatusError
+		execResp.Type = ""
+	}
+
+	return execResp, nil
 }
 
 // GetID returns the node's ID

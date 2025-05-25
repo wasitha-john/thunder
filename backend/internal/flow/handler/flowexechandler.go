@@ -41,8 +41,8 @@ func NewFlowExecutionHandler() *FlowExecutionHandler {
 func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowExecutionHandler"))
 
-	var flowExecutionRequest model.FlowRequest
-	if err := json.NewDecoder(r.Body).Decode(&flowExecutionRequest); err != nil {
+	var flowR model.FlowRequest
+	if err := json.NewDecoder(r.Body).Decode(&flowR); err != nil {
 		errResponse := apierror.ErrorResponse{
 			Message:     "Invalid request payload",
 			Description: "Failed to decode request payload",
@@ -59,12 +59,11 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 		return
 	}
 
-	flowService := flow.GetFlowService()
-	flowStep, flowErr := flowService.Execute(flowExecutionRequest.ApplicationID, flowExecutionRequest.CallbackURL,
-		flowExecutionRequest.FlowID, flowExecutionRequest.ActionID, flowExecutionRequest.Inputs)
+	svc := flow.GetFlowService()
+	flowStep, flowErr := svc.Execute(flowR.ApplicationID, flowR.FlowID, flowR.ActionID, flowR.Inputs)
 
 	if flowErr != nil {
-		errResponse := apierror.ErrorResponse{
+		errResp := apierror.ErrorResponse{
 			Message:     flowErr.Error,
 			Description: flowErr.ErrorDescription,
 		}
@@ -76,7 +75,7 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
-		if err := json.NewEncoder(w).Encode(errResponse); err != nil {
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
 			logger.Error("Error encoding error response", log.Error(err))
 			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
 		}
@@ -84,22 +83,24 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 		return
 	}
 
-	flowExecutionResponse := model.FlowResponse{
-		Type:       "test",
-		FlowID:     flowExecutionRequest.FlowID,
+	flowResp := model.FlowResponse{
+		FlowID:     flowStep.FlowID,
+		StepID:     flowStep.StepID,
 		FlowStatus: flowStep.Status,
-		Data:       model.FlowResponseData{},
+		Actions:    flowStep.Actions,
+		Inputs:     flowStep.InputData,
+		Assertion:  flowStep.Assertion,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	err := json.NewEncoder(w).Encode(flowExecutionResponse)
+	err := json.NewEncoder(w).Encode(flowResp)
 	if err != nil {
 		logger.Error("Error encoding response", log.Error(err))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 
-	logger.Debug("Flow execution request handled successfully", log.String("flowID", flowExecutionRequest.FlowID))
+	logger.Debug("Flow execution request handled successfully", log.String("flowID", flowResp.FlowID))
 }

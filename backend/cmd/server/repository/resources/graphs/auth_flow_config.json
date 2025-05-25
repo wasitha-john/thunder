@@ -20,9 +20,7 @@
         },
         {
             "id": "authenticated",
-            "type": "AUTHENTICATION_SUCCESS",
-            "inputData": [],
-            "executor": ""
+            "type": "AUTHENTICATION_SUCCESS"
         }
     ],
     "edges": {

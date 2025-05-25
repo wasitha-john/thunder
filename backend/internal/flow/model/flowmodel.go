@@ -16,36 +16,46 @@
  * under the License.
  */
 
+// Package model defines the data structures and interfaces for flow execution and graph representation.
 package model
+
+import authnmodel "github.com/asgardeo/thunder/internal/authn/model"
 
 // FlowContext holds the overall context for flow execution
 type FlowContext struct {
 	FlowID        string
 	AppID         string
-	CallBackURL   string
 	UserInputData map[string]string
 
-	CurrentNode     NodeInterface
-	CurrentActionID string
+	CurrentNode         NodeInterface
+	CurrentNodeResponse *ExecutorResponse
+	CurrentActionID     string
 
 	Graph GraphInterface
+
+	AuthenticatedUser *authnmodel.AuthenticatedUser
 }
 
 // FlowStep represents the outcome of a individual flow step
 type FlowStep struct {
-	StepID    string
-	Status    string
-	InputData []InputData
-	Actions   []Action
-	Assertion string
+	FlowID         string
+	StepID         string
+	Type           string
+	Status         string
+	InputData      []InputData
+	Actions        []Action
+	Assertion      string
+	AdditionalInfo map[string]string
 }
 
+// InputData represents the input data required for a flow step
 type InputData struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Required bool   `json:"required"`
 }
 
+// Action represents an action to be executed in a flow step
 type Action struct {
 	Type     string         `json:"type"`
 	Executor *ExecutorModel `json:"executor,omitempty"`
@@ -56,8 +66,6 @@ type ExecutorModel struct {
 	Name string `json:"name"`
 }
 
-// -------------------
-
 // FlowServiceError represents an error response from the flow service
 type FlowServiceError struct {
 	Type             string `json:"type,omitempty"`
@@ -67,21 +75,19 @@ type FlowServiceError struct {
 
 // FlowRequest represents the flow execution API request body
 type FlowRequest struct {
-	ApplicationID string            `json:"applicationId"`
-	CallbackURL   string            `json:"callbackUrl"`
-	FlowID        string            `json:"flowId"`
-	ActionID      string            `json:"actionId"`
-	Inputs        map[string]string `json:"inputs"`
+	ApplicationID string `json:"applicationId"`
+	// CallbackURL   string            `json:"callbackUrl"`
+	FlowID   string            `json:"flowId"`
+	ActionID string            `json:"actionId"`
+	Inputs   map[string]string `json:"inputs"`
 }
 
 // FlowResponse represents the flow execution API response body
 type FlowResponse struct {
-	Type       string           `json:"type"`
-	FlowID     string           `json:"flowId"`
-	FlowStatus string           `json:"flowStatus"`
-	Data       FlowResponseData `json:"data"`
-}
-
-// FlowResponseData represents the data in the flow execution API response
-type FlowResponseData struct {
+	FlowID     string      `json:"flowId"`
+	StepID     string      `json:"stepId,omitempty"`
+	FlowStatus string      `json:"flowStatus"`
+	Actions    []Action    `json:"actions,omitempty"`
+	Inputs     []InputData `json:"inputs,omitempty"`
+	Assertion  string      `json:"assertion,omitempty"`
 }

@@ -22,6 +22,8 @@ package utils
 import (
 	"fmt"
 
+	"github.com/asgardeo/thunder/internal/executor/authassert"
+	"github.com/asgardeo/thunder/internal/executor/basicauth"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
 )
@@ -68,6 +70,8 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 	for _, nodeDef := range definition.Nodes {
 		isStartNode := (nodeDef.ID == startNodeID)
 		isFinalNode := (nodeDef.Type == "AUTHENTICATION_SUCCESS")
+
+		// Construct a new node
 		node := model.NewNode(nodeDef.ID, nodeDef.Type, isStartNode, isFinalNode)
 
 		// Convert and set input data from definition
@@ -81,7 +85,26 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 		}
 		node.SetInputData(inputData)
 
-		g.AddNode(node)
+		// Set the executor if defined
+		if nodeDef.Executor != "" {
+			executor, err := getExecutorByName(nodeDef.Executor)
+			if err != nil {
+				return nil, fmt.Errorf("error while getting executor %s: %w", nodeDef.Executor, err)
+			}
+			node.SetExecutor(executor)
+		} else if nodeDef.Type == "AUTHENTICATION_SUCCESS" {
+			// Assign AuthAssertExecutor for authentication success node if no executor is explicitly defined.
+			executor, err := getExecutorByName("AuthAssertExecutor")
+			if err != nil {
+				return nil, fmt.Errorf("error while getting default AuthAssertExecutor: %w", err)
+			}
+			node.SetExecutor(executor)
+		}
+
+		err := g.AddNode(node)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add node %s to the graph: %w", nodeDef.ID, err)
+		}
 	}
 
 	err := g.SetStartNodeID(startNodeID)
@@ -92,7 +115,10 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 	// Add all edges to the graph
 	for sourceID, targetIDs := range definition.Edges {
 		for _, targetID := range targetIDs {
-			g.AddEdge(sourceID, targetID)
+			err := g.AddEdge(sourceID, targetID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to add edge from %s to %s: %w", sourceID, targetID, err)
+			}
 		}
 	}
 
@@ -103,7 +129,10 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 			if sourceNode, exists := g.GetNode(fromNodeID); exists {
 				sourceNode.SetNextNodeID(toNodeIDs[0])
 				// Update the source node in the graph
-				g.AddNode(sourceNode)
+				err := g.AddNode(sourceNode)
+				if err != nil {
+					return nil, fmt.Errorf("failed to update source node %s in the graph: %w", fromNodeID, err)
+				}
 			}
 
 			// Set the PreviousNodeID for each target node
@@ -111,11 +140,42 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 				if targetNode, exists := g.GetNode(toNodeID); exists {
 					targetNode.SetPreviousNodeID(fromNodeID)
 					// Update the target node in the graph
-					g.AddNode(targetNode)
+					err := g.AddNode(targetNode)
+					if err != nil {
+						return nil, fmt.Errorf("failed to update target node %s in the graph: %w", toNodeID, err)
+					}
 				}
 			}
 		}
 	}
 
 	return g, nil
+}
+
+// getExecutorByName constructs an executor by its name.
+func getExecutorByName(name string) (model.ExecutorInterface, error) {
+	if name == "" {
+		return nil, fmt.Errorf("executor name cannot be empty")
+	}
+
+	// TODO: When the graph persistence is implemented, this should be moved to graph construction logic
+	//  from the stored graph model (at DB).
+	//  Building the graph at this layer will only construct the graph structure adding the executors by name.
+	//  If needed, can do a validation to ensure the executor exists in the system.
+	//  Stored data will only contain the executor name (or id), and the executor will be loaded
+	//  from the available executors in the system based on the name during runtime.
+	var executor model.ExecutorInterface
+	switch name {
+	case "BasicAuthExecutor":
+		executor = basicauth.NewBasicAuthExecutor("basic-auth-executor", "BasicAuthExecutor")
+	case "AuthAssertExecutor":
+		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor")
+	default:
+		return nil, fmt.Errorf("executor with name %s not found", name)
+	}
+
+	if executor == nil {
+		return nil, fmt.Errorf("executor with name %s could not be created", name)
+	}
+	return executor, nil
 }

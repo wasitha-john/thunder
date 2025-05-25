@@ -28,9 +28,13 @@ func ParseStringArray(value interface{}) []string {
 	return strings.Split(value.(string), ",")
 }
 
-// MergeStringMaps merges two maps of strings.
-func MergeStringMaps(dst, src map[string]string) {
+// MergeStringMaps merges two maps of strings and returns the result.
+func MergeStringMaps(dst, src map[string]string) map[string]string {
+	if dst == nil {
+		dst = make(map[string]string)
+	}
 	for k, v := range src {
 		dst[k] = v
 	}
+	return dst
 }

@@ -167,8 +167,11 @@ func (g *Graph) ToJSON() (string, error) {
 			IsFinalNode:    node.IsFinalNode(),
 			NextNodeID:     node.GetNextNodeID(),
 			PreviousNodeID: node.GetPreviousNodeID(),
-			// Executor:       node.GetExecutor().GetName(),
-			Executor: "TODO", // TODO: Replace with actual logic when the executor is implemented
+		}
+
+		// Set executor if available
+		if executor := node.GetExecutor(); executor != nil {
+			jsonNode.Executor = executor.GetName()
 		}
 
 		// Convert and set input data
@@ -176,11 +179,7 @@ func (g *Graph) ToJSON() (string, error) {
 		if len(inputData) > 0 {
 			jsonNode.InputData = make([]JSONInputData, len(inputData))
 			for i, input := range inputData {
-				jsonNode.InputData[i] = JSONInputData{
-					Name:     input.Name,
-					Type:     input.Type,
-					Required: input.Required,
-				}
+				jsonNode.InputData[i] = JSONInputData(input)
 			}
 		}
 

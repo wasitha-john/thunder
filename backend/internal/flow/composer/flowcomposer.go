@@ -27,8 +27,6 @@ import (
 	"strings"
 	"sync"
 
-	syslog "log"
-
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/flow/utils"
@@ -116,12 +114,6 @@ func (c *FlowComposer) Init() error {
 			continue
 		}
 
-		// TODO: Temporarily print the JSON graph for debugging.
-		syslog.Println("====================================================")
-		syslog.Println("----- JSON Graph From File -----")
-		syslog.Printf("%+v", jsonGraph)
-		syslog.Println("====================================================")
-
 		// Convert the JSON graph definition to the graph model
 		graphModel, err := utils.BuildGraphFromDefinition(&jsonGraph)
 		if err != nil {
@@ -130,23 +122,18 @@ func (c *FlowComposer) Init() error {
 			continue
 		}
 
-		// TODO: Temporarily print the graph model for debugging.
-		syslog.Println("====================================================")
-		syslog.Println("----- Graph Model -----")
-		syslog.Printf("%+v", graphModel)
-		syslog.Println("====================================================")
-		syslog.Println("----- Graph Model JSON -----")
+		// Log the graph model as JSON for debugging
 		jsonString, err := graphModel.ToJSON()
 		if err != nil {
 			logger.Warn("Failed to convert graph model to JSON for file %s: %v",
 				log.String("filePath", filePath), log.Error(err))
 		} else {
-			syslog.Printf("%s", jsonString)
+			logger.Debug("Graph model loaded successfully", log.String("graphID", graphModel.GetID()),
+				log.String("json", jsonString))
 		}
-		syslog.Println("====================================================")
 
 		// Register the graph with the flow composer
-		logger.Debug("Registering graph with ID %s", log.String("graphID", graphModel.GetID()))
+		logger.Debug("Registering a graph", log.String("graphID", graphModel.GetID()))
 		c.RegisterGraph(graphModel.GetID(), graphModel)
 	}
 

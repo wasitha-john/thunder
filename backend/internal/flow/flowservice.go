@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/asgardeo/thunder/internal/flow/composer"
+	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/engine"
 	"github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -39,8 +40,7 @@ var (
 
 // FlowServiceInterface defines the interface for flow orchestration and acts as the entry point for flow execution
 type FlowServiceInterface interface {
-	Execute(appID, callBackURL, flowID, actionID string,
-		inputData map[string]string) (*model.FlowStep, *model.FlowServiceError)
+	Execute(appID, flowID, actionID string, inputData map[string]string) (*model.FlowStep, *model.FlowServiceError)
 }
 
 // FlowService is the implementation of FlowServiceInterface
@@ -60,7 +60,7 @@ func GetFlowService() FlowServiceInterface {
 }
 
 // Execute executes a flow with the given data
-func (s *FlowService) Execute(appID, callBackURL, flowID, actionID string,
+func (s *FlowService) Execute(appID, flowID, actionID string,
 	inputData map[string]string) (*model.FlowStep, *model.FlowServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowService"))
 	context := model.FlowContext{}
@@ -75,13 +75,6 @@ func (s *FlowService) Execute(appID, callBackURL, flowID, actionID string,
 				ErrorDescription: "appID is required",
 			}
 		}
-		if callBackURL == "" {
-			return nil, &model.FlowServiceError{
-				Type:             apierror.ClientErrorType,
-				Error:            "Invalid Request",
-				ErrorDescription: "callBackURL is required",
-			}
-		}
 
 		// Generate a new flow ID and initialize a flow context
 		// TODO: Replace with the new UUID generator.
@@ -90,6 +83,7 @@ func (s *FlowService) Execute(appID, callBackURL, flowID, actionID string,
 
 		// Load the graph from the composer
 		composer := composer.GetFlowComposer()
+		// TODO: This needs to be retrieved from the app config.
 		graph, ok := composer.GetGraph("auth_flow_config")
 		if !ok {
 			logger.Error("Graph not found")
@@ -100,9 +94,7 @@ func (s *FlowService) Execute(appID, callBackURL, flowID, actionID string,
 			}
 		}
 		context.Graph = graph
-
 		context.AppID = appID
-		context.CallBackURL = callBackURL
 	} else {
 		// Validate for the required parameters
 		if flowID == "" {
@@ -110,13 +102,6 @@ func (s *FlowService) Execute(appID, callBackURL, flowID, actionID string,
 				Type:             apierror.ClientErrorType,
 				Error:            "Invalid Request",
 				ErrorDescription: "flowID is required",
-			}
-		}
-		if actionID == "" {
-			return nil, &model.FlowServiceError{
-				Type:             apierror.ClientErrorType,
-				Error:            "Invalid Request",
-				ErrorDescription: "actionID is required",
 			}
 		}
 		if len(inputData) == 0 {
@@ -127,12 +112,14 @@ func (s *FlowService) Execute(appID, callBackURL, flowID, actionID string,
 			}
 		}
 
+		// TODO: Add validation for actionID if required.
+
 		// Load the flow context from the store
 		s.mu.Lock()
-		defer s.mu.Unlock()
-
-		context, ok := s.store[flowID]
+		var ok bool
+		context, ok = s.store[flowID]
 		if !ok {
+			s.mu.Unlock()
 			logger.Error("Flow context not found in the store")
 			return nil, &model.FlowServiceError{
 				Type:             apierror.ClientErrorType,
@@ -143,9 +130,10 @@ func (s *FlowService) Execute(appID, callBackURL, flowID, actionID string,
 
 		// Remove the flow context from the store
 		delete(s.store, flowID)
+		s.mu.Unlock()
 
 		// Append user inputs to the context
-		sysutils.MergeStringMaps(context.UserInputData, inputData)
+		context.UserInputData = sysutils.MergeStringMaps(context.UserInputData, inputData)
 
 		context.CurrentActionID = actionID
 	}
@@ -158,8 +146,8 @@ func (s *FlowService) Execute(appID, callBackURL, flowID, actionID string,
 
 		// Remove the flow context from the store
 		s.mu.Lock()
-		defer s.mu.Unlock()
 		delete(s.store, context.FlowID)
+		s.mu.Unlock()
 
 		return nil, &model.FlowServiceError{
 			Type:             "server",
@@ -169,18 +157,19 @@ func (s *FlowService) Execute(appID, callBackURL, flowID, actionID string,
 	}
 
 	// Check if the flow execution is complete
-	if flowStep.Status != "" && flowStep.Status == FlowStatusComplete {
+	if flowStep.Status != "" && flowStep.Status == constants.FlowStatusComplete {
 		// Flow execution is complete, remove the flow context from the store.
 		s.mu.Lock()
-		defer s.mu.Unlock()
-
 		delete(s.store, context.FlowID)
+		s.mu.Unlock()
 	} else {
 		// Flow execution is incomplete, add the flow context to the store.
-		s.mu.Lock()
-		defer s.mu.Unlock()
+		logger.Debug("Flow execution is incomplete, storing the flow context",
+			log.String("flowID", context.FlowID))
 
+		s.mu.Lock()
 		s.store[context.FlowID] = context
+		s.mu.Unlock()
 	}
 
 	return &flowStep, nil
