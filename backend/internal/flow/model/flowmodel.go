@@ -16,84 +16,38 @@
  * under the License.
  */
 
-// Package model defines the data structures and models used in the flow execution
 package model
 
-// FlowContext holds the context for flow execution
+// FlowContext holds the overall context for flow execution
 type FlowContext struct {
 	FlowID        string
 	AppID         string
 	CallBackURL   string
 	UserInputData map[string]string
 
-	CurrentNode     *Node
+	CurrentNode     NodeInterface
 	CurrentActionID string
 
-	Graph *Graph
+	Graph GraphInterface
 }
 
-// FlowStep represents the result of a flow execution
+// FlowStep represents the outcome of a individual flow step
 type FlowStep struct {
-	ID       string
-	Type     string
-	Status   string
-	StepData StepData
+	StepID    string
+	Status    string
+	InputData []InputData
+	Actions   []Action
+	Assertion string
 }
 
-// StepData holds the data for a step in the flow
-type StepData struct {
-	Components     []Component
-	RequiredParams []string
-	AdditionalData map[string]string
+type InputData struct {
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Required bool   `json:"required"`
 }
 
-// Flow represents a execution flow
-type Flow struct {
-	ID    string `json:"id"`
-	Steps []Step `json:"steps"`
-}
-
-// Step represents a step in a flow
-type Step struct {
-	ID       string   `json:"id"`
-	Type     string   `json:"type"`
-	Size     Size     `json:"size"`
-	Position Position `json:"position"`
-	Data     Data     `json:"data"`
-}
-
-// Size represents the dimensions of a step model
-type Size struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
-}
-
-// Position represents the coordinates of a step model
-type Position struct {
-	X int `json:"x"`
-	Y int `json:"y"`
-}
-
-// Data represents the data of a step model
-type Data struct {
-	Components []Component `json:"components"`
-}
-
-// Component represents a component in a step model
-type Component struct {
-	ID         string                 `json:"id"`
-	Category   string                 `json:"category"`
-	Type       string                 `json:"type"`
-	Variant    string                 `json:"variant"`
-	Config     map[string]interface{} `json:"config"`
-	Action     *Action                `json:"action,omitempty"`
-	Components []Component            `json:"components"`
-}
-
-// Action represents an action configuration for a component
 type Action struct {
 	Type     string         `json:"type"`
-	Next     string         `json:"next,omitempty"`
 	Executor *ExecutorModel `json:"executor,omitempty"`
 }
 
@@ -101,6 +55,8 @@ type Action struct {
 type ExecutorModel struct {
 	Name string `json:"name"`
 }
+
+// -------------------
 
 // FlowServiceError represents an error response from the flow service
 type FlowServiceError struct {
@@ -128,5 +84,4 @@ type FlowResponse struct {
 
 // FlowResponseData represents the data in the flow execution API response
 type FlowResponseData struct {
-	Components []Component `json:"components"`
 }

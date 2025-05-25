@@ -88,9 +88,7 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 		Type:       "test",
 		FlowID:     flowExecutionRequest.FlowID,
 		FlowStatus: flowStep.Status,
-		Data: model.FlowResponseData{
-			Components: flowStep.StepData.Components,
-		},
+		Data:       model.FlowResponseData{},
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -22,163 +22,100 @@ package utils
 import (
 	"fmt"
 
+	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
 )
 
-// ConvertFlowModelToGraph converts a flow model to a graph representation.
-func ConvertFlowModelToGraph(flowModel *model.Flow) (*model.Graph, error) {
-	if flowModel == nil || len(flowModel.Steps) == 0 {
-		return nil, fmt.Errorf("flow model is nil or has no steps")
+// BuildGraphFromDefinition builds a graph from a graph definition json.
+func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.GraphInterface, error) {
+	if definition == nil || len(definition.Nodes) == 0 {
+		return nil, fmt.Errorf("graph definition is nil or has no nodes")
 	}
 
 	// Create a graph
-	g := &model.Graph{
-		ID:    flowModel.ID,
-		Nodes: make(map[string]model.Node),
-		Edges: make(map[string][]string),
-	}
+	g := model.NewGraph(definition.ID)
 
-	// Map to track which steps are pointed to by others (have incoming references)
-	hasIncomingRef := make(map[string]bool)
+	// Map to track which nodes have incoming edges
+	hasIncomingEdge := make(map[string]bool)
 
-	// First pass: identify steps that are pointed to by ACTION components
-	for _, step := range flowModel.Steps {
-		for _, component := range step.Data.Components {
-			// Recursively check all components and their nested components
-			findNextReferences(component, hasIncomingRef)
+	// First, mark all nodes that have incoming edges
+	for _, targetIDs := range definition.Edges {
+		for _, targetID := range targetIDs {
+			hasIncomingEdge[targetID] = true
 		}
 	}
 
-	// Find the start node (the one without incoming references)
+	// Find the start node (node without incoming edges)
 	startNodeID := ""
-	for _, step := range flowModel.Steps {
-		if !hasIncomingRef[step.ID] {
-			startNodeID = step.ID
+	for _, node := range definition.Nodes {
+		if !hasIncomingEdge[node.ID] {
+			startNodeID = node.ID
 			break
 		}
 	}
 
-	// If no start node found, fallback to the first step
+	// If no start node found, fallback to the first node
+	if startNodeID == "" && len(definition.Nodes) > 0 {
+		startNodeID = definition.Nodes[0].ID
+	}
+
+	// Validate that we have a valid start node
 	if startNodeID == "" {
-		startNodeID = flowModel.Steps[0].ID
+		return nil, fmt.Errorf("no valid start node found in the graph definition")
 	}
 
-	g.StartNodeID = startNodeID
+	// Add all nodes to the graph
+	for _, nodeDef := range definition.Nodes {
+		isStartNode := (nodeDef.ID == startNodeID)
+		isFinalNode := (nodeDef.Type == "AUTHENTICATION_SUCCESS")
+		node := model.NewNode(nodeDef.ID, nodeDef.Type, isStartNode, isFinalNode)
 
-	// Second pass: create nodes and build connections
-	for _, step := range flowModel.Steps {
-		// Create a new node
-		isStartNode := (step.ID == startNodeID)
-
-		// Mark AUTHENTICATION_SUCCESS type as final node
-		isFinalNode := (step.Type == "AUTHENTICATION_SUCCESS")
-
-		node := model.Node{
-			ID:          step.ID,
-			Type:        step.Type,
-			IsStartNode: isStartNode,
-			IsFinalNode: isFinalNode,
-			Page:        step,
+		// Convert and set input data from definition
+		inputData := make([]model.InputData, len(nodeDef.InputData))
+		for i, input := range nodeDef.InputData {
+			inputData[i] = model.InputData{
+				Name:     input.Name,
+				Type:     input.Type,
+				Required: input.Required,
+			}
 		}
+		node.SetInputData(inputData)
 
-		// Add the node to the graph
 		g.AddNode(node)
+	}
 
-		// Create edges based on ACTION component references
-		for _, component := range step.Data.Components {
-			addEdgesFromComponent(component, step.ID, g)
+	err := g.SetStartNodeID(startNodeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set start node ID: %w", err)
+	}
+
+	// Add all edges to the graph
+	for sourceID, targetIDs := range definition.Edges {
+		for _, targetID := range targetIDs {
+			g.AddEdge(sourceID, targetID)
 		}
 	}
 
-	// Third pass: set PreviousNodeID and NextNodeID based on edges
-	for fromNodeID, toNodeIDs := range g.Edges {
+	// Set PreviousNodeID and NextNodeID based on edges
+	for fromNodeID, toNodeIDs := range g.GetEdges() {
 		if len(toNodeIDs) > 0 {
-			// Set the NextNodeID for the source node (using the first target as next)
-			if sourceNode, exists := g.Nodes[fromNodeID]; exists {
-				sourceNode.NextNodeID = toNodeIDs[0] // Use the first edge as the default next
-				g.Nodes[fromNodeID] = sourceNode     // Update the source node
+			// Set the NextNodeID for the source node
+			if sourceNode, exists := g.GetNode(fromNodeID); exists {
+				sourceNode.SetNextNodeID(toNodeIDs[0])
+				// Update the source node in the graph
+				g.AddNode(sourceNode)
 			}
 
 			// Set the PreviousNodeID for each target node
 			for _, toNodeID := range toNodeIDs {
-				if targetNode, exists := g.Nodes[toNodeID]; exists {
-					targetNode.PreviousNodeID = fromNodeID
-					g.Nodes[toNodeID] = targetNode // Update the target node
+				if targetNode, exists := g.GetNode(toNodeID); exists {
+					targetNode.SetPreviousNodeID(fromNodeID)
+					// Update the target node in the graph
+					g.AddNode(targetNode)
 				}
 			}
 		}
 	}
 
 	return g, nil
-}
-
-// findNextReferences recursively checks components for action.next references
-// and marks the referenced steps as having incoming references
-func findNextReferences(component model.Component, hasIncomingRef map[string]bool) {
-	if component.Category == "ACTION" {
-		// First check if action is directly defined in the component
-		if component.Action != nil && component.Action.Next != "" {
-			hasIncomingRef[component.Action.Next] = true
-		} else {
-			// Otherwise check if action is in config
-			if nextID, exists := getNextStepID(component.Config); exists && nextID != "" {
-				hasIncomingRef[nextID] = true
-			}
-		}
-	}
-
-	// Recursively check nested components
-	for _, nestedComp := range component.Components {
-		findNextReferences(nestedComp, hasIncomingRef)
-	}
-}
-
-// addEdgesFromComponent adds graph edges based on component action.next references
-func addEdgesFromComponent(component model.Component, sourceStepID string, g *model.Graph) {
-	if component.Category == "ACTION" {
-		// First check if action is directly defined in the component
-		if component.Action != nil && component.Action.Next != "" {
-			nextID := component.Action.Next
-			g.AddEdge(sourceStepID, nextID)
-		} else {
-			// Otherwise check if action is in config
-			if nextID, exists := getNextStepID(component.Config); exists && nextID != "" {
-				g.AddEdge(sourceStepID, nextID)
-			}
-		}
-	}
-
-	// Recursively process nested components
-	for _, nestedComp := range component.Components {
-		addEdgesFromComponent(nestedComp, sourceStepID, g)
-	}
-}
-
-// getNextStepID extracts the next step ID from component configuration
-func getNextStepID(config map[string]interface{}) (string, bool) {
-	// Check for action configuration
-	actionValue, actionExists := config["action"]
-	if !actionExists {
-		return "", false
-	}
-
-	// Check if action is a map
-	actionMap, isMap := actionValue.(map[string]interface{})
-	if !isMap {
-		return "", false
-	}
-
-	// Get the next property
-	nextValue, nextExists := actionMap["next"]
-	if !nextExists {
-		return "", false
-	}
-
-	// Convert to string
-	nextID, isString := nextValue.(string)
-	if !isString {
-		return "", false
-	}
-
-	return nextID, true
 }

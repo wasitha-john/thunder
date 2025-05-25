@@ -33,6 +33,8 @@ type ExecutorResponse struct{}
 // ExecutorInterface defines the interface for executors.
 type ExecutorInterface interface {
 	Execute(ctx *FlowContext) (*ExecutorResponse, error)
+	GetID() string
+	GetName() string
 }
 
 // // Executor represents the basic implementation of an executor.

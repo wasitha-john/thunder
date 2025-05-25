@@ -27,121 +27,171 @@ import (
 
 // GraphInterface defines the graph structure
 type GraphInterface interface {
-	AddNode(node Node)
-	AddEdge(fromNodeID, toNodeID string)
+	GetID() string
+	AddNode(node NodeInterface) error
+	GetNode(nodeID string) (NodeInterface, bool)
+	AddEdge(fromNodeID, toNodeID string) error
+	GetNodes() map[string]NodeInterface
+	GetEdges() map[string][]string
+	GetStartNodeID() string
+	SetStartNodeID(startNodeID string) error
 	ToJSON() (string, error)
 }
 
 // Graph implements the GraphInterface for the flow execution
 type Graph struct {
-	ID          string
-	Nodes       map[string]Node
-	Edges       map[string][]string
-	StartNodeID string
+	id          string
+	nodes       map[string]NodeInterface
+	edges       map[string][]string
+	startNodeID string
 }
 
-// NewGraph creates a new Graph
-func NewGraph(startNodeID string) GraphInterface {
-	return &Graph{
-		ID:          uuid.New().String(),
-		Nodes:       make(map[string]Node),
-		Edges:       make(map[string][]string),
-		StartNodeID: startNodeID,
+// NewGraph creates a new Graph with a unique ID
+func NewGraph(id string) GraphInterface {
+	if id == "" {
+		id = uuid.New().String()
 	}
+
+	return &Graph{
+		id:    id,
+		nodes: make(map[string]NodeInterface),
+		edges: make(map[string][]string),
+	}
+}
+
+// GetID returns the unique ID of the graph
+func (g *Graph) GetID() string {
+	return g.id
 }
 
 // AddNode adds a node to the graph
-func (g *Graph) AddNode(node Node) {
-	g.Nodes[node.ID] = node
+func (g *Graph) AddNode(node NodeInterface) error {
+	if node == nil {
+		return errors.New("node cannot be nil")
+	}
+
+	g.nodes[node.GetID()] = node
+	return nil
+}
+
+// GetNode retrieves a node by its ID
+func (g *Graph) GetNode(nodeID string) (NodeInterface, bool) {
+	if node, exists := g.nodes[nodeID]; exists {
+		return node, true
+	}
+	return nil, false
 }
 
 // AddEdge adds an edge from one node to another
-func (g *Graph) AddEdge(fromNodeID, toNodeID string) {
-	if _, exists := g.Edges[fromNodeID]; !exists {
-		g.Edges[fromNodeID] = []string{}
+func (g *Graph) AddEdge(fromNodeID, toNodeID string) error {
+	if fromNodeID == "" || toNodeID == "" {
+		return errors.New("fromNodeID and toNodeID cannot be empty")
 	}
-	g.Edges[fromNodeID] = append(g.Edges[fromNodeID], toNodeID)
+	if _, exists := g.nodes[fromNodeID]; !exists {
+		return errors.New("node with fromNodeID does not exist")
+	}
+	if _, exists := g.nodes[toNodeID]; !exists {
+		return errors.New("node with toNodeID does not exist")
+	}
+
+	if _, exists := g.edges[fromNodeID]; !exists {
+		g.edges[fromNodeID] = []string{}
+	}
+	g.edges[fromNodeID] = append(g.edges[fromNodeID], toNodeID)
+	return nil
+}
+
+// GetNodes returns all nodes in the graph
+func (g *Graph) GetNodes() map[string]NodeInterface {
+	return g.nodes
+}
+
+// GetEdges returns all edges in the graph
+func (g *Graph) GetEdges() map[string][]string {
+	return g.edges
+}
+
+// GetStartNodeID returns the start node ID of the graph
+func (g *Graph) GetStartNodeID() string {
+	return g.startNodeID
+}
+
+// SetStartNodeID sets the start node ID for the graph
+func (g *Graph) SetStartNodeID(startNodeID string) error {
+	if _, exists := g.nodes[startNodeID]; !exists {
+		return errors.New("node with startNodeID does not exist")
+	}
+	g.startNodeID = startNodeID
+	return nil
 }
 
 // ToJSON converts the graph to a JSON string representation
 func (g *Graph) ToJSON() (string, error) {
+	type JSONInputData struct {
+		Name     string `json:"name"`
+		Type     string `json:"type"`
+		Required bool   `json:"required"`
+	}
+
 	type JSONNode struct {
-		ID   string `json:"id"`
-		Page Step   `json:"page,omitempty"`
-		Type string `json:"type"`
+		ID             string          `json:"id"`
+		Type           string          `json:"type"`
+		IsStartNode    bool            `json:"isStartNode,omitempty"`
+		IsFinalNode    bool            `json:"isFinalNode,omitempty"`
+		NextNodeID     string          `json:"nextNodeId,omitempty"`
+		PreviousNodeID string          `json:"previousNodeId,omitempty"`
+		InputData      []JSONInputData `json:"inputData,omitempty"`
+		Executor       string          `json:"executor,omitempty"`
 	}
 
 	type JSONGraph struct {
+		ID          string              `json:"id"`
 		Nodes       map[string]JSONNode `json:"nodes"`
 		Edges       map[string][]string `json:"edges"`
 		StartNodeID string              `json:"startNodeId"`
 	}
 
 	jsonGraph := JSONGraph{
+		ID:          g.id,
 		Nodes:       make(map[string]JSONNode),
-		Edges:       g.Edges,
-		StartNodeID: g.StartNodeID,
+		Edges:       g.edges,
+		StartNodeID: g.startNodeID,
 	}
 
 	// Convert nodes to JSONNode
-	for id, node := range g.Nodes {
-		jsonGraph.Nodes[id] = JSONNode{
-			ID:   id,
-			Page: node.Page,
-			Type: node.Type,
+	for id, node := range g.nodes {
+		jsonNode := JSONNode{
+			ID:             id,
+			Type:           node.GetType(),
+			IsStartNode:    node.IsStartNode(),
+			IsFinalNode:    node.IsFinalNode(),
+			NextNodeID:     node.GetNextNodeID(),
+			PreviousNodeID: node.GetPreviousNodeID(),
+			// Executor:       node.GetExecutor().GetName(),
+			Executor: "TODO", // TODO: Replace with actual logic when the executor is implemented
 		}
+
+		// Convert and set input data
+		inputData := node.GetInputData()
+		if len(inputData) > 0 {
+			jsonNode.InputData = make([]JSONInputData, len(inputData))
+			for i, input := range inputData {
+				jsonNode.InputData[i] = JSONInputData{
+					Name:     input.Name,
+					Type:     input.Type,
+					Required: input.Required,
+				}
+			}
+		}
+
+		jsonGraph.Nodes[id] = jsonNode
 	}
 
 	// Marshal to JSON
 	jsonBytes, err := json.Marshal(jsonGraph)
 	if err != nil {
-		return "", err
+		return "", errors.New("failed to marshal graph to JSON: " + err.Error())
 	}
 
 	return string(jsonBytes), nil
-}
-
-// NodeInterface defines the interface for nodes in the graph
-type NodeInterface interface {
-	Execute(ctx *FlowContext) (*ExecutorResponse, error)
-}
-
-// Node implements the NodeInterface
-type Node struct {
-	ID             string
-	Type           string
-	IsStartNode    bool
-	IsFinalNode    bool
-	NextNodeID     string
-	PreviousNodeID string
-	// TODO: Set the executor
-	Executor ExecutorInterface
-	Page     Step
-}
-
-// NewNode creates a new node with the given details
-func NewNode(id string, nodeType string, isStartNode bool) NodeInterface {
-	return &Node{
-		ID:          id,
-		Type:        nodeType,
-		IsStartNode: isStartNode,
-	}
-}
-
-// Execute executes the node's executor
-func (n *Node) Execute(ctx *FlowContext) (*ExecutorResponse, error) {
-	if n.Executor == nil {
-		return nil, errors.New("executor is not set")
-	}
-	return n.Executor.Execute(ctx)
-}
-
-// PromptNode represents a node that only takes user input
-type PromptNode struct {
-	*Node
-}
-
-// TaskExecutionNode represents a node that executes a task
-type TaskExecutionNode struct {
-	*Node
 }

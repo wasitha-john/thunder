@@ -57,15 +57,17 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, error) {
 		return model.FlowStep{}, errors.New("flow graph is nil")
 	}
 
-	if graph.StartNodeID == "" {
-		return model.FlowStep{}, errors.New("graph start node ID not found")
-	}
+	// if graph.GetStartNodeID() == "" {
+	// 	return model.FlowStep{}, errors.New("graph start node ID not found")
+	// }
 
 	currentNode := ctx.CurrentNode
 	if currentNode == nil {
 		logger.Debug("Current node is nil. Setting the start node as the current node.")
-		node := graph.Nodes[graph.StartNodeID]
-		currentNode = &node
+		currentNode, ok := graph.GetNode(graph.GetStartNodeID())
+		if !ok {
+			return model.FlowStep{}, errors.New("start node not found in the graph")
+		}
 		ctx.CurrentNode = currentNode
 	}
 

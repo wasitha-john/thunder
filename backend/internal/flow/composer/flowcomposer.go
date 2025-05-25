@@ -29,6 +29,7 @@ import (
 
 	syslog "log"
 
+	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/flow/utils"
 	"github.com/asgardeo/thunder/internal/system/config"
@@ -43,20 +44,20 @@ var (
 // FlowComposerInterface defines the flow composer that manages the flow graphs.
 type FlowComposerInterface interface {
 	Init() error
-	RegisterGraph(graphID string, g *model.Graph)
-	GetGraph(graphID string) (*model.Graph, bool)
+	RegisterGraph(graphID string, g model.GraphInterface)
+	GetGraph(graphID string) (model.GraphInterface, bool)
 }
 
 // FlowComposer is the implementation of FlowComposerInterface.
 type FlowComposer struct {
-	graphs map[string]*model.Graph
+	graphs map[string]model.GraphInterface
 }
 
 // GetFlowComposer returns a singleton instance of FlowComposer.
 func GetFlowComposer() FlowComposerInterface {
 	once.Do(func() {
 		instance = &FlowComposer{
-			graphs: make(map[string]*model.Graph),
+			graphs: make(map[string]model.GraphInterface),
 		}
 	})
 	return instance
@@ -109,22 +110,22 @@ func (c *FlowComposer) Init() error {
 		}
 
 		// Parse the JSON into the flow model
-		var flowModel model.Flow
-		if err := json.Unmarshal(fileContent, &flowModel); err != nil {
+		var jsonGraph jsonmodel.GraphDefinition
+		if err := json.Unmarshal(fileContent, &jsonGraph); err != nil {
 			logger.Warn("Failed to parse JSON in file %s: %v", log.String("filePath", filePath), log.Error(err))
 			continue
 		}
 
-		// TODO: Temporarily print the flow model for debugging.
+		// TODO: Temporarily print the JSON graph for debugging.
 		syslog.Println("====================================================")
-		syslog.Println("----- Flow Model -----")
-		syslog.Printf("%+v", flowModel)
+		syslog.Println("----- JSON Graph From File -----")
+		syslog.Printf("%+v", jsonGraph)
 		syslog.Println("====================================================")
 
-		// Convert the flow model to a graph
-		graphModel, err := utils.ConvertFlowModelToGraph(&flowModel)
+		// Convert the JSON graph definition to the graph model
+		graphModel, err := utils.BuildGraphFromDefinition(&jsonGraph)
 		if err != nil {
-			logger.Warn("Failed to convert flow model to graph for file %s: %v",
+			logger.Warn("Failed to convert graph definition to graph model for file %s: %v",
 				log.String("filePath", filePath), log.Error(err))
 			continue
 		}
@@ -135,30 +136,30 @@ func (c *FlowComposer) Init() error {
 		syslog.Printf("%+v", graphModel)
 		syslog.Println("====================================================")
 		syslog.Println("----- Graph Model JSON -----")
-		jsonGraph, err := graphModel.ToJSON()
+		jsonString, err := graphModel.ToJSON()
 		if err != nil {
 			logger.Warn("Failed to convert graph model to JSON for file %s: %v",
 				log.String("filePath", filePath), log.Error(err))
 		} else {
-			syslog.Printf("%s", jsonGraph)
+			syslog.Printf("%s", jsonString)
 		}
 		syslog.Println("====================================================")
 
 		// Register the graph with the flow composer
-		logger.Debug("Registering graph with ID %s", log.String("graphID", graphModel.ID))
-		c.RegisterGraph(graphModel.ID, graphModel)
+		logger.Debug("Registering graph with ID %s", log.String("graphID", graphModel.GetID()))
+		c.RegisterGraph(graphModel.GetID(), graphModel)
 	}
 
 	return nil
 }
 
 // RegisterGraph registers a graph with the flow composer
-func (c *FlowComposer) RegisterGraph(graphID string, g *model.Graph) {
+func (c *FlowComposer) RegisterGraph(graphID string, g model.GraphInterface) {
 	c.graphs[graphID] = g
 }
 
 // GetGraph retrieves a graph by its ID
-func (c *FlowComposer) GetGraph(graphID string) (*model.Graph, bool) {
+func (c *FlowComposer) GetGraph(graphID string) (model.GraphInterface, bool) {
 	g, ok := c.graphs[graphID]
 	return g, ok
 }
