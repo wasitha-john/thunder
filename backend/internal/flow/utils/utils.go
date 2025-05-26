@@ -24,6 +24,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/executor/authassert"
 	"github.com/asgardeo/thunder/internal/executor/basicauth"
+	"github.com/asgardeo/thunder/internal/executor/githubauth"
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
@@ -174,6 +175,12 @@ func getExecutorByName(name string) (model.ExecutorInterface, error) {
 			return nil, fmt.Errorf("error while getting BasicAuthExecutor config: %w", err)
 		}
 		executor = basicauth.NewBasicAuthExecutor("basic-auth-executor", config.Name)
+	case "GithubAuthExecutor":
+		githubConfig, err := getExecutorConfig("GithubAuthExecutor")
+		if err != nil {
+			return nil, fmt.Errorf("error while getting GithubAuthExecutor config: %w", err)
+		}
+		executor = githubauth.NewGithubOIDCAuthExecutor(githubConfig)
 	case "AuthAssertExecutor":
 		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor")
 	default:
