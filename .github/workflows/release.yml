@@ -37,11 +37,11 @@ jobs:
             exit 1
           fi
           echo "✅ Version format is valid"
-          
+
           # Store original version for tagging
           ORIGINAL_VERSION="${{ github.event.inputs.version }}"
           echo "ORIGINAL_VERSION=$ORIGINAL_VERSION" >> $GITHUB_ENV
-          
+
           # Clean version for version.txt (remove v prefix if present)
           VERSION="${{ github.event.inputs.version }}"
           if [[ $VERSION == v* ]]; then
@@ -74,7 +74,7 @@ jobs:
       - name: 🛠️ Build and Run Tests
         run: |
             set -e
-            make all ARCH=amd64
+            make all OS=$(go env GOOS) ARCH=$(go env GOARCH)
 
       - name: 🔨 Build Release Artifact
         run: make clean build
@@ -82,7 +82,7 @@ jobs:
       - name: 📝 Read Updated Version
         id: version
         run: echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
-        
+
       - name: 📦 Upload Artifact to Workflow
         uses: actions/upload-artifact@v4
         with:
@@ -93,13 +93,13 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
+
           # Use original version for tag, ensuring it has a v prefix
           TAG_VERSION="${{ env.ORIGINAL_VERSION }}"
           if [[ ! $TAG_VERSION == v* ]]; then
             TAG_VERSION="v$TAG_VERSION"
           fi
-          
+
           git tag -a "$TAG_VERSION" -m "Release $TAG_VERSION"
           git push origin "$TAG_VERSION"
 
