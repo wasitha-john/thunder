@@ -46,7 +46,7 @@ SAMPLE_BASE_DIR=samples
 SAMPLE_OAUTH_APP_DIR=$SAMPLE_BASE_DIR/apps/oauth
 
 GOOS=darwin
-GOARCH=amd64
+GOARCH=${2:-arm64}
 
 function clean() {
     echo "Cleaning build artifacts..."
@@ -203,7 +203,7 @@ case "$1" in
         run
         ;;
     *)
-        echo "Usage: ./build.sh {clean|build|test|run}"
+        echo "Usage: ./build.sh {clean|build|test|run} [ARCH]"
         exit 1
         ;;
 esac

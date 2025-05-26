@@ -63,4 +63,4 @@ jobs:
       - name: 🔨 Build and Run Tests
         run: |
           set -e
-          make all
+          make all ARCH=amd64
