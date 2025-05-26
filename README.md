@@ -22,33 +22,29 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 
 ### ✅ Prerequisites
 
-- Go 1.23+
-- cURL
 - Node.js 14+
-- PNPM 10+
 
----
+### Step 1: Download the distribution from the latest release
 
-### 🛠 Step 1: Build and Run the Product
+Download `thunder-<version>.zip` from the [latest release](https://github.com/asgardeo/thunder/releases/latest).
+
+### Step 2: Unzip and start the product
 
 ```bash
-pnpm start
+unzip thunder-v0.0.1.zip
+cd thunder-v0.0.1/
+sh start.sh
 ```
 
----
-
-### 🔑 Step 2: Try Out the Product
+### Step 3: Tryout the product
 
 #### 1️⃣ Try Out Client Credentials Flow
 
 ```bash
 curl -k -X POST https://localhost:8090/oauth2/token \
-  -H 'Authorization: Basic Y2xpZW50MTIzOnNlY3JldDEyMw==' \
-  -d 'grant_type=client_credentials'
+  -d 'grant_type=client_credentials' \
+  -u 'client123:secret123'
 ```
-
-- **Client ID:** `client123`
-- **Client Secret:** `secret123`
 
 #### 2️⃣ Try Out Authorization Code Flow
 
@@ -75,18 +71,17 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 - Copy the authorization code and exchange it for an access token using the following cURL command:
 
   ```bash
-  curl -k --location 'https://localhost:8090/oauth2/token' \
-  --header 'Content-Type: application/x-www-form-urlencoded' \
-  --header 'Authorization: Basic Y2xpZW50MTIzOnNlY3JldDEyMw==' \
-  --data-urlencode 'grant_type=authorization_code' \
-  --data-urlencode 'redirect_uri=https://localhost:3000' \
-  --data-urlencode 'code=<code>'
+  curl -k -X POST 'https://localhost:8090/oauth2/token' \
+  -u 'client123:secret123' \
+  -d 'grant_type=authorization_code' \
+  -d 'redirect_uri=https://localhost:3000' \
+  -d 'code=<code>'
   ```
 
   - **Client ID:** `client123`
   - **Client Secret:** `secret123`
 
-#### 3️⃣ Configure Login with Github
+#### 3️⃣ Configure Login with GitHub
 
 - Create an OAuth application in your Github account following the instructions given in the [Github documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app).
   - Configure the urls as follows:
@@ -116,9 +111,30 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 
 - Restart the server.
 
+## ⚡ Build the Product from Source
+
+### ✅ Prerequisites
+
+- Go 1.23+
+- Node.js 14+
+- PNPM 10+
+
 ---
 
-#### 2️⃣ Try Out with the Sample React App
+- Build the product with tests using the following command:
+
+```bash
+pnpm all
+```
+
+- Start the product using the following command:
+
+```bash
+pnpm start
+```
+---
+
+## 🔑 Try Out the Sample App
 
 - Create a file `.env` in the path `samples/apps/oauth/` and add below values
 
@@ -136,29 +152,8 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   ```bash
   pnpm sample:dev
   ```
-
-- Enter the following credentials:
-
-  - **Username:** `thor`
-  - **Password:** `thor123`
-
-    **Note:** The credentials can be configured in the `repository/conf/deployment.yaml` file under the `user_store` section.
-
-## 🧪 Running Integration Tests
-
-Building the product with `pnpm all` will run the integration tests by default. However if you want to run the tests manually, follow the steps below.
-
-### 1️⃣ Build the Product
-
-```bash
-pnpm build
-```
-
-### 2️⃣ Run the Tests
-
-```bash
-pnpm backend:test
-```
+  
+- Open your browser and navigate to `https://localhost:3000` to see the sample app in action.
 
 ---
 

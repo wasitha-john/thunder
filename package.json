@@ -4,9 +4,10 @@
   "license": "MIT",
   "scripts": {
     "start": "make run",
-    "build": "pnpm backend:prepare && pnpm backend:clean && make build",
-    "all": "pnpm backend:prepare && pnpm backend:clean && pnpm backend:build && pnpm backend:test",
+    "build": "pnpm backend:prepare && pnpm backend:clean && pnpm backend:build",
+    "all": "pnpm build && pnpm backend:test",
     "backend:prepare": "make prepare",
+    "backend:build": "make build",
     "backend:run": "make build",
     "backend:clean": "make clean",
     "backend:test": "make test",
