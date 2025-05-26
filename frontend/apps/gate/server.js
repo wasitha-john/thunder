@@ -17,21 +17,36 @@
  */
 
 import fs from 'fs';
+import path from 'path';
 import https from 'https';
-import { parse } from 'url';
+import { fileURLToPath, parse } from 'url';
 import next from 'next';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const requiredServerFilesConfig = path.resolve(__dirname, '.next/required-server-files.json');
+
+// Check if the required server files configuration exists
+if (fs.existsSync(requiredServerFilesConfig)) {
+  const jsonData = JSON.parse(fs.readFileSync(requiredServerFilesConfig, 'utf-8'));
+  const nextConfig = jsonData.config || {};
+
+  process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig);
+}
 
 const PORT = 9090;
 const HOST = 'localhost';
-
-const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev });
-const handle = app.getRequestHandler();
-
+const keyPath = path.resolve(__dirname, 'server.key');
+const certPath = path.resolve(__dirname, 'server.cert');
+const dev = process.env.NODE_ENV === 'development';
+const app = next({ dev: dev, dir: __dirname });
 const httpsOptions = {
-  key: fs.readFileSync('./server.key'),
-  cert: fs.readFileSync('./server.cert'),
+  key: fs.readFileSync(keyPath),
+  cert: fs.readFileSync(certPath),
 };
+
+const handle = app.getRequestHandler();
 
 function getTimestampWithOffset() {
   const now = new Date();
@@ -54,6 +69,8 @@ function getTimestampWithOffset() {
 
   return `${isoDate}${tzOffset}`;
 }
+
+console.log(`Starting WSO2 Thunder gate app in ${dev ? 'development' : 'production'} mode...`);
 
 app.prepare().then(() => {
   https.createServer(httpsOptions, (req, res) => {
