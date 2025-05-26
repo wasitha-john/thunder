@@ -30,25 +30,24 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for tagging
 
-      - name: ✅ Validate Version Format
+      - name: ✅ Validate Version
         run: |
-          if ! [[ ${{ github.event.inputs.version }} =~ ^v?[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then
-            echo "❌ Error: Version '${{ github.event.inputs.version }}' does not follow format v?X.Y[.Z][-PRERELEASE][+BUILD]"
+          if ! [[ ${{ github.event.inputs.version }} =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then
+            echo "❌ Error: Version '${{ github.event.inputs.version }}' does not follow format vX.Y[.Z][-PRERELEASE][+BUILD]"
+            echo "❌ Version must start with 'v'"
             exit 1
           fi
-          echo "✅ Version format is valid"
-
-          # Store original version for tagging
-          ORIGINAL_VERSION="${{ github.event.inputs.version }}"
-          echo "ORIGINAL_VERSION=$ORIGINAL_VERSION" >> $GITHUB_ENV
-
-          # Clean version for version.txt (remove v prefix if present)
+          echo "✅ Version '${{ github.event.inputs.version }}' is valid"
+          
+          # Store original version with v prefix in environment variable
           VERSION="${{ github.event.inputs.version }}"
-          if [[ $VERSION == v* ]]; then
-            VERSION="${VERSION:1}"
-          fi
-          echo "$VERSION" > version.txt
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: 📝 Update Version File
+        run: |
+          # Store version with v prefix in version.txt
+          VERSION="${{ env.VERSION }}"
+          echo "$VERSION" > version.txt
 
       - name: ⚙️ Set up Go Environment
         uses: ./.github/actions/setup-go
@@ -94,8 +93,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          # Use original version for tag, ensuring it has a v prefix
-          TAG_VERSION="${{ env.ORIGINAL_VERSION }}"
+          TAG_VERSION="${{ env.VERSION }}"
           if [[ ! $TAG_VERSION == v* ]]; then
             TAG_VERSION="v$TAG_VERSION"
           fi
@@ -112,6 +110,9 @@ jobs:
           # Extract Features section
           FEATURES=$(sed -n '/^## 🚀 Features/,/^---$/p' README.md | head -n -1)
           
+          # Extract Quick Start section
+          QUICKSTART=$(sed -n '/^## ⚡ Quickstart/,/^---$/p' README.md | head -n -1)
+          
           # Extract license section including header
           LICENSE=$(grep -A 5 "^## License" README.md)
           
@@ -121,6 +122,8 @@ jobs:
           echo "" >> $GITHUB_ENV
           echo "$FEATURES" >> $GITHUB_ENV
           echo "" >> $GITHUB_ENV
+          echo "$QUICKSTART" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
           echo "$LICENSE" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
@@ -128,7 +131,7 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.ORIGINAL_VERSION }}
+          tag_name: ${{ env.VERSION }}
           name: Thunder ${{ env.VERSION }}
           draft: false
           prerelease: ${{ contains(env.VERSION, '-') }}
