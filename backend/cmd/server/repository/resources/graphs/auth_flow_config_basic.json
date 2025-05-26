@@ -1,5 +1,5 @@
 {
-    "id": "auth_flow_config",
+    "id": "auth_flow_config_basic",
     "nodes": [
         {
             "id": "basic_auth",
@@ -14,6 +14,11 @@
                     "name": "password",
                     "type": "string",
                     "required": true
+                },
+                {
+                    "name": "firstName",
+                    "type": "string",
+                    "required": false
                 }
             ],
             "executor": "BasicAuthExecutor"

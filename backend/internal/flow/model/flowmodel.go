@@ -84,10 +84,11 @@ type FlowRequest struct {
 
 // FlowResponse represents the flow execution API response body
 type FlowResponse struct {
-	FlowID     string      `json:"flowId"`
-	StepID     string      `json:"stepId,omitempty"`
-	FlowStatus string      `json:"flowStatus"`
-	Actions    []Action    `json:"actions,omitempty"`
-	Inputs     []InputData `json:"inputs,omitempty"`
-	Assertion  string      `json:"assertion,omitempty"`
+	FlowID         string            `json:"flowId"`
+	StepID         string            `json:"stepId,omitempty"`
+	FlowStatus     string            `json:"flowStatus"`
+	Actions        []Action          `json:"actions,omitempty"`
+	Inputs         []InputData       `json:"inputs,omitempty"`
+	AdditionalInfo map[string]string `json:"additionalInfo,omitempty"`
+	Assertion      string            `json:"assertion,omitempty"`
 }

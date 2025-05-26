@@ -16,8 +16,8 @@
  * under the License.
  */
 
-// Package composer provides the flow composer for managing flow graphs.
-package composer
+// Package dao provides the dao layer for managing flow graphs.
+package dao
 
 import (
 	"encoding/json"
@@ -35,36 +35,36 @@ import (
 )
 
 var (
-	instance *FlowComposer
+	instance *FlowDAO
 	once     sync.Once
 )
 
-// FlowComposerInterface defines the flow composer that manages the flow graphs.
-type FlowComposerInterface interface {
+// FlowDAOInterface defines the interface for the flow data access object.
+type FlowDAOInterface interface {
 	Init() error
 	RegisterGraph(graphID string, g model.GraphInterface)
 	GetGraph(graphID string) (model.GraphInterface, bool)
 }
 
-// FlowComposer is the implementation of FlowComposerInterface.
-type FlowComposer struct {
+// FlowDAO is the implementation of FlowDAOInterface.
+type FlowDAO struct {
 	graphs map[string]model.GraphInterface
 }
 
-// GetFlowComposer returns a singleton instance of FlowComposer.
-func GetFlowComposer() FlowComposerInterface {
+// GetFlowDAO returns a singleton instance of FlowDAOInterface.
+func GetFlowDAO() FlowDAOInterface {
 	once.Do(func() {
-		instance = &FlowComposer{
+		instance = &FlowDAO{
 			graphs: make(map[string]model.GraphInterface),
 		}
 	})
 	return instance
 }
 
-// Init initializes the FlowComposer by loading graph configurations into runtime.
-func (c *FlowComposer) Init() error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowComposer"))
-	logger.Info("Initializing the flow composer")
+// Init initializes the FlowDAO by loading graph configurations into runtime.
+func (c *FlowDAO) Init() error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowDAO"))
+	logger.Info("Initializing the flow DAO layer")
 
 	configDir := config.GetThunderRuntime().Config.Authenticator.GraphDirectory
 	if configDir == "" {
@@ -72,7 +72,7 @@ func (c *FlowComposer) Init() error {
 		return nil
 	}
 
-	logger.Debug("Loading graphs from %s", log.String("configDir", configDir))
+	logger.Debug("Loading graphs from config directory", log.String("configDir", configDir))
 
 	files, err := os.ReadDir(configDir)
 	if err != nil {
@@ -88,13 +88,14 @@ func (c *FlowComposer) Init() error {
 		logger.Info("No graph configuration files found in the configured directory. No graphs will be loaded.")
 		return nil
 	}
-	logger.Debug("Found %d files in the graph directory", log.Int("fileCount", len(files)))
+	logger.Debug("Found graph definition files in the graph directory", log.Int("fileCount", len(files)))
 
 	// Process each JSON file in the directory
 	for _, file := range files {
 		// Skip directories and non-JSON files
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".json") {
-			logger.Debug("Skipping non-JSON file: %s", log.String("fileName", file.Name()))
+			logger.Debug("Skipping non-JSON file or directory",
+				log.String("fileName", file.Name()), log.Bool("isDir", file.IsDir()))
 			continue
 		}
 		filePath := filepath.Join(configDir, file.Name())
@@ -103,21 +104,21 @@ func (c *FlowComposer) Init() error {
 		// Read the file content
 		fileContent, err := os.ReadFile(filePath)
 		if err != nil {
-			logger.Warn("Failed to read graph file %s: %v", log.String("filePath", filePath), log.Error(err))
+			logger.Warn("Failed to read graph file", log.String("filePath", filePath), log.Error(err))
 			continue
 		}
 
 		// Parse the JSON into the flow model
 		var jsonGraph jsonmodel.GraphDefinition
 		if err := json.Unmarshal(fileContent, &jsonGraph); err != nil {
-			logger.Warn("Failed to parse JSON in file %s: %v", log.String("filePath", filePath), log.Error(err))
+			logger.Warn("Failed to parse JSON in file", log.String("filePath", filePath), log.Error(err))
 			continue
 		}
 
 		// Convert the JSON graph definition to the graph model
 		graphModel, err := utils.BuildGraphFromDefinition(&jsonGraph)
 		if err != nil {
-			logger.Warn("Failed to convert graph definition to graph model for file %s: %v",
+			logger.Warn("Failed to convert graph definition to graph model",
 				log.String("filePath", filePath), log.Error(err))
 			continue
 		}
@@ -125,14 +126,13 @@ func (c *FlowComposer) Init() error {
 		// Log the graph model as JSON for debugging
 		jsonString, err := graphModel.ToJSON()
 		if err != nil {
-			logger.Warn("Failed to convert graph model to JSON for file %s: %v",
-				log.String("filePath", filePath), log.Error(err))
+			logger.Warn("Failed to convert graph model to JSON", log.String("filePath", filePath), log.Error(err))
 		} else {
 			logger.Debug("Graph model loaded successfully", log.String("graphID", graphModel.GetID()),
 				log.String("json", jsonString))
 		}
 
-		// Register the graph with the flow composer
+		// Register the graph with the flow DAO
 		logger.Debug("Registering a graph", log.String("graphID", graphModel.GetID()))
 		c.RegisterGraph(graphModel.GetID(), graphModel)
 	}
@@ -140,13 +140,13 @@ func (c *FlowComposer) Init() error {
 	return nil
 }
 
-// RegisterGraph registers a graph with the flow composer
-func (c *FlowComposer) RegisterGraph(graphID string, g model.GraphInterface) {
+// RegisterGraph registers a graph with the FlowDAO by its ID.
+func (c *FlowDAO) RegisterGraph(graphID string, g model.GraphInterface) {
 	c.graphs[graphID] = g
 }
 
 // GetGraph retrieves a graph by its ID
-func (c *FlowComposer) GetGraph(graphID string) (model.GraphInterface, bool) {
+func (c *FlowDAO) GetGraph(graphID string) (model.GraphInterface, bool) {
 	g, ok := c.graphs[graphID]
 	return g, ok
 }

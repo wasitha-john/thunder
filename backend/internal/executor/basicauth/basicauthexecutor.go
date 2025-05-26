@@ -70,7 +70,7 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 	}
 
 	// Validate for the required input data.
-	if b.addRequiredInputData(ctx, execResp) {
+	if b.requiredInputData(ctx, execResp) {
 		// If required input data is not provided, return incomplete status.
 		logger.Debug("Required input data for basic authentication executor is not provided",
 			log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID))
@@ -121,43 +121,76 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 	return execResp, nil
 }
 
-// addRequiredInputData checks and adds the required input data for basic authentication.
+// requiredInputData checks and adds the required input data for basic authentication.
 // Returns true if needed to request user input data.
-func (b *BasicAuthExecutor) addRequiredInputData(ctx *flowmodel.FlowContext, resp *flowmodel.ExecutorResponse) bool {
-	requiredData := map[string]flowmodel.InputData{
-		"username": {
+func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execResp *flowmodel.ExecutorResponse) bool {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "BasicAuthExecutor"))
+
+	// TODO: Convert password to a secure type (i.e. byte_array)
+	basicReqData := []flowmodel.InputData{
+		{
 			Name:     "username",
 			Type:     "string",
 			Required: true,
 		},
-		// TODO: Convert password to a secure type (i.e. byte_array)
-		"password": {
+		{
 			Name:     "password",
 			Type:     "string",
 			Required: true,
 		},
 	}
 
+	// Check for the required input data. Also appends the authenticator specific input data.
+	// TODO: This validation should be moved to the flow composer. Ideally the validation and appending
+	//  should happen during the flow definition creation.
+	requiredData := ctx.CurrentNode.GetInputData()
+	if len(requiredData) == 0 {
+		logger.Debug("No required input data defined for basic authentication executor",
+			log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID))
+		requiredData = basicReqData
+	} else {
+		// Append the default required data if not already present.
+		for _, inputData := range basicReqData {
+			exists := false
+			for _, existingInputData := range requiredData {
+				if existingInputData.Name == inputData.Name {
+					exists = true
+					break
+				}
+			}
+			// If the input data already exists, skip adding it again.
+			if !exists {
+				requiredData = append(requiredData, inputData)
+			}
+		}
+	}
+
 	requireData := false
 
-	if resp.RequiredData == nil {
-		resp.RequiredData = make([]flowmodel.InputData, 0)
+	if execResp.RequiredData == nil {
+		execResp.RequiredData = make([]flowmodel.InputData, 0)
 	}
 
 	if len(ctx.UserInputData) == 0 {
-		for _, inputData := range requiredData {
-			resp.RequiredData = append(resp.RequiredData, inputData)
-		}
+		execResp.RequiredData = append(execResp.RequiredData, requiredData...)
 		return true
 	}
 
-	if _, ok := ctx.UserInputData["username"]; !ok {
-		resp.RequiredData = append(resp.RequiredData, requiredData["username"])
-		requireData = true
-	}
-	if _, ok := ctx.UserInputData["password"]; !ok {
-		resp.RequiredData = append(resp.RequiredData, requiredData["password"])
-		requireData = true
+	// Check if the required input data is provided by the user.
+	for _, inputData := range requiredData {
+		if _, ok := ctx.UserInputData[inputData.Name]; !ok {
+			if !inputData.Required {
+				logger.Debug("Skipping optional input data that is not provided by user",
+					log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID),
+					log.String("inputDataName", inputData.Name))
+				continue
+			}
+			execResp.RequiredData = append(execResp.RequiredData, inputData)
+			requireData = true
+			logger.Debug("Required input data not provided by user",
+				log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID),
+				log.String("inputDataName", inputData.Name))
+		}
 	}
 
 	return requireData

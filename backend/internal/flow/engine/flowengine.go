@@ -196,6 +196,14 @@ func (e *FlowEngine) resolveStepForRedirection(nodeResp *model.ExecutorResponse,
 		}
 	}
 
+	if flowStep.InputData == nil {
+		flowStep.InputData = make([]model.InputData, 0)
+		flowStep.InputData = nodeResp.RequiredData
+	} else {
+		// Append to the existing input data
+		flowStep.InputData = append(flowStep.InputData, nodeResp.RequiredData...)
+	}
+
 	flowStep.Status = constants.FlowStatusIncomplete
 	flowStep.Type = constants.FlowStepTypeRedirection
 	return nil

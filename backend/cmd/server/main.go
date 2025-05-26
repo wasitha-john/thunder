@@ -28,7 +28,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/asgardeo/thunder/internal/flow/composer"
+	"github.com/asgardeo/thunder/internal/flow"
 	"github.com/asgardeo/thunder/internal/system/cert"
 	"github.com/asgardeo/thunder/internal/system/managers"
 
@@ -56,8 +56,8 @@ func main() {
 		logger.Fatal("Failed to initialize multiplexer")
 	}
 
-	// Initialize the flow composer.
-	initFlowComposer(logger)
+	// Initialize the flow service.
+	initFlowService(logger)
 
 	startServer(logger, cfg, mux, thunderHome)
 }
@@ -120,11 +120,11 @@ func initMultiplexer(logger *log.Logger) *http.ServeMux {
 	return mux
 }
 
-// initFlowComposer initializes the flow composer.
-func initFlowComposer(logger *log.Logger) {
-	composer := composer.GetFlowComposer()
-	if err := composer.Init(); err != nil {
-		logger.Fatal("Failed to initialize flow composer", log.Error(err))
+// initFlowService initializes the flow service.
+func initFlowService(logger *log.Logger) {
+	svc := flow.GetFlowService()
+	if err := svc.Init(); err != nil {
+		logger.Fatal("Failed to initialize flow service", log.Error(err))
 	}
 }
 

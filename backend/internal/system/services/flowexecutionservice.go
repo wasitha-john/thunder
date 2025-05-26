@@ -22,6 +22,7 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/flow/handler"
+	"github.com/asgardeo/thunder/internal/system/server"
 )
 
 // FlowExecutionService defines the service for handling flow execution requests.
@@ -41,8 +42,14 @@ func NewFlowExecutionService(mux *http.ServeMux) *FlowExecutionService {
 
 // RegisterRoutes registers the routes for the FlowExecutionService.
 func (s *FlowExecutionService) RegisterRoutes(mux *http.ServeMux) {
-	// TODO: Modify this according to the new wrapper implementation.
-	mux.HandleFunc("POST /flow/execution", s.flowExecutionHandler.HandleFlowExecutionRequest)
+	// TODO: Ideally this should be renamed to "/flow/authn". Keeping it as "/flow/execution" until the
+	//  previous authenticator implementation is removed.
+	opts := server.RequestWrapOptions{
+		Cors: &server.Cors{
+			AllowedMethods:   "POST",
+			AllowedHeaders:   "Content-Type, Authorization",
+			AllowCredentials: true,
+		},
+	}
+	server.WrapHandleFunction(mux, "POST /flow/execution", &opts, s.flowExecutionHandler.HandleFlowExecutionRequest)
 }
-
-// TODO: Write the flow composer API.

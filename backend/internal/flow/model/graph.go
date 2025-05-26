@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/google/uuid"
+	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // GraphInterface defines the graph structure
@@ -49,7 +49,7 @@ type Graph struct {
 // NewGraph creates a new Graph with a unique ID
 func NewGraph(id string) GraphInterface {
 	if id == "" {
-		id = uuid.New().String()
+		id = sysutils.GenerateUUID()
 	}
 
 	return &Graph{

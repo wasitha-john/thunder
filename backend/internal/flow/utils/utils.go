@@ -26,6 +26,7 @@ import (
 	"github.com/asgardeo/thunder/internal/executor/basicauth"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/system/config"
 )
 
 // BuildGraphFromDefinition builds a graph from a graph definition json.
@@ -167,7 +168,11 @@ func getExecutorByName(name string) (model.ExecutorInterface, error) {
 	var executor model.ExecutorInterface
 	switch name {
 	case "BasicAuthExecutor":
-		executor = basicauth.NewBasicAuthExecutor("basic-auth-executor", "BasicAuthExecutor")
+		config, err := getExecutorConfig("BasicAuthExecutor")
+		if err != nil {
+			return nil, fmt.Errorf("error while getting BasicAuthExecutor config: %w", err)
+		}
+		executor = basicauth.NewBasicAuthExecutor("basic-auth-executor", config.Name)
 	case "AuthAssertExecutor":
 		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor")
 	default:
@@ -178,4 +183,21 @@ func getExecutorByName(name string) (model.ExecutorInterface, error) {
 		return nil, fmt.Errorf("executor with name %s could not be created", name)
 	}
 	return executor, nil
+}
+
+// getExecutorConfig retrieves the configuration for an executor by its name.
+func getExecutorConfig(name string) (*config.Authenticator, error) {
+	authConfigs := config.GetThunderRuntime().Config.Authenticator.Authenticators
+
+	if len(authConfigs) == 0 {
+		return nil, fmt.Errorf("no authenticators configured in the system")
+	}
+
+	for _, cfg := range authConfigs {
+		if cfg.Name == name {
+			return &cfg, nil
+		}
+	}
+
+	return nil, fmt.Errorf("authenticator with name %s not found", name)
 }
