@@ -38,16 +38,16 @@ prepare:
 	chmod +x build.sh
 
 clean:
-	./build.sh clean $(ARCH)
+	./build.sh clean $(OS) $(ARCH)
 
 build:
-	./build.sh build $(ARCH)
+	./build.sh build $(OS) $(ARCH)
 
 test:
-	./build.sh test $(ARCH)
+	./build.sh test $(OS) $(ARCH)
 
 run:
-	./build.sh run $(ARCH)
+	./build.sh run $(OS) $(ARCH)
 
 lint: golangci-lint
 	cd backend && $(GOLANGCI_LINT) run ./...

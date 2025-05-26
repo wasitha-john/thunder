@@ -45,8 +45,8 @@ FRONTEND_PACKAGES=$FRONTEND_BASE_DIR/$PACKAGES_DIR
 SAMPLE_BASE_DIR=samples
 SAMPLE_OAUTH_APP_DIR=$SAMPLE_BASE_DIR/apps/oauth
 
-GOOS=darwin
-GOARCH=${2:-arm64}
+GOOS=${2:-darwin}
+GOARCH=${3:-arm64}
 
 function clean() {
     echo "Cleaning build artifacts..."
@@ -203,7 +203,7 @@ case "$1" in
         run
         ;;
     *)
-        echo "Usage: ./build.sh {clean|build|test|run} [ARCH]"
+        echo "Usage: ./build.sh {clean|build|test|run} [OS] [ARCH]"
         exit 1
         ;;
 esac
