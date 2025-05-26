@@ -138,7 +138,7 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 - And run this command
 
   ```bash
-  pnpm sample
+  pnpm sample:dev
   ```
 
 - Enter the following credentials:
@@ -150,18 +150,18 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 
 ## 🧪 Running Integration Tests
 
-Building the product with `make all` will run the integration tests by default. However if you want to run the tests manually, follow the steps below.
+Building the product with `pnpm all` will run the integration tests by default. However if you want to run the tests manually, follow the steps below.
 
 ### 1️⃣ Build the Product
 
 ```bash
-make clean build
+pnpm build
 ```
 
 ### 2️⃣ Run the Tests
 
 ```bash
-make test
+pnpm backend:test
 ```
 
 ---
