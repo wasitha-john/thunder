@@ -9,16 +9,12 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 
 ---
 
-## 🚀 Features (WIP)
+## 🚀 Features
 
 - ✅ **Standards-Based**
-  - OAuth 2.1, OpenID Connect (OIDC)
-  - SCIM 2.0
-- 🛠️ **Visual Identity Flow Designer**
-- 👤 **User & Identity Management**
-- 🔗 **Social Login**
-- 🔐 **Multi-Factor Authentication (MFA)**
-- 🌐 **RESTful APIs**
+  - OAuth 2/ OpenID Connect (OIDC): Authorization Code, Client Credentials
+- 🔗 **Login Options:** Basic Authentication, Login with GitHub
+- 🌐 **RESTful APIs:** User Management, Application Management
 
 ---
 
