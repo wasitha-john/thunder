@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., 1.0.0)'
+        description: 'Release version (e.g., v1.0.0)'
         required: true
         type: string
 
@@ -103,6 +103,27 @@ jobs:
           git tag -a "$TAG_VERSION" -m "Release $TAG_VERSION"
           git push origin "$TAG_VERSION"
 
+      - name: 📝 Extract README Content for Release
+        id: readme_extract
+        run: |
+          # Extract introduction (everything before first --- divider)
+          INTRO=$(awk 'BEGIN{flag=1} /^---$/{flag=0; exit} flag{print}' README.md)
+          
+          # Extract Features section
+          FEATURES=$(sed -n '/^## 🚀 Features/,/^---$/p' README.md | head -n -1)
+          
+          # Extract license section including header
+          LICENSE=$(grep -A 5 "^## License" README.md)
+          
+          # Combine for release description
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$INTRO" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "$FEATURES" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "$LICENSE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: 📦 Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
@@ -112,4 +133,5 @@ jobs:
           draft: false
           prerelease: ${{ contains(env.VERSION, '-') }}
           files: target/thunder-${{ env.VERSION }}.zip
-          generate_release_notes: true
+          body: ${{ env.RELEASE_BODY }}
+          generate_release_notes: false
