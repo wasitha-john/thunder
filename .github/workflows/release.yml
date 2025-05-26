@@ -1,0 +1,115 @@
+# This workflow will build the project and create a release on demand
+# Uses:
+#   OS: ubuntu-latest
+#   Go: go 1.x
+
+name: 🚀 Release Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+
+# Add permissions to allow pushing tags
+permissions:
+  contents: write
+
+env:
+  GOFLAGS: "-mod=readonly"
+
+jobs:
+  release:
+    name: 📦 Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for tagging
+
+      - name: ✅ Validate Version Format
+        run: |
+          if ! [[ ${{ github.event.inputs.version }} =~ ^v?[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then
+            echo "❌ Error: Version '${{ github.event.inputs.version }}' does not follow format v?X.Y[.Z][-PRERELEASE][+BUILD]"
+            exit 1
+          fi
+          echo "✅ Version format is valid"
+          
+          # Store original version for tagging
+          ORIGINAL_VERSION="${{ github.event.inputs.version }}"
+          echo "ORIGINAL_VERSION=$ORIGINAL_VERSION" >> $GITHUB_ENV
+          
+          # Clean version for version.txt (remove v prefix if present)
+          VERSION="${{ github.event.inputs.version }}"
+          if [[ $VERSION == v* ]]; then
+            VERSION="${VERSION:1}"
+          fi
+          echo "$VERSION" > version.txt
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: ⚙️ Set up Go Environment
+        uses: ./.github/actions/setup-go
+
+      - name: 🗄️ Cache Go Modules
+        uses: actions/cache@v4
+        id: cache-go-modules
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-modules-
+
+      - name: 📦 Install Dependencies
+        run: |
+          cd backend
+          go mod download
+          cd ../tests/integration
+          go mod download
+
+      - name: 🛠️ Build and Run Tests
+        run: |
+            set -e
+            make all ARCH=amd64
+
+      - name: 🔨 Build Release Artifact
+        run: make clean build
+
+      - name: 📝 Read Updated Version
+        id: version
+        run: echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
+        
+      - name: 📦 Upload Artifact to Workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: thunder-${{ steps.version.outputs.version }}
+          path: target/thunder-${{ steps.version.outputs.version }}.zip
+
+      - name: 🏷️ Create Git Tag
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Use original version for tag, ensuring it has a v prefix
+          TAG_VERSION="${{ env.ORIGINAL_VERSION }}"
+          if [[ ! $TAG_VERSION == v* ]]; then
+            TAG_VERSION="v$TAG_VERSION"
+          fi
+          
+          git tag -a "$TAG_VERSION" -m "Release $TAG_VERSION"
+          git push origin "$TAG_VERSION"
+
+      - name: 📦 Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.ORIGINAL_VERSION }}
+          name: Thunder ${{ env.VERSION }}
+          draft: false
+          prerelease: ${{ contains(env.VERSION, '-') }}
+          files: target/thunder-${{ env.VERSION }}.zip
+          generate_release_notes: true
