@@ -37,3 +37,6 @@ const ContentTypeHeaderName = "Content-Type"
 
 // TokenTypeBearer is the token type used in bearer authentication.
 const TokenTypeBearer = "Bearer"
+
+// ContentTypeJSON is the content type for JSON data.
+const ContentTypeJSON = "application/json"

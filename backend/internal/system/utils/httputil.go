@@ -107,3 +107,12 @@ func GetURIWithQueryParams(uri string, queryParams map[string]string) (string, e
 	// Return the constructed URI.
 	return parsedURL.String(), nil
 }
+
+// DecodeJSONBody decodes JSON from the request body into any struct type T.
+func DecodeJSONBody[T any](r *http.Request) (*T, error) {
+	var data T
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		return nil, errors.New("failed to decode JSON: " + err.Error())
+	}
+	return &data, nil
+}

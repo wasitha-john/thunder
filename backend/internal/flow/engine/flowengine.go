@@ -51,7 +51,7 @@ func GetFlowEngine() FlowEngineInterface {
 }
 
 // Execute executes a step in the flow
-func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceerror.ServiceError) {
+func (fe *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowEngine"))
 
 	flowStep := model.FlowStep{
@@ -94,7 +94,7 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceer
 		if nodeResp.Status == constants.Complete {
 			// If the node returns complete status, move to the next node and let it execute.
 			var err error
-			currentNode, err = e.resolveToNextNode(ctx.Graph, currentNode)
+			currentNode, err = fe.resolveToNextNode(ctx.Graph, currentNode)
 			if err != nil {
 				svcErr := constants.ErrorMovingToNextNode
 				svcErr.ErrorDescription = "error moving to next node: " + err.Error()
@@ -106,7 +106,7 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceer
 			// If the node returns incomplete status, set the flow step details and return.
 			// The same node will be executed again in the next request with the required data.
 			if nodeResp.Type == constants.Redirection {
-				err := e.resolveStepForRedirection(nodeResp, &flowStep)
+				err := fe.resolveStepForRedirection(nodeResp, &flowStep)
 				if err != nil {
 					svcErr := constants.ErrorResolvingStepForRedirection
 					svcErr.ErrorDescription = "error resolving step for redirection: " + err.Error()
@@ -115,7 +115,7 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceer
 
 				return flowStep, nil
 			} else if nodeResp.Type == constants.View {
-				err := e.resolveStepDetailsForPrompt(nodeResp, &flowStep)
+				err := fe.resolveStepDetailsForPrompt(nodeResp, &flowStep)
 				if err != nil {
 					svcErr := constants.ErrorResolvingStepForPrompt
 					svcErr.ErrorDescription = "error resolving step for prompt: " + err.Error()
@@ -132,14 +132,14 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceer
 			// If it is a prompt only node, set to the next node and return the current flow step.
 			// The next node will be executed in the next request with the requested data.
 			var err error
-			currentNode, err = e.resolveToNextNode(ctx.Graph, currentNode)
+			currentNode, err = fe.resolveToNextNode(ctx.Graph, currentNode)
 			if err != nil {
 				svcErr := constants.ErrorMovingToNextNode
 				svcErr.ErrorDescription = "error moving to next node: " + err.Error()
 				return flowStep, &svcErr
 			}
 			ctx.CurrentNode = currentNode
-			err = e.resolveStepDetailsForPrompt(nodeResp, &flowStep)
+			err = fe.resolveStepDetailsForPrompt(nodeResp, &flowStep)
 			if err != nil {
 				svcErr := constants.ErrorResolvingStepForPrompt
 				svcErr.ErrorDescription = "error resolving step details for prompt: " + err.Error()
@@ -172,7 +172,7 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceer
 	return flowStep, nil
 }
 
-func (e *FlowEngine) resolveToNextNode(graph model.GraphInterface,
+func (fe *FlowEngine) resolveToNextNode(graph model.GraphInterface,
 	currentNode model.NodeInterface) (model.NodeInterface, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowEngine"))
 
@@ -191,7 +191,7 @@ func (e *FlowEngine) resolveToNextNode(graph model.GraphInterface,
 	return nextNode, nil
 }
 
-func (e *FlowEngine) resolveStepForRedirection(nodeResp *model.NodeResponse, flowStep *model.FlowStep) error {
+func (fe *FlowEngine) resolveStepForRedirection(nodeResp *model.NodeResponse, flowStep *model.FlowStep) error {
 	if nodeResp == nil {
 		return errors.New("node response is nil")
 	}
@@ -225,7 +225,7 @@ func (e *FlowEngine) resolveStepForRedirection(nodeResp *model.NodeResponse, flo
 	return nil
 }
 
-func (e *FlowEngine) resolveStepDetailsForPrompt(nodeResp *model.NodeResponse, flowStep *model.FlowStep) error {
+func (fe *FlowEngine) resolveStepDetailsForPrompt(nodeResp *model.NodeResponse, flowStep *model.FlowStep) error {
 	if nodeResp == nil {
 		return errors.New("node response is nil")
 	}
