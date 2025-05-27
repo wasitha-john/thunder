@@ -19,14 +19,7 @@
 // Package apierror defines the error structures for the API.
 package apierror
 
-const (
-	// ClientErrorType denotes the client error type.
-	ClientErrorType = "client_error"
-	// ServerErrorType denotes the server error type.
-	ServerErrorType = "server_error"
-)
-
-// ErrorResponse represents the API error response.
+// ErrorResponse defines a generic API error response.
 type ErrorResponse struct {
 	Code        string `json:"code"`
 	Message     string `json:"message"`

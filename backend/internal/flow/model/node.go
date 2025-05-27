@@ -19,14 +19,13 @@
 package model
 
 import (
-	"errors"
-
 	"github.com/asgardeo/thunder/internal/flow/constants"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 )
 
 // NodeInterface defines the interface for nodes in the graph
 type NodeInterface interface {
-	Execute(ctx *FlowContext) (*ExecutorResponse, error)
+	Execute(ctx *FlowContext) (*ExecutorResponse, *serviceerror.ServiceError)
 	GetID() string
 	GetType() string
 	IsStartNode() bool
@@ -69,14 +68,19 @@ func NewNode(id string, _type string, isStartNode bool, isFinalNode bool) NodeIn
 }
 
 // Execute executes the node's executor
-func (n *Node) Execute(ctx *FlowContext) (*ExecutorResponse, error) {
+func (n *Node) Execute(ctx *FlowContext) (*ExecutorResponse, *serviceerror.ServiceError) {
 	if n.executor == nil {
-		return nil, errors.New("executor is not set")
+		return nil, &constants.ErrorNodeExecutorNotFound
 	}
 
 	execResp, err := n.executor.Execute(ctx)
 	if err != nil {
-		return nil, errors.New("error executing node executor: " + err.Error())
+		svcErr := constants.ErrorNodeExecutorExecError
+		svcErr.ErrorDescription = "Error executing node executor: " + err.Error()
+		return nil, &svcErr
+	}
+	if execResp == nil {
+		return nil, &constants.ErrorNilResponseFromExecutor
 	}
 
 	if execResp.Status == constants.ExecutorStatusComplete {

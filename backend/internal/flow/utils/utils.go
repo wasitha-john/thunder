@@ -24,6 +24,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/executor/authassert"
 	"github.com/asgardeo/thunder/internal/executor/basicauth"
+	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/system/config"
@@ -70,7 +71,7 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 	// Add all nodes to the graph
 	for _, nodeDef := range definition.Nodes {
 		isStartNode := (nodeDef.ID == startNodeID)
-		isFinalNode := (nodeDef.Type == "AUTHENTICATION_SUCCESS")
+		isFinalNode := (nodeDef.Type == constants.NodeTypeAuthenticationSuccess)
 
 		// Construct a new node
 		node := model.NewNode(nodeDef.ID, nodeDef.Type, isStartNode, isFinalNode)
@@ -93,7 +94,7 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 				return nil, fmt.Errorf("error while getting executor %s: %w", nodeDef.Executor, err)
 			}
 			node.SetExecutor(executor)
-		} else if nodeDef.Type == "AUTHENTICATION_SUCCESS" {
+		} else if nodeDef.Type == constants.NodeTypeAuthenticationSuccess {
 			// Assign AuthAssertExecutor for authentication success node if no executor is explicitly defined.
 			executor, err := getExecutorByName("AuthAssertExecutor")
 			if err != nil {

@@ -70,5 +70,5 @@ func (e *Executor) GetProperties() ExecutorProperties {
 func (e *Executor) Execute(ctx *FlowContext) (*ExecutorResponse, error) {
 	// Implement the logic for executing the executor here.
 	// This is just a placeholder implementation
-	return &ExecutorResponse{}, nil
+	return nil, nil
 }

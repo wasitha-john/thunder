@@ -24,9 +24,11 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/flow"
+	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/system/error/apierror"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/internal/system/services/apierror"
 )
 
 // FlowExecutionHandler handles flow execution requests.
@@ -43,15 +45,10 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 
 	var flowR model.FlowRequest
 	if err := json.NewDecoder(r.Body).Decode(&flowR); err != nil {
-		errResponse := apierror.ErrorResponse{
-			Message:     "Invalid request payload",
-			Description: "Failed to decode request payload",
-		}
-
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 
-		if err := json.NewEncoder(w).Encode(errResponse); err != nil {
+		if err := json.NewEncoder(w).Encode(constants.APIErrorFlowRequestJSONDecodeError); err != nil {
 			logger.Error("Error encoding error response", log.Error(err))
 			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
 		}
@@ -64,12 +61,13 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 
 	if flowErr != nil {
 		errResp := apierror.ErrorResponse{
+			Code:        flowErr.Code,
 			Message:     flowErr.Error,
 			Description: flowErr.ErrorDescription,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if flowErr.Type == apierror.ClientErrorType {
+		if flowErr.Type == serviceerror.ClientErrorType {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)

@@ -25,6 +25,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
@@ -35,7 +36,7 @@ var (
 
 // FlowEngineInterface defines the interface for the flow engine.
 type FlowEngineInterface interface {
-	Execute(ctx *model.FlowContext) (model.FlowStep, error)
+	Execute(ctx *model.FlowContext) (model.FlowStep, *serviceerror.ServiceError)
 }
 
 // FlowEngine is the main engine implementation for orchestrating flow executions.
@@ -50,7 +51,7 @@ func GetFlowEngine() FlowEngineInterface {
 }
 
 // Execute executes a step in the flow
-func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, error) {
+func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowEngine"))
 
 	flowStep := model.FlowStep{
@@ -59,7 +60,7 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, error) {
 
 	graph := ctx.Graph
 	if graph == nil {
-		return flowStep, errors.New("flow graph is nil")
+		return flowStep, &constants.ErrorFlowGraphNotInitialized
 	}
 
 	currentNode := ctx.CurrentNode
@@ -68,7 +69,7 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, error) {
 		var ok bool
 		currentNode, ok = graph.GetNode(graph.GetStartNodeID())
 		if !ok {
-			return flowStep, errors.New("start node not found in the graph")
+			return flowStep, &constants.ErrorStartNodeNotFoundInGraph
 		}
 		ctx.CurrentNode = currentNode
 	}
@@ -79,22 +80,25 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, error) {
 			log.String("nodeType", currentNode.GetType()))
 
 		// Execute the current node
-		nodeResp, err := currentNode.Execute(ctx)
-		if err != nil {
-			return flowStep, err
+		nodeResp, nodeErr := currentNode.Execute(ctx)
+		if nodeErr != nil {
+			return flowStep, nodeErr
 		}
 
 		// Update the context with the current node response
 		ctx.CurrentNodeResponse = nodeResp
 
 		if nodeResp.Status == "" {
-			return flowStep, errors.New("node response status is empty")
+			return flowStep, &constants.ErrorNodeResponseStatusNotFound
 		}
 		if nodeResp.Status == constants.FlowStatusComplete {
 			// If the node returns complete status, move to the next node and let it execute.
+			var err error
 			currentNode, err = e.resolveToNextNode(ctx.Graph, currentNode)
 			if err != nil {
-				return flowStep, errors.New("error moving to next node: " + err.Error())
+				svcErr := constants.ErrorMovingToNextNode
+				svcErr.ErrorDescription = "error moving to next node: " + err.Error()
+				return flowStep, &svcErr
 			}
 			ctx.CurrentNode = currentNode
 			continue
@@ -104,44 +108,56 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, error) {
 			if nodeResp.Type == constants.FlowStepTypeRedirection {
 				err := e.resolveStepForRedirection(nodeResp, &flowStep)
 				if err != nil {
-					return flowStep, errors.New("error resolving step for redirection: " + err.Error())
+					svcErr := constants.ErrorResolvingStepForRedirection
+					svcErr.ErrorDescription = "error resolving step for redirection: " + err.Error()
+					return flowStep, &svcErr
 				}
 
 				return flowStep, nil
 			} else if nodeResp.Type == constants.FlowStepTypeView {
 				err := e.resolveStepDetailsForPrompt(nodeResp, &flowStep)
 				if err != nil {
-					return flowStep, errors.New("error resolving step details for prompt: " + err.Error())
+					svcErr := constants.ErrorResolvingStepForPrompt
+					svcErr.ErrorDescription = "error resolving step for prompt: " + err.Error()
+					return flowStep, &svcErr
 				}
 
 				return flowStep, nil
 			} else {
-				return flowStep, errors.New("unsupported response type returned from the node: " + nodeResp.Type)
+				svcErr := constants.ErrorUnsupportedNodeResponseType
+				svcErr.ErrorDescription = "unsupported node response type: " + nodeResp.Type
+				return flowStep, &svcErr
 			}
 		} else if nodeResp.Status == constants.FlowStatusPromptOnly {
 			// If it is a prompt only node, set to the next node and return the current flow step.
 			// The next node will be executed in the next request with the requested data.
+			var err error
 			currentNode, err = e.resolveToNextNode(ctx.Graph, currentNode)
 			if err != nil {
-				return flowStep, errors.New("error moving to next node: " + err.Error())
+				svcErr := constants.ErrorMovingToNextNode
+				svcErr.ErrorDescription = "error moving to next node: " + err.Error()
+				return flowStep, &svcErr
 			}
 			ctx.CurrentNode = currentNode
-			err := e.resolveStepDetailsForPrompt(nodeResp, &flowStep)
+			err = e.resolveStepDetailsForPrompt(nodeResp, &flowStep)
 			if err != nil {
-				return flowStep, errors.New("error resolving step details for prompt: " + err.Error())
+				svcErr := constants.ErrorResolvingStepForPrompt
+				svcErr.ErrorDescription = "error resolving step details for prompt: " + err.Error()
+				return flowStep, &svcErr
 			}
 
 			return flowStep, nil
 		} else if nodeResp.Status == constants.FlowStatusError {
 			// If the node returns an error status, set the flow step status to error and return.
 			flowStep.Status = constants.FlowStatusError
-			if nodeResp.Error != "" {
-				return flowStep, errors.New("error returned from the node: " + nodeResp.Error)
-			}
-			return flowStep, errors.New("error returned from the node")
+			svcErr := constants.ErrorNodeResponse
+			svcErr.ErrorDescription = "error response received from the node: " + nodeResp.Error
+			return flowStep, &svcErr
 		} else {
 			// If the node returns an unsupported status, return an error.
-			return flowStep, errors.New("unsupported status returned from the node: " + nodeResp.Status)
+			svcErr := constants.ErrorUnsupportedNodeResponseStatus
+			svcErr.ErrorDescription = "unsupported status returned from the node: " + nodeResp.Status
+			return flowStep, &svcErr
 		}
 	}
 

@@ -36,6 +36,8 @@ const (
 )
 
 const (
+	// NodeTypeAuthenticationSuccess represents a node that does auth assertion
+	NodeTypeAuthenticationSuccess = "AUTHENTICATION_SUCCESS"
 	// NodeTypeTaskExecution represents a task execution node
 	NodeTypeTaskExecution = "TASK_EXECUTION"
 	// NodeTypePromptOnly represents a prompt-only node

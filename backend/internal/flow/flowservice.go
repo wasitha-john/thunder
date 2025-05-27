@@ -27,8 +27,8 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/dao"
 	"github.com/asgardeo/thunder/internal/flow/engine"
 	"github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/internal/system/services/apierror"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
@@ -40,7 +40,7 @@ var (
 // FlowServiceInterface defines the interface for flow orchestration and acts as the entry point for flow execution
 type FlowServiceInterface interface {
 	Init() error
-	Execute(appID, flowID, actionID string, inputData map[string]string) (*model.FlowStep, *model.FlowServiceError)
+	Execute(appID, flowID, actionID string, inputData map[string]string) (*model.FlowStep, *serviceerror.ServiceError)
 }
 
 // FlowService is the implementation of FlowServiceInterface
@@ -71,7 +71,7 @@ func (s *FlowService) Init() error {
 
 // Execute executes a flow with the given data
 func (s *FlowService) Execute(appID, flowID, actionID string,
-	inputData map[string]string) (*model.FlowStep, *model.FlowServiceError) {
+	inputData map[string]string) (*model.FlowStep, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowService"))
 
 	context, svcErr := s.loadContext(appID, flowID, actionID, inputData, logger)
@@ -82,18 +82,12 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 	engine := engine.GetFlowEngine()
 	flowStep, flowErr := engine.Execute(context)
 	if flowErr != nil {
-		logger.Error("Failed to execute flow", log.Error(flowErr))
-
 		// Remove the flow context from the store
 		s.mu.Lock()
 		delete(s.store, context.FlowID)
 		s.mu.Unlock()
 
-		return nil, &model.FlowServiceError{
-			Type:             "server",
-			Error:            "Flow Execution Error",
-			ErrorDescription: "An error occurred while executing the flow: " + flowErr.Error(),
-		}
+		return nil, flowErr
 	}
 
 	s.updateContext(context, &flowStep, logger)
@@ -103,7 +97,7 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 
 // loadContext loads or initializes a flow context based on the provided parameters.
 func (s *FlowService) loadContext(appID, flowID, actionID string, inputData map[string]string,
-	logger *log.Logger) (*model.FlowContext, *model.FlowServiceError) {
+	logger *log.Logger) (*model.FlowContext, *serviceerror.ServiceError) {
 	var context model.FlowContext
 	if flowID == "" && actionID == "" && len(inputData) == 0 {
 		ctx, err := s.initContext(appID, logger)
@@ -123,13 +117,9 @@ func (s *FlowService) loadContext(appID, flowID, actionID string, inputData map[
 }
 
 // initContext initializes a new flow context with the given details.
-func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.FlowContext, *model.FlowServiceError) {
+func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.FlowContext, *serviceerror.ServiceError) {
 	if appID == "" {
-		return nil, &model.FlowServiceError{
-			Type:             apierror.ClientErrorType,
-			Error:            "Invalid Request",
-			ErrorDescription: "appID is required",
-		}
+		return nil, &constants.ErrorInvalidAppID
 	}
 
 	ctx := model.FlowContext{}
@@ -140,12 +130,8 @@ func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.Flow
 	// TODO: This needs to be retrieved from the app config.
 	graph, ok := flowDAO.GetGraph("auth_flow_config_basic")
 	if !ok {
-		logger.Error("Graph not found")
-		return nil, &model.FlowServiceError{
-			Type:             "server",
-			Error:            "Graph Not Found",
-			ErrorDescription: "Graph not found for the graph ID",
-		}
+		logger.Error("Graph not found for the graph id")
+		return nil, &constants.ErrorFlowGraphNotFound
 	}
 	ctx.Graph = graph
 	ctx.AppID = appID
@@ -155,20 +141,12 @@ func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.Flow
 
 // loadContextFromStore retrieves the flow context from the store based on the given details.
 func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData map[string]string,
-	logger *log.Logger) (*model.FlowContext, *model.FlowServiceError) {
+	logger *log.Logger) (*model.FlowContext, *serviceerror.ServiceError) {
 	if flowID == "" {
-		return nil, &model.FlowServiceError{
-			Type:             apierror.ClientErrorType,
-			Error:            "Invalid Request",
-			ErrorDescription: "flowID is required",
-		}
+		return nil, &constants.ErrorInvalidFlowID
 	}
 	if len(inputData) == 0 {
-		return nil, &model.FlowServiceError{
-			Type:             apierror.ClientErrorType,
-			Error:            "Invalid Request",
-			ErrorDescription: "One or more input data is required",
-		}
+		return nil, &constants.ErrorInputDataNotFound
 	}
 
 	s.mu.Lock()
@@ -176,11 +154,7 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 	if !ok {
 		s.mu.Unlock()
 		logger.Error("Flow context not found in the store")
-		return nil, &model.FlowServiceError{
-			Type:             apierror.ClientErrorType,
-			Error:            "Invalid Request",
-			ErrorDescription: "Flow context not found for the flow ID",
-		}
+		return nil, &constants.ErrorInvalidFlowID
 	}
 
 	delete(s.store, flowID)

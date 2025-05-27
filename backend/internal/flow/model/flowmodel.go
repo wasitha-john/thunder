@@ -66,13 +66,6 @@ type ExecutorModel struct {
 	Name string `json:"name"`
 }
 
-// FlowServiceError represents an error response from the flow service
-type FlowServiceError struct {
-	Type             string `json:"type,omitempty"`
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description"`
-}
-
 // FlowRequest represents the flow execution API request body
 type FlowRequest struct {
 	ApplicationID string `json:"applicationId"`
