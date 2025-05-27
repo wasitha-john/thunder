@@ -168,7 +168,7 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 
 // updateContext updates the flow context in the store based on the flow step status.
 func (s *FlowService) updateContext(ctx *model.FlowContext, flowStep *model.FlowStep, logger *log.Logger) {
-	if flowStep.Status != "" && flowStep.Status == constants.FlowStatusComplete {
+	if flowStep.Status != "" && flowStep.Status == constants.Complete {
 		s.mu.Lock()
 		delete(s.store, ctx.FlowID)
 		s.mu.Unlock()

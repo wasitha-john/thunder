@@ -91,7 +91,7 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceer
 		if nodeResp.Status == "" {
 			return flowStep, &constants.ErrorNodeResponseStatusNotFound
 		}
-		if nodeResp.Status == constants.FlowStatusComplete {
+		if nodeResp.Status == constants.Complete {
 			// If the node returns complete status, move to the next node and let it execute.
 			var err error
 			currentNode, err = e.resolveToNextNode(ctx.Graph, currentNode)
@@ -102,10 +102,10 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceer
 			}
 			ctx.CurrentNode = currentNode
 			continue
-		} else if nodeResp.Status == constants.FlowStatusIncomplete {
+		} else if nodeResp.Status == constants.Incomplete {
 			// If the node returns incomplete status, set the flow step details and return.
 			// The same node will be executed again in the next request with the required data.
-			if nodeResp.Type == constants.FlowStepTypeRedirection {
+			if nodeResp.Type == constants.Redirection {
 				err := e.resolveStepForRedirection(nodeResp, &flowStep)
 				if err != nil {
 					svcErr := constants.ErrorResolvingStepForRedirection
@@ -114,7 +114,7 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceer
 				}
 
 				return flowStep, nil
-			} else if nodeResp.Type == constants.FlowStepTypeView {
+			} else if nodeResp.Type == constants.View {
 				err := e.resolveStepDetailsForPrompt(nodeResp, &flowStep)
 				if err != nil {
 					svcErr := constants.ErrorResolvingStepForPrompt
@@ -125,10 +125,10 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceer
 				return flowStep, nil
 			} else {
 				svcErr := constants.ErrorUnsupportedNodeResponseType
-				svcErr.ErrorDescription = "unsupported node response type: " + nodeResp.Type
+				svcErr.ErrorDescription = "unsupported node response type: " + string(nodeResp.Type)
 				return flowStep, &svcErr
 			}
-		} else if nodeResp.Status == constants.FlowStatusPromptOnly {
+		} else if nodeResp.Status == constants.PromptOnly {
 			// If it is a prompt only node, set to the next node and return the current flow step.
 			// The next node will be executed in the next request with the requested data.
 			var err error
@@ -147,22 +147,22 @@ func (e *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceer
 			}
 
 			return flowStep, nil
-		} else if nodeResp.Status == constants.FlowStatusError {
+		} else if nodeResp.Status == constants.Error {
 			// If the node returns an error status, set the flow step status to error and return.
-			flowStep.Status = constants.FlowStatusError
+			flowStep.Status = constants.Error
 			svcErr := constants.ErrorNodeResponse
 			svcErr.ErrorDescription = "error response received from the node: " + nodeResp.Error
 			return flowStep, &svcErr
 		} else {
 			// If the node returns an unsupported status, return an error.
 			svcErr := constants.ErrorUnsupportedNodeResponseStatus
-			svcErr.ErrorDescription = "unsupported status returned from the node: " + nodeResp.Status
+			svcErr.ErrorDescription = "unsupported status returned from the node: " + string(nodeResp.Status)
 			return flowStep, &svcErr
 		}
 	}
 
 	// If we reach here, it means the flow has been executed successfully.
-	flowStep.Status = constants.FlowStatusComplete
+	flowStep.Status = constants.Complete
 
 	// If the current node response has an assertion, set it in the flow step.
 	if ctx.CurrentNodeResponse != nil && ctx.CurrentNodeResponse.Assertion != "" {
@@ -191,7 +191,7 @@ func (e *FlowEngine) resolveToNextNode(graph model.GraphInterface,
 	return nextNode, nil
 }
 
-func (e *FlowEngine) resolveStepForRedirection(nodeResp *model.ExecutorResponse, flowStep *model.FlowStep) error {
+func (e *FlowEngine) resolveStepForRedirection(nodeResp *model.NodeResponse, flowStep *model.FlowStep) error {
 	if nodeResp == nil {
 		return errors.New("node response is nil")
 	}
@@ -220,12 +220,12 @@ func (e *FlowEngine) resolveStepForRedirection(nodeResp *model.ExecutorResponse,
 		flowStep.InputData = append(flowStep.InputData, nodeResp.RequiredData...)
 	}
 
-	flowStep.Status = constants.FlowStatusIncomplete
-	flowStep.Type = constants.FlowStepTypeRedirection
+	flowStep.Status = constants.Incomplete
+	flowStep.Type = constants.Redirection
 	return nil
 }
 
-func (e *FlowEngine) resolveStepDetailsForPrompt(nodeResp *model.ExecutorResponse, flowStep *model.FlowStep) error {
+func (e *FlowEngine) resolveStepDetailsForPrompt(nodeResp *model.NodeResponse, flowStep *model.FlowStep) error {
 	if nodeResp == nil {
 		return errors.New("node response is nil")
 	}
@@ -241,8 +241,8 @@ func (e *FlowEngine) resolveStepDetailsForPrompt(nodeResp *model.ExecutorRespons
 		flowStep.InputData = append(flowStep.InputData, nodeResp.RequiredData...)
 	}
 
-	flowStep.Status = constants.FlowStatusPromptOnly
-	flowStep.Type = constants.FlowStepTypeView
+	flowStep.Status = constants.PromptOnly
+	flowStep.Type = constants.View
 	return nil
 }
 

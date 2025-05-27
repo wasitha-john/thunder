@@ -19,7 +19,10 @@
 // Package model defines the data structures and interfaces for flow execution and graph representation.
 package model
 
-import authnmodel "github.com/asgardeo/thunder/internal/authn/model"
+import (
+	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
+	"github.com/asgardeo/thunder/internal/flow/constants"
+)
 
 // FlowContext holds the overall context for flow execution
 type FlowContext struct {
@@ -28,7 +31,7 @@ type FlowContext struct {
 	UserInputData map[string]string
 
 	CurrentNode         NodeInterface
-	CurrentNodeResponse *ExecutorResponse
+	CurrentNodeResponse *NodeResponse
 	CurrentActionID     string
 
 	Graph GraphInterface
@@ -40,8 +43,8 @@ type FlowContext struct {
 type FlowStep struct {
 	FlowID         string
 	StepID         string
-	Type           string
-	Status         string
+	Type           constants.FlowStepType
+	Status         constants.FlowStatus
 	InputData      []InputData
 	Actions        []Action
 	Assertion      string

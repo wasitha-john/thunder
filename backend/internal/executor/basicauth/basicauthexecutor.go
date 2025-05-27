@@ -66,7 +66,7 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 		log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID))
 
 	execResp := &flowmodel.ExecutorResponse{
-		Status: flowconst.FlowStatusIncomplete,
+		Status: flowconst.ExecIncomplete,
 	}
 
 	// Validate for the required input data.
@@ -74,8 +74,8 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 		// If required input data is not provided, return incomplete status.
 		logger.Debug("Required input data for basic authentication executor is not provided",
 			log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID))
-		execResp.Status = flowconst.ExecutorStatusUserInputRequired
-		execResp.Type = flowconst.FlowStepTypeView
+		execResp.Status = flowconst.ExecUserInputRequired
+		execResp.Type = flowconst.ExecView
 		return execResp, nil
 	}
 
@@ -107,16 +107,17 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 
 	// Set the flow response status based on the authentication result.
 	if ctx.AuthenticatedUser.IsAuthenticated {
-		execResp.Status = flowconst.ExecutorStatusComplete
+		execResp.Status = flowconst.ExecComplete
 	} else {
-		execResp.Status = flowconst.ExecutorStatusUserError
-		execResp.Type = flowconst.FlowStepTypeView
+		execResp.Status = flowconst.ExecUserError
+		execResp.Type = flowconst.ExecView
 		execResp.Error = "Invalid credentials provided for basic authentication."
 	}
 
 	logger.Debug("Basic authentication executor execution completed",
 		log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID),
-		log.String("status", execResp.Status), log.Bool("isAuthenticated", ctx.AuthenticatedUser.IsAuthenticated))
+		log.String("status", string(execResp.Status)),
+		log.Bool("isAuthenticated", ctx.AuthenticatedUser.IsAuthenticated))
 
 	return execResp, nil
 }

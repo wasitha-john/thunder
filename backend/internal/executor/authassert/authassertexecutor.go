@@ -65,7 +65,7 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exe
 		log.String("executorID", a.GetID()), log.String("flowID", ctx.FlowID))
 
 	exeResp := &flowmodel.ExecutorResponse{
-		Status: flowconst.FlowStatusComplete,
+		Status: flowconst.ExecComplete,
 	}
 
 	if ctx.AuthenticatedUser != nil && ctx.AuthenticatedUser.IsAuthenticated {
@@ -76,7 +76,7 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exe
 		token, err := jwt.GenerateJWT(tokenSub, ctx.AppID)
 		if err != nil {
 			logger.Error("Failed to generate JWT token", log.Error(err))
-			exeResp.Status = flowconst.FlowStatusError
+			exeResp.Status = flowconst.ExecError
 			exeResp.Error = "Failed to generate JWT token: " + err.Error()
 			return exeResp, nil
 		}
@@ -86,13 +86,13 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exe
 
 		exeResp.Assertion = token
 	} else {
-		exeResp.Status = flowconst.FlowStatusError
+		exeResp.Status = flowconst.ExecError
 		exeResp.Error = "User is not authenticated"
 	}
 
 	logger.Debug("Authentication assertion executor execution completed",
 		log.String("executorID", a.GetID()), log.String("flowID", ctx.FlowID),
-		log.String("status", exeResp.Status))
+		log.String("status", string(exeResp.Status)))
 
 	return exeResp, nil
 }

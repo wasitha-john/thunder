@@ -71,7 +71,7 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 	// Add all nodes to the graph
 	for _, nodeDef := range definition.Nodes {
 		isStartNode := (nodeDef.ID == startNodeID)
-		isFinalNode := (nodeDef.Type == constants.NodeTypeAuthenticationSuccess)
+		isFinalNode := (nodeDef.Type == string(constants.AuthSuccessNode))
 
 		// Construct a new node
 		node := model.NewNode(nodeDef.ID, nodeDef.Type, isStartNode, isFinalNode)
@@ -94,7 +94,7 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 				return nil, fmt.Errorf("error while getting executor %s: %w", nodeDef.Executor, err)
 			}
 			node.SetExecutor(executor)
-		} else if nodeDef.Type == constants.NodeTypeAuthenticationSuccess {
+		} else if nodeDef.Type == string(constants.AuthSuccessNode) {
 			// Assign AuthAssertExecutor for authentication success node if no executor is explicitly defined.
 			executor, err := getExecutorByName("AuthAssertExecutor")
 			if err != nil {

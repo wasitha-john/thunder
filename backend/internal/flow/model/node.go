@@ -23,9 +23,19 @@ import (
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 )
 
+// NodeResponse represents the response from a node execution
+type NodeResponse struct {
+	Status         constants.FlowStatus   `json:"status"`
+	Type           constants.FlowStepType `json:"type"`
+	Error          string                 `json:"error,omitempty"`
+	RequiredData   []InputData            `json:"required_data,omitempty"`
+	AdditionalInfo map[string]string      `json:"additional_info,omitempty"`
+	Assertion      string                 `json:"assertion,omitempty"`
+}
+
 // NodeInterface defines the interface for nodes in the graph
 type NodeInterface interface {
-	Execute(ctx *FlowContext) (*ExecutorResponse, *serviceerror.ServiceError)
+	Execute(ctx *FlowContext) (*NodeResponse, *serviceerror.ServiceError)
 	GetID() string
 	GetType() string
 	IsStartNode() bool
@@ -68,7 +78,7 @@ func NewNode(id string, _type string, isStartNode bool, isFinalNode bool) NodeIn
 }
 
 // Execute executes the node's executor
-func (n *Node) Execute(ctx *FlowContext) (*ExecutorResponse, *serviceerror.ServiceError) {
+func (n *Node) Execute(ctx *FlowContext) (*NodeResponse, *serviceerror.ServiceError) {
 	if n.executor == nil {
 		return nil, &constants.ErrorNodeExecutorNotFound
 	}
@@ -83,21 +93,28 @@ func (n *Node) Execute(ctx *FlowContext) (*ExecutorResponse, *serviceerror.Servi
 		return nil, &constants.ErrorNilResponseFromExecutor
 	}
 
-	if execResp.Status == constants.ExecutorStatusComplete {
-		execResp.Status = constants.FlowStatusComplete
-		execResp.Type = ""
-	} else if execResp.Status == constants.ExecutorStatusUserInputRequired {
-		execResp.Status = constants.FlowStatusIncomplete
-		execResp.Type = constants.FlowStepTypeView
-	} else if execResp.Status == constants.ExecutorStatusExternalRedirection {
-		execResp.Status = constants.FlowStatusIncomplete
-		execResp.Type = constants.FlowStepTypeRedirection
-	} else {
-		execResp.Status = constants.FlowStatusError
-		execResp.Type = ""
+	nodeResp := &NodeResponse{
+		Error:          execResp.Error,
+		RequiredData:   execResp.RequiredData,
+		AdditionalInfo: execResp.AdditionalInfo,
+		Assertion:      execResp.Assertion,
 	}
 
-	return execResp, nil
+	if execResp.Status == constants.ExecComplete {
+		nodeResp.Status = constants.Complete
+		nodeResp.Type = ""
+	} else if execResp.Status == constants.ExecUserInputRequired {
+		nodeResp.Status = constants.Incomplete
+		nodeResp.Type = constants.View
+	} else if execResp.Status == constants.ExecExternalRedirection {
+		nodeResp.Status = constants.Incomplete
+		nodeResp.Type = constants.Redirection
+	} else {
+		nodeResp.Status = constants.Error
+		nodeResp.Type = ""
+	}
+
+	return nodeResp, nil
 }
 
 // GetID returns the node's ID

@@ -84,7 +84,7 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 	flowResp := model.FlowResponse{
 		FlowID:         flowStep.FlowID,
 		StepID:         flowStep.StepID,
-		FlowStatus:     flowStep.Status,
+		FlowStatus:     string(flowStep.Status),
 		Actions:        flowStep.Actions,
 		Inputs:         flowStep.InputData,
 		AdditionalInfo: flowStep.AdditionalInfo,
