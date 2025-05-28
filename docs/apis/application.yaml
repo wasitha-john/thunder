@@ -1,28 +1,27 @@
-swagger: "2.0"
-basePath: /
-definitions:
-  model.Application:
-    properties:
-      callback_url:
-        items:
+openapi: 3.0.3
+components:
+  schemas:
+    model.Application:
+      type: object
+      properties:
+        callback_url:
+          type: array
+          items:
+            type: string
+        client_id:
           type: string
-        type: array
-      client_id:
-        type: string
-      client_secret:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      supported_grant_types:
-        items:
+        client_secret:
           type: string
-        type: array
-    type: object
-host: localhost:8090
+        description:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        supported_grant_types:
+          type: array
+          items:
+            type: string
 info:
   contact: {}
   description: This API is used to manage applications.
@@ -34,169 +33,172 @@ info:
 paths:
   /applications:
     get:
-      consumes:
-      - application/json
       description: Retrieve a list of all applications.
-      produces:
-      - application/json
       responses:
         "200":
           description: OK
-          schema:
-            items:
-              $ref: '#/definitions/model.Application'
-            type: array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/model.Application'
         "400":
-          description: 'Bad Request: The request body is malformed or contains invalid
-            data.'
-          schema:
-            type: string
+          description: 'Bad Request: The request body is malformed or contains invalid data.'
+          content:
+            application/json:
+              schema:
+                type: string
         "500":
-          description: 'Internal Server Error: An unexpected error occurred while
-            processing the request.'
-          schema:
-            type: string
+          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
+          content:
+            application/json:
+              schema:
+                type: string
       summary: List applications
       tags:
       - applications
     post:
-      consumes:
-      - application/json
       description: Creates a new application with the provided details.
-      parameters:
-      - description: Application data
-        in: body
-        name: application
+      requestBody:
         required: true
-        schema:
-          $ref: '#/definitions/model.Application'
-      produces:
-      - application/json
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/model.Application'
       responses:
         "201":
           description: Created
-          schema:
-            $ref: '#/definitions/model.Application'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Application'
         "400":
-          description: 'Bad Request: The request body is malformed or contains invalid
-            data.'
-          schema:
-            type: string
+          description: 'Bad Request: The request body is malformed or contains invalid data.'
+          content:
+            application/json:
+              schema:
+                type: string
         "500":
-          description: 'Internal Server Error: An unexpected error occurred while
-            processing the request.'
-          schema:
-            type: string
+          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
+          content:
+            application/json:
+              schema:
+                type: string
       summary: Create an application
       tags:
       - applications
   /applications/{id}:
     delete:
-      consumes:
-      - application/json
       description: Delete an application using its ID.
       parameters:
       - description: Application ID
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "400":
-          description: 'Bad Request: The request body is malformed or contains invalid
-            data.'
-          schema:
-            type: string
+          description: 'Bad Request: The request body is malformed or contains invalid data.'
+          content:
+            application/json:
+              schema:
+                type: string
         "404":
-          description: 'Not Found: The application with the specified ID does not
-            exist.'
-          schema:
-            type: string
+          description: 'Not Found: The application with the specified ID does not exist.'
+          content:
+            application/json:
+              schema:
+                type: string
         "500":
-          description: 'Internal Server Error: An unexpected error occurred while
-            processing the request.'
-          schema:
-            type: string
+          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
+          content:
+            application/json:
+              schema:
+                type: string
       summary: Delete an application
       tags:
       - applications
     get:
-      consumes:
-      - application/json
       description: Retrieve a specific application using its ID.
       parameters:
       - description: Application ID
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
       responses:
         "200":
           description: OK
-          schema:
-            $ref: '#/definitions/model.Application'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Application'
         "400":
-          description: 'Bad Request: The request body is malformed or contains invalid
-            data.'
-          schema:
-            type: string
+          description: 'Bad Request: The request body is malformed or contains invalid data.'
+          content:
+            application/json:
+              schema:
+                type: string
         "404":
-          description: 'Not Found: The application with the specified ID does not
-            exist.'
-          schema:
-            type: string
+          description: 'Not Found: The application with the specified ID does not exist.'
+          content:
+            application/json:
+              schema:
+                type: string
         "500":
-          description: 'Internal Server Error: An unexpected error occurred while
-            processing the request.'
-          schema:
-            type: string
+          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
+          content:
+            application/json:
+              schema:
+                type: string
       summary: Get an application by ID
       tags:
       - applications
     put:
-      consumes:
-      - application/json
       description: Update the details of an existing application.
       parameters:
       - description: Application ID
         in: path
         name: id
         required: true
-        type: string
-      - description: Updated application data
-        in: body
-        name: application
-        required: true
         schema:
-          $ref: '#/definitions/model.Application'
-      produces:
-      - application/json
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/model.Application'
       responses:
         "200":
           description: OK
-          schema:
-            $ref: '#/definitions/model.Application'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Application'
         "400":
-          description: 'Bad Request: The request body is malformed or contains invalid
-            data.'
-          schema:
-            type: string
+          description: 'Bad Request: The request body is malformed or contains invalid data.'
+          content:
+            application/json:
+              schema:
+                type: string
         "404":
-          description: 'Not Found: The application with the specified ID does not
-            exist.'
-          schema:
-            type: string
+          description: 'Not Found: The application with the specified ID does not exist.'
+          content:
+            application/json:
+              schema:
+                type: string
         "500":
-          description: 'Internal Server Error: An unexpected error occurred while
-            processing the request.'
-          schema:
-            type: string
+          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
+          content:
+            application/json:
+              schema:
+                type: string
       summary: Update an application
       tags:
       - applications
