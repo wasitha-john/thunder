@@ -24,27 +24,27 @@ package services
 import (
 	"net/http"
 
+	"github.com/asgardeo/thunder/internal/idp/handler"
 	"github.com/asgardeo/thunder/internal/system/server"
-	"github.com/asgardeo/thunder/internal/user/handler"
 )
 
-// UserService is the service for user management operations.
-type UserService struct {
-	userHandler *handler.UserHandler
+// IDPService is the service for identity provider management operations.
+type IDPService struct {
+	idpHandler *handler.IDPHandler
 }
 
-// NewUserService creates a new instance of UserService.
-func NewUserService(mux *http.ServeMux) *UserService {
-	instance := &UserService{
-		userHandler: &handler.UserHandler{},
+// NewIDPService creates a new instance of IDPService.
+func NewIDPService(mux *http.ServeMux) *IDPService {
+	instance := &IDPService{
+		idpHandler: &handler.IDPHandler{},
 	}
 	instance.RegisterRoutes(mux)
 
 	return instance
 }
 
-// RegisterRoutes registers the routes for user management operations.
-func (s *UserService) RegisterRoutes(mux *http.ServeMux) {
+// RegisterRoutes registers the routes for identity provider operations.
+func (s *IDPService) RegisterRoutes(mux *http.ServeMux) {
 	opts1 := server.RequestWrapOptions{
 		Cors: &server.Cors{
 			AllowedMethods:   "GET, POST",
@@ -52,9 +52,9 @@ func (s *UserService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "POST /users", &opts1, s.userHandler.HandleUserPostRequest)
-	server.WrapHandleFunction(mux, "GET /users", &opts1, s.userHandler.HandleUserListRequest)
-	server.WrapHandleFunction(mux, "OPTIONS /users", &opts1, func(w http.ResponseWriter, r *http.Request) {
+	server.WrapHandleFunction(mux, "POST /identity-providers", &opts1, s.idpHandler.HandleIDPPostRequest)
+	server.WrapHandleFunction(mux, "GET /identity-providers", &opts1, s.idpHandler.HandleIDPListRequest)
+	server.WrapHandleFunction(mux, "OPTIONS /identity-providers", &opts1, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
@@ -65,10 +65,10 @@ func (s *UserService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "GET /users/", &opts2, s.userHandler.HandleUserGetRequest)
-	server.WrapHandleFunction(mux, "PUT /users/", &opts2, s.userHandler.HandleUserPutRequest)
-	server.WrapHandleFunction(mux, "DELETE /users/", &opts2, s.userHandler.HandleUserDeleteRequest)
-	server.WrapHandleFunction(mux, "OPTIONS /users/", &opts2, func(w http.ResponseWriter, r *http.Request) {
+	server.WrapHandleFunction(mux, "GET /identity-providers/", &opts2, s.idpHandler.HandleIDPGetRequest)
+	server.WrapHandleFunction(mux, "PUT /identity-providers/", &opts2, s.idpHandler.HandleIDPPutRequest)
+	server.WrapHandleFunction(mux, "DELETE /identity-providers/", &opts2, s.idpHandler.HandleIDPDeleteRequest)
+	server.WrapHandleFunction(mux, "OPTIONS /identity-providers/", &opts2, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 }
