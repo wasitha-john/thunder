@@ -34,6 +34,7 @@ BUILD_DIR=$OUTPUT_DIR/.build
 BACKEND_BASE_DIR=backend
 BACKEND_DIR=$BACKEND_BASE_DIR/cmd/server
 REPOSITORY_DIR=$BACKEND_BASE_DIR/cmd/server/repository
+REPOSITORY_DB_DIR=$REPOSITORY_DIR/database
 SERVER_SCRIPTS_DIR=$BACKEND_BASE_DIR/scripts
 SERVER_DB_SCRIPTS_DIR=$BACKEND_BASE_DIR/dbscripts
 SECURITY_DIR=repository/resources/security
@@ -61,6 +62,9 @@ function build_backend() {
     -x -ldflags "-X \"main.version=$VERSION\" \
     -X \"main.buildDate=$$(date -u '+%Y-%m-%d %H:%M:%S UTC')\"" \
     -o "../$BUILD_DIR/$BINARY_NAME" ./cmd/server
+
+    echo "Initializing databases..."
+    initialize_databases
 }
 
 function build_frontend() {
@@ -68,6 +72,36 @@ function build_frontend() {
     command -v pnpm >/dev/null 2>&1 || npm install -g pnpm
     pnpm i
     pnpm --filter gate build
+}
+
+function initialize_databases() {
+    echo "Initializing SQLite databases..."
+
+    mkdir -p "$REPOSITORY_DB_DIR"
+
+    db_files=("thunder.db" "runtime.db")
+    script_paths=("thunderdb/sqlite.sql" "runtimedb/sqlite.sql")
+
+    for ((i = 0; i < ${#db_files[@]}; i++)); do
+        db_file="${db_files[$i]}"
+        script_rel_path="${script_paths[$i]}"
+        db_path="$REPOSITORY_DB_DIR/$db_file"
+        script_path="$SERVER_DB_SCRIPTS_DIR/$script_rel_path"
+
+        if [[ -f "$script_path" ]]; then
+            if [[ -f "$db_path" ]]; then
+                echo " - Removing existing $db_file"
+                rm "$db_path"
+            fi
+
+            echo " - Creating $db_file using $script_path"
+            sqlite3 "$db_path" < "$script_path"
+        else
+            echo " ! Skipping $db_file: SQL script not found at $script_path"
+        fi
+    done
+
+    echo "SQLite database initialization complete."
 }
 
 function prepare_backend_for_packaging() {
