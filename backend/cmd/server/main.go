@@ -28,6 +28,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/asgardeo/thunder/internal/flow"
 	"github.com/asgardeo/thunder/internal/system/cert"
 	"github.com/asgardeo/thunder/internal/system/managers"
 
@@ -54,6 +55,9 @@ func main() {
 	if mux == nil {
 		logger.Fatal("Failed to initialize multiplexer")
 	}
+
+	// Initialize the flow service.
+	initFlowService(logger)
 
 	startServer(logger, cfg, mux, thunderHome)
 }
@@ -114,6 +118,14 @@ func initMultiplexer(logger *log.Logger) *http.ServeMux {
 	}
 
 	return mux
+}
+
+// initFlowService initializes the flow service.
+func initFlowService(logger *log.Logger) {
+	svc := flow.GetFlowService()
+	if err := svc.Init(); err != nil {
+		logger.Fatal("Failed to initialize flow service", log.Error(err))
+	}
 }
 
 // startServer starts the HTTP server with the given configurations and multiplexer.
