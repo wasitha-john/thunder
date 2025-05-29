@@ -27,6 +27,8 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
+const loggerComponentName = "BasicAuthExecutor"
+
 // BasicAuthExecutor implements the ExecutorInterface for basic authentication.
 type BasicAuthExecutor struct {
 	internal flowmodel.Executor
@@ -61,9 +63,10 @@ func (b *BasicAuthExecutor) GetProperties() flowmodel.ExecutorProperties {
 
 // Execute executes the basic authentication logic.
 func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.ExecutorResponse, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "BasicAuthExecutor"))
-	logger.Debug("Executing basic authentication executor",
-		log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, b.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+	logger.Debug("Executing basic authentication executor")
 
 	execResp := &flowmodel.ExecutorResponse{
 		Status: flowconst.ExecIncomplete,
@@ -72,8 +75,7 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 	// Validate for the required input data.
 	if b.requiredInputData(ctx, execResp) {
 		// If required input data is not provided, return incomplete status.
-		logger.Debug("Required input data for basic authentication executor is not provided",
-			log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID))
+		logger.Debug("Required input data for basic authentication executor is not provided")
 		execResp.Status = flowconst.ExecUserInputRequired
 		execResp.Type = flowconst.ExecView
 		return execResp, nil
@@ -115,7 +117,6 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 	}
 
 	logger.Debug("Basic authentication executor execution completed",
-		log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID),
 		log.String("status", string(execResp.Status)),
 		log.Bool("isAuthenticated", ctx.AuthenticatedUser.IsAuthenticated))
 
@@ -125,7 +126,9 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 // requiredInputData checks and adds the required input data for basic authentication.
 // Returns true if needed to request user input data.
 func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execResp *flowmodel.ExecutorResponse) bool {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "BasicAuthExecutor"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, b.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 
 	// TODO: Convert password to a secure type (i.e. byte_array)
 	basicReqData := []flowmodel.InputData{
@@ -146,8 +149,7 @@ func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execRe
 	//  should happen during the flow definition creation.
 	requiredData := ctx.CurrentNode.GetInputData()
 	if len(requiredData) == 0 {
-		logger.Debug("No required input data defined for basic authentication executor",
-			log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID))
+		logger.Debug("No required input data defined for basic authentication executor")
 		requiredData = basicReqData
 	} else {
 		// Append the default required data if not already present.
@@ -182,14 +184,12 @@ func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execRe
 		if _, ok := ctx.UserInputData[inputData.Name]; !ok {
 			if !inputData.Required {
 				logger.Debug("Skipping optional input data that is not provided by user",
-					log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID),
 					log.String("inputDataName", inputData.Name))
 				continue
 			}
 			execResp.RequiredData = append(execResp.RequiredData, inputData)
 			requireData = true
 			logger.Debug("Required input data not provided by user",
-				log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID),
 				log.String("inputDataName", inputData.Name))
 		}
 	}

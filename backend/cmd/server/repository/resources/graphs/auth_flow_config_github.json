@@ -1,5 +1,6 @@
 {
     "id": "auth_flow_config_github",
+    "type": "AUTHENTICATION",
     "nodes": [
         {
             "id": "git_auth",

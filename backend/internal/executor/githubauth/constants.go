@@ -27,6 +27,3 @@ const (
 	userScope               = "user"
 	userEmailScope          = "user:email"
 )
-
-// loggerComponentName is the name of the logger component for GitHub authenticator.
-const loggerComponentName = "GithubAuthExecutor"

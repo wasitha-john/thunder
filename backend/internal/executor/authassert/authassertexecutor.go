@@ -26,6 +26,8 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
+const loggerComponentName = "AuthAssertExecutor"
+
 // AuthAssertExecutor is an executor that handles authentication assertions in the flow.
 type AuthAssertExecutor struct {
 	internal flowmodel.Executor
@@ -60,9 +62,10 @@ func (a *AuthAssertExecutor) GetProperties() flowmodel.ExecutorProperties {
 
 // Execute executes the authentication assertion logic.
 func (a *AuthAssertExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.ExecutorResponse, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "AuthAssertExecutor"))
-	logger.Debug("Executing authentication assertion executor",
-		log.String("executorID", a.GetID()), log.String("flowID", ctx.FlowID))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, a.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+	logger.Debug("Executing authentication assertion executor")
 
 	exeResp := &flowmodel.ExecutorResponse{
 		Status: flowconst.ExecComplete,
@@ -81,8 +84,7 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exe
 			return exeResp, nil
 		}
 
-		logger.Debug("Generated JWT token for authentication assertion",
-			log.String("executorID", a.GetID()), log.String("flowID", ctx.FlowID))
+		logger.Debug("Generated JWT token for authentication assertion")
 
 		exeResp.Assertion = token
 	} else {
@@ -90,9 +92,7 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exe
 		exeResp.Error = "User is not authenticated"
 	}
 
-	logger.Debug("Authentication assertion executor execution completed",
-		log.String("executorID", a.GetID()), log.String("flowID", ctx.FlowID),
-		log.String("status", string(exeResp.Status)))
+	logger.Debug("Authentication assertion executor execution completed", log.String("status", string(exeResp.Status)))
 
 	return exeResp, nil
 }
