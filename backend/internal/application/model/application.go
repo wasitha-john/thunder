@@ -28,4 +28,5 @@ type Application struct {
 	ClientSecret        string   `json:"client_secret"`
 	CallbackURLs        []string `json:"callback_url"`
 	SupportedGrantTypes []string `json:"supported_grant_types"`
+	AuthFlowGraphID     string   `json:"auth_flow_graph_id,omitempty"`
 }

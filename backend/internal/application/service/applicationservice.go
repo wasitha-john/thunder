@@ -25,6 +25,8 @@ import (
 
 	"github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/application/store"
+	"github.com/asgardeo/thunder/internal/flow/graphservice"
+	"github.com/asgardeo/thunder/internal/system/config"
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
@@ -130,6 +132,9 @@ func (as *ApplicationService) CreateApplication(app *model.Application) (*model.
 	if len(app.CallbackURLs) == 0 {
 		return nil, errors.New("at least one callback URL is required")
 	}
+	if err := validateAuthFlowGraphID(app); err != nil {
+		return nil, err
+	}
 
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 	app.ID = utils.GenerateUUID()
@@ -187,6 +192,9 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 	if len(app.CallbackURLs) == 0 {
 		return nil, errors.New("at least one callback URL is required")
 	}
+	if err := validateAuthFlowGraphID(app); err != nil {
+		return nil, err
+	}
 
 	err := store.UpdateApplication(app)
 	if err != nil {
@@ -208,4 +216,25 @@ func (as *ApplicationService) DeleteApplication(appID string) error {
 	}
 
 	return nil
+}
+
+// validateAuthFlowGraphID validates the auth flow graph ID for the application.
+// If the graph ID is not provided, it sets the default authentication flow graph ID.
+func validateAuthFlowGraphID(app *model.Application) error {
+	if app.AuthFlowGraphID != "" {
+		isValidFlowGraphID := graphservice.GetGraphService().IsValidGraphID(app.AuthFlowGraphID)
+		if !isValidFlowGraphID {
+			return fmt.Errorf("invalid auth flow graph ID: %s", app.AuthFlowGraphID)
+		}
+	} else {
+		app.AuthFlowGraphID = getDefaultAuthFlowGraphID()
+	}
+
+	return nil
+}
+
+// getDefaultAuthFlowGraphID returns the configured default authentication flow graph ID.
+func getDefaultAuthFlowGraphID() string {
+	authFlowConfig := config.GetThunderRuntime().Config.Flow.Authn
+	return authFlowConfig.DefaultFlow
 }

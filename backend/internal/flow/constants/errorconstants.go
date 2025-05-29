@@ -169,3 +169,21 @@ var ErrorUpdatingContextInStore = serviceerror.ServiceError{
 	Error:            "Something went wrong",
 	ErrorDescription: "Error updating flow context in the store",
 }
+
+// ErrorAuthFlowNotConfiguredForApplication defines the error response for applications without
+// an authentication flow graph configured.
+var ErrorAuthFlowNotConfiguredForApplication = serviceerror.ServiceError{
+	Code:             "FES-65014",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Invalid configuration",
+	ErrorDescription: "No authentication flow graph is configured for the application",
+}
+
+// ErrorInvalidAuthFlowConfiguredForApplication defines the error response for applications with an invalid
+// authentication flow graph configured.
+var ErrorInvalidAuthFlowConfiguredForApplication = serviceerror.ServiceError{
+	Code:             "FES-65015",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Invalid configuration",
+	ErrorDescription: "The configured flow graph is not valid for the application authentication flow",
+}

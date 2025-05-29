@@ -4,6 +4,10 @@ components:
     model.Application:
       type: object
       properties:
+        auth_flow_graph_id:
+          type: string
+          items:
+            type: string
         callback_url:
           type: array
           items:
