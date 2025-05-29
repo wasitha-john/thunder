@@ -81,35 +81,178 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   - **Client ID:** `client123`
   - **Client Secret:** `secret123`
 
-#### 3️⃣ Configure Login with GitHub
+#### 3️⃣ Try App Native Login
+
+##### 1️⃣ Login with Basic Authentication
+
+- Create an application and configure the basic auth login template for it.
+  ```bash
+  curl --location 'https://localhost:8090/applications' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --data '{
+      "client_id": "client456",
+      "client_secret": "***",
+      "callback_url": [
+          "https://localhost:3000"
+      ],
+      "auth_flow_graph_id": "auth_flow_config_basic",
+      "description": "Sample application for App native login",
+      "name": "App Native Login"
+  }'
+  ```
+
+- Start login flow for the application with the following cURL command:
+
+  ```bash
+  curl --location 'https://localhost:8090/flow/execution' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+      "applicationId": "<application_id>",
+  }
+  '
+  ```
+
+  You'll receive a response similar to the following:
+
+  ```json
+  {
+      "flowId": "db93a19e-c23f-4cfc-a45f-0e0bc157f6d5",
+      "flowStatus": "PROMPT_ONLY",
+      "inputs": [
+          {
+              "name": "username",
+              "type": "string",
+              "required": true
+          },
+          {
+              "name": "password",
+              "type": "string",
+              "required": true
+          }
+      ]
+  }
+  ```
+
+- Make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
+
+  ```bash
+  curl --location 'https://localhost:8090/flow/execution' \
+  --header 'Content-Type: application/json' \
+  --data '{
+      "flowId": "<flow_id>",
+      "inputs": {
+          "username": "thor",
+          "password": "thor123"
+      }
+  }
+  '
+  ```
+
+- If the login is successful, you will receive a response with the auth assertion.
+
+##### 2️⃣ Login with GitHub
 
 - Create an OAuth application in your Github account following the instructions given in the [Github documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app).
-  - Configure the urls as follows:
-    - **Homepage URL:** `https://localhost:8090`
-    - **Authorization callback URL:** `https://localhost:8090/flow/authn`
+  - Configure home page and callback URLs as per your application.
   - Copy the **Client ID** and **Client Secret**.
 
 - Open the deployment.yaml file in the `backend/cmd/server/repository/conf` directory and add the following configurations:
 
   ```yaml
-  authenticator:
-    default: "GithubAuthenticator"
-    authenticators:
-      - name: "GithubAuthenticator"
-        type: "federated"
-        display_name: "Github"
-        description: "Login with Github"
-        client_id: "<client_id>"
-        client_secret: "<client_secret>"
-        redirect_uri: "https://localhost:8090/flow/authn"
-        scopes:
-          - "user:email"
-          - "read:user"
-        additional_params:  # Optional parameters.
-          prompt: "select_account"
+  flow:
+    graph_directory: "repository/resources/graphs/"
+    authn:
+      default_flow: "auth_flow_config_basic"
+      executors:
+        - name: "BasicAuthExecutor"
+
+        - name: "GithubAuthExecutor"
+          client_id: "<client_id>"
+          client_secret: "<client_secret>"
+          redirect_uri: "<app_callback_url>"
+          scopes:
+            - "user:email"
+            - "read:user"
+          additional_params:
+            prompt: "select_account"
+            state: "${flowId}"
   ```
 
 - Restart the server.
+
+- Create an application and configure the GitHub login template for it.
+
+  ```bash
+  curl --location 'https://localhost:8090/applications' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --data '{
+      "client_id": "client456",
+      "client_secret": "***",
+      "callback_url": [
+          "https://localhost:3000"
+      ],
+      "auth_flow_graph_id": "auth_flow_config_github",
+      "description": "Sample application for App native login",
+      "name": "App Native Login"
+  }'
+  ```
+
+- Start login flow for the application with the following cURL command:
+
+  ```bash
+  curl --location 'https://localhost:8090/flow/execution' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+      "applicationId": "<application_id>",
+  }
+  '
+  ```
+
+  You'll receive a response similar to the following:
+
+  ```json
+  {
+      "flowId": "80d57e64-8082-4096-bb0e-22b2187f8265",
+      "flowStatus": "INCOMPLETE",
+      "inputs": [
+          {
+              "name": "code",
+              "type": "string",
+              "required": true
+          }
+      ],
+      "additionalInfo": {
+          "redirect_url": "<github_auth_redirect_url>"
+      }
+  }
+  ```
+
+- Open the `redirect_url` in your browser. You will be redirected to the GitHub login page. Enter your GitHub credentials and authorize the application.
+- After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
+
+  ```bash
+  https://localhost:3000/?code=<code>&state=80d57e64-8082-4096-bb0e-22b2187f8265
+  ```
+
+- Copy the authorization code and make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
+
+  ```bash
+  curl --location 'https://localhost:8090/flow/execution' \
+  --header 'Content-Type: application/json' \
+  --data '{
+      "flowId": "<flow_id>",
+      "inputs": {
+          "code": "<code>"
+      }
+  }
+  '
+  ```
+
+- If the login is successful, you will receive a response with the auth assertion.
 
 ## ⚡ Build the Product from Source
 
