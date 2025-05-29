@@ -104,7 +104,28 @@ type Authenticator struct {
 type AuthenticatorConfig struct {
 	DefaultAuthenticator string          `yaml:"default"`
 	Authenticators       []Authenticator `yaml:"authenticators"`
-	GraphDirectory       string          `yaml:"graph_directory"`
+}
+
+// Executor holds the configuration details for an individual executor in a flow.
+type Executor struct {
+	Name             string            `yaml:"name"`
+	ClientID         string            `yaml:"client_id"`
+	ClientSecret     string            `yaml:"client_secret"`
+	RedirectURI      string            `yaml:"redirect_uri"`
+	Scopes           []string          `yaml:"scopes"`
+	AdditionalParams map[string]string `yaml:"additional_params"`
+}
+
+// FlowAuthnConfig holds the configuration details for the authentication flows.
+type FlowAuthnConfig struct {
+	DefaultFlow string     `yaml:"default_flow"`
+	Executors   []Executor `yaml:"executors"`
+}
+
+// FlowConfig holds the configuration details for the flow service.
+type FlowConfig struct {
+	GraphDirectory string          `yaml:"graph_directory"`
+	Authn          FlowAuthnConfig `yaml:"authn"`
 }
 
 // Config holds the complete configuration details of the server.
@@ -116,6 +137,7 @@ type Config struct {
 	UserStore     UserStore           `yaml:"user_store"`
 	OAuth         OAuthConfig         `yaml:"oauth"`
 	Authenticator AuthenticatorConfig `yaml:"authenticator"`
+	Flow          FlowConfig          `yaml:"flow"`
 }
 
 // LoadConfig loads the configurations from the specified YAML file.

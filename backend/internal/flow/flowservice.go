@@ -23,10 +23,12 @@ import (
 	"errors"
 	"sync"
 
+	appservice "github.com/asgardeo/thunder/internal/application/service"
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/dao"
 	"github.com/asgardeo/thunder/internal/flow/engine"
 	"github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
@@ -64,6 +66,25 @@ func (s *FlowService) Init() error {
 	flowDAO := dao.GetFlowDAO()
 	if err := flowDAO.Init(); err != nil {
 		return errors.New("failed to initialize flow service: " + err.Error())
+	}
+
+	if err := validateDefaultFlowConfigs(flowDAO); err != nil {
+		return errors.New("default flow config validation failed: " + err.Error())
+	}
+
+	return nil
+}
+
+// validateDefaultFlowConfigs validates the default flow configurations.
+func validateDefaultFlowConfigs(flowDAO dao.FlowDAOInterface) error {
+	flowConfig := config.GetThunderRuntime().Config.Flow
+
+	// Validate auth flow.
+	if flowConfig.Authn.DefaultFlow == "" {
+		return errors.New("default authentication flow is not configured")
+	}
+	if !flowDAO.IsValidGraphID(flowConfig.Authn.DefaultFlow) {
+		return errors.New("default authentication flow graph ID is invalid")
 	}
 
 	return nil
@@ -118,8 +139,9 @@ func (s *FlowService) loadContext(appID, flowID, actionID string, inputData map[
 
 // initContext initializes a new flow context with the given details.
 func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.FlowContext, *serviceerror.ServiceError) {
-	if appID == "" {
-		return nil, &constants.ErrorInvalidAppID
+	graphID, svcErr := validateApplication(appID)
+	if svcErr != nil {
+		return nil, svcErr
 	}
 
 	ctx := model.FlowContext{}
@@ -127,8 +149,7 @@ func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.Flow
 	ctx.FlowID = flowID
 
 	flowDAO := dao.GetFlowDAO()
-	// TODO: This needs to be retrieved from the app config.
-	graph, ok := flowDAO.GetGraph("auth_flow_config_basic")
+	graph, ok := flowDAO.GetGraph(graphID)
 	if !ok {
 		logger.Error("Graph not found for the graph id")
 		return nil, &constants.ErrorFlowGraphNotFound
@@ -137,6 +158,30 @@ func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.Flow
 	ctx.AppID = appID
 
 	return &ctx, nil
+}
+
+// validateApplication checks if the provided application ID is valid and
+// returns the associated auth flow graph ID.
+func validateApplication(appID string) (string, *serviceerror.ServiceError) {
+	if appID == "" {
+		return "", &constants.ErrorInvalidAppID
+	}
+
+	appSvc := appservice.GetApplicationService()
+	app, err := appSvc.GetApplication(appID)
+	if err != nil {
+		return "", &constants.ErrorInvalidAppID
+	}
+	if app == nil {
+		return "", &constants.ErrorInvalidAppID
+	}
+
+	// At this point, we assume auth flow graph is configured for the application.
+	if app.AuthFlowGraphID == "" {
+		return "", &constants.ErrorAuthFlowNotConfiguredForApplication
+	}
+
+	return app.AuthFlowGraphID, nil
 }
 
 // loadContextFromStore retrieves the flow context from the store based on the given details.

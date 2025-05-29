@@ -44,6 +44,7 @@ type FlowDAOInterface interface {
 	Init() error
 	RegisterGraph(graphID string, g model.GraphInterface)
 	GetGraph(graphID string) (model.GraphInterface, bool)
+	IsValidGraphID(graphID string) bool
 }
 
 // FlowDAO is the implementation of FlowDAOInterface.
@@ -66,11 +67,14 @@ func (c *FlowDAO) Init() error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowDAO"))
 	logger.Info("Initializing the flow DAO layer")
 
-	configDir := config.GetThunderRuntime().Config.Authenticator.GraphDirectory
+	configDir := config.GetThunderRuntime().Config.Flow.GraphDirectory
 	if configDir == "" {
 		logger.Info("Graph directory is not set. No graphs will be loaded.")
 		return nil
 	}
+
+	configDir = filepath.Join(config.GetThunderRuntime().ThunderHome, configDir)
+	configDir = filepath.Clean(configDir)
 
 	logger.Debug("Loading graphs from config directory", log.String("configDir", configDir))
 
@@ -149,4 +153,13 @@ func (c *FlowDAO) RegisterGraph(graphID string, g model.GraphInterface) {
 func (c *FlowDAO) GetGraph(graphID string) (model.GraphInterface, bool) {
 	g, ok := c.graphs[graphID]
 	return g, ok
+}
+
+// IsValidGraphID checks if the provided graph ID is valid and exists in the DAO.
+func (c *FlowDAO) IsValidGraphID(graphID string) bool {
+	if graphID == "" {
+		return false
+	}
+	_, exists := c.graphs[graphID]
+	return exists
 }

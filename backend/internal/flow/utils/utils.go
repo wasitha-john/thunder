@@ -187,18 +187,18 @@ func getExecutorByName(name string) (model.ExecutorInterface, error) {
 }
 
 // getExecutorConfig retrieves the configuration for an executor by its name.
-func getExecutorConfig(name string) (*config.Authenticator, error) {
-	authConfigs := config.GetThunderRuntime().Config.Authenticator.Authenticators
+func getExecutorConfig(name string) (*config.Executor, error) {
+	authExecConfigs := config.GetThunderRuntime().Config.Flow.Authn.Executors
 
-	if len(authConfigs) == 0 {
-		return nil, fmt.Errorf("no authenticators configured in the system")
+	if len(authExecConfigs) == 0 {
+		return nil, fmt.Errorf("no auth executors configured in the system")
 	}
 
-	for _, cfg := range authConfigs {
+	for _, cfg := range authExecConfigs {
 		if cfg.Name == name {
 			return &cfg, nil
 		}
 	}
 
-	return nil, fmt.Errorf("authenticator with name %s not found", name)
+	return nil, fmt.Errorf("auth executor with name %s not found", name)
 }

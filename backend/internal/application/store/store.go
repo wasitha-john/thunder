@@ -36,7 +36,7 @@ import (
 func CreateApplication(app model.Application) error {
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryCreateApplication.Query, app.ID, app.Name, app.Description)
+			_, err := tx.Exec(QueryCreateApplication.Query, app.ID, app.Name, app.Description, app.AuthFlowGraphID)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
@@ -131,7 +131,8 @@ func GetApplication(id string) (model.Application, error) {
 func UpdateApplication(app *model.Application) error {
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryUpdateApplicationByAppID.Query, app.ID, app.Name, app.Description)
+			_, err := tx.Exec(QueryUpdateApplicationByAppID.Query, app.ID, app.Name, app.Description,
+				app.AuthFlowGraphID)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
@@ -191,6 +192,12 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		return model.Application{}, fmt.Errorf("failed to parse description as string")
 	}
 
+	authFlowGraphID, ok := row["auth_flow_graph_id"].(string)
+	if !ok {
+		logger.Error("failed to parse auth_flow_graph_id as string")
+		return model.Application{}, fmt.Errorf("failed to parse auth_flow_graph_id as string")
+	}
+
 	clientID, ok := row["consumer_key"].(string)
 	if !ok {
 		logger.Error("failed to parse consumer_key as string")
@@ -221,6 +228,7 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		ID:                  appID,
 		Name:                appName,
 		Description:         description,
+		AuthFlowGraphID:     authFlowGraphID,
 		ClientID:            clientID,
 		ClientSecret:        "***",
 		CallbackURLs:        redirectURIs,
