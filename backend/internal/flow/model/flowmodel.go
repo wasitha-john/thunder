@@ -83,6 +83,7 @@ type FlowResponse struct {
 	FlowID         string            `json:"flowId"`
 	StepID         string            `json:"stepId,omitempty"`
 	FlowStatus     string            `json:"flowStatus"`
+	Type           string            `json:"type,omitempty"`
 	Actions        []Action          `json:"actions,omitempty"`
 	Inputs         []InputData       `json:"inputs,omitempty"`
 	AdditionalInfo map[string]string `json:"additionalInfo,omitempty"`
