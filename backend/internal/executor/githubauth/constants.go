@@ -16,13 +16,14 @@
  * under the License.
  */
 
-package log
+package githubauth
 
+// Constants used for GitHub OAuth2 authentication and API endpoints.
 const (
-	// LoggerKeyComponentName is the key used to identify the component name in the logger.
-	LoggerKeyComponentName = "component"
-	// LoggerKeyExecutorID is the key used to identify the executor ID in the logger.
-	LoggerKeyExecutorID = "executorId"
-	// LoggerKeyFlowID is the key used to identify the flow ID in the logger.
-	LoggerKeyFlowID = "flowId"
+	githubAuthorizeEndpoint = "https://github.com/login/oauth/authorize"
+	githubTokenEndpoint     = "https://github.com/login/oauth/access_token" // #nosec G101
+	githubUserInfoEndpoint  = "https://api.github.com/user"
+	githubUserEmailEndpoint = "https://api.github.com/user/emails"
+	userScope               = "user"
+	userEmailScope          = "user:email"
 )

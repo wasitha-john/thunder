@@ -44,3 +44,14 @@ flow:
     default_flow: "auth_flow_config_basic"
     executors:
       - name: "BasicAuthExecutor"
+
+      - name: "GithubAuthExecutor"
+        client_id: "<client_id>"
+        client_secret: "<client_secret>"
+        redirect_uri: "<redirect_uri>"
+        scopes:
+          - "user:email"
+          - "read:user"
+        additional_params:
+          prompt: "select_account"
+          state: "${flowId}"

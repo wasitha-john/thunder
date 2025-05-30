@@ -1,0 +1,25 @@
+{
+    "id": "auth_flow_config_github",
+    "type": "AUTHENTICATION",
+    "nodes": [
+        {
+            "id": "git_auth",
+            "type": "TASK_EXECUTOR",
+            "inputData": [
+                {
+                    "name": "code",
+                    "type": "string",
+                    "required": true
+                }
+            ],
+            "executor": "GithubAuthExecutor"
+        },
+        {
+            "id": "authenticated",
+            "type": "AUTHENTICATION_SUCCESS"
+        }
+    ],
+    "edges": {
+        "git_auth": ["authenticated"]
+    }
+}

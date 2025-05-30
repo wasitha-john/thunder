@@ -75,3 +75,15 @@ func RedirectToErrorPage(w http.ResponseWriter, r *http.Request, code, msg strin
 	// Redirect with the request object.
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
+
+// GetScopesString converts the scopes slice to a space-separated string.
+func GetScopesString(scopes []string) string {
+	if len(scopes) == 0 {
+		return ""
+	}
+	scopesString := scopes[0]
+	for i := 1; i < len(scopes); i++ {
+		scopesString += " " + scopes[i]
+	}
+	return scopesString
+}
