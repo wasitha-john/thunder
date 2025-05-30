@@ -16,87 +16,42 @@
  * under the License.
  */
 
-import { useEffect, useState, useMemo, useRef } from 'react';
-import { Route, BrowserRouter as Router, Switch, useLocation } from 'react-router-dom';
-import ErrorPage from './components/ErrorPage';
-import HomePage from './components/HomePage';
-import LoginPage from './components/LoginPage';
-import { exchangeCodeForToken } from './services/authService';
+import { Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
+import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
+import RedirectLoginPage from './pages/RedirectLoginPage';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import './App.css';
 
-interface TokenErrorInterface {
-  error: string;
-  error_description: string;
-}
-
 const App = () => {
-  const [token, setToken] = useState(null);
-  const [error, setError] = useState<TokenErrorInterface | null>(null); // State to store token error
-
-  const hasFetched = useRef(false);
-
-  const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const { token } = useAuth();
   const location = useLocation(); // Get the current location
 
-  useEffect(() => {
-    const error = urlParams.get('error');
-    const errorDescription = urlParams.get('error_description');
-
-    if (error) {
-      setError({
-        error: error,
-        error_description: errorDescription || 'No description available',
-      });
-
-      return;
+  const renderContent = () => {
+    if (token) {
+      return <HomePage />;
+    } else {
+      if (import.meta.env.VITE_REACT_APP_REDIRECT_BASED_LOGIN === "true") {
+        return <RedirectLoginPage />;
+      } else {
+        return <LoginPage />;
+      }
     }
-  }, [urlParams]);
-
-  useEffect(() => {
-    // Prevent double fetch calls
-    if (hasFetched.current) return;
-    hasFetched.current = true;
-
-    const code = urlParams.get('code');
-    
-    if (code && !token) {
-      exchangeCodeForToken(code)
-        .then(response => {
-          setToken(response.access_token);
-        })
-        .catch(error => {
-          console.error('Error fetching access token:', error);
-          setError(
-            error.response && error.response.data
-              ? error.response.data
-              : { message: 'Unknown error' }
-          );
-        });
-    }
-  }, [token, urlParams]);
+  };
 
   return (
-    <Switch>
-      <Route path="/" exact key={location.key}>
-        {error ? (
-          <ErrorPage
-            errorCode={error.error || 'Unknown Error'}
-            errorMessage={error.error_description || 'No description available'}
-          />
-        ) : token ? (
-          <HomePage token={token} />
-        ) : (
-          <LoginPage />
-        )}
-      </Route>
-    </Switch>
+    <Routes>
+      <Route path="/" element={renderContent()} key={location.key} />
+    </Routes>
   );
 };
 
 const AppWrapper = () => (
-  <Router>
-    <App />
-  </Router>
+  <AuthProvider>
+    <Router>
+      <App />
+    </Router>
+  </AuthProvider>
 );
 
 export default AppWrapper;

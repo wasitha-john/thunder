@@ -52,4 +52,7 @@ func (s *FlowExecutionService) RegisterRoutes(mux *http.ServeMux) {
 		},
 	}
 	server.WrapHandleFunction(mux, "POST /flow/execution", &opts, s.flowExecutionHandler.HandleFlowExecutionRequest)
+	server.WrapHandleFunction(mux, "OPTIONS /flow/execution", &opts, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
 }

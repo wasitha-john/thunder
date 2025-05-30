@@ -17,7 +17,10 @@
  */
 
 const config = {
-    authEndpoint: import.meta.env.VITE_REACT_APP_SERVER_AUTHENTICATION_ENDPOINT,
+    applicationID: import.meta.env.VITE_REACT_APP_BASIC_AUTH_APP_ID,
+    applicationsEndpoint: import.meta.env.VITE_REACT_APPLICATIONS_ENDPOINT,
+    flowEndpoint: import.meta.env.VITE_REACT_APP_SERVER_FLOW_ENDPOINT,
+    authorizationEndpoint: import.meta.env.VITE_REACT_APP_SERVER_AUTHORIZATION_ENDPOINT,
     tokenEndpoint: import.meta.env.VITE_REACT_APP_SERVER_TOKEN_ENDPOINT,
     clientId: import.meta.env.VITE_REACT_APP_CLIENT_ID,
     clientSecret: import.meta.env.VITE_REACT_APP_CLIENT_SECRET,

@@ -16,25 +16,29 @@
  * under the License.
  */
 
+import axios from 'axios';
+import config from '../config';
+
+const { applicationsEndpoint } = config;
+
 /**
- * Decodes a JWT token string into its header, payload, and signature components.
+ * Get applications list from the server.
  * 
- * @param token JWT token string to decode.
- * @returns An object containing the decoded header, payload, and signature.
+ * @returns A promise that resolves to the list of applications.
  */
-export const decodeJwt = (token: string) => {
+export const getApplications = async () => {
+    const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    };
+
     try {
-        const [header, payload, signature] = token.split('.');
-        const decodedHeader = JSON.parse(atob(header));
-        const decodedPayload = JSON.parse(atob(payload));
-        return {
-            header: decodedHeader,
-            payload: decodedPayload,
-            // Signature is not decoded as it's not base64-encoded JSON.
-            signature,
-        };
+        const response = await axios.get(applicationsEndpoint, {
+            headers,
+        });
+        return response.data;
     } catch (error) {
-        console.error('Failed to decode token:', error);
-        return null;
+        console.error('Error retrieving applications list:', error);
+        throw error;
     }
 };
