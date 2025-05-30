@@ -16,15 +16,16 @@
  * under the License.
  */
 
-const ErrorPage = ({ errorCode, errorMessage }: { errorCode: string, errorMessage: string }) => {
-    return (
-        <div className="error-page">
-            <h1>Error</h1>
-            <p><strong>Code:</strong> {errorCode}</p>
-            <p><strong>Message:</strong> {errorMessage}</p>
-            <button onClick={() => window.location.href = '/'}>Back to Login</button>
-        </div>
-    );
-};
+import { ThemeProvider as MUIThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import theme from './theme';
+import './theme.css';
 
-export default ErrorPage;
+export default function ThemeProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <MUIThemeProvider theme={theme}>
+      <CssBaseline />
+      {children}
+    </MUIThemeProvider>
+  );
+}

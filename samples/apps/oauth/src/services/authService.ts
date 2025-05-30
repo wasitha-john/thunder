@@ -19,14 +19,124 @@
 import axios from 'axios';
 import config from '../config';
 
-const { clientId, clientSecret, redirectUri, authEndpoint, tokenEndpoint } = config;
+export enum NativeAuthSubmitType {
+    BASIC = 'BASIC',
+    SOCIAL = 'SOCIAL'
+}
 
-export const initiateAuth = () => {
+export type NativeAuthSubmitTypes = keyof typeof NativeAuthSubmitType;
+
+type NativeAuthSubmitPayload =
+  | { type: NativeAuthSubmitType.BASIC; username: string; password: string }
+  | { type: NativeAuthSubmitType.SOCIAL; code: string };
+
+const { applicationID, clientId, clientSecret, flowEndpoint, redirectUri, tokenEndpoint } = config;
+
+/**
+ * Initiates the OAuth 2.0 authorization code flow by redirecting the user to the authorization endpoint.
+ * 
+ * @returns {void}
+ */
+export const initiateRedirectAuth = () => {
     const state = Math.random().toString(36).substring(2, 15); // Generate a random state.
-    const url = `${authEndpoint}?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=openid&state=${state}`;
+    const url = `${flowEndpoint}/authn?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=openid&state=${state}`;
     window.location.href = url;
 };
 
+/**
+ * Initiates the native authentication flow by sending a POST request to the flow endpoint.
+ * 
+ * @returns {Promise<object>} - A promise that resolves to the response data from the server.
+ */
+export const initiateNativeAuth = async () => {
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+
+    const data = {
+        "applicationId": applicationID
+    }
+
+    try {
+        const response = await axios.post(`${flowEndpoint}/execution`, data, {
+            headers,
+        });
+
+        return { data: response.data };
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            const message = error.response?.status === 400
+              ? 'Error initiating native authentication request.'
+              : error.response?.data?.message || 'Server error occurred.';
+            throw new Error(message);
+        } else {
+            throw new Error('Unexpected error occurred.');
+        }
+    }
+};
+
+/**
+ * Submits the native authentication form data to the server.
+ * 
+ * @param {string} flowId - The flow ID received from the initiateNativeAuth response.
+ * @param {object} formData - An object containing the username and password.
+ * @returns {Promise<object>} - A promise that resolves to the response data from the server.
+ */
+export const submitNativeAuth = async (
+    flowId: string,
+    payload: NativeAuthSubmitPayload
+) => {
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+
+    let data;
+
+    if (payload.type === NativeAuthSubmitType.BASIC) {
+        data = {
+            flowId: flowId,
+            inputs: {
+                username: payload.username,
+                password: payload.password
+            }
+        };
+    } else if (payload.type === NativeAuthSubmitType.SOCIAL) {
+        data = {
+            flowId: flowId,
+            inputs: {
+                code: payload.code
+            }
+        };
+    }
+
+    if (!data) {
+        throw new Error('Invalid authentication type provided.');
+    }
+
+    try {
+        const response = await axios.post(`${flowEndpoint}/execution`, data, {
+            headers,
+        });
+
+        return { data: response.data };
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            const message = error.response?.status === 400
+              ? 'Login failed. Please check your credentials.'
+              : error.response?.data?.message || 'Server error occurred.';
+            throw new Error(message);
+        } else {
+            throw new Error('Unexpected error occurred.');
+        }
+    }
+}
+
+/**
+ * Exchanges the authorization code for an access token.
+ * 
+ * @param {string} code - The authorization code received from the OAuth server.
+ * @returns {Promise<object>} - A promise that resolves to the access token data.
+ */
 export const exchangeCodeForToken = async (code: string) => {
     const headers = {
         'Content-Type': 'application/x-www-form-urlencoded',

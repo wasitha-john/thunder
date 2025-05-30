@@ -78,6 +78,18 @@ const theme = createTheme({
         },
       },
     },
+    MuiLink: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          color: theme.palette.primary.main,
+          textDecoration: 'none',
+          '&:hover': {
+            color: theme.palette.primary.dark,
+            textDecoration: 'underline',
+          },
+        }),
+      },
+    }
   },
 });
 
