@@ -26,10 +26,10 @@ import (
 
 // User represents a user in the system.
 type User struct {
-	ID         string          `json:"id,omitempty"`
-	OrgID      string          `json:"org_id,omitempty"`
-	Type       string          `json:"type,omitempty"`
-	Attributes json.RawMessage `json:"attributes,omitempty"`
+	ID               string          `json:"id,omitempty"`
+	OrganizationUnit string          `json:"organizationUnit,omitempty"`
+	Type             string          `json:"type,omitempty"`
+	Attributes       json.RawMessage `json:"attributes,omitempty"`
 }
 
 // ErrUserNotFound is returned when the user is not found in the system.
