@@ -28,7 +28,8 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
-	"github.com/asgardeo/thunder/internal/system/config"
+	idpmodel "github.com/asgardeo/thunder/internal/idp/model"
+	idpservice "github.com/asgardeo/thunder/internal/idp/service"
 )
 
 // BuildGraphFromDefinition builds a graph from a graph definition json.
@@ -88,20 +89,21 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 		}
 		node.SetInputData(inputData)
 
-		// Set the executor if defined
-		if nodeDef.Executor != "" {
-			executor, err := getExecutorByName(nodeDef.Executor)
+		// Set the executor config if defined
+		if nodeDef.Executor.Name != "" {
+			executor, err := getExecutorConfigByName(nodeDef.Executor)
 			if err != nil {
 				return nil, fmt.Errorf("error while getting executor %s: %w", nodeDef.Executor, err)
 			}
-			node.SetExecutor(executor)
+			node.SetExecutorConfig(executor)
 		} else if nodeDef.Type == string(constants.AuthSuccessNode) {
-			// Assign AuthAssertExecutor for authentication success node if no executor is explicitly defined.
-			executor, err := getExecutorByName("AuthAssertExecutor")
+			executor, err := getExecutorConfigByName(jsonmodel.ExecutorDefinition{
+				Name: "AuthAssertExecutor",
+			})
 			if err != nil {
 				return nil, fmt.Errorf("error while getting default AuthAssertExecutor: %w", err)
 			}
-			node.SetExecutor(executor)
+			node.SetExecutorConfig(executor)
 		}
 
 		err := g.AddNode(node)
@@ -155,57 +157,91 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 	return g, nil
 }
 
-// getExecutorByName constructs an executor by its name.
-func getExecutorByName(name string) (model.ExecutorInterface, error) {
-	if name == "" {
+// getExecutorConfigByName constructs an executor configuration by its definition if it exists.
+func getExecutorConfigByName(execDef jsonmodel.ExecutorDefinition) (*model.ExecutorConfig, error) {
+	if execDef.Name == "" {
 		return nil, fmt.Errorf("executor name cannot be empty")
 	}
 
-	// TODO: When the graph persistence is implemented, this should be moved to graph construction logic
-	//  from the stored graph model (at DB).
-	//  Building the graph at this layer will only construct the graph structure adding the executors by name.
-	//  If needed, can do a validation to ensure the executor exists in the system.
-	//  Stored data will only contain the executor name (or id), and the executor will be loaded
-	//  from the available executors in the system based on the name during runtime.
-	var executor model.ExecutorInterface
-	switch name {
+	// At this point, we assume executors and attached IDPs are already registered in the system.
+	// Hence validations will not be done at this point.
+	var executor model.ExecutorConfig
+	switch execDef.Name {
 	case "BasicAuthExecutor":
-		config, err := getExecutorConfig("BasicAuthExecutor")
-		if err != nil {
-			return nil, fmt.Errorf("error while getting BasicAuthExecutor config: %w", err)
+		executor = model.ExecutorConfig{
+			Name:    "BasicAuthExecutor",
+			IdpName: "Local",
 		}
-		executor = basicauth.NewBasicAuthExecutor("basic-auth-executor", config.Name)
 	case "GithubAuthExecutor":
-		githubConfig, err := getExecutorConfig("GithubAuthExecutor")
-		if err != nil {
-			return nil, fmt.Errorf("error while getting GithubAuthExecutor config: %w", err)
+		executor = model.ExecutorConfig{
+			Name:    "GithubAuthExecutor",
+			IdpName: execDef.IdpName,
 		}
-		executor = githubauth.NewGithubOIDCAuthExecutor(githubConfig)
+	case "AuthAssertExecutor":
+		executor = model.ExecutorConfig{
+			Name: "AuthAssertExecutor",
+		}
+	default:
+		return nil, fmt.Errorf("executor with name %s not found", execDef.Name)
+	}
+
+	if executor.Name == "" {
+		return nil, fmt.Errorf("executor with name %s could not be created", execDef.Name)
+	}
+
+	return &executor, nil
+}
+
+// GetExecutorByName constructs an executor by its definition.
+func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterface, error) {
+	if execConfig == nil {
+		return nil, fmt.Errorf("executor configuration cannot be nil")
+	}
+	if execConfig.Name == "" {
+		return nil, fmt.Errorf("executor name cannot be empty")
+	}
+
+	var executor model.ExecutorInterface
+	switch execConfig.Name {
+	case "BasicAuthExecutor":
+		idp, err := getIDP("Local")
+		if err != nil {
+			return nil, fmt.Errorf("error while getting IDP for BasicAuthExecutor: %w", err)
+		}
+		executor = basicauth.NewBasicAuthExecutor(idp.ID, idp.Name)
+	case "GithubAuthExecutor":
+		idp, err := getIDP(execConfig.IdpName)
+		if err != nil {
+			return nil, fmt.Errorf("error while getting IDP for GithubAuthExecutor: %w", err)
+		}
+		executor = githubauth.NewGithubOIDCAuthExecutor(idp.ID, idp.Name, idp.ClientID, idp.ClientSecret,
+			idp.RedirectURI, idp.Scopes, map[string]string{})
 	case "AuthAssertExecutor":
 		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor")
 	default:
-		return nil, fmt.Errorf("executor with name %s not found", name)
+		return nil, fmt.Errorf("executor with name %s not found", execConfig.Name)
 	}
 
 	if executor == nil {
-		return nil, fmt.Errorf("executor with name %s could not be created", name)
+		return nil, fmt.Errorf("executor with name %s could not be created", execConfig.Name)
 	}
 	return executor, nil
 }
 
-// getExecutorConfig retrieves the configuration for an executor by its name.
-func getExecutorConfig(name string) (*config.Executor, error) {
-	authExecConfigs := config.GetThunderRuntime().Config.Flow.Authn.Executors
-
-	if len(authExecConfigs) == 0 {
-		return nil, fmt.Errorf("no auth executors configured in the system")
+// getIDP retrieves the IDP by its name. Returns an error if the IDP does not exist or if the name is empty.
+func getIDP(idpName string) (*idpmodel.IDP, error) {
+	if idpName == "" {
+		return nil, fmt.Errorf("IDP name cannot be empty")
 	}
 
-	for _, cfg := range authExecConfigs {
-		if cfg.Name == name {
-			return &cfg, nil
-		}
+	idpSvc := idpservice.GetIDPService()
+	idp, err := idpSvc.GetIdentityProviderByName(idpName)
+	if err != nil {
+		return nil, fmt.Errorf("error while getting IDP with the name %s: %w", idpName, err)
+	}
+	if idp == nil {
+		return nil, fmt.Errorf("IDP with name %s does not exist", idpName)
 	}
 
-	return nil, fmt.Errorf("auth executor with name %s not found", name)
+	return idp, nil
 }

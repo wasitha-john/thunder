@@ -146,9 +146,17 @@ var ErrorNodeExecutorNotFound = serviceerror.ServiceError{
 	ErrorDescription: "An executor not found for the node",
 }
 
+// ErrorConstructingNodeExecutor defines the error response for errors while constructing the node executor.
+var ErrorConstructingNodeExecutor = serviceerror.ServiceError{
+	Code:             "FES-65011",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Something went wrong",
+	ErrorDescription: "Error constructing the node executor",
+}
+
 // ErrorNodeExecutorExecError defines the error response for errors while executing the node executor.
 var ErrorNodeExecutorExecError = serviceerror.ServiceError{
-	Code:             "FES-65011",
+	Code:             "FES-65012",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Executor Execution Error",
 	ErrorDescription: "Error executing the node executor",
@@ -156,7 +164,7 @@ var ErrorNodeExecutorExecError = serviceerror.ServiceError{
 
 // ErrorNilResponseFromExecutor defines the error response for nil response from the executor.
 var ErrorNilResponseFromExecutor = serviceerror.ServiceError{
-	Code:             "FES-65012",
+	Code:             "FES-65013",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Executor Response Error",
 	ErrorDescription: "Received nil response from the executor",
@@ -164,7 +172,7 @@ var ErrorNilResponseFromExecutor = serviceerror.ServiceError{
 
 // ErrorUpdatingContextInStore defines the error response for errors while updating the flow context in the store.
 var ErrorUpdatingContextInStore = serviceerror.ServiceError{
-	Code:             "FES-65013",
+	Code:             "FES-65014",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Error updating flow context in the store",
@@ -173,7 +181,7 @@ var ErrorUpdatingContextInStore = serviceerror.ServiceError{
 // ErrorAuthFlowNotConfiguredForApplication defines the error response for applications without
 // an authentication flow graph configured.
 var ErrorAuthFlowNotConfiguredForApplication = serviceerror.ServiceError{
-	Code:             "FES-65014",
+	Code:             "FES-65015",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Invalid configuration",
 	ErrorDescription: "No authentication flow graph is configured for the application",
@@ -182,7 +190,7 @@ var ErrorAuthFlowNotConfiguredForApplication = serviceerror.ServiceError{
 // ErrorInvalidAuthFlowConfiguredForApplication defines the error response for applications with an invalid
 // authentication flow graph configured.
 var ErrorInvalidAuthFlowConfiguredForApplication = serviceerror.ServiceError{
-	Code:             "FES-65015",
+	Code:             "FES-65016",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Invalid configuration",
 	ErrorDescription: "The configured flow graph is not valid for the application authentication flow",

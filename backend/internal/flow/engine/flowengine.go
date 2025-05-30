@@ -25,6 +25,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/flow/utils"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
@@ -78,6 +79,20 @@ func (fe *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *servicee
 	for currentNode != nil {
 		logger.Debug("Executing node", log.String("nodeID", currentNode.GetID()),
 			log.String("nodeType", currentNode.GetType()))
+
+		// Set the node executor if it is not already set
+		if currentNode.GetExecutor() == nil {
+			logger.Debug("Executor not set for the node. Constructing executor.",
+				log.String("nodeID", currentNode.GetID()))
+
+			executor, err := utils.GetExecutorByName(currentNode.GetExecutorConfig())
+			if err != nil {
+				logger.Error("Error constructing executor for node", log.String("nodeID", currentNode.GetID()),
+					log.String("executorName", currentNode.GetExecutorConfig().Name), log.Error(err))
+				return flowStep, &constants.ErrorConstructingNodeExecutor
+			}
+			currentNode.SetExecutor(executor)
+		}
 
 		// Execute the current node
 		nodeResp, nodeErr := currentNode.Execute(ctx)

@@ -136,5 +136,6 @@ VALUES
 
 INSERT INTO IDP (IDP_ID, NAME, DESCRIPTION, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, SCOPES)
 VALUES
+('550e8400-e29b-41d4-a716-446655440000', 'Local', 'Local Identity Provider', '', '', '', '[]'),
 ('550e8400-e29b-41d4-a716-446655440000', 'Github', 'Login with Github', 'client1', 'secret1', 'https://localhost:8090/flow/authn', '["user:email","read:user"]'),
 ('550e8400-e29b-41d4-a716-446655440001', 'Google', 'Login with Google', 'client2', 'secret2', 'https://localhost:8090/flow/authn', '["user:email","read:user"]');

@@ -91,7 +91,7 @@ CREATE TABLE IDP (
     CLIENT_ID TEXT NOT NULL,
     CLIENT_SECRET TEXT NOT NULL,
     REDIRECT_URI VARCHAR(500) NOT NULL,
-    SCOPES TEXT,
+    SCOPES VARCHAR(255),
     CREATED_AT TEXT DEFAULT (datetime('now')),
     UPDATED_AT TEXT DEFAULT (datetime('now'))
 );
@@ -138,5 +138,6 @@ datetime('now'), datetime('now')
 
 INSERT INTO IDP (IDP_ID, NAME, DESCRIPTION, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, SCOPES, CREATED_AT, UPDATED_AT)
 VALUES
-('550e8400-e29b-41d4-a716-446655440000', 'Github', 'Login with Github', 'client1', 'secret1', 'https://localhost:8090/flow/authn', '["user:email","read:user"]', datetime('now'), datetime('now')),
-('550e8400-e29b-41d4-a716-446655440001', 'Google', 'Login with Google', 'client2', 'secret2', 'https://localhost:8090/flow/authn', '["user:email","read:user"]', datetime('now'), datetime('now'));
+('550e8400-e29b-41d4-a716-446655440000', 'Local', 'Local Identity Provider', '', '', '', '[]', datetime('now'), datetime('now')),
+('550e8400-e29b-41d4-a716-446655440001', 'Github', 'Login with Github', 'client1', 'secret1', 'https://localhost:8090/flow/authn', '["user:email","read:user"]', datetime('now'), datetime('now')),
+('550e8400-e29b-41d4-a716-446655440002', 'Google', 'Login with Google', 'client2', 'secret2', 'https://localhost:8090/flow/authn', '["user:email","read:user"]', datetime('now'), datetime('now'));

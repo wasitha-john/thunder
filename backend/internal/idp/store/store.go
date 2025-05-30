@@ -24,6 +24,7 @@ import (
 	"fmt"
 
 	"github.com/asgardeo/thunder/internal/idp/model"
+	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
@@ -99,6 +100,16 @@ func GetIdentityProviderList() ([]model.IDP, error) {
 
 // GetIdentityProvider retrieves a specific idp by its ID from the database.
 func GetIdentityProvider(id string) (model.IDP, error) {
+	return getIDP(QueryGetIdentityProviderByID, id)
+}
+
+// GetIdentityProviderByName retrieves a specific idp by its name from the database.
+func GetIdentityProviderByName(name string) (model.IDP, error) {
+	return getIDP(QueryGetIdentityProviderByName, name)
+}
+
+// getIDP retrieves an IDP based on the provided query and identifier.
+func getIDP(query dbmodel.DBQuery, identifier string) (model.IDP, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IdPStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -113,14 +124,14 @@ func GetIdentityProvider(id string) (model.IDP, error) {
 		}
 	}()
 
-	results, err := dbClient.Query(QueryGetIdentityProviderByID, id)
+	results, err := dbClient.Query(query, identifier)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return model.IDP{}, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
-		logger.Error("idp not found with id: " + id)
+		logger.Error("idp not found with the provided identifier: " + identifier)
 		return model.IDP{}, model.ErrIDPNotFound
 	}
 

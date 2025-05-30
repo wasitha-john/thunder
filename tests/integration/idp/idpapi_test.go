@@ -35,12 +35,21 @@ const (
 )
 
 var (
-	preCreatedIdpToList = IDP{
-		ID:          "550e8400-e29b-41d4-a716-446655440000",
-		Name:        "Github",
-		Description: "Login with Github",
-		ClientID:    "client1",
-		Scopes:      json.RawMessage(`["user:email","read:user"]`),
+	preCreatedIdpToList = []IDP{
+		{
+			ID:          "550e8400-e29b-41d4-a716-446655440000",
+			Name:        "Local",
+			Description: "Local Identity Provider",
+			ClientID:    "local",
+			Scopes:      json.RawMessage(`["local"]`),
+		},
+		{
+			ID:          "550e8400-e29b-41d4-a716-446655440001",
+			Name:        "Github",
+			Description: "Login with Github",
+			ClientID:    "client1",
+			Scopes:      json.RawMessage(`["user:email","read:user"]`),
+		},
 	}
 
 	idpToCreate = IDP{
@@ -134,19 +143,29 @@ func (ts *IdpAPITestSuite) TestIdpListing() {
 		ts.T().Fatalf("Response does not contain any identity providers")
 	}
 
-	if idpListLength != 2 {
-		ts.T().Fatalf("Expected 2 identity providers, got %d", idpListLength)
+	if idpListLength != 3 {
+		ts.T().Fatalf("Expected 3 identity providers, got %d", idpListLength)
 	}
 
-	idp1 := idps[0]
-	if !idp1.equals(preCreatedIdpToList) {
-		ts.T().Fatalf("IdP mismatch, expected %+v, got %+v", preCreatedIdpToList, idp1)
-	}
-
-	idp2 := idps[1]
 	createdIdp := buildCreatedIdpToList()
-	if !idp2.equals(createdIdp) {
-		ts.T().Fatalf("IdP mismatch, expected %+v, got %+v", createdIdp, idp2)
+	for _, idp := range idps {
+		if createdIdp.Name == idp.Name {
+			if !idp.equals(createdIdp) {
+				ts.T().Fatalf("IdP mismatch, expected %+v, got %+v", createdIdp, idp)
+			}
+		} else {
+			// Check if the idP is one of the pre-created IdPs
+			found := false
+			for _, preCreatedIdp := range preCreatedIdpToList {
+				if idp.equals(preCreatedIdp) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				ts.T().Fatalf("Unexpected IdP found: %+v", idp)
+			}
+		}
 	}
 }
 

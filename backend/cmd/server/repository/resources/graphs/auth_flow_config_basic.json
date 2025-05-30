@@ -22,7 +22,9 @@
                     "required": false
                 }
             ],
-            "executor": "BasicAuthExecutor"
+            "executor": {
+                "name": "BasicAuthExecutor"
+            }
         },
         {
             "id": "authenticated",

@@ -106,20 +106,9 @@ type AuthenticatorConfig struct {
 	Authenticators       []Authenticator `yaml:"authenticators"`
 }
 
-// Executor holds the configuration details for an individual executor in a flow.
-type Executor struct {
-	Name             string            `yaml:"name"`
-	ClientID         string            `yaml:"client_id"`
-	ClientSecret     string            `yaml:"client_secret"`
-	RedirectURI      string            `yaml:"redirect_uri"`
-	Scopes           []string          `yaml:"scopes"`
-	AdditionalParams map[string]string `yaml:"additional_params"`
-}
-
 // FlowAuthnConfig holds the configuration details for the authentication flows.
 type FlowAuthnConfig struct {
-	DefaultFlow string     `yaml:"default_flow"`
-	Executors   []Executor `yaml:"executors"`
+	DefaultFlow string `yaml:"default_flow"`
 }
 
 // FlowConfig holds the configuration details for the flow service.

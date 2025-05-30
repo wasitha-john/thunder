@@ -48,6 +48,8 @@ type NodeInterface interface {
 	SetPreviousNodeID(previousNodeID string)
 	GetInputData() []InputData
 	SetInputData(inputData []InputData)
+	GetExecutorConfig() *ExecutorConfig
+	SetExecutorConfig(executorConfig *ExecutorConfig)
 	GetExecutor() ExecutorInterface
 	SetExecutor(executor ExecutorInterface)
 }
@@ -61,7 +63,7 @@ type Node struct {
 	nextNodeID     string
 	previousNodeID string
 	inputData      []InputData
-	executor       ExecutorInterface
+	executorConfig *ExecutorConfig
 }
 
 // NewNode creates a new Node with the given parameters
@@ -73,17 +75,17 @@ func NewNode(id string, _type string, isStartNode bool, isFinalNode bool) NodeIn
 		isFinalNode:    isFinalNode,
 		nextNodeID:     "",
 		previousNodeID: "",
-		executor:       nil, // Executor can be set later
+		executorConfig: nil,
 	}
 }
 
 // Execute executes the node's executor
 func (n *Node) Execute(ctx *FlowContext) (*NodeResponse, *serviceerror.ServiceError) {
-	if n.executor == nil {
+	if n.executorConfig == nil || n.executorConfig.Executor == nil {
 		return nil, &constants.ErrorNodeExecutorNotFound
 	}
 
-	execResp, err := n.executor.Execute(ctx)
+	execResp, err := n.executorConfig.Executor.Execute(ctx)
 	if err != nil {
 		svcErr := constants.ErrorNodeExecutorExecError
 		svcErr.ErrorDescription = "Error executing node executor: " + err.Error()
@@ -177,14 +179,31 @@ func (n *Node) SetInputData(inputData []InputData) {
 	n.inputData = inputData
 }
 
+// GetExecutorConfig returns the executor configuration for the node
+func (n *Node) GetExecutorConfig() *ExecutorConfig {
+	return n.executorConfig
+}
+
+// SetExecutorConfig sets the executor configuration for the node
+func (n *Node) SetExecutorConfig(executorConfig *ExecutorConfig) {
+	n.executorConfig = executorConfig
+}
+
 // GetExecutor returns the executor associated with the node
 func (n *Node) GetExecutor() ExecutorInterface {
-	return n.executor
+	if n.executorConfig == nil {
+		return nil
+	}
+	return n.executorConfig.Executor
 }
 
 // SetExecutor sets the executor for the node
 func (n *Node) SetExecutor(executor ExecutorInterface) {
-	n.executor = executor
+	if n.executorConfig == nil {
+		n.executorConfig = &ExecutorConfig{}
+		n.executorConfig.Name = executor.GetName()
+	}
+	n.executorConfig.Executor = executor
 }
 
 // PromptNode represents a node that only takes user input

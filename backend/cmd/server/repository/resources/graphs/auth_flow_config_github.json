@@ -12,7 +12,10 @@
                     "required": true
                 }
             ],
-            "executor": "GithubAuthExecutor"
+            "executor": {
+                "name": "GithubAuthExecutor",
+                "idpName": "Github"
+            }
         },
         {
             "id": "authenticated",
