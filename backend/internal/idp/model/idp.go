@@ -20,19 +20,18 @@
 package model
 
 import (
-	"encoding/json"
 	"errors"
 )
 
 // IDP represents an identity provider in the system.
 type IDP struct {
-	ID           string          `json:"id"`
-	Name         string          `json:"name"`                    // Display name
-	Description  string          `json:"description,omitempty"`   // Description shown in UI
-	ClientID     string          `json:"client_id"`               // OAuth client ID
-	ClientSecret string          `json:"client_secret,omitempty"` // OAuth client secret
-	RedirectURI  string          `json:"redirect_uri,omitempty"`  // OAuth redirect URI
-	Scopes       json.RawMessage `json:"scopes,omitempty"`        // JSON format scopes
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`                    // Display name
+	Description  string   `json:"description,omitempty"`   // Description shown in UI
+	ClientID     string   `json:"client_id"`               // OAuth client ID
+	ClientSecret string   `json:"client_secret,omitempty"` // OAuth client secret
+	RedirectURI  string   `json:"redirect_uri,omitempty"`  // OAuth redirect URI
+	Scopes       []string `json:"scopes,omitempty"`        // OAuth scopes
 }
 
 // ErrIDPNotFound is returned when the IdP is not found in the system.

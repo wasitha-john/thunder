@@ -210,4 +210,6 @@ components:
         redirect_uri:
           type: string
         scopes:
-          type: object
+          type: array
+          items:
+            type: string

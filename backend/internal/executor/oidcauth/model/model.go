@@ -19,6 +19,16 @@
 // Package model provides the data structures for OIDC authentication properties and responses.
 package model
 
+// BasicOIDCExecProperties holds the basic properties required for OIDC authentication.
+type BasicOIDCExecProperties struct {
+	ClientID         string            `json:"clientID"`
+	ClientSecret     string            `json:"clientSecret"`
+	RedirectURI      string            `json:"redirectURI"`
+	Scopes           []string          `json:"scopes"`
+	AdditionalParams map[string]string `json:"additionalParams"`
+	Properties       map[string]string `json:"properties"`
+}
+
 // OIDCExecProperties holds the properties required for OIDC authentication.
 type OIDCExecProperties struct {
 	AuthorizationEndpoint string            `json:"authorizationEndpoint"`

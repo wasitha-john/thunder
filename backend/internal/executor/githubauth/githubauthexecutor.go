@@ -33,7 +33,6 @@ import (
 	"github.com/asgardeo/thunder/internal/executor/oidcauth/model"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
-	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/log"
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
@@ -46,21 +45,48 @@ type GithubOIDCAuthExecutor struct {
 	*oidcauth.OIDCAuthExecutor
 }
 
-// NewGithubOIDCAuthExecutor creates a new instance of GithubOIDCAuthExecutor.
-func NewGithubOIDCAuthExecutor(config *config.Executor) oidcauth.OIDCAuthExecutorInterface {
+// NewGithubOIDCAuthExecutorFromProps creates a new instance of GithubOIDCAuthExecutor with the provided properties.
+func NewGithubOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
+	oidcProps *model.BasicOIDCExecProperties) oidcauth.OIDCAuthExecutorInterface {
+	// Prepare the complete OIDC properties for GitHub
+	compOIDCProps := &model.OIDCExecProperties{
+		AuthorizationEndpoint: githubAuthorizeEndpoint,
+		TokenEndpoint:         githubTokenEndpoint,
+		UserInfoEndpoint:      githubUserInfoEndpoint,
+		ClientID:              oidcProps.ClientID,
+		ClientSecret:          oidcProps.ClientSecret,
+		RedirectURI:           oidcProps.RedirectURI,
+		Scopes:                oidcProps.Scopes,
+		AdditionalParams:      oidcProps.AdditionalParams,
+	}
+
+	base := oidcauth.NewOIDCAuthExecutor("github_oidc_auth_executor", execProps.Name, compOIDCProps)
+
+	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
+	if !ok {
+		panic("failed to cast GithubOIDCAuthExecutor to OIDCAuthExecutor")
+	}
+	return &GithubOIDCAuthExecutor{
+		OIDCAuthExecutor: exec,
+	}
+}
+
+// NewGithubOIDCAuthExecutor creates a new instance of GithubOIDCAuthExecutor with the provided details.
+func NewGithubOIDCAuthExecutor(id, name, clientID, clientSecret, redirectURI string,
+	scopes []string, additionalParams map[string]string) oidcauth.OIDCAuthExecutorInterface {
 	// Prepare the OIDC properties for GitHub
 	oidcProps := &model.OIDCExecProperties{
 		AuthorizationEndpoint: githubAuthorizeEndpoint,
 		TokenEndpoint:         githubTokenEndpoint,
 		UserInfoEndpoint:      githubUserInfoEndpoint,
-		ClientID:              config.ClientID,
-		ClientSecret:          config.ClientSecret,
-		RedirectURI:           config.RedirectURI,
-		Scopes:                config.Scopes,
-		AdditionalParams:      config.AdditionalParams,
+		ClientID:              clientID,
+		ClientSecret:          clientSecret,
+		RedirectURI:           redirectURI,
+		Scopes:                scopes,
+		AdditionalParams:      additionalParams,
 	}
 
-	base := oidcauth.NewOIDCAuthExecutor("github_oidc_auth_executor", config.Name, oidcProps)
+	base := oidcauth.NewOIDCAuthExecutor(id, name, oidcProps)
 
 	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
 	if !ok {

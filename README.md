@@ -158,29 +158,25 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   - Configure home page and callback URLs as per your application.
   - Copy the **Client ID** and **Client Secret**.
 
-- Open the deployment.yaml file in the `backend/cmd/server/repository/conf` directory and add the following configurations:
+- Update the system created github IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your GitHub OAuth application.
 
-  ```yaml
-  flow:
-    graph_directory: "repository/resources/graphs/"
-    authn:
-      default_flow: "auth_flow_config_basic"
-      executors:
-        - name: "BasicAuthExecutor"
-
-        - name: "GithubAuthExecutor"
-          client_id: "<client_id>"
-          client_secret: "<client_secret>"
-          redirect_uri: "<app_callback_url>"
-          scopes:
-            - "user:email"
-            - "read:user"
-          additional_params:
-            prompt: "select_account"
-            state: "${flowId}"
+  ```bash
+  curl --location --request PUT 'https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440001' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --data '{
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "Github",
+      "description": "Login with Github",
+      "client_id": "<client_id>",
+      "client_secret": "<client_secret>",
+      "redirect_uri": "<app_callback_url>",
+      "scopes": [
+          "user:email",
+          "read:user"
+      ]
+  }'
   ```
-
-- Restart the server.
 
 - Create an application and configure the GitHub login template for it.
 

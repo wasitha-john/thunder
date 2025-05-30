@@ -38,6 +38,13 @@ type ExecutorProperties struct {
 	Properties  map[string]string `json:"properties,omitempty"`
 }
 
+// ExecutorConfig holds the configuration for an executor.
+type ExecutorConfig struct {
+	Name     string `json:"name"`
+	IdpName  string `json:"idp_name,omitempty"`
+	Executor ExecutorInterface
+}
+
 // ExecutorInterface defines the interface for executors.
 type ExecutorInterface interface {
 	Execute(ctx *FlowContext) (*ExecutorResponse, error)

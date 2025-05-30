@@ -51,4 +51,10 @@ var (
 		ID:    "IPQ-IDP_MGT-05",
 		Query: "DELETE FROM IDP WHERE IDP_ID = $1",
 	}
+	// QueryGetIdentityProviderByName is the query to get a IdP by IdP name.
+	QueryGetIdentityProviderByName = dbmodel.DBQuery{
+		ID: "IPQ-IDP_MGT-06",
+		Query: "SELECT IDP_ID, NAME, DESCRIPTION, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, SCOPES FROM IDP " +
+			"WHERE NAME = $1",
+	}
 )
