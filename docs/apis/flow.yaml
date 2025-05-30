@@ -1,0 +1,186 @@
+openapi: 3.0.3
+
+info:
+  title: Flow Execution API for App Native Authentication
+  description: This API is used to execute app native authentication flows.
+  version: "1.0"
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://{host}:{port}
+    variables:
+      host:
+        default: "localhost"
+      port:
+        default: "8090"
+
+paths:
+  /flow/execution:
+    post:
+      summary: Execute a flow step
+      description: Execute a step in an authentication flow.
+      tags:
+        - Execute a flow step
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlowRequest'
+      responses:
+        "200":
+          description: Flow step executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowResponse'
+        "400":
+          description: 'Bad Request: The request body is malformed or contains invalid data'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientErrorResponse'
+        "500":
+          description: 'Internal Server Error: An unexpected error occurred while processing the request'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorResponse'
+
+components:
+  schemas:
+    FlowRequest:
+      type: object
+      required:
+        - applicationId
+      properties:
+        applicationId:
+          type: string
+          description: Identifier of the application initiating the flow (required only to initiate a flow execution)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        flowId:
+          type: string
+          description: Identifier of an existing flow execution (required for continuing a flow)
+          example: "2c6d4c45-3de9-4a70-ae6b-ba1d034af6bc"
+        actionId:
+          type: string
+          description: Identifier of the action to execute in the flow (required for continuing a flow)
+          example: "basic_auth"
+        inputs:
+          type: object
+          description: Input data provided for the flow step execution (required for continuing a flow)
+          example: {
+            "username": "thor",
+            "password": "thor123"
+          }
+
+    FlowResponse:
+      type: object
+      properties:
+        flowId:
+          type: string
+          description: Unique identifier of the flow execution
+          example: "2c6d4c45-3de9-4a70-ae6b-ba1d034af6bc"
+        stepId:
+          type: string
+          description: Identifier of the current flow step
+          example: "3071b6c6-0119-465c-b00b-3a0e6f88a730"
+        flowStatus:
+          type: string
+          description: Status of the flow execution
+          example: "PROMPT_ONLY"
+        type:
+          type: string
+          description: Type of flow step response
+          example: "VIEW"
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/InputData'
+          description: Required input data for the next flow step
+        additionalInfo:
+          type: object
+          additionalProperties:
+            type: string
+          description: Additional information provided by the flow step
+          example: {
+            "redirect_url": "<github_auth_redirect_url>"
+          }
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Action'
+          description: Available actions for the current flow step
+        assertion:
+          type: string
+          description: Authentication assertion. This will be the JWT authentication token
+          example: "<jwt_token>"
+
+    Action:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Type of the action
+          example: ""
+        executor:
+          $ref: '#/components/schemas/ExecutorModel'
+
+    ExecutorModel:
+      type: object
+      description: Executor configuration for the action
+      properties:
+        name:
+          type: string
+          description: Name of the executor
+          example: ""
+
+    InputData:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the input field
+          example: "username"
+        type:
+          type: string
+          description: Type of the input field
+          example: "string"
+        required:
+          type: boolean
+          description: Whether the input is required
+          example: true
+
+    ClientErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+          example: "FES-60003"
+        message:
+          type: string
+          description: Error message
+          example: "Invalid request"
+        description:
+          type: string
+          description: Detailed error description
+          example: "Invalid app ID provided in the request"
+
+    ServerErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+          example: "FES-65001"
+        message:
+          type: string
+          description: Error message
+          example: "Something went wrong"
+        description:
+          type: string
+          description: Detailed error description
+          example: "Flow graph is not initialized or is nil"

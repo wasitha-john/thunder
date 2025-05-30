@@ -1,31 +1,5 @@
 openapi: 3.0.3
-components:
-  schemas:
-    model.Application:
-      type: object
-      properties:
-        auth_flow_graph_id:
-          type: string
-          items:
-            type: string
-        callback_url:
-          type: array
-          items:
-            type: string
-        client_id:
-          type: string
-        client_secret:
-          type: string
-        description:
-          type: string
-        id:
-          type: string
-        name:
-          type: string
-        supported_grant_types:
-          type: array
-          items:
-            type: string
+
 info:
   contact: {}
   description: This API is used to manage applications.
@@ -34,6 +8,15 @@ info:
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   title: Application Management API
   version: "1.0"
+
+servers:
+  - url: https://{host}:{port}
+    variables:
+      host:
+        default: "localhost"
+      port:
+        default: "8090"
+
 paths:
   /applications:
     get:
@@ -206,3 +189,31 @@ paths:
       summary: Update an application
       tags:
       - applications
+
+components:
+  schemas:
+    model.Application:
+      type: object
+      properties:
+        auth_flow_graph_id:
+          type: string
+          items:
+            type: string
+        callback_url:
+          type: array
+          items:
+            type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        description:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        supported_grant_types:
+          type: array
+          items:
+            type: string

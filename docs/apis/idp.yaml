@@ -1,23 +1,5 @@
 openapi: 3.0.3
-components:
-  schemas:
-    model.IdentityProvider:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        client_id:
-          type: string
-        client_secret:
-          type: string
-        redirect_uri:
-          type: string
-        scopes:
-          type: object
+
 info:
   contact: {}
   description: This API is used to manage identity providers.
@@ -26,6 +8,15 @@ info:
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   title: Identity Provider Management API
   version: "1.0"
+
+servers:
+  - url: https://{host}:{port}
+    variables:
+      host:
+        default: "localhost"
+      port:
+        default: "8090"
+
 paths:
   /identity-providers:
     get:
@@ -200,3 +191,23 @@ paths:
       summary: Delete an identity provider
       tags:
       - identity-providers
+
+components:
+  schemas:
+    model.IdentityProvider:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        redirect_uri:
+          type: string
+        scopes:
+          type: object
