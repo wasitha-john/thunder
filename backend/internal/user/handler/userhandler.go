@@ -31,31 +31,10 @@ import (
 )
 
 // UserHandler is the handler for user management operations.
-//
-// @title          User Management API
-// @version        1.0
-// @description    This API is used to manage users.
-//
-// @license.name   Apache 2.0
-// @license.url    http://www.apache.org/licenses/LICENSE-2.0.html
-//
-// @host           localhost:8090
-// @BasePath       /
 type UserHandler struct {
 }
 
 // HandleUserPostRequest handles the user request.
-//
-// @Summary      Create an user
-// @Description  Creates a new user with the provided details.
-// @Tags         users
-// @Accept       json
-// @Produce      json
-// @Param        user  body  model.User  true  "User data"
-// @Success      201  {object}  model.User
-// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      500  {string}  "Internal Server Error"
-// @Router       /users [post]
 func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
@@ -93,15 +72,6 @@ func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 }
 
 // HandleUserListRequest handles the user request.
-//
-// @Summary      List users
-// @Description  Retrieve a list of all users.
-// @Tags         users
-// @Accept       json
-// @Produce      json
-// @Success      200  {array}   model.User
-// @Failure      500  {string}  "Internal Server Error"
-// @Router       /users [get]
 func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
@@ -126,18 +96,6 @@ func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Requ
 }
 
 // HandleUserGetRequest handles the user request.
-//
-// @Summary      Get an user by id
-// @Description  Retrieve a specific user using its id.
-// @Tags         users
-// @Accept       json
-// @Produce      json
-// @Param        id   path      string  true  "User id"
-// @Success      200  {object}  model.User
-// @Failure      400  {string}  "Bad Request: Missing user id."
-// @Failure      404  {string}  "Not Found: The user with the specified id does not exist."
-// @Failure      500  {string}  "Internal Server Error"
-// @Router       /users/{id} [get]
 func (ah *UserHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
@@ -172,20 +130,6 @@ func (ah *UserHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Reque
 }
 
 // HandleUserPutRequest handles the user request.
-//
-// @Summary      Update an user
-// @Description  Update the details of an existing user.
-// @Tags         users
-// @Accept       json
-// @Produce      json
-// @Param        id           path   string            true  "User id"
-// @Param        user  body   model.User  true  "Updated user data"
-// @Success      200  {object}  model.User
-// @Failure      400  {string}  "Bad Request: Missing user id."
-// @Failure      404  {string}  "Not Found: The user with the specified id does not exist."
-// @Failure      404  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      500  {string}  "Internal Server Error"
-// @Router       /users/{id} [put]
 func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
@@ -229,17 +173,6 @@ func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 }
 
 // HandleUserDeleteRequest handles the user request.
-//
-// @Summary      Delete an user
-// @Description  Delete an user using its id.
-// @Tags         users
-// @Accept       json
-// @Produce      json
-// @Param        id   path   string  true  "User id"
-// @Success      204
-// @Failure      400  {string}  "Bad Request: Missing user id."
-// @Failure      500  {string}  "Internal Server Error"
-// @Router       /users/{id} [delete]
 func (ah *UserHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 

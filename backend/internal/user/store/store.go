@@ -51,7 +51,7 @@ func CreateUser(user model.User) error {
 		return model.ErrBadAttributesInRequest
 	}
 
-	_, err = dbClient.Execute(QueryCreateUser, user.ID, user.OrgID, user.Type, string(attributes))
+	_, err = dbClient.Execute(QueryCreateUser, user.ID, user.OrganizationUnit, user.Type, string(attributes))
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
@@ -161,7 +161,8 @@ func UpdateUser(user *model.User) error {
 		return model.ErrBadAttributesInRequest
 	}
 
-	rowsAffected, err := dbClient.Execute(QueryUpdateUserByUserID, user.ID, user.OrgID, user.Type, string(attributes))
+	rowsAffected, err := dbClient.Execute(
+		QueryUpdateUserByUserID, user.ID, user.OrganizationUnit, user.Type, string(attributes))
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
@@ -213,7 +214,7 @@ func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
 		return model.User{}, fmt.Errorf("failed to parse user_id as string")
 	}
 
-	orgID, ok := row["org_id"].(string)
+	orgID, ok := row["ou_id"].(string)
 	if !ok {
 		logger.Error("failed to parse org_id as string")
 		return model.User{}, fmt.Errorf("failed to parse org_id as string")
@@ -238,9 +239,9 @@ func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
 	}
 
 	user := model.User{
-		ID:    userID,
-		OrgID: orgID,
-		Type:  userType,
+		ID:               userID,
+		OrganizationUnit: orgID,
+		Type:             userType,
 	}
 
 	// Unmarshal JSON attributes

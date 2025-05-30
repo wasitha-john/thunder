@@ -36,22 +36,22 @@ const (
 
 var (
 	preCreatedUser User = User{
-		Id:         "550e8400-e29b-41d4-a716-446655440000",
-		OrgId:      "456e8400-e29b-41d4-a716-446655440001",
-		Type:       "person",
-		Attributes: json.RawMessage(`{"age": 30, "roles": ["admin", "user"], "address": {"city": "Colombo", "zip": "00100"}}`),
+		Id:               "550e8400-e29b-41d4-a716-446655440000",
+		OrganizationUnit: "456e8400-e29b-41d4-a716-446655440001",
+		Type:             "person",
+		Attributes:       json.RawMessage(`{"age": 30, "roles": ["admin", "user"], "address": {"city": "Colombo", "zip": "00100"}}`),
 	}
 
 	userToCreate = User{
-		OrgId:      "456e8400-e29b-41d4-a716-446655440001",
-		Type:       "person",
-		Attributes: json.RawMessage(`{"age": 25, "roles": ["viewer"], "address": {"city": "Seattle", "zip": "98101"}}`),
+		OrganizationUnit: "456e8400-e29b-41d4-a716-446655440001",
+		Type:             "person",
+		Attributes:       json.RawMessage(`{"age": 25, "roles": ["viewer"], "address": {"city": "Seattle", "zip": "98101"}}`),
 	}
 
 	userToUpdate = User{
-		OrgId:      "456e8400-e29b-41d4-a716-446655440001",
-		Type:       "person",
-		Attributes: json.RawMessage(`{"age": 35, "roles": ["admin"], "address": {"city": "Colombo", "zip": "10300"}}`),
+		OrganizationUnit: "456e8400-e29b-41d4-a716-446655440001",
+		Type:             "person",
+		Attributes:       json.RawMessage(`{"age": 35, "roles": ["admin"], "address": {"city": "Colombo", "zip": "10300"}}`),
 	}
 )
 
@@ -190,10 +190,10 @@ func (ts *UserAPITestSuite) TestUserUpdate() {
 
 	// Validate the update by retrieving the user
 	retrieveAndValidateUserDetails(ts, User{
-		Id:         createdUserID,
-		OrgId:      userToUpdate.OrgId,
-		Type:       userToUpdate.Type,
-		Attributes: userToUpdate.Attributes,
+		Id:               createdUserID,
+		OrganizationUnit: userToUpdate.OrganizationUnit,
+		Type:             userToUpdate.Type,
+		Attributes:       userToUpdate.Attributes,
 	})
 }
 
@@ -311,9 +311,9 @@ func deleteUser(userId string) error {
 func buildCreatedUser() User {
 
 	return User{
-		Id:         createdUserID,
-		OrgId:      userToCreate.OrgId,
-		Type:       userToCreate.Type,
-		Attributes: userToCreate.Attributes,
+		Id:               createdUserID,
+		OrganizationUnit: userToCreate.OrganizationUnit,
+		Type:             userToCreate.Type,
+		Attributes:       userToCreate.Attributes,
 	}
 }

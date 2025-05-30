@@ -24,10 +24,10 @@ import (
 )
 
 type User struct {
-	Id         string          `json:"id"`
-	OrgId      string          `json:"org_id"`
-	Type       string          `json:"type"`
-	Attributes json.RawMessage `json:"attributes"`
+	Id               string          `json:"id"`
+	OrganizationUnit string          `json:"organizationUnit"`
+	Type             string          `json:"type"`
+	Attributes       json.RawMessage `json:"attributes"`
 }
 
 func compareStringSlices(a, b []string) bool {
@@ -45,7 +45,7 @@ func compareStringSlices(a, b []string) bool {
 
 // compare and validate whether two users have equal content
 func (user *User) equals(expectedUser User) bool {
-	if user.Id != expectedUser.Id || user.OrgId != expectedUser.OrgId || user.Type != expectedUser.Type {
+	if user.Id != expectedUser.Id || user.OrganizationUnit != expectedUser.OrganizationUnit || user.Type != expectedUser.Type {
 		return false
 	}
 

@@ -25,22 +25,22 @@ var (
 	// QueryCreateUser is the query to create a new user.
 	QueryCreateUser = dbmodel.DBQuery{
 		ID:    "ASQ-USER_MGT-01",
-		Query: "INSERT INTO \"USER\" (USER_ID, ORG_ID, TYPE, ATTRIBUTES) VALUES ($1, $2, $3, $4)",
+		Query: "INSERT INTO \"USER\" (USER_ID, OU_ID, TYPE, ATTRIBUTES) VALUES ($1, $2, $3, $4)",
 	}
 	// QueryGetUserByUserID is the query to get a user by user ID.
 	QueryGetUserByUserID = dbmodel.DBQuery{
 		ID:    "ASQ-USER_MGT-02",
-		Query: "SELECT USER_ID, ORG_ID, TYPE, ATTRIBUTES FROM \"USER\" WHERE USER_ID = $1",
+		Query: "SELECT USER_ID, OU_ID, TYPE, ATTRIBUTES FROM \"USER\" WHERE USER_ID = $1",
 	}
 	// QueryGetUserList is the query to get a list of users.
 	QueryGetUserList = dbmodel.DBQuery{
 		ID:    "ASQ-USER_MGT-03",
-		Query: "SELECT USER_ID, ORG_ID, TYPE, ATTRIBUTES FROM \"USER\"",
+		Query: "SELECT USER_ID, OU_ID, TYPE, ATTRIBUTES FROM \"USER\"",
 	}
 	// QueryUpdateUserByUserID is the query to update a user by user ID.
 	QueryUpdateUserByUserID = dbmodel.DBQuery{
 		ID:    "ASQ-USER_MGT-04",
-		Query: "UPDATE \"USER\" SET ORG_ID = $2, TYPE = $3, ATTRIBUTES = $4 WHERE USER_ID = $1;",
+		Query: "UPDATE \"USER\" SET OU_ID = $2, TYPE = $3, ATTRIBUTES = $4 WHERE USER_ID = $1;",
 	}
 	// QueryDeleteUserByUserID is the query to delete a user by user ID.
 	QueryDeleteUserByUserID = dbmodel.DBQuery{
