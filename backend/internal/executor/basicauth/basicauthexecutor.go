@@ -20,11 +20,13 @@
 package basicauth
 
 import (
+	"encoding/json"
+
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
-	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
+	userprovider "github.com/asgardeo/thunder/internal/user/provider"
 )
 
 const loggerComponentName = "BasicAuthExecutor"
@@ -81,31 +83,18 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 		return execResp, nil
 	}
 
-	// Read the valid username and password from the configuration.
-	config := config.GetThunderRuntime().Config
-	validUsername := config.UserStore.DefaultUser.Username
-	validPassword := config.UserStore.DefaultUser.Password
-
 	username := ctx.UserInputData["username"]
-
-	if username == validUsername && ctx.UserInputData["password"] == validPassword {
-		ctx.AuthenticatedUser = &authnmodel.AuthenticatedUser{
-			IsAuthenticated:        true,
-			UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-			Username:               username,
-			Domain:                 "PRIMARY",
-			AuthenticatedSubjectID: username,
-			Attributes: map[string]string{
-				"email":     "admin@wso2.com",
-				"firstName": "Admin",
-				"lastName":  "User",
-			},
-		}
-	} else {
-		ctx.AuthenticatedUser = &authnmodel.AuthenticatedUser{
-			IsAuthenticated: false,
-		}
+	authenticatedUser, err2 := getAuthenticatedUser(username, ctx.UserInputData["password"], logger)
+	if err2 != nil {
+		logger.Error("Failed to authenticate user",
+			log.String("username", log.MaskString(username)),
+			log.Error(err2))
+		execResp.Status = flowconst.ExecError
+		execResp.Type = flowconst.ExecView
+		execResp.Error = "Failed to authenticate user: " + err2.Error()
+		return execResp, err2
 	}
+	ctx.AuthenticatedUser = authenticatedUser
 
 	// Set the flow response status based on the authentication result.
 	if ctx.AuthenticatedUser.IsAuthenticated {
@@ -195,4 +184,55 @@ func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execRe
 	}
 
 	return requireData
+}
+
+// getAuthenticatedUser perform authentication based on the provided username and password and return authenticated user
+// details.
+func getAuthenticatedUser(username, password string, logger *log.Logger) (*authnmodel.AuthenticatedUser, error) {
+	userProvider := userprovider.NewUserProvider()
+	userService := userProvider.GetUserService()
+
+	userID, err := userService.IdentityUser("username", username)
+	if err != nil {
+		logger.Error("Failed to identify user by username",
+			log.String("username", log.MaskString(username)),
+			log.Error(err))
+		return nil, err
+	}
+	if *userID == "" {
+		logger.Error("User not found for the provided username",
+			log.String("username", log.MaskString(username)))
+		return nil, err
+	}
+
+	user, err := userService.VerifyUser(*userID, "password", password)
+	if err != nil {
+		logger.Error("Failed to verify user credentials", log.String("userID", *userID), log.Error(err))
+		return nil, err
+	}
+
+	var authenticatedUser authnmodel.AuthenticatedUser
+	if user == nil {
+		authenticatedUser = authnmodel.AuthenticatedUser{
+			IsAuthenticated: false,
+		}
+	} else {
+		var attrs map[string]interface{}
+		if err := json.Unmarshal(user.Attributes, &attrs); err != nil {
+			logger.Error("Failed to unmarshal user attributes", log.Error(err))
+			return nil, err
+		}
+		authenticatedUser = authnmodel.AuthenticatedUser{
+			IsAuthenticated:        true,
+			UserID:                 user.ID,
+			Username:               attrs["username"].(string),
+			AuthenticatedSubjectID: attrs["email"].(string),
+			Attributes: map[string]string{
+				"email":     attrs["email"].(string),
+				"firstName": attrs["firstName"].(string),
+				"lastName":  attrs["lastName"].(string),
+			},
+		}
+	}
+	return &authenticatedUser, nil
 }
