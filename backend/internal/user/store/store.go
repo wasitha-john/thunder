@@ -205,6 +205,91 @@ func DeleteUser(id string) error {
 	return nil
 }
 
+// IdentityUser identify user with the given attributes.
+func IdentityUser(attrName, attrValue string) (*string, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return nil, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
+
+	results, err := dbClient.Query(QueryIdentifyUser, attrValue)
+	if err != nil {
+		logger.Error("Failed to execute query", log.Error(err))
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	if len(results) == 0 {
+		logger.Error("user not found with attribute name: " + attrName + " and value: " + log.MaskString(attrValue))
+		return nil, model.ErrUserNotFound
+	}
+
+	if len(results) != 1 {
+		logger.Error("unexpected number of results for attribute name: " + attrName + " and value: " +
+			log.MaskString(attrValue))
+		return nil, fmt.Errorf("unexpected number of results: %d", len(results))
+	}
+
+	row := results[0]
+	userID, ok := row["user_id"].(string)
+	if !ok {
+		logger.Error("failed to parse user_id as string")
+		return nil, fmt.Errorf("failed to parse user_id as string")
+	}
+
+	return &userID, nil
+}
+
+// VerifyUser validate the user specified user using the given credentials from the database.
+func VerifyUser(id, credType, credValue string) (model.User, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return model.User{}, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
+
+	results, err := dbClient.Query(QueryValidateUserWithCredentials, id, credValue)
+	if err != nil {
+		logger.Error("Failed to execute query", log.Error(err))
+		return model.User{}, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	if len(results) == 0 {
+		logger.Error("user not found with id: " + id)
+		return model.User{}, model.ErrUserNotFound
+	}
+
+	if len(results) != 1 {
+		logger.Error("unexpected number of results")
+		return model.User{}, fmt.Errorf("unexpected number of results: %d", len(results))
+	}
+
+	row := results[0]
+
+	user, err := buildUserFromResultRow(row)
+	if err != nil {
+		logger.Error("failed to build user from result row")
+		return model.User{}, fmt.Errorf("failed to build user from result row: %w", err)
+	}
+	return user, nil
+}
+
 func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
