@@ -19,16 +19,16 @@
 import axios from 'axios';
 import config from '../config';
 
-export enum NativeAuthSubmitType {
-    BASIC = 'BASIC',
-    SOCIAL = 'SOCIAL'
-}
+export const NativeAuthSubmitType = {
+    BASIC: 'BASIC',
+    SOCIAL: 'SOCIAL',
+} as const;
 
-export type NativeAuthSubmitTypes = keyof typeof NativeAuthSubmitType;
+export type NativeAuthSubmitType = (typeof NativeAuthSubmitType)[keyof typeof NativeAuthSubmitType];
 
 type NativeAuthSubmitPayload =
-  | { type: NativeAuthSubmitType.BASIC; username: string; password: string }
-  | { type: NativeAuthSubmitType.SOCIAL; code: string };
+  | { type: typeof NativeAuthSubmitType.BASIC; username: string; password: string }
+  | { type: typeof NativeAuthSubmitType.SOCIAL; code: string };
 
 const { applicationID, clientId, clientSecret, flowEndpoint, redirectUri, tokenEndpoint } = config;
 

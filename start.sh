@@ -18,7 +18,6 @@
 # ----------------------------------------------------------------------------
 
 # Server ports
-FRONTEND_PORT=9090
 BACKEND_PORT=8090
 
 set -e  # Exit immediately if a command exits with a non-zero status
@@ -29,28 +28,21 @@ function kill_port() {
     lsof -ti tcp:$port | xargs kill -9 2>/dev/null || true
 }
 
-# Step 0: Kill ports before binding
-kill_port $FRONTEND_PORT
+# Kill ports before binding
 kill_port $BACKEND_PORT
 
-# Step 1: Run thunder
+# Run thunder
 echo "⚡ Starting Thunder Server ..."
 BACKEND_PORT=$BACKEND_PORT ./thunder &
 THUNDER_PID=$!
 
-# Step 2: Run Node server
-echo "🟢 Starting Gate App Server ..."
-FRONTEND_PORT=$FRONTEND_PORT node apps/gate/server.js &
-NODE_PID=$!
-
 # Cleanup on Ctrl+C
-trap 'echo -e "\n🛑 Stopping servers..."; kill $THUNDER_PID $NODE_PID; exit' SIGINT
+trap 'echo -e "\n🛑 Stopping servers..."; kill $THUNDER_PID; exit' SIGINT
 
 # Status
 echo ""
-echo "🚀 Servers running:"
+echo "🚀 Servers running"
 echo "Press Ctrl+C to stop the servers."
 
 # Wait for background processes
 wait $THUNDER_PID
-wait $NODE_PID

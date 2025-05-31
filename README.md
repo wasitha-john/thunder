@@ -256,20 +256,19 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 
 - Go 1.23+
 - Node.js 14+
-- PNPM 10+
 
 ---
 
 - Build the product with tests using the following command:
 
 ```bash
-pnpm all
+make all
 ```
 
 - Start the product using the following command:
 
 ```bash
-pnpm start
+make run
 ```
 ---
 
@@ -278,18 +277,22 @@ pnpm start
 - Create a file `.env` in the path `samples/apps/oauth/` and add below values
 
   ```
-  VITE_REACT_APP_SERVER_AUTHENTICATION_ENDPOINT=https://localhost:8090/oauth2/authorize
+  VITE_REACT_APP_SERVER_AUTHORIZATION_ENDPOINT=https://localhost:8090/oauth2/authorize
   VITE_REACT_APP_SERVER_TOKEN_ENDPOINT=https://localhost:8090/oauth2/token
+  VITE_REACT_APP_SERVER_FLOW_ENDPOINT=https://localhost:8090/flow
+  VITE_REACT_APPLICATIONS_ENDPOINT=https://localhost:8090/applications
+  VITE_REACT_APP_BASIC_AUTH_APP_ID=550e8400-e29b-41d4-a716-446655440000
   VITE_REACT_APP_CLIENT_ID=client123
   VITE_REACT_APP_CLIENT_SECRET=secret123
   VITE_REACT_APP_REDIRECT_URI=https://localhost:3000
   VITE_REACT_APP_SCOPE=openid
+  VITE_REACT_APP_REDIRECT_BASED_LOGIN=false
   ```
 
 - And run this command
 
   ```bash
-  pnpm sample:dev
+  cd samples/apps/oauth && npm i && npm start
   ```
   
 - Open your browser and navigate to `https://localhost:3000` to see the sample app in action.
@@ -357,7 +360,7 @@ database:
 ### ▶️ Step 4: Run the Product
 
    ```bash
-   pnpm start
+   make run
    ```
 
 The product will now use the PostgreSQL database for its operations.
