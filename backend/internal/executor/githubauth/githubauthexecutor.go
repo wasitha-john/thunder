@@ -158,7 +158,7 @@ func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowCont
 
 		if tokenResp.Scope == "" {
 			logger.Debug("Scope is empty in the token response")
-			ctx.AuthenticatedUser = &authnmodel.AuthenticatedUser{
+			ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 				IsAuthenticated:        true,
 				UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
 				Username:               "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
@@ -185,7 +185,7 @@ func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowCont
 				}
 			}
 
-			ctx.AuthenticatedUser = &authnmodel.AuthenticatedUser{
+			ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 				IsAuthenticated:        true,
 				UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
 				Username:               username,
@@ -196,7 +196,7 @@ func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowCont
 		}
 	} else {
 		// Fail the authentication if the authorization code is not provided
-		ctx.AuthenticatedUser = &authnmodel.AuthenticatedUser{
+		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}

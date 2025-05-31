@@ -94,7 +94,7 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 		execResp.Error = "Failed to authenticate user: " + err2.Error()
 		return execResp, err2
 	}
-	ctx.AuthenticatedUser = authenticatedUser
+	ctx.AuthenticatedUser = *authenticatedUser
 
 	// Set the flow response status based on the authentication result.
 	if ctx.AuthenticatedUser.IsAuthenticated {

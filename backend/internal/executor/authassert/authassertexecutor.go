@@ -71,12 +71,12 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exe
 		Status: flowconst.ExecComplete,
 	}
 
-	if ctx.AuthenticatedUser != nil && ctx.AuthenticatedUser.IsAuthenticated {
+	if ctx.AuthenticatedUser.IsAuthenticated {
 		tokenSub := ""
 		if ctx.AuthenticatedUser.AuthenticatedSubjectID != "" {
 			tokenSub = ctx.AuthenticatedUser.AuthenticatedSubjectID
 		}
-		token, err := jwt.GenerateJWT(tokenSub, ctx.AppID)
+		token, err := jwt.GenerateJWT(tokenSub, ctx.AppID, ctx.AuthenticatedUser.Attributes)
 		if err != nil {
 			logger.Error("Failed to generate JWT token", log.Error(err))
 			exeResp.Status = flowconst.ExecError
