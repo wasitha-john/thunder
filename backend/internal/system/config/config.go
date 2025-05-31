@@ -65,17 +65,6 @@ type DatabaseConfig struct {
 	Runtime  DataSource `yaml:"runtime"`
 }
 
-// DefaultUser holds the default user configuration details.
-type DefaultUser struct {
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
-}
-
-// UserStore holds the user store configuration details.
-type UserStore struct {
-	DefaultUser DefaultUser `yaml:"default_user"`
-}
-
 // JWTConfig holds the JWT configuration details.
 type JWTConfig struct {
 	Issuer         string `yaml:"issuer"`
@@ -123,7 +112,6 @@ type Config struct {
 	GateClient    GateClientConfig    `yaml:"gate_client"`
 	Security      SecurityConfig      `yaml:"security"`
 	Database      DatabaseConfig      `yaml:"database"`
-	UserStore     UserStore           `yaml:"user_store"`
 	OAuth         OAuthConfig         `yaml:"oauth"`
 	Authenticator AuthenticatorConfig `yaml:"authenticator"`
 	Flow          FlowConfig          `yaml:"flow"`

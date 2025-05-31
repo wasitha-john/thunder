@@ -73,8 +73,7 @@ func addAllowedOriginHeaders(w http.ResponseWriter, r *http.Request, options *Re
 
 	requestOrigin := r.Header.Get("Origin")
 	if requestOrigin == "" {
-		// Get the origin from the request URL if not present in the header.
-		requestOrigin = r.URL.Scheme + "://" + r.URL.Host
+		return nil
 	}
 
 	// Set the CORS headers if allowed origins are configured.

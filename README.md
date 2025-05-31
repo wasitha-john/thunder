@@ -38,7 +38,37 @@ sh start.sh
 
 ### Step 3: Tryout the product
 
-#### 1️⃣ Try Out Client Credentials Flow
+#### 1️⃣ Create a User
+
+Create a user in the system to tryout the authentication flows. You can use the following cURL command to create a user with the required attributes.
+
+  ```bash
+  curl --location 'https://localhost:8090/users' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{
+      "organizationUnit": "456e8400-e29b-41d4-a716-446655440001",
+      "type": "superhuman",
+      "attributes": {
+          "username": "thor",
+          "password": "thor123",
+          "email": "thor@thunder.sky",
+          "firstName": "Thor",
+          "lastName": "Odinson",
+          "age": 1534,
+          "abilities": [
+              "strength",
+              "speed",
+              "healing"
+          ],
+          "address": {
+              "city": "Asgard",
+              "zip": "00100"
+          }
+      }
+  }'
+  ```
+
+#### 2️⃣ Try Out Client Credentials Flow
 
 ```bash
 curl -k -X POST https://localhost:8090/oauth2/token \
@@ -54,12 +84,7 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   https://localhost:8090/oauth2/authorize?response_type=code&client_id=client123&redirect_uri=https://localhost:3000&scope=openid&state=state_1
   ```
 
-- Enter the following credentials:
-
-  - **Username:** `thor`
-  - **Password:** `thor123`
-
-    **Note:** The credentials can be configured in the `repository/conf/deployment.yaml` file under the `user_store` section.
+- Enter the credentials of the user you created in the previous step.
 
 - After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
 
@@ -120,6 +145,7 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   {
       "flowId": "db93a19e-c23f-4cfc-a45f-0e0bc157f6d5",
       "flowStatus": "PROMPT_ONLY",
+      "type": "VIEW",
       "inputs": [
           {
               "name": "username",
@@ -214,6 +240,7 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   {
       "flowId": "80d57e64-8082-4096-bb0e-22b2187f8265",
       "flowStatus": "INCOMPLETE",
+      "type": "REDIRECTION",
       "inputs": [
           {
               "name": "code",
@@ -274,22 +301,16 @@ make run
 
 ## 🔑 Try Out the Sample App
 
-- Create a file `.env` in the path `samples/apps/oauth/` and add below values
+- Create a file `.env` in the path `samples/apps/oauth/` and add below values.
 
   ```
-  VITE_REACT_APP_SERVER_AUTHORIZATION_ENDPOINT=https://localhost:8090/oauth2/authorize
-  VITE_REACT_APP_SERVER_TOKEN_ENDPOINT=https://localhost:8090/oauth2/token
   VITE_REACT_APP_SERVER_FLOW_ENDPOINT=https://localhost:8090/flow
   VITE_REACT_APPLICATIONS_ENDPOINT=https://localhost:8090/applications
   VITE_REACT_APP_BASIC_AUTH_APP_ID=550e8400-e29b-41d4-a716-446655440000
-  VITE_REACT_APP_CLIENT_ID=client123
-  VITE_REACT_APP_CLIENT_SECRET=secret123
-  VITE_REACT_APP_REDIRECT_URI=https://localhost:3000
-  VITE_REACT_APP_SCOPE=openid
   VITE_REACT_APP_REDIRECT_BASED_LOGIN=false
   ```
 
-- And run this command
+- Run the sample app using the following commands:
 
   ```bash
   cd samples/apps/oauth && npm i && npm start
