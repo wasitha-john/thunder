@@ -32,6 +32,7 @@ import GoogleIcon from '@mui/icons-material/Google';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Layout from '../components/Layout';
+import ConnectionErrorModal from '../components/ConnectionErrorModal';
 import { NativeAuthSubmitType, initiateNativeAuth, submitNativeAuth } from '../services/authService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -54,6 +55,7 @@ const LoginPage = () => {
     const [showRememberMe] = useState<boolean>(false);
     const [showForgotPassword] = useState<boolean>(false);
     const [error, setError] = useState<boolean>(false);
+    const [connectionError, setConnectionError] = useState<boolean>(false);
 
     const [flowId, setFlowId] = useState<string>(sessionStorage.getItem(FLOW_ID_KEY) || '');
     const [startInit] = useState<boolean>(JSON.parse(sessionStorage.getItem(START_INIT_KEY) || 'true'));
@@ -80,6 +82,7 @@ const LoginPage = () => {
 
     const init = useCallback(() => {
         clearToken();
+        setConnectionError(false);
 
         initiateNativeAuth()
             .then((result) => {
@@ -95,6 +98,7 @@ const LoginPage = () => {
                 setFlowId(result.data.flowId);
             }).catch((error) => {
                 console.error("Error during authentication:", error);
+                setConnectionError(true);
             });
     }, [clearToken]);
 
@@ -110,11 +114,22 @@ const LoginPage = () => {
                     setToken(data.assertion);
                     setError(false);
                 }
-            }).catch(() => {
-                setError(true);
-
-                init();
+            }).catch((error) => {
+                console.error("Error during authentication:", error);
+                // Check if it's a network error or authentication error
+                if (error.message && error.message.includes("Network Error")) {
+                    setConnectionError(true);
+                } else {
+                    setError(true);
+                    init();
+                }
             });
+    };
+
+    const handleRetry = () => {
+        setTimeout(() => {
+            init();
+        }, 500);
     };
 
     // This effect is to handle initial component mount
@@ -127,7 +142,6 @@ const LoginPage = () => {
             init();
         }
     },[startInit, init]);
-
 
     // This effect is to handle when return from GitHub login
     useEffect(() => {
@@ -145,8 +159,14 @@ const LoginPage = () => {
                             setToken(data.assertion);
                             setError(false);
                         }
-                    }).catch(() => {
-                        // setError(true);
+                    }).catch((error) => {
+                        console.error("Error during social authentication:", error);
+                        if (error.message && error.message.includes("Network Error")) {
+                            setConnectionError(true);
+                        } 
+                        // else {
+                        //     setError(true);
+                        // }
                     });
             } else {
                 setError(true);
@@ -189,103 +209,113 @@ const LoginPage = () => {
                                 </Typography>
                                 )}
                             </Box>
+                            
+                            {connectionError && (
+                                <ConnectionErrorModal 
+                                    onRetry={handleRetry}
+                                />
+                            )}
 
-                            {error && (
+                            {error && !connectionError && (
                                 <Alert severity="error" sx={{ my: 2 }}>
                                     Login failed. Please check your credentials.
                                 </Alert>
                             )}
 
-                            {(showGoogleLoginButton || showGitHubLoginButton) && (
+                            {!connectionError && (
                                 <>
-                                    <Box>
-                                        {showGoogleLoginButton && (
-                                            <Button
-                                                fullWidth
-                                                variant="contained"
-                                                startIcon={<GoogleIcon />}
-                                                color="secondary"
-                                                sx={{ my: 1 }}
-                                            >
-                                                Continue with Google
-                                            </Button>
-                                        )}
-                                        {showGitHubLoginButton && (
-                                        <Button
-                                            fullWidth
-                                            variant="contained"
-                                            startIcon={<GitHubIcon />}
-                                            color="secondary"
-                                            onClick={() => handleGitHubLoginClick()}
-                                            sx={{ my: 1 }}
-                                        >
-                                            Continue with GitHub
-                                        </Button>
-                                        )}
-                                    </Box>
-                                    
+                                    {(showGoogleLoginButton || showGitHubLoginButton) && (
+                                        <>
+                                            <Box>
+                                                {showGoogleLoginButton && (
+                                                    <Button
+                                                        fullWidth
+                                                        variant="contained"
+                                                        startIcon={<GoogleIcon />}
+                                                        color="secondary"
+                                                        sx={{ my: 1 }}
+                                                    >
+                                                        Continue with Google
+                                                    </Button>
+                                                )}
+                                                {showGitHubLoginButton && (
+                                                <Button
+                                                    fullWidth
+                                                    variant="contained"
+                                                    startIcon={<GitHubIcon />}
+                                                    color="secondary"
+                                                    onClick={() => handleGitHubLoginClick()}
+                                                    sx={{ my: 1 }}
+                                                >
+                                                    Continue with GitHub
+                                                </Button>
+                                                )}
+                                            </Box>
+                                            
+                                            { userNamePasswordLogin &&
+                                                <Divider sx={{ my: 3 }}>or</Divider>
+                                            }
+                                        </>
+                                    )}
+
                                     { userNamePasswordLogin &&
-                                        <Divider sx={{ my: 3 }}>or</Divider>
+                                        <Box display="flex" flexDirection="column" gap={2}>
+                                            <Box display="flex" flexDirection="column" gap={0.5}>
+                                                <InputLabel htmlFor="username">Username</InputLabel>
+                                                <OutlinedInput
+                                                    type="text"
+                                                    id="username"
+                                                    name="username"
+                                                    placeholder="Enter your username"
+                                                    size="small"
+                                                    value={basicAuthFormData.username}
+                                                    onChange={handleInputChange}
+                                                    required
+                                                />
+                                            </Box>
+                                            <Box display="flex" flexDirection="column" gap={0.5}>
+                                                <InputLabel htmlFor="password">Password</InputLabel>
+                                                <OutlinedInput
+                                                    type="password"
+                                                    id="password"
+                                                    name="password"
+                                                    placeholder="Enter your password"
+                                                    size="small"
+                                                    value={basicAuthFormData.password}
+                                                    onChange={handleInputChange}
+                                                    required
+                                                />
+                                            </Box>
+                                            {(showRememberMe || showForgotPassword) && (
+                                                <Box
+                                                    sx={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    }}
+                                                >
+                                                    {showRememberMe && (
+                                                        <FormControlLabel
+                                                            control={<Checkbox name="remember-me-checkbox" />} 
+                                                            label="Remember me" />
+                                                    )}
+                                                    {showForgotPassword && <Link href="">Forgot your password?</Link>}
+                                                </Box>
+                                            )}
+                                            <Button
+                                                variant="contained"
+                                                color="primary"
+                                                type="submit"
+                                                fullWidth
+                                                sx={{ mt: 2 }}
+                                                onClick={(e) => handelBasicAuthSubmit(e)}
+                                            >
+                                                Sign In
+                                            </Button>
+                                        </Box>
                                     }
                                 </>
                             )}
-
-                            { userNamePasswordLogin &&
-                                <Box display="flex" flexDirection="column" gap={2}>
-                                    <Box display="flex" flexDirection="column" gap={0.5}>
-                                        <InputLabel htmlFor="username">Username</InputLabel>
-                                        <OutlinedInput
-                                            type="text"
-                                            id="username"
-                                            name="username"
-                                            placeholder="Enter your username"
-                                            size="small"
-                                            value={basicAuthFormData.username}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </Box>
-                                    <Box display="flex" flexDirection="column" gap={0.5}>
-                                        <InputLabel htmlFor="password">Password</InputLabel>
-                                        <OutlinedInput
-                                            type="password"
-                                            id="password"
-                                            name="password"
-                                            placeholder="Enter your password"
-                                            size="small"
-                                            value={basicAuthFormData.password}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </Box>
-                                    {(showRememberMe || showForgotPassword) && (
-                                        <Box
-                                            sx={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            }}
-                                        >
-                                            {showRememberMe && (
-                                                <FormControlLabel
-                                                    control={<Checkbox name="remember-me-checkbox" />} 
-                                                    label="Remember me" />
-                                            )}
-                                            {showForgotPassword && <Link href="">Forgot your password?</Link>}
-                                        </Box>
-                                    )}
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        type="submit"
-                                        fullWidth
-                                        sx={{ mt: 2 }}
-                                        onClick={(e) => handelBasicAuthSubmit(e)}
-                                    >
-                                        Sign In
-                                    </Button>
-                                </Box>
-                            }
                             <Box component="footer" sx={{ mt: 6 }}>
                                 <Typography sx={{ textAlign: "center" }}>
                                     © Copyright {new Date().getFullYear()}
