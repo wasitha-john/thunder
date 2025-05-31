@@ -1,6 +1,6 @@
-# OAuth Client App
+# Sample Client App
 
-This is a sample React application that demonstrates the OAuth2 authorization code flow. The application allows users to log in using their credentials and retrieves an access token from the server.
+This is a sample React application that demonstrates the Thunder login flow. The application allows users to log in using their credentials and retrieves an access token from the server.
 
 ## Prerequisites
 
@@ -28,10 +28,9 @@ This is a sample React application that demonstrates the OAuth2 authorization co
    Create a `.env` file in the frontend sample directory if it doesn't exist, and add the following environment variables:
 
    ```env
-   REACT_APP_CLIENT_ID=client123
-   REACT_APP_CLIENT_SECRET=secret1234
-   REACT_APP_SERVER_AUTHENTICATION_ENDPOINT=https://localhost:8090/oauth2/authorize
-   REACT_APP_SERVER_TOKEN_ENDPOINT=https://localhost:8090/oauth2/token
+   VITE_REACT_APPLICATIONS_ENDPOINT=https://localhost:8090/applications
+   VITE_REACT_APP_SERVER_FLOW_ENDPOINT=https://localhost:8090/flow
+   VITE_REACT_APP_BASIC_AUTH_APP_ID=<your-app-id>
    ```
 
 5. **Run the application:**
