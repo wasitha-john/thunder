@@ -19,32 +19,45 @@
 // Package store provides the implementation for user persistence operations.
 package store
 
-import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
+import (
+	"github.com/asgardeo/thunder/internal/system/database/model"
+)
 
 var (
 	// QueryCreateUser is the query to create a new user.
-	QueryCreateUser = dbmodel.DBQuery{
+	QueryCreateUser = model.DBQuery{
 		ID:    "ASQ-USER_MGT-01",
 		Query: "INSERT INTO \"USER\" (USER_ID, OU_ID, TYPE, ATTRIBUTES) VALUES ($1, $2, $3, $4)",
 	}
 	// QueryGetUserByUserID is the query to get a user by user ID.
-	QueryGetUserByUserID = dbmodel.DBQuery{
+	QueryGetUserByUserID = model.DBQuery{
 		ID:    "ASQ-USER_MGT-02",
 		Query: "SELECT USER_ID, OU_ID, TYPE, ATTRIBUTES FROM \"USER\" WHERE USER_ID = $1",
 	}
 	// QueryGetUserList is the query to get a list of users.
-	QueryGetUserList = dbmodel.DBQuery{
+	QueryGetUserList = model.DBQuery{
 		ID:    "ASQ-USER_MGT-03",
 		Query: "SELECT USER_ID, OU_ID, TYPE, ATTRIBUTES FROM \"USER\"",
 	}
 	// QueryUpdateUserByUserID is the query to update a user by user ID.
-	QueryUpdateUserByUserID = dbmodel.DBQuery{
+	QueryUpdateUserByUserID = model.DBQuery{
 		ID:    "ASQ-USER_MGT-04",
 		Query: "UPDATE \"USER\" SET OU_ID = $2, TYPE = $3, ATTRIBUTES = $4 WHERE USER_ID = $1;",
 	}
 	// QueryDeleteUserByUserID is the query to delete a user by user ID.
-	QueryDeleteUserByUserID = dbmodel.DBQuery{
+	QueryDeleteUserByUserID = model.DBQuery{
 		ID:    "ASQ-USER_MGT-05",
 		Query: "DELETE FROM \"USER\" WHERE USER_ID = $1",
+	}
+	// QueryIdentifyUser is the query to identify user with the given attributes.
+	QueryIdentifyUser = model.DBQuery{
+		ID:    "ASQ-USER_MGT-06",
+		Query: "SELECT USER_ID FROM \"USER\" WHERE JSON_EXTRACT(attributes, '$.username') = $1",
+	}
+	// QueryValidateUserWithCredentials is the query to validate the user with the give credentials.
+	QueryValidateUserWithCredentials = model.DBQuery{
+		ID: "ASQ-USER_MGT-07",
+		Query: "SELECT USER_ID, OU_ID, TYPE, ATTRIBUTES FROM \"USER\" " +
+			"WHERE USER_ID = $1 AND JSON_EXTRACT(attributes, '$.password') = $2",
 	}
 )

@@ -20,16 +20,20 @@
 package basicauth
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
-	"time"
 
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
 	authnutils "github.com/asgardeo/thunder/internal/authn/utils"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/outboundauth/abstract"
 	"github.com/asgardeo/thunder/internal/system/config"
+	"github.com/asgardeo/thunder/internal/system/log"
+	userprovider "github.com/asgardeo/thunder/internal/user/provider"
 )
+
+const loggerComponentName = "BasicAuthenticator"
 
 // BasicAuthenticator is an implementation of the Authenticator interface for Basic Authentication.
 type BasicAuthenticator struct {
@@ -73,6 +77,8 @@ func (b *BasicAuthenticator) InitiateAuthenticationRequest(w http.ResponseWriter
 // ProcessAuthenticationResponse processes the authentication response from the Basic Authenticator.
 func (b *BasicAuthenticator) ProcessAuthenticationResponse(w http.ResponseWriter, r *http.Request,
 	ctx *authnmodel.AuthenticationContext) error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
 	// Parse form data.
 	if err := r.ParseForm(); err != nil {
 		return errors.New("failed to parse form data: " + err.Error())
@@ -81,31 +87,15 @@ func (b *BasicAuthenticator) ProcessAuthenticationResponse(w http.ResponseWriter
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	// Read the valid username and password from the configuration.
-	config := config.GetThunderRuntime().Config
-	validUsername := config.UserStore.DefaultUser.Username
-	validPassword := config.UserStore.DefaultUser.Password
-
-	if username == validUsername && password == validPassword {
-		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
-			IsAuthenticated:        true,
-			UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-			Username:               username,
-			Domain:                 "PRIMARY",
-			AuthenticatedSubjectID: username + "@carbon.super",
-			Attributes: map[string]string{
-				"email":     "admin@wso2.com",
-				"firstName": "Admin",
-				"lastName":  "User",
-			},
-		}
-		ctx.AuthTime = time.Now()
-	} else {
-		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
-			IsAuthenticated: false,
-		}
+	authenticatedUser, err2 := getAuthenticatedUser(username, password, logger)
+	if err2 != nil {
+		logger.Error("Failed to authenticate user",
+			log.String("username", log.MaskString(username)),
+			log.Error(err2))
+		return err2
 	}
 
+	ctx.AuthenticatedUser = *authenticatedUser
 	return nil
 }
 
@@ -115,4 +105,55 @@ func (b *BasicAuthenticator) IsInitialRequest(r *http.Request, ctx *authnmodel.A
 		return true
 	}
 	return false
+}
+
+// getAuthenticatedUser perform authentication based on the provided username and password and return authenticated user
+// details.
+func getAuthenticatedUser(username, password string, logger *log.Logger) (*authnmodel.AuthenticatedUser, error) {
+	userProvider := userprovider.NewUserProvider()
+	userService := userProvider.GetUserService()
+
+	userID, err := userService.IdentityUser("username", username)
+	if err != nil {
+		logger.Error("Failed to identify user by username",
+			log.String("username", log.MaskString(username)),
+			log.Error(err))
+		return nil, err
+	}
+	if *userID == "" {
+		logger.Error("User not found for the provided username",
+			log.String("username", log.MaskString(username)))
+		return nil, err
+	}
+
+	user, err := userService.VerifyUser(*userID, "password", password)
+	if err != nil {
+		logger.Error("Failed to verify user credentials", log.String("userID", *userID), log.Error(err))
+		return nil, err
+	}
+
+	var authenticatedUser authnmodel.AuthenticatedUser
+	if user == nil {
+		authenticatedUser = authnmodel.AuthenticatedUser{
+			IsAuthenticated: false,
+		}
+	} else {
+		var attrs map[string]interface{}
+		if err := json.Unmarshal(user.Attributes, &attrs); err != nil {
+			logger.Error("Failed to unmarshal user attributes", log.Error(err))
+			return nil, err
+		}
+		authenticatedUser = authnmodel.AuthenticatedUser{
+			IsAuthenticated:        true,
+			UserID:                 user.ID,
+			Username:               attrs["username"].(string),
+			AuthenticatedSubjectID: attrs["email"].(string),
+			Attributes: map[string]string{
+				"email":     attrs["email"].(string),
+				"firstName": attrs["firstName"].(string),
+				"lastName":  attrs["lastName"].(string),
+			},
+		}
+	}
+	return &authenticatedUser, nil
 }

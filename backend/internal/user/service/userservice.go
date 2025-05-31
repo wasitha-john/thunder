@@ -35,6 +35,8 @@ type UserServiceInterface interface {
 	GetUser(userID string) (*model.User, error)
 	UpdateUser(userID string, user *model.User) (*model.User, error)
 	DeleteUser(userID string) error
+	IdentityUser(attrName, attrValue string) (*string, error)
+	VerifyUser(userID, credType, credValue string) (*model.User, error)
 }
 
 // UserService is the default implementation of the UserServiceInterface.
@@ -110,4 +112,44 @@ func (as *UserService) DeleteUser(userID string) error {
 	}
 
 	return nil
+}
+
+// IdentityUser identify user with the given attributes.
+func (as *UserService) IdentityUser(attrName, attrValue string) (*string, error) {
+	if attrName == "" {
+		return nil, errors.New("attribute name is empty")
+	}
+
+	if attrValue == "" {
+		return nil, errors.New("attribute value is empty")
+	}
+
+	userID, err := store.IdentityUser(attrName, attrValue)
+	if err != nil {
+		return nil, err
+	}
+
+	return userID, nil
+}
+
+// VerifyUser validate the specified user with the given credentials.
+func (as *UserService) VerifyUser(userID, credType, credValue string) (*model.User, error) {
+	if userID == "" {
+		return nil, errors.New("user ID is empty")
+	}
+
+	if credType == "" {
+		return nil, errors.New("credential type is empty")
+	}
+
+	if credValue == "" {
+		return nil, errors.New("credential value is empty")
+	}
+
+	user, err := store.VerifyUser(userID, credType, credValue)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
