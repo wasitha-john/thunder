@@ -12,17 +12,13 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 ## 🚀 Features
 
 - ✅ **Standards-Based**
-  - OAuth 2/ OpenID Connect (OIDC): Authorization Code, Client Credentials
+  - OAuth 2/ OpenID Connect (OIDC): Client Credentials
 - 🔗 **Login Options:** Basic Authentication, Login with GitHub
-- 🌐 **RESTful APIs:** User Management, Application Management
+- 🌐 **RESTful APIs:** App Native Login, User Management, Application Management, Identity Provider Management
 
 ---
 
 ## ⚡ Quickstart
-
-### ✅ Prerequisites
-
-- Node.js 14+
 
 ### Step 1: Download the distribution from the latest release
 
@@ -31,8 +27,8 @@ Download `thunder-<version>.zip` from the [latest release](https://github.com/as
 ### Step 2: Unzip and start the product
 
 ```bash
-unzip thunder-v0.0.1.zip
-cd thunder-v0.0.1/
+unzip thunder-v0.1.0.zip
+cd thunder-v0.1.0/
 sh start.sh
 ```
 
@@ -43,9 +39,8 @@ sh start.sh
 Create a user in the system to tryout the authentication flows. You can use the following cURL command to create a user with the required attributes.
 
   ```bash
-  curl --location 'https://localhost:8090/users' \
-  --header 'Content-Type: application/json' \
-  --data-raw '{
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
+  -d '{
       "organizationUnit": "456e8400-e29b-41d4-a716-446655440001",
       "type": "superhuman",
       "attributes": {
@@ -76,46 +71,14 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   -u 'client123:secret123'
 ```
 
-#### 2️⃣ Try Out Authorization Code Flow
-
-- Open the following URL in your browser:
-
-  ```bash
-  https://localhost:8090/oauth2/authorize?response_type=code&client_id=client123&redirect_uri=https://localhost:3000&scope=openid&state=state_1
-  ```
-
-- Enter the credentials of the user you created in the previous step.
-
-- After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
-
-  ```bash
-
-  https://localhost:3000/?code=<code>&state=state_1
-  ```
-
-- Copy the authorization code and exchange it for an access token using the following cURL command:
-
-  ```bash
-  curl -k -X POST 'https://localhost:8090/oauth2/token' \
-  -u 'client123:secret123' \
-  -d 'grant_type=authorization_code' \
-  -d 'redirect_uri=https://localhost:3000' \
-  -d 'code=<code>'
-  ```
-
-  - **Client ID:** `client123`
-  - **Client Secret:** `secret123`
-
 #### 3️⃣ Try App Native Login
 
 ##### 1️⃣ Login with Basic Authentication
 
 - Create an application and configure the basic auth login template for it.
   ```bash
-  curl --location 'https://localhost:8090/applications' \
-  --header 'Content-Type: application/json' \
-  --header 'Accept: application/json' \
-  --data '{
+  curl -kL -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
+  -d '{
       "client_id": "client456",
       "client_secret": "***",
       "callback_url": [
@@ -130,10 +93,8 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 - Start login flow for the application with the following cURL command:
 
   ```bash
-  curl --location 'https://localhost:8090/flow/execution' \
-  --header 'Accept: application/json' \
-  --header 'Content-Type: application/json' \
-  --data '{
+  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  -d '{
       "applicationId": "<application_id>",
   }
   '
@@ -162,11 +123,11 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   ```
 
 - Make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
+- Also, replace the `username` and `password` with the credentials of the user you created in the first step.
 
   ```bash
-  curl --location 'https://localhost:8090/flow/execution' \
-  --header 'Content-Type: application/json' \
-  --data '{
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  -d '{
       "flowId": "<flow_id>",
       "inputs": {
           "username": "thor",
@@ -187,10 +148,8 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 - Update the system created github IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your GitHub OAuth application.
 
   ```bash
-  curl --location --request PUT 'https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440001' \
-  --header 'Content-Type: application/json' \
-  --header 'Accept: application/json' \
-  --data '{
+  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440001 \
+  -d '{
       "id": "550e8400-e29b-41d4-a716-446655440001",
       "name": "Github",
       "description": "Login with Github",
@@ -207,10 +166,8 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 - Create an application and configure the GitHub login template for it.
 
   ```bash
-  curl --location 'https://localhost:8090/applications' \
-  --header 'Content-Type: application/json' \
-  --header 'Accept: application/json' \
-  --data '{
+  curl -kL -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
+  -d '{
       "client_id": "client456",
       "client_secret": "***",
       "callback_url": [
@@ -225,10 +182,8 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 - Start login flow for the application with the following cURL command:
 
   ```bash
-  curl --location 'https://localhost:8090/flow/execution' \
-  --header 'Accept: application/json' \
-  --header 'Content-Type: application/json' \
-  --data '{
+  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  -d '{
       "applicationId": "<application_id>",
   }
   '
@@ -264,9 +219,8 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 - Copy the authorization code and make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
 
   ```bash
-  curl --location 'https://localhost:8090/flow/execution' \
-  --header 'Content-Type: application/json' \
-  --data '{
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  -d '{
       "flowId": "<flow_id>",
       "inputs": {
           "code": "<code>"
@@ -290,12 +244,6 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 
 ```bash
 make all
-```
-
-- Start the product using the following command:
-
-```bash
-make run
 ```
 ---
 
