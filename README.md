@@ -12,17 +12,13 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 ## 🚀 Features
 
 - ✅ **Standards-Based**
-  - OAuth 2/ OpenID Connect (OIDC): Authorization Code, Client Credentials
+  - OAuth 2/ OpenID Connect (OIDC): Client Credentials
 - 🔗 **Login Options:** Basic Authentication, Login with GitHub
-- 🌐 **RESTful APIs:** User Management, Application Management
+- 🌐 **RESTful APIs:** App Native Login, User Management, Application Management, Identity Provider Management
 
 ---
 
 ## ⚡ Quickstart
-
-### ✅ Prerequisites
-
-- Node.js 14+
 
 ### Step 1: Download the distribution from the latest release
 
@@ -31,8 +27,8 @@ Download `thunder-<version>.zip` from the [latest release](https://github.com/as
 ### Step 2: Unzip and start the product
 
 ```bash
-unzip thunder-v0.0.1.zip
-cd thunder-v0.0.1/
+unzip thunder-v0.1.0.zip
+cd thunder-v0.1.0/
 sh start.sh
 ```
 
@@ -74,36 +70,6 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   -d 'grant_type=client_credentials' \
   -u 'client123:secret123'
 ```
-
-#### 2️⃣ Try Out Authorization Code Flow
-
-- Open the following URL in your browser:
-
-  ```bash
-  https://localhost:8090/oauth2/authorize?response_type=code&client_id=client123&redirect_uri=https://localhost:3000&scope=openid&state=state_1
-  ```
-
-- Enter the credentials of the user you created in the previous step.
-
-- After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
-
-  ```bash
-
-  https://localhost:3000/?code=<code>&state=state_1
-  ```
-
-- Copy the authorization code and exchange it for an access token using the following cURL command:
-
-  ```bash
-  curl -k -X POST 'https://localhost:8090/oauth2/token' \
-  -u 'client123:secret123' \
-  -d 'grant_type=authorization_code' \
-  -d 'redirect_uri=https://localhost:3000' \
-  -d 'code=<code>'
-  ```
-
-  - **Client ID:** `client123`
-  - **Client Secret:** `secret123`
 
 #### 3️⃣ Try App Native Login
 
@@ -157,6 +123,7 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   ```
 
 - Make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
+- Also, replace the `username` and `password` with the credentials of the user you created in the first step.
 
   ```bash
   curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
@@ -277,12 +244,6 @@ curl -k -X POST https://localhost:8090/oauth2/token \
 
 ```bash
 make all
-```
-
-- Start the product using the following command:
-
-```bash
-make run
 ```
 ---
 
