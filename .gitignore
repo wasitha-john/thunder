@@ -73,8 +73,8 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # NX artifacts
-.nx/cache
-.nx/workspace-data
+frontend/.nx/cache
+frontend/.nx/workspace-data
 
 # typescript
 *.tsbuildinfo

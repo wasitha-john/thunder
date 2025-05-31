@@ -24,7 +24,7 @@
     --md-contained-primary-hover-background: linear-gradient(77.74deg, #d0364b 11.16%, #f2621f 99.55%);
 }
 
-html[data-color-scheme='light'], html[data-mui-color-scheme='light'] {
+html[data-color-scheme='light'] {
     color-scheme: light;
 
     --md-palette-background-paper: #ffffff6b;
@@ -33,7 +33,7 @@ html[data-color-scheme='light'], html[data-mui-color-scheme='light'] {
     background: var(--background);
 }
 
-html[data-color-scheme='dark'], html[data-mui-color-scheme='dark'] {
+html[data-color-scheme='dark'] {
     color-scheme: dark;
 
     --background: #1E1E24;

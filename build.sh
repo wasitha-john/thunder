@@ -25,7 +25,6 @@ VERSION=$(cat "$VERSION_FILE")
 PRODUCT_FOLDER=${BINARY_NAME}-${VERSION}
 
 # Server ports
-FRONTEND_PORT=9090
 BACKEND_PORT=8090
 
 # Directories
@@ -38,11 +37,6 @@ REPOSITORY_DB_DIR=$REPOSITORY_DIR/database
 SERVER_SCRIPTS_DIR=$BACKEND_BASE_DIR/scripts
 SERVER_DB_SCRIPTS_DIR=$BACKEND_BASE_DIR/dbscripts
 SECURITY_DIR=repository/resources/security
-FRONTEND_BASE_DIR=frontend
-GATE_APP_DIR=apps/gate
-PACKAGES_DIR=packages
-FRONTEND_GATE_APP_DIR=$FRONTEND_BASE_DIR/$GATE_APP_DIR
-FRONTEND_PACKAGES=$FRONTEND_BASE_DIR/$PACKAGES_DIR
 SAMPLE_BASE_DIR=samples
 SAMPLE_OAUTH_APP_DIR=$SAMPLE_BASE_DIR/apps/oauth
 
@@ -65,13 +59,6 @@ function build_backend() {
 
     echo "Initializing databases..."
     initialize_databases
-}
-
-function build_frontend() {
-    echo "Building Next frontend apps..."
-    command -v pnpm >/dev/null 2>&1 || npm install -g pnpm
-    pnpm i
-    pnpm --filter gate build
 }
 
 function initialize_databases() {
@@ -118,22 +105,12 @@ function prepare_backend_for_packaging() {
     ensure_certificates "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR"
 }
 
-function prepare_frontend_for_packaging() {
-    echo "Copying frontend artifacts..."
-
-    mkdir -p "$OUTPUT_DIR/$PRODUCT_FOLDER/$GATE_APP_DIR"
-    shopt -s dotglob
-    cp -r "$FRONTEND_GATE_APP_DIR/dist/.next/standalone/"* "$OUTPUT_DIR/$PRODUCT_FOLDER/$GATE_APP_DIR"
-    shopt -u dotglob
-}
-
 function package() {
     echo "Packaging artifacts..."
 
     mkdir -p "$OUTPUT_DIR/$PRODUCT_FOLDER"
 
     prepare_backend_for_packaging
-    prepare_frontend_for_packaging
 
     cp -r "start.sh" "$OUTPUT_DIR/$PRODUCT_FOLDER"
 
@@ -180,16 +157,10 @@ function run() {
     echo "=== Building backend ==="
     build_backend
 
-    echo "=== Building frontend ==="
-    build_frontend
-
     echo "=== Ensuring server certificates exist ==="
     ensure_certificates "$BACKEND_DIR/$SECURITY_DIR"
 
-    echo "=== Ensuring portal certificates exist ==="
-    ensure_certificates "$FRONTEND_GATE_APP_DIR"
-
-    echo "=== Ensuring Sample app certificates exist ==="
+    echo "=== Ensuring sample app certificates exist ==="
     ensure_certificates "$SAMPLE_OAUTH_APP_DIR"
 
     # Kill known ports
@@ -198,26 +169,18 @@ function run() {
         lsof -ti tcp:$port | xargs kill -9 2>/dev/null || true
     }
 
-    kill_port $FRONTEND_PORT
     kill_port $BACKEND_PORT
 
-    echo "=== Starting frontend on https://localhost:$FRONTEND_PORT ==="
-    FRONTEND_PORT=$FRONTEND_PORT pnpm --filter gate start &
-    FRONTEND_PID=$!
-
-    echo "=== Starting backend on https://localhost:$BACKEND_PORT ==="
+    echo "=== Starting backend ==="
     BACKEND_PORT=$BACKEND_PORT go run -C "$BACKEND_DIR" . &
     BACKEND_PID=$!
 
     echo ""
-    echo "🚀 Servers running:"
-    echo "👉 Frontend: https://localhost:$FRONTEND_PORT"
-    echo "👉 Backend : https://localhost:$BACKEND_PORT"
+    echo "⚡ Thunder Backend : https://localhost:$BACKEND_PORT"
     echo "Press Ctrl+C to stop."
 
-    trap 'echo -e "\nStopping servers..."; kill $FRONTEND_PID $BACKEND_PID; exit' SIGINT
+    trap 'echo -e "\nStopping servers..."; kill $BACKEND_PID; exit' SIGINT
 
-    wait $FRONTEND_PID
     wait $BACKEND_PID
 }
 
@@ -227,7 +190,6 @@ case "$1" in
         ;;
     build)
         build_backend
-        build_frontend
         package
         ;;
     test)

@@ -3,7 +3,7 @@
   "$schema": "./node_modules/nx/schemas/workspace-schema.json",
   "projects": {
     "oxygen-ui": {
-      "root": "frontend/packages/oxygen-ui",
+      "root": "packages/oxygen-ui",
       "sourceRoot": "packages/oxygen-ui/src",
       "projectType": "library",
       "targets": {
@@ -17,7 +17,7 @@
       }
     },
     "gate": {
-      "root": "frontend/apps/gate",
+      "root": "apps/gate",
       "targets": {
         "build": {
           "executor": "nx:run-commands",
@@ -43,7 +43,7 @@
       }
     },
     "admin": {
-      "root": "frontend/apps/admin",
+      "root": "apps/admin",
       "targets": {
         "build": {
           "executor": "nx:run-commands",

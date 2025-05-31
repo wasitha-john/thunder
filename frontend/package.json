@@ -1,0 +1,19 @@
+{
+  "name": "thunder-source",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "scripts": {
+    "start": "pnpm run",
+    "build": "pnpm i --yes && nx run-many --target=build --all",
+    "lint": "nx run-many --target=lint --all",
+    "test": "nx run-many --target=test --all",
+    "graph": "nx graph",
+    "gate:build": "pnpm i --yes && pnpm --filter gate build",
+    "gate:dev": "pnpm --filter gate dev"
+  },
+  "private": true,
+  "devDependencies": {
+    "@nx/workspace": "20.8.0",
+    "nx": "20.8.0"
+  }
+}
