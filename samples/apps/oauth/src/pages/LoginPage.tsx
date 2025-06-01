@@ -17,12 +17,14 @@
  */
 
 import Alert from '@mui/material/Alert';
+import InputAdornment from '@mui/material/InputAdornment';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
+import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import Paper from '@mui/material/Paper';
@@ -30,12 +32,14 @@ import Typography from '@mui/material/Typography';
 import Link from '@mui/material/Link';
 import GoogleIcon from '@mui/icons-material/Google';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Layout from '../components/Layout';
 import ConnectionErrorModal from '../components/ConnectionErrorModal';
 import { NativeAuthSubmitType, initiateNativeAuth, submitNativeAuth } from '../services/authService';
-import { useAuth } from '../contexts/AuthContext';
+import useAuth from '../hooks/useAuth';
 
 /**
  * LoginPage component renders the login page with options for username/password login,
@@ -61,6 +65,7 @@ const LoginPage = () => {
     const [startInit] = useState<boolean>(JSON.parse(sessionStorage.getItem(START_INIT_KEY) || 'true'));
 
     const [userNamePasswordLogin, setUserNamePasswordLogin] = useState<boolean>(false);
+    const [showPassword, setShowPassword] = useState(false);
     const [basicAuthFormData, setBasicAuthFormData] = useState({
         username: '',
         password: '',
@@ -75,6 +80,15 @@ const LoginPage = () => {
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = event.target;
         setBasicAuthFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleTogglePasswordVisibility = () => {
+        setShowPassword((prev) => !prev);
+    };
+
+    // To prevent focus loss of show/hide password toggle button
+    const handleMouseDownPassword = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault(); // Prevent focus loss
     };
 
     const handleSocialLoginClick = () => {
@@ -95,10 +109,12 @@ const LoginPage = () => {
 
                 if (result.data?.type === "REDIRECTION") {
                     let idpName = result.data?.additionalInfo?.idp_name;
+
                     if (idpName) {
                         setIdpName(idpName);
                         
                         idpName = idpName?.toLowerCase();
+
                         if (idpName.includes("github")) {
                             setShowGithubLoginButton(true);
                         } else if (idpName.includes("google")) {
@@ -109,6 +125,7 @@ const LoginPage = () => {
                     } else {
                         setShowSocialLoginButton(true);
                     }
+
                     setSocialLoginRedirectURL(result.data?.additionalInfo?.redirect_url);
                 }
                 
@@ -119,7 +136,7 @@ const LoginPage = () => {
             });
     }, [clearToken]);
 
-    const handelBasicAuthSubmit = (event: React.SyntheticEvent) => {
+    const handelBasicAuthSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
         submitNativeAuth(flowId, { type: NativeAuthSubmitType.BASIC, ...basicAuthFormData })
@@ -156,13 +173,10 @@ const LoginPage = () => {
         isComponentReMount.current = true;
 
         if (startInit) {
+            // Initialize login execution flow if fresh start
             init();
-        }
-    },[startInit, init]);
-
-    // This effect is to handle when return from federated IDP login
-    useEffect(() => {
-        if (!startInit) {
+        } else {
+            // This effect is to handle when return from federated IDP login
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
 
@@ -178,12 +192,13 @@ const LoginPage = () => {
                         }
                     }).catch((error) => {
                         console.error("Error during social authentication:", error);
+
                         if (error.message && error.message.includes("Network Error")) {
                             setConnectionError(true);
-                        } 
-                        // else {
-                        //     setError(true);
-                        // }
+                        }
+                        else {
+                            setError(true);
+                        }
                     });
             } else {
                 setError(true);
@@ -191,7 +206,7 @@ const LoginPage = () => {
 
             sessionStorage.setItem(START_INIT_KEY, "true");
         }
-    }, [flowId, setToken, startInit]);
+    },[startInit, init, flowId, setToken]);
 
     return (
         <Layout>
@@ -244,7 +259,7 @@ const LoginPage = () => {
                                     {(showGoogleLoginButton || showGitHubLoginButton || showSocialLoginButton) && (
                                         <>
                                             <Box>
-                                                {showGoogleLoginButton && (
+                                                { showGoogleLoginButton && (
                                                     <Button
                                                         fullWidth
                                                         variant="contained"
@@ -256,19 +271,19 @@ const LoginPage = () => {
                                                         Continue with { idpName }
                                                     </Button>
                                                 )}
-                                                {showGitHubLoginButton && (
-                                                <Button
-                                                    fullWidth
-                                                    variant="contained"
-                                                    startIcon={<GitHubIcon />}
-                                                    color="secondary"
-                                                    onClick={() => handleSocialLoginClick()}
-                                                    sx={{ my: 1 }}
-                                                >
-                                                    Continue with { idpName }
-                                                </Button>
+                                                { showGitHubLoginButton && (
+                                                    <Button
+                                                        fullWidth
+                                                        variant="contained"
+                                                        startIcon={<GitHubIcon />}
+                                                        color="secondary"
+                                                        onClick={() => handleSocialLoginClick()}
+                                                        sx={{ my: 1 }}
+                                                    >
+                                                        Continue with { idpName }
+                                                    </Button>
                                                 )}
-                                                {showSocialLoginButton && (
+                                                { showSocialLoginButton && (
                                                     <Button
                                                         fullWidth
                                                         variant="contained"
@@ -289,60 +304,77 @@ const LoginPage = () => {
                                     )}
 
                                     { userNamePasswordLogin &&
-                                        <Box display="flex" flexDirection="column" gap={2}>
-                                            <Box display="flex" flexDirection="column" gap={0.5}>
-                                                <InputLabel htmlFor="username">Username</InputLabel>
-                                                <OutlinedInput
-                                                    type="text"
-                                                    id="username"
-                                                    name="username"
-                                                    placeholder="Enter your username"
-                                                    size="small"
-                                                    value={basicAuthFormData.username}
-                                                    onChange={handleInputChange}
-                                                    required
-                                                />
-                                            </Box>
-                                            <Box display="flex" flexDirection="column" gap={0.5}>
-                                                <InputLabel htmlFor="password">Password</InputLabel>
-                                                <OutlinedInput
-                                                    type="password"
-                                                    id="password"
-                                                    name="password"
-                                                    placeholder="Enter your password"
-                                                    size="small"
-                                                    value={basicAuthFormData.password}
-                                                    onChange={handleInputChange}
-                                                    required
-                                                />
-                                            </Box>
-                                            {(showRememberMe || showForgotPassword) && (
-                                                <Box
-                                                    sx={{
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center',
-                                                    }}
-                                                >
-                                                    {showRememberMe && (
-                                                        <FormControlLabel
-                                                            control={<Checkbox name="remember-me-checkbox" />} 
-                                                            label="Remember me" />
-                                                    )}
-                                                    {showForgotPassword && <Link href="">Forgot your password?</Link>}
+                                        <form onSubmit={handelBasicAuthSubmit}>
+                                            <Box display="flex" flexDirection="column" gap={2}>
+                                                <Box display="flex" flexDirection="column" gap={0.5}>
+                                                    <InputLabel htmlFor="username">Username</InputLabel>
+                                                    <OutlinedInput
+                                                        type="text"
+                                                        id="username"
+                                                        name="username"
+                                                        placeholder="Enter your username"
+                                                        size="small"
+                                                        value={basicAuthFormData.username}
+                                                        onChange={handleInputChange}
+                                                        required
+                                                    />
                                                 </Box>
-                                            )}
-                                            <Button
-                                                variant="contained"
-                                                color="primary"
-                                                type="submit"
-                                                fullWidth
-                                                sx={{ mt: 2 }}
-                                                onClick={(e) => handelBasicAuthSubmit(e)}
-                                            >
-                                                Sign In
-                                            </Button>
-                                        </Box>
+                                                <Box display="flex" flexDirection="column" gap={0.5}>
+                                                    <InputLabel htmlFor="password">Password</InputLabel>
+                                                    <OutlinedInput
+                                                        type={showPassword ? 'text' : 'password'}
+                                                        id="password"
+                                                        name="password"
+                                                        placeholder="Enter your password"
+                                                        size="small"
+                                                        value={basicAuthFormData.password}
+                                                        onChange={handleInputChange}
+                                                        required
+                                                        endAdornment={
+                                                            <InputAdornment position="end">
+                                                                <IconButton
+                                                                    aria-label="toggle password visibility"
+                                                                    onClick={handleTogglePasswordVisibility}
+                                                                    onMouseDown={handleMouseDownPassword}
+                                                                    edge="end"
+                                                                >
+                                                                    { showPassword ?
+                                                                        <VisibilityOff /> : <Visibility />
+                                                                    }
+                                                                </IconButton>
+                                                            </InputAdornment>
+                                                        }
+                                                    />
+                                                </Box>
+                                                { (showRememberMe || showForgotPassword) && (
+                                                    <Box
+                                                        sx={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        }}
+                                                    >
+                                                        { showRememberMe && (
+                                                            <FormControlLabel
+                                                                control={<Checkbox name="remember-me-checkbox" />} 
+                                                                label="Remember me" />
+                                                        )}
+                                                        { showForgotPassword &&
+                                                            <Link href="">Forgot your password?</Link>
+                                                        }
+                                                    </Box>
+                                                )}
+                                                <Button
+                                                    variant="contained"
+                                                    color="primary"
+                                                    type="submit"
+                                                    fullWidth
+                                                    sx={{ mt: 2 }}
+                                                >
+                                                    Sign In
+                                                </Button>
+                                            </Box>
+                                        </form>
                                     }
                                 </>
                             )}

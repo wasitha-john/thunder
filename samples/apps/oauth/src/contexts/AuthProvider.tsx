@@ -16,29 +16,17 @@
  * under the License.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-
-/**
- * AuthContext provides authentication state management for the application.
- * It allows components to access the current authentication token and provides methods
- * to set and clear the token.
- */
-type AuthContextType = {
-  token: string | null;
-  setToken: React.Dispatch<React.SetStateAction<string | null>>;
-  clearToken: () => void;
-};
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import AuthContext from './AuthContext';
 
 /**
  * AuthProvider component to manage authentication state.
  * 
- * @param param0 - The children components to be wrapped by the AuthProvider.
+ * @param children - The children components to be wrapped by the AuthProvider.
  * @returns 
  */
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(() => sessionStorage.getItem('authToken'));
 
   useEffect(() => {
@@ -58,11 +46,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Custom hook to consume the AuthContext easily
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export default AuthProvider;

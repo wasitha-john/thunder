@@ -22,7 +22,7 @@ import Typography from '@mui/material/Typography';
 import { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import { decodeJwt } from '../services/jwtService';
-import { useAuth } from '../contexts/AuthContext';
+import useAuth from '../hooks/useAuth';
 
 type DecodedToken = {
     header: Record<string, object>;
@@ -53,17 +53,17 @@ const HomePage = () => {
         <Layout>
             <Box className="home-container">
                 {token ? (
-                    <div className="token-container">
+                    <Box className="token-container">
                         <Typography variant='h5' sx={{ mb: 3 }}>Access Token:</Typography>
                         <pre style={{ margin: 0 }}>
                             <code>{token}</code>
                         </pre>
                         <Divider sx={{ my: 4 }} />
                         {decodedToken && (
-                            <div>
+                            <Box>
                                 <Typography variant='h5' sx={{ mb: 3 }}>Decoded Token:</Typography>
-                                <div className="decoded-token-container">
-                                    <div className="decoded-token-section">
+                                <Box className="decoded-token-container">
+                                    <Box className="decoded-token-section">
                                         <Typography variant='h6' sx={{ mt: 3, mb: 1 }}>Header:</Typography>
                                         <pre className="decoded-token">
                                             {JSON.stringify(decodedToken.header, null, 2)}
@@ -72,17 +72,17 @@ const HomePage = () => {
                                         <pre className="decoded-token">
                                             {JSON.stringify(decodedToken.payload, null, 2)}
                                         </pre>
-                                    </div>
-                                    <div className="decoded-token-section">
+                                    </Box>
+                                    <Box className="decoded-token-section" sx={{ mb: 6 }}>
                                         <Typography variant='h6' sx={{ mt: 3, mb: 1 }}>Signature:</Typography>
                                         <pre className="decoded-token">
                                             <code>{decodedToken.signature}</code>
                                         </pre>
-                                    </div>
-                                </div>
-                            </div>
+                                    </Box>
+                                </Box>
+                            </Box>
                         )}
-                    </div>
+                    </Box>
                 ) : (
                     <Typography>No token available. Please log in.</Typography>
                 )}

@@ -20,7 +20,9 @@ import { Route, BrowserRouter as Router, Routes, useLocation } from 'react-route
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RedirectLoginPage from './pages/RedirectLoginPage';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import AuthProvider from './contexts/AuthProvider';
+import useAuth from './hooks/useAuth';
+
 import './App.css';
 
 const App = () => {
