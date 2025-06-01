@@ -95,9 +95,8 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   ```bash
   curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
   -d '{
-      "applicationId": "<application_id>",
-  }
-  '
+      "applicationId": "<application_id>"
+  }'
   ```
 
   You'll receive a response similar to the following:
@@ -133,8 +132,7 @@ curl -k -X POST https://localhost:8090/oauth2/token \
           "username": "thor",
           "password": "thor123"
       }
-  }
-  '
+  }'
   ```
 
 - If the login is successful, you will receive a response with the auth assertion.
@@ -184,9 +182,8 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   ```bash
   curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
   -d '{
-      "applicationId": "<application_id>",
-  }
-  '
+      "applicationId": "<application_id>"
+  }'
   ```
 
   You'll receive a response similar to the following:
@@ -227,8 +224,7 @@ curl -k -X POST https://localhost:8090/oauth2/token \
       "inputs": {
           "code": "<code>"
       }
-  }
-  '
+  }'
   ```
 
 - If the login is successful, you will receive a response with the auth assertion.
@@ -279,9 +275,8 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   ```bash
   curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
   -d '{
-      "applicationId": "<application_id>",
-  }
-  '
+      "applicationId": "<application_id>"
+  }'
   ```
 
   You'll receive a response similar to the following:
@@ -327,8 +322,7 @@ curl -k -X POST https://localhost:8090/oauth2/token \
       "inputs": {
           "code": "<code>"
       }
-  }
-  '
+  }'
   ```
 
 - If the login is successful, you will receive a response with the auth assertion.
