@@ -2,41 +2,64 @@
 
 This is a sample React application that demonstrates the Thunder login flow. The application allows users to log in using their credentials and retrieves an access token from the server.
 
-## Prerequisites
+## Hosting Options
 
-- Node 20+
+This sample application includes everything you need to run the Thunder login demo. The built package contains the compiled application (`dist` folder), along with a simple Node.js server implementation (`server.js`) for your convenience. You can choose to run the application using the provided server or host it on your preferred web server.
 
-## Setup Instructions
+### Option 1: Using the Provided Node Server
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd thunder/samples/apps/oauth
-   ```
+The sample application comes with a built-in Node.js server that serves the React app over HTTPS. Follow the steps below to set it up:
 
-2. Generate a self-signed SSL certificate by running the following command:
-   ```bash
-   openssl req -nodes -new -x509 -keyout server.key -out server.cert
-   ```
+**Prerequisites:**
+- Node.js 20+
 
-3. **Install dependencies:**
+1. **Install dependencies:**
    ```bash
    pnpm i
    ```
 
-4. **Configure environment variables:**
-   Create a `.env` file in the frontend sample directory if it doesn't exist, and add the following environment variables:
-
+2. **Configure environment variables:**
+   Add the following environment variables to the `.env` file in the root directory of the project. Replace `<your-app-id>` with your actual application ID.
+   
    ```env
    VITE_REACT_APPLICATIONS_ENDPOINT=https://localhost:8090/applications
    VITE_REACT_APP_SERVER_FLOW_ENDPOINT=https://localhost:8090/flow
-   VITE_REACT_APP_BASIC_AUTH_APP_ID=<your-app-id>
+   VITE_REACT_APP_AUTH_APP_ID=<your-app-id>
    ```
 
-5. **Run the application:**
+3. **Start the server:**
    ```bash
    pnpm start
    ```
 
-6. **Open the application in your browser:**
-   Navigate to `https://localhost:3000`.
+4. **Access the application:**
+   Navigate to `https://localhost:3000`
+
+### Option 2: Using Your Own Web Server
+
+The `dist` folder contains the built application that can be hosted on any web server. Configure your server to serve these static files and ensure proper HTTPS setup.
+
+**Generate Certificates:**
+
+Generate a self-signed SSL certificate by running the following command:
+
+```bash
+openssl req -nodes -new -x509 -keyout server.key -out server.cert
+```
+
+**Configure environment variables:**
+
+Add the following environment variables to your web server configuration or `.env` file. Replace `<your-app-id>` with your actual application ID.
+
+```env
+VITE_REACT_APPLICATIONS_ENDPOINT=https://localhost:8090/applications
+VITE_REACT_APP_SERVER_FLOW_ENDPOINT=https://localhost:8090/flow
+VITE_REACT_APP_AUTH_APP_ID=<your-app-id>
+```
+
+## License
+
+Licenses this source under the Apache License, Version 2.0 LICENSE, You may not use this file except in compliance with the License.
+
+---------------------------------------------------------------------------
+(c) Copyright 2025 WSO2 LLC.

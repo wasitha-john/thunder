@@ -164,6 +164,9 @@ function package_sample_app() {
     # Copy .env.example as .env for reference
     cp "$SAMPLE_APP_DIR/.env.example" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/.env"
 
+    # Copy the README file
+    cp "$SAMPLE_APP_DIR/README.md" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
+
     # Copy the server script
     cp "$SAMPLE_APP_DIR/server.js" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
     
