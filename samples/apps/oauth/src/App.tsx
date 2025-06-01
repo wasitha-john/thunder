@@ -22,7 +22,6 @@ import LoginPage from './pages/LoginPage';
 import RedirectLoginPage from './pages/RedirectLoginPage';
 import AuthProvider from './contexts/AuthProvider';
 import useAuth from './hooks/useAuth';
-
 import './App.css';
 
 const App = () => {

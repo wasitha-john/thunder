@@ -18,21 +18,12 @@ The sample application comes with a built-in Node.js server that serves the Reac
    npm i
    ```
 
-2. **Configure environment variables:**
-   Add the following environment variables to the `.env` file in the root directory of the project. Replace `<your-app-id>` with your actual application ID.
-   
-   ```env
-   VITE_REACT_APPLICATIONS_ENDPOINT=https://localhost:8090/applications
-   VITE_REACT_APP_SERVER_FLOW_ENDPOINT=https://localhost:8090/flow
-   VITE_REACT_APP_AUTH_APP_ID=<your-app-id>
-   ```
-
-3. **Start the server:**
+2. **Start the server:**
    ```bash
    npm start
    ```
 
-4. **Access the application:**
+3. **Access the application:**
    Navigate to `https://localhost:3000`
 
 ### Option 2: Using Your Own Web Server
