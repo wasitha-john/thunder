@@ -15,7 +15,7 @@ The sample application comes with a built-in Node.js server that serves the Reac
 
 1. **Install dependencies:**
    ```bash
-   pnpm i
+   npm i
    ```
 
 2. **Configure environment variables:**
@@ -29,7 +29,7 @@ The sample application comes with a built-in Node.js server that serves the Reac
 
 3. **Start the server:**
    ```bash
-   pnpm start
+   npm start
    ```
 
 4. **Access the application:**
