@@ -20,7 +20,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
 import ThemeToggle from "../theme/ThemeToggle";
-import { useAuth } from "../contexts/AuthContext";
+import useAuth from "../hooks/useAuth";
 
 /**
  * PageLayout component serves as a wrapper for the main content of the application.

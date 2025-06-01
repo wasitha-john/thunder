@@ -18,7 +18,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { exchangeCodeForToken } from '../services/authService';
-import { useAuth } from '../contexts/AuthContext';
+import useAuth from '../hooks/useAuth';
 import ErrorPage from './ErrorPage';
 import config from '../config';
 
