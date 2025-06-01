@@ -34,5 +34,8 @@ export default defineConfig({
   preview: {
     port: 3000,
     host: 'localhost'
-  }
+  },
+  build: {
+    target: 'esnext',
+  },
 })

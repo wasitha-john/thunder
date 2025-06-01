@@ -160,9 +160,6 @@ function package_sample_app() {
     # Copy the certificates
     cp "$SAMPLE_APP_DIR/server.key" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
     cp "$SAMPLE_APP_DIR/server.cert" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
-    
-    # Copy .env.example as .env for reference
-    cp "$SAMPLE_APP_DIR/.env.example" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/.env"
 
     # Copy the README file
     cp "$SAMPLE_APP_DIR/README.md" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
