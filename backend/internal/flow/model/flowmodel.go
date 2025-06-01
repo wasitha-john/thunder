@@ -36,7 +36,7 @@ type FlowContext struct {
 
 	Graph GraphInterface
 
-	AuthenticatedUser *authnmodel.AuthenticatedUser
+	AuthenticatedUser authnmodel.AuthenticatedUser
 }
 
 // FlowStep represents the outcome of a individual flow step

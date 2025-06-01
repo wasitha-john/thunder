@@ -116,7 +116,7 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	}
 
 	// Generate a JWT token for the client.
-	token, err := jwt.GenerateJWT(authCode.AuthorizedUserID, authCode.ClientID)
+	token, err := jwt.GenerateJWT(authCode.AuthorizedUserID, authCode.ClientID, nil)
 	if err != nil {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,

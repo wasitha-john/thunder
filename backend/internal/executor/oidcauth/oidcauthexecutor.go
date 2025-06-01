@@ -36,6 +36,7 @@ import (
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/system/constants"
+	jwtutils "github.com/asgardeo/thunder/internal/system/crypto/jwt/utils"
 	"github.com/asgardeo/thunder/internal/system/log"
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
 )
@@ -53,8 +54,11 @@ type OIDCAuthExecutorInterface interface {
 	GetTokenEndpoint() string
 	GetUserInfoEndpoint() string
 	GetLogoutEndpoint() string
+	GetJWKSEndpoint() string
 	ExchangeCodeForToken(ctx *flowmodel.FlowContext, code string) (*model.OIDCTokenResponse, error)
 	GetUserInfo(ctx *flowmodel.FlowContext, accessToken string) (map[string]string, error)
+	ValidateIDToken(idToken string) error
+	GetIDTokenClaims(idToken string) (map[string]interface{}, error)
 }
 
 // OIDCAuthExecutor implements the OIDCAuthExecutorInterface for handling generic OIDC authentication flows.
@@ -119,6 +123,11 @@ func (o *OIDCAuthExecutor) GetUserInfoEndpoint() string {
 // GetLogoutEndpoint returns the logout endpoint of the OIDC authentication.
 func (o *OIDCAuthExecutor) GetLogoutEndpoint() string {
 	return o.oidcProperties.LogoutEndpoint
+}
+
+// GetJWKSEndpoint returns the JWKs endpoint of the OIDC authentication.
+func (o *OIDCAuthExecutor) GetJWKSEndpoint() string {
+	return o.oidcProperties.JwksEndpoint
 }
 
 // Execute executes the OIDC authentication logic.
@@ -195,6 +204,7 @@ func (o *OIDCAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.FlowContext, execRe
 	execResp.Type = flowconst.ExecRedirection
 	execResp.AdditionalInfo = map[string]string{
 		flowconst.DataRedirectURL: authURL,
+		flowconst.DataIDPName:     o.GetName(),
 	}
 }
 
@@ -229,7 +239,7 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowContext, e
 
 		if tokenResp.Scope == "" {
 			logger.Debug("Scope is empty in the token response")
-			ctx.AuthenticatedUser = &authnmodel.AuthenticatedUser{
+			ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 				IsAuthenticated:        true,
 				UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
 				Username:               "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
@@ -256,7 +266,7 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowContext, e
 				}
 			}
 
-			ctx.AuthenticatedUser = &authnmodel.AuthenticatedUser{
+			ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 				IsAuthenticated:        true,
 				UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
 				Username:               username,
@@ -267,7 +277,7 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowContext, e
 		}
 	} else {
 		// Fail the authentication if the authorization code is not provided
-		ctx.AuthenticatedUser = &authnmodel.AuthenticatedUser{
+		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
@@ -465,4 +475,35 @@ func (o *OIDCAuthExecutor) GetUserInfo(ctx *flowmodel.FlowContext, accessToken s
 	}
 
 	return systemutils.ConvertInterfaceMapToStringMap(userInfo), nil
+}
+
+// ValidateIDToken validates the ID token.
+func (o *OIDCAuthExecutor) ValidateIDToken(idToken string) error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Validating ID token")
+
+	// Verify the id token signature.
+	if o.GetJWKSEndpoint() != "" {
+		signErr := jwtutils.VerifyJWTSignatureWithJWKS(idToken, o.GetJWKSEndpoint())
+		if signErr != nil {
+			return fmt.Errorf("ID token signature verification failed: %w", signErr)
+		}
+	}
+
+	return nil
+}
+
+// GetIDTokenClaims extracts the ID token claims from the provided ID token.
+func (o *OIDCAuthExecutor) GetIDTokenClaims(idToken string) (map[string]interface{}, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Extracting claims from the ID token")
+
+	claims, err := jwtutils.ParseJWTClaims(idToken)
+	if err != nil {
+		logger.Error("Failed to parse ID token claims", log.Error(err))
+		return nil, fmt.Errorf("failed to parse ID token claims: %w", err)
+	}
+
+	logger.Debug("ID token claims extracted successfully", log.Any("numClaims", len(claims)))
+	return claims, nil
 }

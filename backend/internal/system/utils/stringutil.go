@@ -18,7 +18,12 @@
 
 package utils
 
-import "strings"
+import (
+	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+)
 
 // ParseStringArray parses a comma-separated string into a slice of strings.
 func ParseStringArray(value interface{}) []string {
@@ -39,25 +44,53 @@ func ConvertInterfaceMapToStringMap(input map[string]interface{}) map[string]str
 
 	output := make(map[string]string)
 	for key, value := range input {
-		// If the value is a string, add it to the output map.
-		if strValue, ok := value.(string); ok {
-			output[key] = strValue
-		}
-		// If the value is a slice, convert it to a string and add it to the output map.
-		if sliceValue, ok := value.([]interface{}); ok {
-			var strValue string
-			for _, v := range sliceValue {
-				if str, ok := v.(string); ok {
-					strValue += str + ","
-				}
-			}
-			if len(strValue) > 0 {
-				strValue = strings.TrimSuffix(strValue, ",")
-			}
-			output[key] = strValue
-		}
+		output[key] = ConvertInterfaceValueToString(value)
 	}
 	return output
+}
+
+// ConvertInterfaceValueToString converts any interface{} to a string.
+// It handles common types like string, bool, int, float, and slices.
+// For slices, it concatenates the elements into a comma-separated string.
+func ConvertInterfaceValueToString(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+
+	// Directly handle common types.
+	switch v := value.(type) {
+	case string:
+		return v
+	case bool:
+		return strconv.FormatBool(v)
+	case int:
+		return strconv.Itoa(v)
+	case int8, int16, int32, int64:
+		return fmt.Sprintf("%d", v)
+	case uint, uint8, uint16, uint32, uint64:
+		return fmt.Sprintf("%d", v)
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32)
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case []byte:
+		return string(v)
+	case fmt.Stringer:
+		return v.String()
+	}
+
+	// Generic slice/array handling (works for []T of any type).
+	val := reflect.ValueOf(value)
+	if val.Kind() == reflect.Slice || val.Kind() == reflect.Array {
+		var parts []string
+		for i := 0; i < val.Len(); i++ {
+			parts = append(parts, ConvertInterfaceValueToString(val.Index(i).Interface()))
+		}
+		return strings.Join(parts, ",")
+	}
+
+	// Fallback: default formatting.
+	return fmt.Sprintf("%v", value)
 }
 
 // MergeStringMaps merges two maps of strings and returns the result.

@@ -35,6 +35,7 @@ type OIDCExecProperties struct {
 	TokenEndpoint         string            `json:"tokenEndpoint"`
 	UserInfoEndpoint      string            `json:"userInfoEndpoint"`
 	LogoutEndpoint        string            `json:"logoutEndpoint"`
+	JwksEndpoint          string            `json:"jwksEndpoint"`
 	ClientID              string            `json:"clientID"`
 	ClientSecret          string            `json:"clientSecret"`
 	RedirectURI           string            `json:"redirectURI"`

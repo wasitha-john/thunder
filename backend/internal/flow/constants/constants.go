@@ -86,6 +86,8 @@ const (
 )
 
 const (
-	// DataRedirectURL is the key used to store the redirect URL in the flow context.
+	// DataRedirectURL is the key used for the redirect URL in the flow response.
 	DataRedirectURL = "redirect_url"
+	// DataIDPName is the key used for the identity provider name in the flow response.
+	DataIDPName = "idp_name"
 )

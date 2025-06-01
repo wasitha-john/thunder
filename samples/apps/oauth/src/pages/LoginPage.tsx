@@ -30,6 +30,7 @@ import Typography from '@mui/material/Typography';
 import Link from '@mui/material/Link';
 import GoogleIcon from '@mui/icons-material/Google';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Layout from '../components/Layout';
 import ConnectionErrorModal from '../components/ConnectionErrorModal';
@@ -51,7 +52,6 @@ const LoginPage = () => {
     const { setToken, clearToken } = useAuth();
 
     const [showSignUp] = useState<boolean>(false);
-    const [showGoogleLoginButton] = useState<boolean>(false);
     const [showRememberMe] = useState<boolean>(false);
     const [showForgotPassword] = useState<boolean>(false);
     const [error, setError] = useState<boolean>(false);
@@ -66,18 +66,21 @@ const LoginPage = () => {
         password: '',
     });
 
+    const [idpName, setIdpName] = useState<string>('Social Login');
     const [showGitHubLoginButton, setShowGithubLoginButton] = useState<boolean>(false);
-    const [gitHubRedirectURL, setGitHubRedirectURL] = useState<string>('');
+    const [showGoogleLoginButton, setShowGoogleLoginButton] = useState<boolean>(false);
+    const [showSocialLoginButton, setShowSocialLoginButton] = useState<boolean>(false);
+    const [socialLoginRedirectURL, setSocialLoginRedirectURL] = useState<string>('');
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = event.target;
         setBasicAuthFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleGitHubLoginClick = () => {
+    const handleSocialLoginClick = () => {
         sessionStorage.setItem(FLOW_ID_KEY, flowId);
         sessionStorage.setItem(START_INIT_KEY, "false");
-        window.location.href = gitHubRedirectURL;
+        window.location.href = socialLoginRedirectURL;
     };
 
     const init = useCallback(() => {
@@ -91,8 +94,22 @@ const LoginPage = () => {
                 }
 
                 if (result.data?.type === "REDIRECTION") {
-                    setShowGithubLoginButton(true);
-                    setGitHubRedirectURL(result.data?.additionalInfo?.redirect_url);
+                    let idpName = result.data?.additionalInfo?.idp_name;
+                    if (idpName) {
+                        setIdpName(idpName);
+                        
+                        idpName = idpName?.toLowerCase();
+                        if (idpName.includes("github")) {
+                            setShowGithubLoginButton(true);
+                        } else if (idpName.includes("google")) {
+                            setShowGoogleLoginButton(true);
+                        } else {
+                            setShowSocialLoginButton(true);
+                        }
+                    } else {
+                        setShowSocialLoginButton(true);
+                    }
+                    setSocialLoginRedirectURL(result.data?.additionalInfo?.redirect_url);
                 }
                 
                 setFlowId(result.data.flowId);
@@ -143,7 +160,7 @@ const LoginPage = () => {
         }
     },[startInit, init]);
 
-    // This effect is to handle when return from GitHub login
+    // This effect is to handle when return from federated IDP login
     useEffect(() => {
         if (!startInit) {
             const params = new URLSearchParams(window.location.search);
@@ -224,7 +241,7 @@ const LoginPage = () => {
 
                             {!connectionError && (
                                 <>
-                                    {(showGoogleLoginButton || showGitHubLoginButton) && (
+                                    {(showGoogleLoginButton || showGitHubLoginButton || showSocialLoginButton) && (
                                         <>
                                             <Box>
                                                 {showGoogleLoginButton && (
@@ -233,9 +250,10 @@ const LoginPage = () => {
                                                         variant="contained"
                                                         startIcon={<GoogleIcon />}
                                                         color="secondary"
+                                                        onClick={() => handleSocialLoginClick()}
                                                         sx={{ my: 1 }}
                                                     >
-                                                        Continue with Google
+                                                        Continue with { idpName }
                                                     </Button>
                                                 )}
                                                 {showGitHubLoginButton && (
@@ -244,11 +262,23 @@ const LoginPage = () => {
                                                     variant="contained"
                                                     startIcon={<GitHubIcon />}
                                                     color="secondary"
-                                                    onClick={() => handleGitHubLoginClick()}
+                                                    onClick={() => handleSocialLoginClick()}
                                                     sx={{ my: 1 }}
                                                 >
-                                                    Continue with GitHub
+                                                    Continue with { idpName }
                                                 </Button>
+                                                )}
+                                                {showSocialLoginButton && (
+                                                    <Button
+                                                        fullWidth
+                                                        variant="contained"
+                                                        startIcon={<AccountCircleIcon />}
+                                                        color="secondary"
+                                                        onClick={() => handleSocialLoginClick()}
+                                                        sx={{ my: 1 }}
+                                                    >
+                                                        Continue with { idpName }
+                                                    </Button>
                                                 )}
                                             </Box>
                                             

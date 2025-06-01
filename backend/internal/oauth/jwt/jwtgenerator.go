@@ -85,7 +85,7 @@ func LoadPrivateKey(cfg *config.Config, currentDirectory string) error {
 }
 
 // GenerateJWT generates a standard JWT signed with the server's private key.
-func GenerateJWT(sub, aud string) (string, error) {
+func GenerateJWT(sub, aud string, claims map[string]string) (string, error) {
 	if privateKey == nil {
 		return "", errors.New("private key not loaded")
 	}
@@ -119,6 +119,14 @@ func GenerateJWT(sub, aud string) (string, error) {
 		"nbf": time.Now().Unix(),
 		"jti": utils.GenerateUUID(),
 	}
+
+	// Add custom claims if provided.
+	if len(claims) > 0 {
+		for key, value := range claims {
+			payload[key] = value
+		}
+	}
+
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
 		return "", err

@@ -13,7 +13,7 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 
 - ✅ **Standards-Based**
   - OAuth 2/ OpenID Connect (OIDC): Client Credentials
-- 🔗 **Login Options:** Basic Authentication, Login with GitHub
+- 🔗 **Login Options:** Basic Authentication, Login with GitHub, Login with Google
 - 🌐 **RESTful APIs:** App Native Login, User Management, Application Management, Identity Provider Management
 
 ---
@@ -204,13 +204,115 @@ curl -k -X POST https://localhost:8090/oauth2/token \
           }
       ],
       "additionalInfo": {
-          "redirect_url": "<github_auth_redirect_url>"
+          "redirect_url": "<github_auth_redirect_url>",
+          "idp_name": "Github"
       }
   }
   ```
 
 - Open the `redirect_url` in your browser. You will be redirected to the GitHub login page. Enter your GitHub credentials and authorize the application.
+
 - After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
+
+  ```bash
+  https://localhost:3000/?code=<code>&state=80d57e64-8082-4096-bb0e-22b2187f8265
+  ```
+
+- Copy the authorization code and make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
+
+  ```bash
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  -d '{
+      "flowId": "<flow_id>",
+      "inputs": {
+          "code": "<code>"
+      }
+  }
+  '
+  ```
+
+- If the login is successful, you will receive a response with the auth assertion.
+
+##### 3️⃣ Login with Google
+
+- Create an OAuth application in your Google account following the instructions given in the [Google documentation](https://developers.google.com/identity/protocols/oauth2/web-server#creatingcred).
+  - Configure the Authorized origin and Redirect URI as per your application.
+  - Copy the **Client ID** and **Client Secret**.
+
+- Update the system created Google IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your Google OAuth application.
+
+  ```bash
+  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440002 \
+  -d '{
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "Google",
+      "description": "Login with Google",
+      "client_id": "<client_id>",
+      "client_secret": "<client_secret>",
+      "redirect_uri": "<app_callback_url>",
+      "scopes": [
+          "openid",
+          "email",
+          "profile"
+      ]
+  }'
+  ```
+
+- Create an application and configure the Google login template for it.
+
+  ```bash
+  curl -kL -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
+  -d '{
+      "client_id": "client456",
+      "client_secret": "***",
+      "callback_url": [
+          "https://localhost:3000"
+      ],
+      "auth_flow_graph_id": "auth_flow_config_google",
+      "description": "Sample application for App native login",
+      "name": "App Native Login"
+  }'
+  ```
+
+- Start login flow for the application with the following cURL command:
+
+  ```bash
+  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  -d '{
+      "applicationId": "<application_id>",
+  }
+  '
+  ```
+
+  You'll receive a response similar to the following:
+
+  ```json
+  {
+      "flowId": "80d57e64-8082-4096-bb0e-22b2187f8265",
+      "flowStatus": "INCOMPLETE",
+      "type": "REDIRECTION",
+      "inputs": [
+          {
+              "name": "code",
+              "type": "string",
+              "required": true
+          },
+          {
+              "name": "nonce",
+              "type": "string",
+              "required": false
+          }
+      ],
+      "additionalInfo": {
+          "redirect_url": "<google_auth_redirect_url>",
+          "idp_name": "Google"
+      }
+  }
+  ```
+
+- Open the `redirect_url` in your browser. You will be redirected to the Google login page. Enter your Google credentials and authorize the application.
+
+- After successful authentication, you will be redirected to the redirect URI with the authorization code, state and other parameters.
 
   ```bash
   https://localhost:3000/?code=<code>&state=80d57e64-8082-4096-bb0e-22b2187f8265

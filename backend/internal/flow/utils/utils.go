@@ -25,6 +25,7 @@ import (
 	"github.com/asgardeo/thunder/internal/executor/authassert"
 	"github.com/asgardeo/thunder/internal/executor/basicauth"
 	"github.com/asgardeo/thunder/internal/executor/githubauth"
+	"github.com/asgardeo/thunder/internal/executor/googleauth"
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
@@ -177,6 +178,11 @@ func getExecutorConfigByName(execDef jsonmodel.ExecutorDefinition) (*model.Execu
 			Name:    "GithubAuthExecutor",
 			IdpName: execDef.IdpName,
 		}
+	case "GoogleAuthExecutor":
+		executor = model.ExecutorConfig{
+			Name:    "GoogleAuthExecutor",
+			IdpName: execDef.IdpName,
+		}
 	case "AuthAssertExecutor":
 		executor = model.ExecutorConfig{
 			Name: "AuthAssertExecutor",
@@ -215,6 +221,13 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 			return nil, fmt.Errorf("error while getting IDP for GithubAuthExecutor: %w", err)
 		}
 		executor = githubauth.NewGithubOIDCAuthExecutor(idp.ID, idp.Name, idp.ClientID, idp.ClientSecret,
+			idp.RedirectURI, idp.Scopes, map[string]string{})
+	case "GoogleAuthExecutor":
+		idp, err := getIDP(execConfig.IdpName)
+		if err != nil {
+			return nil, fmt.Errorf("error while getting IDP for GoogleAuthExecutor: %w", err)
+		}
+		executor = googleauth.NewGoogleOIDCAuthExecutor(idp.ID, idp.Name, idp.ClientID, idp.ClientSecret,
 			idp.RedirectURI, idp.Scopes, map[string]string{})
 	case "AuthAssertExecutor":
 		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor")
