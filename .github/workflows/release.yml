@@ -75,31 +75,51 @@ jobs:
             set -e
             make all OS=$(go env GOOS) ARCH=$(go env GOARCH)
 
+      - name: 🧹 Clean Previous Builds
+        run: make clean_all
+
       - name: 🔨 Build Release Artifact
-        run: make clean build
+        run: |
+          # Define platform matrix as arrays
+          PLATFORMS=(
+            "windows:amd64"
+            "linux:amd64"
+            "linux:arm"
+            "darwin:amd64"
+            "darwin:arm64"
+          )
+          
+          echo "🏗️ Building Thunder for ${#PLATFORMS[@]} platforms..."
+          
+          # Loop through the platform matrix
+          for platform in "${PLATFORMS[@]}"; do
+            # Split the platform string into OS and ARCH
+            OS="${platform%%:*}"
+            ARCH="${platform#*:}"
+            
+            echo "🔨 Building for $OS/$ARCH..."
+            make build_backend OS=$OS ARCH=$ARCH
+            
+            # Optional: Add a small delay to prevent resource contention
+            sleep 1
+          done
+          
+          echo "✅ All platforms built successfully!"
+
+          echo "🏗️ Building Sample applications..."
+          make build_samples
+          echo "✅ Sample applications built successfully!"
 
       - name: 📝 Read Updated Version
         id: version
         run: echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
 
-      - name: 🔍 Find Sample App File
-        id: find_sample
-        run: |
-          SAMPLE_APP_PATH=$(find target/dist -name "thunder-sample-app-*.zip" -type f)
-          echo "sample_app_file=$SAMPLE_APP_PATH" >> $GITHUB_OUTPUT
-          echo "sample_app_name=$(basename $SAMPLE_APP_PATH)" >> $GITHUB_OUTPUT
-
-      - name: 📦 Upload Thunder Artifact to Workflow
+      - name: 📦 Upload All Distribution Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: thunder-${{ steps.version.outputs.version }}
-          path: target/dist/thunder-${{ steps.version.outputs.version }}.zip
-
-      - name: 📦 Upload Sample App Artifact to Workflow
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.find_sample.outputs.sample_app_name }}
-          path: ${{ steps.find_sample.outputs.sample_app_file }}
+          name: thunder-distribution
+          path: target/dist/*.zip
+          if-no-files-found: error
 
       - name: 🏷️ Create Git Tag
         run: |
@@ -148,8 +168,6 @@ jobs:
           name: Thunder ${{ env.VERSION }}
           draft: false
           prerelease: ${{ contains(env.VERSION, '-') }}
-          files: |
-            target/dist/thunder-${{ env.VERSION }}.zip
-            ${{ steps.find_sample.outputs.sample_app_file }}
+          files: target/dist/*.zip
           body: ${{ env.RELEASE_BODY }}
           generate_release_notes: false

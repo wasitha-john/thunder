@@ -30,7 +30,7 @@ import (
 
 const (
 	TargetDir                   = "../../target/dist"
-	ZipFilePattern              = "thunder-*.zip"
+	ZipFilePattern              = "thunder_darwin_arm64-*.zip"
 	ExtractedDir                = "../../target/out/.test"
 	ServerBinary                = "thunder"
 	TestDeploymentYamlPath      = "./resources/deployment.yaml"
