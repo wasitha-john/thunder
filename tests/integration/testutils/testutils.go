@@ -29,9 +29,9 @@ import (
 )
 
 const (
-	TargetDir                   = "../../target"
+	TargetDir                   = "../../target/dist"
 	ZipFilePattern              = "thunder-*.zip"
-	ExtractedDir                = "../../target/.test"
+	ExtractedDir                = "../../target/out/.test"
 	ServerBinary                = "thunder"
 	TestDeploymentYamlPath      = "./resources/deployment.yaml"
 	TestDatabaseSchemaDirectory = "resources/dbscripts"

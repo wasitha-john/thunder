@@ -25,13 +25,14 @@ VERSION=$(cat "$VERSION_FILE")
 PRODUCT_FOLDER=${BINARY_NAME}-${VERSION}
 
 SAMPLE_APP_VERSION=$(grep -o '"version": *"[^"]*"' samples/apps/oauth/package.json | sed 's/"version": *"\(.*\)"/\1/')
-SAMPLE_APP_FOLDER="sample-app-${SAMPLE_APP_VERSION}"
+SAMPLE_APP_FOLDER="thunder-sample-app-${SAMPLE_APP_VERSION}"
 
 # Server ports
 BACKEND_PORT=8090
 
 # Directories
-OUTPUT_DIR=target
+OUTPUT_DIR=target/out
+DIST_DIR=target/dist
 BUILD_DIR=$OUTPUT_DIR/.build
 LOCAL_CERT_DIR=$OUTPUT_DIR/.cert
 BACKEND_BASE_DIR=backend
@@ -50,6 +51,13 @@ GOARCH=${3:-arm64}
 function clean() {
     echo "Cleaning build artifacts..."
     rm -rf "$OUTPUT_DIR"
+
+    echo "Removing certificates in the $BACKEND_DIR/$SECURITY_DIR"
+    rm -rf "$BACKEND_DIR/$SECURITY_DIR"
+
+    echo "Removing certificates in the $SAMPLE_APP_DIR"
+    rm -f "$SAMPLE_APP_DIR/server.cert"
+    rm -f "$SAMPLE_APP_DIR/server.key"
 }
 
 function build_backend() {
@@ -98,21 +106,36 @@ function initialize_databases() {
 function prepare_backend_for_packaging() {
     echo "Copying backend artifacts..."
 
-    cp "$BUILD_DIR/$BINARY_NAME" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
-    cp -r "$REPOSITORY_DIR" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
-    cp "$VERSION_FILE" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
-    cp -r "$SERVER_SCRIPTS_DIR" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
-    cp -r "$SERVER_DB_SCRIPTS_DIR" "$OUTPUT_DIR/$PRODUCT_FOLDER/"
-    mkdir -p "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR"
+    cp "$BUILD_DIR/$BINARY_NAME" "$DIST_DIR/$PRODUCT_FOLDER/"
+    cp -r "$REPOSITORY_DIR" "$DIST_DIR/$PRODUCT_FOLDER/"
+    cp "$VERSION_FILE" "$DIST_DIR/$PRODUCT_FOLDER/"
+    cp -r "$SERVER_SCRIPTS_DIR" "$DIST_DIR/$PRODUCT_FOLDER/"
+    cp -r "$SERVER_DB_SCRIPTS_DIR" "$DIST_DIR/$PRODUCT_FOLDER/"
+    mkdir -p "$DIST_DIR/$PRODUCT_FOLDER/$SECURITY_DIR"
 
     echo "=== Ensuring server certificates exist in the distribution ==="
-    ensure_certificates "$OUTPUT_DIR/$PRODUCT_FOLDER/$SECURITY_DIR"
+    ensure_certificates "$DIST_DIR/$PRODUCT_FOLDER/$SECURITY_DIR"
+}
+
+function package_backend() {
+    echo "Packaging backend artifacts..."
+
+    mkdir -p "$DIST_DIR/$PRODUCT_FOLDER"
+
+    prepare_backend_for_packaging
+
+    cp -r "start.sh" "$DIST_DIR/$PRODUCT_FOLDER"
+
+    echo "Creating zip file..."
+    (cd "$DIST_DIR" && zip -r "$PRODUCT_FOLDER.zip" "$PRODUCT_FOLDER")
+    rm -rf "${DIST_DIR:?}/$PRODUCT_FOLDER" "$BUILD_DIR"
 }
 
 function build_sample_app() {
     echo "Building sample app..."
     
     # Ensure certificate exists for the sample app
+    echo "=== Ensuring sample app certificates exist ==="
     ensure_certificates "$SAMPLE_APP_DIR"
     
     # Build the application
@@ -153,43 +176,29 @@ EOL
 function package_sample_app() {
     echo "Packaging sample app..."
     
-    mkdir -p "$OUTPUT_DIR/$SAMPLE_APP_FOLDER"
+    mkdir -p "$DIST_DIR/$SAMPLE_APP_FOLDER"
     
     # Copy the built app files
-    cp -r "$SAMPLE_APP_DIR/dist" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
-    
-    # Copy the certificates
-    cp "$SAMPLE_APP_DIR/server.key" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
-    cp "$SAMPLE_APP_DIR/server.cert" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
+    cp -r "$SAMPLE_APP_DIR/dist" "$DIST_DIR/$SAMPLE_APP_FOLDER/"
 
     # Copy the README file
-    cp "$SAMPLE_APP_DIR/README.md" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
+    cp "$SAMPLE_APP_DIR/README.md" "$DIST_DIR/$SAMPLE_APP_FOLDER/"
 
     # Copy the server script
-    cp "$SAMPLE_APP_DIR/server.js" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
+    cp "$SAMPLE_APP_DIR/server.js" "$DIST_DIR/$SAMPLE_APP_FOLDER/"
     
     # Create the package.json for the sample app
-    create_sample_package_json "$OUTPUT_DIR/$SAMPLE_APP_FOLDER"
+    create_sample_package_json "$DIST_DIR/$SAMPLE_APP_FOLDER"
+
+    # Ensure the certificates exist in the sample app directory
+    echo "=== Ensuring certificates exist in the sample distribution ==="
+    ensure_certificates "$DIST_DIR/$SAMPLE_APP_FOLDER"
 
     echo "Creating zip file..."
-    (cd "$OUTPUT_DIR" && zip -r "$SAMPLE_APP_FOLDER.zip" "$SAMPLE_APP_FOLDER")
-    rm -rf "${OUTPUT_DIR:?}/$SAMPLE_APP_FOLDER"
+    (cd "$DIST_DIR" && zip -r "$SAMPLE_APP_FOLDER.zip" "$SAMPLE_APP_FOLDER")
+    rm -rf "${DIST_DIR:?}/$SAMPLE_APP_FOLDER"
     
-    echo "Sample app packaged successfully as $OUTPUT_DIR/$SAMPLE_APP_FOLDER.zip"
-}
-
-function package_backend() {
-    echo "Packaging backend artifacts..."
-
-    mkdir -p "$OUTPUT_DIR/$PRODUCT_FOLDER"
-
-    prepare_backend_for_packaging
-
-    cp -r "start.sh" "$OUTPUT_DIR/$PRODUCT_FOLDER"
-
-    echo "Creating zip file..."
-    (cd "$OUTPUT_DIR" && zip -r "$PRODUCT_FOLDER.zip" "$PRODUCT_FOLDER")
-    rm -rf "${OUTPUT_DIR:?}/$PRODUCT_FOLDER" "$BUILD_DIR"
+    echo "Sample app packaged successfully as $DIST_DIR/$SAMPLE_APP_FOLDER.zip"
 }
 
 function test_integration() {
