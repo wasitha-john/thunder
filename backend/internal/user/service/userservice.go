@@ -20,6 +20,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -53,13 +54,60 @@ func (as *UserService) CreateUser(user *model.User) (*model.User, error) {
 
 	user.ID = utils.GenerateUUID()
 
+	credentials, err := extractCredentials(user)
+	if err != nil {
+		logger.Error("Failed to create user DTO", log.Error(err))
+		return nil, err
+	}
+
 	// Create the user in the database.
-	err := store.CreateUser(*user)
+	err = store.CreateUser(*user, *credentials)
 	if err != nil {
 		logger.Error("Failed to create user", log.Error(err))
 		return nil, err
 	}
 	return user, nil
+}
+
+// extractCredentials extracts the credentials from the user attributes and returns a Credentials object.
+func extractCredentials(user *model.User) (*model.Credentials, error) {
+	var attrsMap map[string]interface{}
+	if err := json.Unmarshal(user.Attributes, &attrsMap); err != nil {
+		return nil, err
+	}
+
+	if pw, ok := attrsMap["password"].(string); ok {
+		// Generate a salt
+		pwSalt, err := utils.GenerateSalt()
+		if err != nil {
+			return nil, err
+		}
+
+		// Hash the password with the salt
+		pwHash, err := utils.HashStringWithSalt(pw, pwSalt)
+		if err != nil {
+			return nil, err
+		}
+
+		delete(attrsMap, "password")
+		updatedAttrs, err := json.Marshal(attrsMap)
+		if err != nil {
+			return nil, err
+		}
+		user.Attributes = updatedAttrs
+
+		credentials := model.Credentials{
+			CredentialType: "password",
+			StorageType:    "hash",
+			StorageAlgo:    "SHA-256",
+			Value:          pwHash,
+			Salt:           pwSalt,
+		}
+
+		return &credentials, nil
+	}
+
+	return &model.Credentials{}, nil
 }
 
 // GetUserList list the users.
@@ -146,9 +194,28 @@ func (as *UserService) VerifyUser(userID, credType, credValue string) (*model.Us
 		return nil, errors.New("credential value is empty")
 	}
 
-	user, err := store.VerifyUser(userID, credType, credValue)
+	user, credentials, err := store.VerifyUser(userID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Fix the comparison to check for an empty Credentials struct instead of nil.
+	if credentials == (model.Credentials{}) {
+		return nil, errors.New("credentials not found for user " + userID)
+	}
+	if credentials.CredentialType == "" || credentials.Value == "" || credentials.Salt == "" {
+		return nil, errors.New("incomplete credentials for user " + userID)
+	}
+
+	hashToCompare, err := utils.HashStringWithSalt(credValue, credentials.Salt)
+	if err != nil {
+		return nil, errors.New("failed to hash credential value")
+	}
+	if credentials.CredentialType != credType {
+		return nil, errors.New("invalid credential type for user " + userID)
+	}
+	if credentials.Value != hashToCompare {
+		return nil, errors.New("invalid credentials for user " + userID)
 	}
 
 	return &user, nil

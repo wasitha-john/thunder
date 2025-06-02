@@ -5,6 +5,7 @@ CREATE TABLE USER (
   OU_ID      VARCHAR(36)        NOT NULL,
   TYPE       TEXT               NOT NULL,
   ATTRIBUTES TEXT,
+  CREDENTIALS TEXT,
   CREATED_AT TEXT DEFAULT (datetime('now')),
   UPDATED_AT TEXT DEFAULT (datetime('now'))
 );
