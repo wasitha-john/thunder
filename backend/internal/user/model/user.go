@@ -32,6 +32,15 @@ type User struct {
 	Attributes       json.RawMessage `json:"attributes,omitempty"`
 }
 
+// Credentials represents the credentials of a user.
+type Credentials struct {
+	CredentialType string `json:"credentialType"`
+	StorageType    string `json:"storageType"`
+	StorageAlgo    string `json:"storageAlgo"`
+	Value          string `json:"value"`
+	Salt           string `json:"salt"`
+}
+
 // ErrUserNotFound is returned when the user is not found in the system.
 var ErrUserNotFound = errors.New("user not found")
 

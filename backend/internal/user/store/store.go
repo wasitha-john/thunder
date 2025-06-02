@@ -29,7 +29,7 @@ import (
 )
 
 // CreateUser handles the user creation in the database.
-func CreateUser(user model.User) error {
+func CreateUser(user model.User, credentials model.Credentials) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -51,7 +51,27 @@ func CreateUser(user model.User) error {
 		return model.ErrBadAttributesInRequest
 	}
 
-	_, err = dbClient.Execute(QueryCreateUser, user.ID, user.OrganizationUnit, user.Type, string(attributes))
+	// Correct the handling of credentialsJSON to convert []byte to string.
+	var credentialsJSON string
+	if (model.Credentials{}) == credentials {
+		credentialsJSON = "{}"
+	} else {
+		credentialsBytes, err := json.Marshal(credentials)
+		if err != nil {
+			logger.Error("Failed to marshal credentials", log.Error(err))
+			return model.ErrBadAttributesInRequest
+		}
+		credentialsJSON = string(credentialsBytes)
+	}
+
+	_, err = dbClient.Execute(
+		QueryCreateUser,
+		user.ID,
+		user.OrganizationUnit,
+		user.Type,
+		string(attributes),
+		credentialsJSON,
+	)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
@@ -249,13 +269,13 @@ func IdentityUser(attrName, attrValue string) (*string, error) {
 }
 
 // VerifyUser validate the user specified user using the given credentials from the database.
-func VerifyUser(id, credType, credValue string) (model.User, error) {
+func VerifyUser(id string) (model.User, model.Credentials, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
-		return model.User{}, fmt.Errorf("failed to get database client: %w", err)
+		return model.User{}, model.Credentials{}, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
 		if closeErr := dbClient.Close(); closeErr != nil {
@@ -264,20 +284,20 @@ func VerifyUser(id, credType, credValue string) (model.User, error) {
 		}
 	}()
 
-	results, err := dbClient.Query(QueryValidateUserWithCredentials, id, credValue)
+	results, err := dbClient.Query(QueryValidateUserWithCredentials, id)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
-		return model.User{}, fmt.Errorf("failed to execute query: %w", err)
+		return model.User{}, model.Credentials{}, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
 		logger.Error("user not found with id: " + id)
-		return model.User{}, model.ErrUserNotFound
+		return model.User{}, model.Credentials{}, model.ErrUserNotFound
 	}
 
 	if len(results) != 1 {
 		logger.Error("unexpected number of results")
-		return model.User{}, fmt.Errorf("unexpected number of results: %d", len(results))
+		return model.User{}, model.Credentials{}, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
 	row := results[0]
@@ -285,9 +305,23 @@ func VerifyUser(id, credType, credValue string) (model.User, error) {
 	user, err := buildUserFromResultRow(row)
 	if err != nil {
 		logger.Error("failed to build user from result row")
-		return model.User{}, fmt.Errorf("failed to build user from result row: %w", err)
+		return model.User{}, model.Credentials{}, fmt.Errorf("failed to build user from result row: %w", err)
 	}
-	return user, nil
+
+	// build the UserDTO with credentials.
+	credentialsJSON, ok := row["credentials"].(string)
+	if !ok {
+		logger.Error("failed to parse credentials as string")
+		return model.User{}, model.Credentials{}, fmt.Errorf("failed to parse credentials as string")
+	}
+
+	var credentials model.Credentials
+	if err := json.Unmarshal([]byte(credentialsJSON), &credentials); err != nil {
+		logger.Error("Failed to unmarshal credentials", log.Error(err))
+		return model.User{}, model.Credentials{}, fmt.Errorf("failed to unmarshal credentials: %w", err)
+	}
+
+	return user, credentials, nil
 }
 
 func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
