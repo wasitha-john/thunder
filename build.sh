@@ -33,6 +33,7 @@ BACKEND_PORT=8090
 # Directories
 OUTPUT_DIR=target
 BUILD_DIR=$OUTPUT_DIR/.build
+LOCAL_CERT_DIR=$OUTPUT_DIR/.cert
 BACKEND_BASE_DIR=backend
 BACKEND_DIR=$BACKEND_BASE_DIR/cmd/server
 REPOSITORY_DIR=$BACKEND_BASE_DIR/cmd/server/repository
@@ -199,16 +200,19 @@ function test_integration() {
 function ensure_certificates() {
     local cert_dir=$1
     local cert_name_prefix="server"
-    local cert_file="$cert_dir/${cert_name_prefix}.cert"
-    local key_file="$cert_dir/${cert_name_prefix}.key"
+    local cert_file_name="${cert_name_prefix}.cert"
+    local key_file_name="${cert_name_prefix}.key"
 
-    if [[ ! -f "$cert_file" || ! -f "$key_file" ]]; then
-        mkdir -p "$cert_dir"
-        echo "Generating SSL certificates in $cert_dir..."
+    # Generate certificate and key file if don't exists in the cert directory
+    local local_cert_file="${LOCAL_CERT_DIR}/${cert_file_name}"
+    local local_key_file="${LOCAL_CERT_DIR}/${key_file_name}"
+    if [[ ! -f "$local_cert_file" || ! -f "$local_key_file" ]]; then
+        mkdir -p "$LOCAL_CERT_DIR"
+        echo "Generating SSL certificates in $LOCAL_CERT_DIR..."
         OPENSSL_ERR=$(
             openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout "$key_file" \
-                -out "$cert_file" \
+                -keyout "$local_key_file" \
+                -out "$local_cert_file" \
                 -subj "/O=WSO2/OU=Thunder/CN=localhost" \
                 > /dev/null 2>&1
         )
@@ -216,7 +220,21 @@ function ensure_certificates() {
             echo "Error generating SSL certificates: $OPENSSL_ERR"
             exit 1
         fi
-        echo "Certificates generated successfully in $cert_dir."
+        echo "Certificates generated successfully in $LOCAL_CERT_DIR."
+    else
+        echo "Certificates already exist in $LOCAL_CERT_DIR."
+    fi
+
+    # Copy the generated certificates to the specified directory
+    local cert_file="$cert_dir/${cert_file_name}"
+    local key_file="$cert_dir/${key_file_name}"
+
+    if [[ ! -f "$cert_file" || ! -f "$key_file" ]]; then
+        mkdir -p "$cert_dir"
+        echo "Copying certificates to $cert_dir..."
+        cp "$local_cert_file" "$cert_file"
+        cp "$local_key_file" "$key_file"
+        echo "Certificates copied successfully to $cert_dir."
     else
         echo "Certificates already exist in $cert_dir."
     fi
