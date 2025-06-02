@@ -85,7 +85,7 @@ jobs:
       - name: 🔍 Find Sample App File
         id: find_sample
         run: |
-          SAMPLE_APP_PATH=$(find target -name "sample-app-*.zip" -type f)
+          SAMPLE_APP_PATH=$(find target/dist -name "thunder-sample-app-*.zip" -type f)
           echo "sample_app_file=$SAMPLE_APP_PATH" >> $GITHUB_OUTPUT
           echo "sample_app_name=$(basename $SAMPLE_APP_PATH)" >> $GITHUB_OUTPUT
 
@@ -93,7 +93,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: thunder-${{ steps.version.outputs.version }}
-          path: target/thunder-${{ steps.version.outputs.version }}.zip
+          path: target/dist/thunder-${{ steps.version.outputs.version }}.zip
 
       - name: 📦 Upload Sample App Artifact to Workflow
         uses: actions/upload-artifact@v4
@@ -149,7 +149,7 @@ jobs:
           draft: false
           prerelease: ${{ contains(env.VERSION, '-') }}
           files: |
-            target/thunder-${{ env.VERSION }}.zip
+            target/dist/thunder-${{ env.VERSION }}.zip
             ${{ steps.find_sample.outputs.sample_app_file }}
           body: ${{ env.RELEASE_BODY }}
           generate_release_notes: false
