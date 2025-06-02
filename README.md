@@ -26,15 +26,37 @@ Follow these steps to download the latest release of WSO2 Thunder and run it loc
 
 #### Step 1: Download the distribution from the latest release
 
-Download `thunder-<version>.zip` from the [latest release](https://github.com/asgardeo/thunder/releases/latest).
+Download `thunder_<os>_<arch>-<version>.zip` from the [latest release](https://github.com/asgardeo/thunder/releases/latest) for your operating system and architecture.
+
+For example, if you are using a MacOS machine with a Apple Silicon (ARM64) processor, you would download `thunder_macos_arm64-<version>.zip`.
 
 #### Step 2: Unzip and start the product
 
-```bash
-unzip thunder-<version>.zip
-cd thunder-<version>/
-sh start.sh
-```
+- Unzip the downloaded file using the following command:
+
+  ```bash
+  unzip thunder-<os>_<arch>-<version>.zip
+  ```
+
+- Navigate to the unzipped directory:
+
+  ```bash
+  cd thunder-<os>_<arch>-<version>/
+  ```
+
+- Start the product using the following command:
+
+  - If you are using a Linux or macOS machine:
+
+    ```bash
+    bash start.sh
+    ```
+
+  - If you are using a Windows machine:
+
+    ```bash
+    start.bat
+    ```
 
 ### Download and Run the Sample App
 
@@ -138,7 +160,7 @@ Open the sample app in your browser and enter the username and password you crea
 - Update the system default application to use the Google login template by invoking the application management API with the following cURL command.
 
   ```bash
-  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000' \
+  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
   --data '{
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "Test SPA",
@@ -184,10 +206,10 @@ Open the sample app in your browser and enter the username and password you crea
   }'
   ```
 
-- Update the system default application to use the Google login template by invoking the application management API with the following cURL command.
+- Update the system default application to use the Github login template by invoking the application management API with the following cURL command.
 
   ```bash
-  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000' \
+  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
   --data '{
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "Test SPA",
@@ -201,7 +223,7 @@ Open the sample app in your browser and enter the username and password you crea
           "client_credentials",
           "authorization_code"
       ],
-      "auth_flow_graph_id": "auth_flow_config_google"
+      "auth_flow_graph_id": "auth_flow_config_github"
   }'
   ```
 
@@ -320,106 +342,7 @@ Open the sample app in your browser and enter the username and password you crea
 
 </details>
 <details>
-<summary><h4>2️⃣ Login with GitHub</h4></summary>
-
-- Create an OAuth application in your Github account following the instructions given in the [Github documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app).
-  - Configure home page and callback URLs as per your application.
-  - Copy the **Client ID** and **Client Secret**.
-
-- Update the system created github IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your GitHub OAuth application.
-
-  ```bash
-  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440001 \
-  -d '{
-      "id": "550e8400-e29b-41d4-a716-446655440001",
-      "name": "Github",
-      "description": "Login with Github",
-      "client_id": "<client_id>",
-      "client_secret": "<client_secret>",
-      "redirect_uri": "<app_callback_url>",
-      "scopes": [
-          "user:email",
-          "read:user"
-      ]
-  }'
-  ```
-
-- Create an application or update the existing system default application to use the GitHub login template. You can use the following cURL command to update the default application.
-
-  ```bash
-  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000' \
-  --data '{
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "Test SPA",
-      "description": "Initial testing App",
-      "client_id": "client123",
-      "client_secret": "***",
-      "callback_url": [
-          "https://localhost:3000"
-      ],
-      "supported_grant_types": [
-          "client_credentials",
-          "authorization_code"
-      ],
-      "auth_flow_graph_id": "auth_flow_config_github"
-  }'
-  ```
-
-- Start login flow for the application with the following cURL command:
-
-  ```bash
-  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
-  -d '{
-      "applicationId": "<application_id>"
-  }'
-  ```
-
-  You'll receive a response similar to the following:
-
-  ```json
-  {
-      "flowId": "80d57e64-8082-4096-bb0e-22b2187f8265",
-      "flowStatus": "INCOMPLETE",
-      "type": "REDIRECTION",
-      "inputs": [
-          {
-              "name": "code",
-              "type": "string",
-              "required": true
-          }
-      ],
-      "additionalInfo": {
-          "redirect_url": "<github_auth_redirect_url>",
-          "idp_name": "Github"
-      }
-  }
-  ```
-
-- Open the `redirect_url` in your browser. You will be redirected to the GitHub login page. Enter your GitHub credentials and authorize the application.
-
-- After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
-
-  ```bash
-  https://localhost:3000/?code=<code>&state=80d57e64-8082-4096-bb0e-22b2187f8265
-  ```
-
-- Copy the authorization code and make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
-
-  ```bash
-  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
-  -d '{
-      "flowId": "<flow_id>",
-      "inputs": {
-          "code": "<code>"
-      }
-  }'
-  ```
-
-- If the login is successful, you will receive a response with the auth assertion.
-
-</details>
-<details>
-<summary><h4>3️⃣ Login with Google</h4></summary>
+<summary><h4>2️⃣ Login with Google</h4></summary>
 
 - Create an OAuth application in your Google account following the instructions given in the [Google documentation](https://developers.google.com/identity/protocols/oauth2/web-server#creatingcred).
   - Configure the Authorized origin and Redirect URI as per your application.
@@ -447,7 +370,7 @@ Open the sample app in your browser and enter the username and password you crea
 - Create an application or update the existing system default application to use the Google login template. You can use the following cURL command to update the default application.
 
   ```bash
-  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000' \
+  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
   --data '{
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "Test SPA",
@@ -503,6 +426,105 @@ Open the sample app in your browser and enter the username and password you crea
 - Open the `redirect_url` in your browser. You will be redirected to the Google login page. Enter your Google credentials and authorize the application.
 
 - After successful authentication, you will be redirected to the redirect URI with the authorization code, state and other parameters.
+
+  ```bash
+  https://localhost:3000/?code=<code>&state=80d57e64-8082-4096-bb0e-22b2187f8265
+  ```
+
+- Copy the authorization code and make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
+
+  ```bash
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  -d '{
+      "flowId": "<flow_id>",
+      "inputs": {
+          "code": "<code>"
+      }
+  }'
+  ```
+
+- If the login is successful, you will receive a response with the auth assertion.
+
+</details>
+<details>
+<summary><h4>3️⃣ Login with GitHub</h4></summary>
+
+- Create an OAuth application in your Github account following the instructions given in the [Github documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app).
+  - Configure home page and callback URLs as per your application.
+  - Copy the **Client ID** and **Client Secret**.
+
+- Update the system created github IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your GitHub OAuth application.
+
+  ```bash
+  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440001 \
+  -d '{
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "Github",
+      "description": "Login with Github",
+      "client_id": "<client_id>",
+      "client_secret": "<client_secret>",
+      "redirect_uri": "<app_callback_url>",
+      "scopes": [
+          "user:email",
+          "read:user"
+      ]
+  }'
+  ```
+
+- Create an application or update the existing system default application to use the GitHub login template. You can use the following cURL command to update the default application.
+
+  ```bash
+  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
+  --data '{
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Test SPA",
+      "description": "Initial testing App",
+      "client_id": "client123",
+      "client_secret": "***",
+      "callback_url": [
+          "https://localhost:3000"
+      ],
+      "supported_grant_types": [
+          "client_credentials",
+          "authorization_code"
+      ],
+      "auth_flow_graph_id": "auth_flow_config_github"
+  }'
+  ```
+
+- Start login flow for the application with the following cURL command:
+
+  ```bash
+  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  -d '{
+      "applicationId": "<application_id>"
+  }'
+  ```
+
+  You'll receive a response similar to the following:
+
+  ```json
+  {
+      "flowId": "80d57e64-8082-4096-bb0e-22b2187f8265",
+      "flowStatus": "INCOMPLETE",
+      "type": "REDIRECTION",
+      "inputs": [
+          {
+              "name": "code",
+              "type": "string",
+              "required": true
+          }
+      ],
+      "additionalInfo": {
+          "redirect_url": "<github_auth_redirect_url>",
+          "idp_name": "Github"
+      }
+  }
+  ```
+
+- Open the `redirect_url` in your browser. You will be redirected to the GitHub login page. Enter your GitHub credentials and authorize the application.
+
+- After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
 
   ```bash
   https://localhost:3000/?code=<code>&state=80d57e64-8082-4096-bb0e-22b2187f8265
