@@ -46,8 +46,8 @@ const loggerComponentName = "OIDCAuthExecutor"
 // OIDCAuthExecutorInterface defines the interface for OIDC authentication executors.
 type OIDCAuthExecutorInterface interface {
 	flowmodel.ExecutorInterface
-	BuildAuthorizeFlow(ctx *flowmodel.FlowContext, execResp *flowmodel.ExecutorResponse)
-	ProcessAuthFlowResponse(ctx *flowmodel.FlowContext, execResp *flowmodel.ExecutorResponse)
+	BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse)
+	ProcessAuthFlowResponse(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse)
 	GetOIDCProperties() model.OIDCExecProperties
 	GetCallBackURL() string
 	GetAuthorizationEndpoint() string
@@ -55,8 +55,8 @@ type OIDCAuthExecutorInterface interface {
 	GetUserInfoEndpoint() string
 	GetLogoutEndpoint() string
 	GetJWKSEndpoint() string
-	ExchangeCodeForToken(ctx *flowmodel.FlowContext, code string) (*model.OIDCTokenResponse, error)
-	GetUserInfo(ctx *flowmodel.FlowContext, accessToken string) (map[string]string, error)
+	ExchangeCodeForToken(ctx *flowmodel.NodeContext, code string) (*model.OIDCTokenResponse, error)
+	GetUserInfo(ctx *flowmodel.NodeContext, accessToken string) (map[string]string, error)
 	ValidateIDToken(idToken string) error
 	GetIDTokenClaims(idToken string) (map[string]interface{}, error)
 }
@@ -131,7 +131,7 @@ func (o *OIDCAuthExecutor) GetJWKSEndpoint() string {
 }
 
 // Execute executes the OIDC authentication logic.
-func (o *OIDCAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.ExecutorResponse, error) {
+func (o *OIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.ExecutorResponse, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -158,7 +158,7 @@ func (o *OIDCAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Execu
 }
 
 // BuildAuthorizeFlow constructs the redirection to the external OIDC provider for user authentication.
-func (o *OIDCAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.FlowContext, execResp *flowmodel.ExecutorResponse) {
+func (o *OIDCAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -209,7 +209,7 @@ func (o *OIDCAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.FlowContext, execRe
 }
 
 // ProcessAuthFlowResponse processes the response from the OIDC authentication flow and authenticates the user.
-func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowContext, execResp *flowmodel.ExecutorResponse) {
+func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -294,7 +294,7 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowContext, e
 
 // requiredInputData adds the required input data for the OIDC authentication flow to the executor response.
 // Returns true if input data should be requested from the user.
-func (o *OIDCAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execResp *flowmodel.ExecutorResponse) bool {
+func (o *OIDCAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()), log.String(log.LoggerKeyFlowID, ctx.FlowID))
 
@@ -315,7 +315,7 @@ func (o *OIDCAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execRes
 	// Check for the required input data. Also appends the authenticator specific input data.
 	// TODO: This validation should be moved to the flow composer. Ideally the validation and appending
 	//  should happen during the flow definition creation.
-	requiredData := ctx.CurrentNode.GetInputData()
+	requiredData := ctx.NodeInputData
 	if len(requiredData) == 0 {
 		logger.Debug("No required input data defined for OIDC authentication executor")
 		// If no required input data is defined, use the default required data.
@@ -367,7 +367,7 @@ func (o *OIDCAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execRes
 }
 
 // ExchangeCodeForToken exchanges the authorization code for an access token.
-func (o *OIDCAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.FlowContext,
+func (o *OIDCAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext,
 	code string) (*model.OIDCTokenResponse, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
@@ -424,7 +424,7 @@ func (o *OIDCAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.FlowContext,
 }
 
 // GetUserInfo fetches user information from the OIDC provider using the access token.
-func (o *OIDCAuthExecutor) GetUserInfo(ctx *flowmodel.FlowContext, accessToken string) (map[string]string, error) {
+func (o *OIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, accessToken string) (map[string]string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))

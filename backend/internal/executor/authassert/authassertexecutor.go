@@ -61,7 +61,7 @@ func (a *AuthAssertExecutor) GetProperties() flowmodel.ExecutorProperties {
 }
 
 // Execute executes the authentication assertion logic.
-func (a *AuthAssertExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.ExecutorResponse, error) {
+func (a *AuthAssertExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.ExecutorResponse, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, a.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))

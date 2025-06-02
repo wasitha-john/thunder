@@ -64,7 +64,7 @@ func (b *BasicAuthExecutor) GetProperties() flowmodel.ExecutorProperties {
 }
 
 // Execute executes the basic authentication logic.
-func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.ExecutorResponse, error) {
+func (b *BasicAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.ExecutorResponse, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, b.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -114,7 +114,7 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.Exec
 
 // requiredInputData checks and adds the required input data for basic authentication.
 // Returns true if needed to request user input data.
-func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execResp *flowmodel.ExecutorResponse) bool {
+func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, b.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -136,7 +136,7 @@ func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execRe
 	// Check for the required input data. Also appends the authenticator specific input data.
 	// TODO: This validation should be moved to the flow composer. Ideally the validation and appending
 	//  should happen during the flow definition creation.
-	requiredData := ctx.CurrentNode.GetInputData()
+	requiredData := ctx.NodeInputData
 	if len(requiredData) == 0 {
 		logger.Debug("No required input data defined for basic authentication executor")
 		requiredData = basicReqData

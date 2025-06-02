@@ -47,7 +47,7 @@ type FlowServiceInterface interface {
 
 // FlowService is the implementation of FlowServiceInterface
 type FlowService struct {
-	store map[string]model.FlowContext
+	store map[string]model.EngineContext
 	mu    sync.Mutex
 }
 
@@ -55,7 +55,7 @@ type FlowService struct {
 func GetFlowService() FlowServiceInterface {
 	once.Do(func() {
 		instance = &FlowService{
-			store: make(map[string]model.FlowContext),
+			store: make(map[string]model.EngineContext),
 		}
 	})
 	return instance
@@ -118,8 +118,8 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 
 // loadContext loads or initializes a flow context based on the provided parameters.
 func (s *FlowService) loadContext(appID, flowID, actionID string, inputData map[string]string,
-	logger *log.Logger) (*model.FlowContext, *serviceerror.ServiceError) {
-	var context model.FlowContext
+	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
+	var context model.EngineContext
 	if flowID == "" && actionID == "" && len(inputData) == 0 {
 		ctx, err := s.initContext(appID, logger)
 		if err != nil {
@@ -138,13 +138,13 @@ func (s *FlowService) loadContext(appID, flowID, actionID string, inputData map[
 }
 
 // initContext initializes a new flow context with the given details.
-func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.FlowContext, *serviceerror.ServiceError) {
+func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
 	graphID, svcErr := validateApplication(appID)
 	if svcErr != nil {
 		return nil, svcErr
 	}
 
-	ctx := model.FlowContext{}
+	ctx := model.EngineContext{}
 	flowID := sysutils.GenerateUUID()
 	ctx.FlowID = flowID
 
@@ -186,7 +186,7 @@ func validateApplication(appID string) (string, *serviceerror.ServiceError) {
 
 // loadContextFromStore retrieves the flow context from the store based on the given details.
 func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData map[string]string,
-	logger *log.Logger) (*model.FlowContext, *serviceerror.ServiceError) {
+	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
 	if flowID == "" {
 		return nil, &constants.ErrorInvalidFlowID
 	}
@@ -212,7 +212,7 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 }
 
 // updateContext updates the flow context in the store based on the flow step status.
-func (s *FlowService) updateContext(ctx *model.FlowContext, flowStep *model.FlowStep, logger *log.Logger) {
+func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.FlowStep, logger *log.Logger) {
 	if flowStep.Status != "" && flowStep.Status == constants.Complete {
 		s.mu.Lock()
 		delete(s.store, ctx.FlowID)

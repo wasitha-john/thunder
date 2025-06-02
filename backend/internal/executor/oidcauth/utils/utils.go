@@ -35,7 +35,7 @@ const paramPlaceHolderEnd = "}"
 
 // GetResolvedAdditionalParam resolves the additional parameter value by replacing placeholders
 // with actual values.
-func GetResolvedAdditionalParam(paramName, paramValue string, ctx *flowmodel.FlowContext) (string, error) {
+func GetResolvedAdditionalParam(paramName, paramValue string, ctx *flowmodel.NodeContext) (string, error) {
 	if strings.Contains(paramValue, paramPlaceHolderStart) && strings.Contains(paramValue, paramPlaceHolderEnd) {
 		startIndex := strings.Index(paramValue, paramPlaceHolderStart)
 		endIndex := strings.Index(paramValue, paramPlaceHolderEnd)

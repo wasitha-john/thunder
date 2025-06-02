@@ -96,7 +96,7 @@ func NewGoogleOIDCAuthExecutor(id, name, clientID, clientSecret, redirectURI str
 }
 
 // Execute executes the Google OIDC authentication flow.
-func (g *GoogleOIDCAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.ExecutorResponse, error) {
+func (g *GoogleOIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.ExecutorResponse, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Executing Google OIDC auth executor",
 		log.String("executorID", g.GetID()), log.String("flowID", ctx.FlowID))
@@ -126,7 +126,7 @@ func (g *GoogleOIDCAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel
 }
 
 // ProcessAuthFlowResponse processes the response from the Google OIDC authentication flow.
-func (g *GoogleOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowContext,
+func (g *GoogleOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 	execResp *flowmodel.ExecutorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String("executorID", g.GetID()), log.String("flowID", ctx.FlowID))
@@ -268,7 +268,7 @@ func (g *GoogleOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowCont
 
 // requiredInputData adds the required input data for the Google OIDC authentication flow.
 // Returns true if input data should be requested from the user.
-func (g *GoogleOIDCAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext,
+func (g *GoogleOIDCAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext,
 	execResp *flowmodel.ExecutorResponse) bool {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
@@ -289,7 +289,7 @@ func (g *GoogleOIDCAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext,
 	// Check for the required input data. Also appends the authenticator specific input data.
 	// TODO: This validation should be moved to the flow composer. Ideally the validation and appending
 	//  should happen during the flow definition creation.
-	requiredData := ctx.CurrentNode.GetInputData()
+	requiredData := ctx.NodeInputData
 	if len(requiredData) == 0 {
 		logger.Debug("No required input data defined for Google OIDC auth executor")
 		// If no required input data is defined, use the default required data.

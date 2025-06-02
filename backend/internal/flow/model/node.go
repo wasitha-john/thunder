@@ -35,7 +35,7 @@ type NodeResponse struct {
 
 // NodeInterface defines the interface for nodes in the graph
 type NodeInterface interface {
-	Execute(ctx *FlowContext) (*NodeResponse, *serviceerror.ServiceError)
+	Execute(ctx *NodeContext) (*NodeResponse, *serviceerror.ServiceError)
 	GetID() string
 	GetType() string
 	IsStartNode() bool
@@ -80,7 +80,7 @@ func NewNode(id string, _type string, isStartNode bool, isFinalNode bool) NodeIn
 }
 
 // Execute executes the node's executor
-func (n *Node) Execute(ctx *FlowContext) (*NodeResponse, *serviceerror.ServiceError) {
+func (n *Node) Execute(ctx *NodeContext) (*NodeResponse, *serviceerror.ServiceError) {
 	if n.executorConfig == nil || n.executorConfig.Executor == nil {
 		return nil, &constants.ErrorNodeExecutorNotFound
 	}
