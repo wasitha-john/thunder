@@ -19,10 +19,13 @@
 
 set -e
 
+GOOS=${2:-darwin}
+GOARCH=${3:-arm64}
+
 VERSION_FILE=version.txt
 BINARY_NAME=thunder
 VERSION=$(cat "$VERSION_FILE")
-PRODUCT_FOLDER=${BINARY_NAME}-${VERSION}
+PRODUCT_FOLDER=${BINARY_NAME}_${GOOS}_${GOARCH}-${VERSION}
 
 SAMPLE_APP_VERSION=$(grep -o '"version": *"[^"]*"' samples/apps/oauth/package.json | sed 's/"version": *"\(.*\)"/\1/')
 SAMPLE_APP_FOLDER="thunder-sample-app-${SAMPLE_APP_VERSION}"
@@ -31,8 +34,9 @@ SAMPLE_APP_FOLDER="thunder-sample-app-${SAMPLE_APP_VERSION}"
 BACKEND_PORT=8090
 
 # Directories
-OUTPUT_DIR=target/out
-DIST_DIR=target/dist
+TARGET_DIR=target
+OUTPUT_DIR=$TARGET_DIR/out
+DIST_DIR=$TARGET_DIR/dist
 BUILD_DIR=$OUTPUT_DIR/.build
 LOCAL_CERT_DIR=$OUTPUT_DIR/.cert
 BACKEND_BASE_DIR=backend
@@ -45,8 +49,17 @@ SECURITY_DIR=repository/resources/security
 SAMPLE_BASE_DIR=samples
 SAMPLE_APP_DIR=$SAMPLE_BASE_DIR/apps/oauth
 
-GOOS=${2:-darwin}
-GOARCH=${3:-arm64}
+function clean_all() {
+    echo "Cleaning all build artifacts..."
+    rm -rf "$TARGET_DIR"
+
+    echo "Removing certificates in the $BACKEND_DIR/$SECURITY_DIR"
+    rm -rf "$BACKEND_DIR/$SECURITY_DIR"
+
+    echo "Removing certificates in the $SAMPLE_APP_DIR"
+    rm -f "$SAMPLE_APP_DIR/server.cert"
+    rm -f "$SAMPLE_APP_DIR/server.key"
+}
 
 function clean() {
     echo "Cleaning build artifacts..."
@@ -64,10 +77,16 @@ function build_backend() {
     echo "Building Go backend..."
     mkdir -p "$BUILD_DIR"
 
+    # Set binary name with .exe extension for Windows
+    local output_binary="$BINARY_NAME"
+    if [ "$GOOS" = "windows" ]; then
+        output_binary="${BINARY_NAME}.exe"
+    fi
+
     GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build -C "$BACKEND_BASE_DIR" \
     -x -ldflags "-X \"main.version=$VERSION\" \
     -X \"main.buildDate=$$(date -u '+%Y-%m-%d %H:%M:%S UTC')\"" \
-    -o "../$BUILD_DIR/$BINARY_NAME" ./cmd/server
+    -o "../$BUILD_DIR/$output_binary" ./cmd/server
 
     echo "Initializing databases..."
     initialize_databases
@@ -106,7 +125,13 @@ function initialize_databases() {
 function prepare_backend_for_packaging() {
     echo "Copying backend artifacts..."
 
-    cp "$BUILD_DIR/$BINARY_NAME" "$DIST_DIR/$PRODUCT_FOLDER/"
+    # Use appropriate binary name based on OS
+    local binary_name="$BINARY_NAME"
+    if [ "$GOOS" = "windows" ]; then
+        binary_name="${BINARY_NAME}.exe"
+    fi
+
+    cp "$BUILD_DIR/$binary_name" "$DIST_DIR/$PRODUCT_FOLDER/"
     cp -r "$REPOSITORY_DIR" "$DIST_DIR/$PRODUCT_FOLDER/"
     cp "$VERSION_FILE" "$DIST_DIR/$PRODUCT_FOLDER/"
     cp -r "$SERVER_SCRIPTS_DIR" "$DIST_DIR/$PRODUCT_FOLDER/"
@@ -124,7 +149,14 @@ function package_backend() {
 
     prepare_backend_for_packaging
 
-    cp -r "start.sh" "$DIST_DIR/$PRODUCT_FOLDER"
+    # Copy the appropriate startup script based on the target OS
+    if [ "$GOOS" = "windows" ]; then
+        echo "Including Windows start script (start.bat)..."
+        cp -r "start.bat" "$DIST_DIR/$PRODUCT_FOLDER"
+    else
+        echo "Including Unix start script (start.sh)..."
+        cp -r "start.sh" "$DIST_DIR/$PRODUCT_FOLDER"
+    fi
 
     echo "Creating zip file..."
     (cd "$DIST_DIR" && zip -r "$PRODUCT_FOLDER.zip" "$PRODUCT_FOLDER")
@@ -281,6 +313,17 @@ case "$1" in
     clean)
         clean
         ;;
+    clean_all)
+        clean_all
+        ;;
+    build_backend)
+        build_backend
+        package_backend
+        ;;
+    build_samples)
+        build_sample_app
+        package_sample_app
+        ;;
     build)
         build_backend
         package_backend
@@ -297,7 +340,10 @@ case "$1" in
         echo "Usage: ./build.sh {clean|build|test|run} [OS] [ARCH]"
         echo ""
         echo "  clean         - Clean build artifacts"
+        echo "  clean_all     - Clean all build artifacts including distributions"
         echo "  build         - Build the Thunder server only"
+        echo "  build_backend - Build the Thunder backend server"
+        echo "  build_samples - Build the sample applications"
         echo "  test          - Run integration tests"
         echo "  run           - Run the Thunder server for development"
         exit 1
