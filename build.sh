@@ -50,6 +50,13 @@ GOARCH=${3:-arm64}
 function clean() {
     echo "Cleaning build artifacts..."
     rm -rf "$OUTPUT_DIR"
+
+    echo "Removing certificates in the $BACKEND_DIR/$SECURITY_DIR"
+    rm -rf "$BACKEND_DIR/$SECURITY_DIR"
+
+    echo "Removing certificates in the $SAMPLE_APP_DIR"
+    rm -f "$SAMPLE_APP_DIR/server.cert"
+    rm -f "$SAMPLE_APP_DIR/server.key"
 }
 
 function build_backend() {
@@ -113,6 +120,7 @@ function build_sample_app() {
     echo "Building sample app..."
     
     # Ensure certificate exists for the sample app
+    echo "=== Ensuring sample app certificates exist ==="
     ensure_certificates "$SAMPLE_APP_DIR"
     
     # Build the application
@@ -157,10 +165,6 @@ function package_sample_app() {
     
     # Copy the built app files
     cp -r "$SAMPLE_APP_DIR/dist" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
-    
-    # Copy the certificates
-    cp "$SAMPLE_APP_DIR/server.key" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
-    cp "$SAMPLE_APP_DIR/server.cert" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
 
     # Copy the README file
     cp "$SAMPLE_APP_DIR/README.md" "$OUTPUT_DIR/$SAMPLE_APP_FOLDER/"
@@ -170,6 +174,10 @@ function package_sample_app() {
     
     # Create the package.json for the sample app
     create_sample_package_json "$OUTPUT_DIR/$SAMPLE_APP_FOLDER"
+
+    # Ensure the certificates exist in the sample app directory
+    echo "=== Ensuring certificates exist in the sample distribution ==="
+    ensure_certificates "$OUTPUT_DIR/$SAMPLE_APP_FOLDER"
 
     echo "Creating zip file..."
     (cd "$OUTPUT_DIR" && zip -r "$SAMPLE_APP_FOLDER.zip" "$SAMPLE_APP_FOLDER")
