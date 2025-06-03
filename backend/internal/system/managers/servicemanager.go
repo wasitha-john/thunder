@@ -44,6 +44,9 @@ func NewServiceManager(mux *http.ServeMux) ServiceManagerInterface {
 
 // RegisterServices registers all the services with the provided HTTP multiplexer.
 func (sm *ServiceManager) RegisterServices() error {
+	// Register the health service.
+	services.NewHealthService(sm.mux)
+
 	// Register the token service.
 	services.NewTokenService(sm.mux)
 
