@@ -20,6 +20,8 @@
 package authassert
 
 import (
+	"errors"
+
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/oauth/jwt"
@@ -67,9 +69,7 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing authentication assertion executor")
 
-	exeResp := &flowmodel.ExecutorResponse{
-		Status: flowconst.ExecComplete,
-	}
+	exeResp := &flowmodel.ExecutorResponse{}
 
 	if ctx.AuthenticatedUser.IsAuthenticated {
 		tokenSub := ""
@@ -79,17 +79,16 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 		token, err := jwt.GenerateJWT(tokenSub, ctx.AppID, ctx.AuthenticatedUser.Attributes)
 		if err != nil {
 			logger.Error("Failed to generate JWT token", log.Error(err))
-			exeResp.Status = flowconst.ExecError
-			exeResp.Error = "Failed to generate JWT token: " + err.Error()
-			return exeResp, nil
+			return nil, errors.New("failed to generate JWT token: " + err.Error())
 		}
 
 		logger.Debug("Generated JWT token for authentication assertion")
 
+		exeResp.Status = flowconst.ExecComplete
 		exeResp.Assertion = token
 	} else {
-		exeResp.Status = flowconst.ExecError
-		exeResp.Error = "User is not authenticated"
+		exeResp.Status = flowconst.ExecFailure
+		exeResp.FailureReason = "User is not authenticated"
 	}
 
 	logger.Debug("Authentication assertion executor execution completed", log.String("status", string(exeResp.Status)))

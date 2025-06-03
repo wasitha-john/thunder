@@ -59,6 +59,7 @@ const LoginPage = () => {
     const [showRememberMe] = useState<boolean>(false);
     const [showForgotPassword] = useState<boolean>(false);
     const [error, setError] = useState<boolean>(false);
+    const [errorMessage, setErrorMessage] = useState<string>('Login failed');
     const [connectionError, setConnectionError] = useState<boolean>(false);
 
     const [flowId, setFlowId] = useState<string>(sessionStorage.getItem(FLOW_ID_KEY) || '');
@@ -147,6 +148,9 @@ const LoginPage = () => {
                 if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
                     setToken(data.assertion);
                     setError(false);
+                } else if (data.flowStatus && data.flowStatus === 'ERROR') {
+                    setError(true);
+                    setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
                 }
             }).catch((error) => {
                 console.error("Error during authentication:", error);
@@ -250,7 +254,7 @@ const LoginPage = () => {
 
                             {error && !connectionError && (
                                 <Alert severity="error" sx={{ my: 2 }}>
-                                    Login failed. Please check your credentials.
+                                    {errorMessage}
                                 </Alert>
                             )}
 

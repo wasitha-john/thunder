@@ -22,12 +22,11 @@ import "github.com/asgardeo/thunder/internal/flow/constants"
 
 // ExecutorResponse represents the response from an executor
 type ExecutorResponse struct {
-	Status         constants.ExecutorStatus       `json:"status"`
-	Type           constants.ExecutorResponseType `json:"type"`
-	Error          string                         `json:"error,omitempty"`
-	RequiredData   []InputData                    `json:"required_data,omitempty"`
-	AdditionalInfo map[string]string              `json:"additional_info,omitempty"`
-	Assertion      string                         `json:"assertion,omitempty"`
+	Status         constants.ExecutorStatus `json:"status"`
+	RequiredData   []InputData              `json:"required_data,omitempty"`
+	AdditionalInfo map[string]string        `json:"additional_info,omitempty"`
+	Assertion      string                   `json:"assertion,omitempty"`
+	FailureReason  string                   `json:"failure_reason,omitempty"`
 }
 
 // ExecutorProperties holds the properties of an executor.

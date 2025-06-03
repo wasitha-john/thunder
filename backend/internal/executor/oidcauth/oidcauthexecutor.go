@@ -46,8 +46,8 @@ const loggerComponentName = "OIDCAuthExecutor"
 // OIDCAuthExecutorInterface defines the interface for OIDC authentication executors.
 type OIDCAuthExecutorInterface interface {
 	flowmodel.ExecutorInterface
-	BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse)
-	ProcessAuthFlowResponse(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse)
+	BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) error
+	ProcessAuthFlowResponse(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) error
 	GetOIDCProperties() model.OIDCExecProperties
 	GetCallBackURL() string
 	GetAuthorizationEndpoint() string
@@ -55,10 +55,12 @@ type OIDCAuthExecutorInterface interface {
 	GetUserInfoEndpoint() string
 	GetLogoutEndpoint() string
 	GetJWKSEndpoint() string
-	ExchangeCodeForToken(ctx *flowmodel.NodeContext, code string) (*model.OIDCTokenResponse, error)
-	GetUserInfo(ctx *flowmodel.NodeContext, accessToken string) (map[string]string, error)
-	ValidateIDToken(idToken string) error
-	GetIDTokenClaims(idToken string) (map[string]interface{}, error)
+	ExchangeCodeForToken(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
+		code string) (*model.OIDCTokenResponse, error)
+	GetUserInfo(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
+		accessToken string) (map[string]string, error)
+	ValidateIDToken(execResp *flowmodel.ExecutorResponse, idToken string) error
+	GetIDTokenClaims(execResp *flowmodel.ExecutorResponse, idToken string) (map[string]interface{}, error)
 }
 
 // OIDCAuthExecutor implements the OIDCAuthExecutorInterface for handling generic OIDC authentication flows.
@@ -137,9 +139,7 @@ func (o *OIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Execu
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing OIDC authentication executor")
 
-	execResp := &flowmodel.ExecutorResponse{
-		Status: flowconst.ExecIncomplete,
-	}
+	execResp := &flowmodel.ExecutorResponse{}
 
 	// Check if the required input data is provided
 	if o.requiredInputData(ctx, execResp) {
@@ -158,13 +158,11 @@ func (o *OIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Execu
 }
 
 // BuildAuthorizeFlow constructs the redirection to the external OIDC provider for user authentication.
-func (o *OIDCAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) {
+func (o *OIDCAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Initiating OIDC authentication flow")
-
-	execResp.Status = flowconst.ExecIncomplete
 
 	// Construct and add the redirect URL for OIDC authentication
 	var queryParams = make(map[string]string)
@@ -181,9 +179,7 @@ func (o *OIDCAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execRe
 				resolvedValue, err := utils.GetResolvedAdditionalParam(key, value, ctx)
 				if err != nil {
 					logger.Error("Failed to resolve additional parameter", log.String("key", key), log.Error(err))
-					execResp.Status = flowconst.ExecUserError
-					execResp.Error = "Failed to resolve additional parameter: " + err.Error()
-					return
+					return fmt.Errorf("failed to resolve additional parameter %s: %w", key, err)
 				}
 				queryParams[key] = resolvedValue
 			}
@@ -194,47 +190,46 @@ func (o *OIDCAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execRe
 	authURL, err := systemutils.GetURIWithQueryParams(o.GetAuthorizationEndpoint(), queryParams)
 	if err != nil {
 		logger.Error("Failed to prepare authorization URL", log.Error(err))
-		execResp.Status = flowconst.ExecError
-		execResp.Error = "Failed to prepare authorization URL: " + err.Error()
-		return
+		return fmt.Errorf("failed to prepare authorization URL: %w", err)
 	}
 
 	// Set the response to redirect the user to the OIDC provider
 	execResp.Status = flowconst.ExecExternalRedirection
-	execResp.Type = flowconst.ExecRedirection
 	execResp.AdditionalInfo = map[string]string{
 		flowconst.DataRedirectURL: authURL,
 		flowconst.DataIDPName:     o.GetName(),
 	}
+
+	return nil
 }
 
 // ProcessAuthFlowResponse processes the response from the OIDC authentication flow and authenticates the user.
-func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) {
+func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Processing OIDC authentication response")
 
-	execResp.Status = flowconst.ExecIncomplete
-
 	// Process authorization code if available
 	code, ok := ctx.UserInputData["code"]
 	if ok && code != "" {
 		// Exchange authorization code for tokenResp
-		tokenResp, err := o.ExchangeCodeForToken(ctx, code)
+		tokenResp, err := o.ExchangeCodeForToken(ctx, execResp, code)
 		if err != nil {
 			logger.Error("Failed to exchange code for a token", log.Error(err))
-			execResp.Status = flowconst.ExecError
-			execResp.Error = "Failed to authenticate with OIDC provider: " + err.Error()
-			return
+			return fmt.Errorf("failed to exchange code for token: %w", err)
+		}
+		if execResp.Status == flowconst.ExecFailure {
+			return nil
 		}
 
 		// Validate the token response
 		if tokenResp.AccessToken == "" {
 			logger.Debug("Access token is empty in the token response")
-			execResp.Status = flowconst.ExecUserError
-			execResp.Error = "Access token is empty in the token response. Please provide a valid authorization code."
-			return
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "Access token is empty in the token response."
+			return nil
 		}
 
 		if tokenResp.Scope == "" {
@@ -248,12 +243,13 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext, e
 			}
 		} else {
 			// Get user info using the access token
-			userInfo, err := o.GetUserInfo(ctx, tokenResp.AccessToken)
+			userInfo, err := o.GetUserInfo(ctx, execResp, tokenResp.AccessToken)
 			if err != nil {
 				logger.Error("Failed to get user info", log.Error(err))
-				execResp.Status = flowconst.ExecUserError
-				execResp.Error = "Failed to get user information: " + err.Error()
-				return
+				return fmt.Errorf("failed to get user info: %w", err)
+			}
+			if execResp.Status == flowconst.ExecFailure {
+				return nil
 			}
 
 			// Populate authenticated user from user info
@@ -286,10 +282,11 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext, e
 	if ctx.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
 	} else {
-		execResp.Status = flowconst.ExecUserError
-		execResp.Type = flowconst.ExecRedirection
-		execResp.Error = "User is not authenticated. Please provide a valid authorization code."
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Authentication failed. Authorization code not provided or invalid."
 	}
+
+	return nil
 }
 
 // requiredInputData adds the required input data for the OIDC authentication flow to the executor response.
@@ -366,8 +363,10 @@ func (o *OIDCAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext, execRes
 	return requireData
 }
 
+// TODO: Return failure reason
+
 // ExchangeCodeForToken exchanges the authorization code for an access token.
-func (o *OIDCAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext,
+func (o *OIDCAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
 	code string) (*model.OIDCTokenResponse, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
@@ -398,7 +397,9 @@ func (o *OIDCAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext,
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.Error("Failed to send token request", log.Error(err))
-		return nil, fmt.Errorf("failed to send token request: %w", err)
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Failed to exchange authorization code for token: " + err.Error()
+		return nil, nil
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
@@ -409,8 +410,9 @@ func (o *OIDCAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext,
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		logger.Error("Token request failed", log.String("status", resp.Status), log.String("body", string(body)))
-		return nil, fmt.Errorf("token request failed with status %s: %s", resp.Status, string(body))
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = fmt.Sprintf("Token request failed with status %s: %s", resp.Status, string(body))
+		return nil, nil
 	}
 
 	// Parse the response
@@ -424,7 +426,8 @@ func (o *OIDCAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext,
 }
 
 // GetUserInfo fetches user information from the OIDC provider using the access token.
-func (o *OIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, accessToken string) (map[string]string, error) {
+func (o *OIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
+	accessToken string) (map[string]string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -446,7 +449,9 @@ func (o *OIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, accessToken s
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.Error("Failed to send userinfo request", log.Error(err))
-		return nil, fmt.Errorf("failed to send userinfo request: %w", err)
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Failed to fetch user information: " + err.Error()
+		return nil, nil
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
@@ -457,15 +462,16 @@ func (o *OIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, accessToken s
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		logger.Error("Userinfo request failed", log.String("status", resp.Status), log.String("body", string(body)))
-		return nil, fmt.Errorf("userinfo request failed with status %s: %s", resp.Status, string(body))
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = fmt.Sprintf("Userinfo request failed with status %s: %s", resp.Status, string(body))
+		return nil, nil
 	}
 
 	// Parse the response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Error("Failed to read userinfo response", log.Error(err))
-		return nil, fmt.Errorf("failed to read userinfo response: %w", err)
+		logger.Error("Failed to read userinfo response body", log.Error(err))
+		return nil, fmt.Errorf("failed to read userinfo response body: %w", err)
 	}
 
 	var userInfo map[string]interface{}
@@ -478,7 +484,7 @@ func (o *OIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, accessToken s
 }
 
 // ValidateIDToken validates the ID token.
-func (o *OIDCAuthExecutor) ValidateIDToken(idToken string) error {
+func (o *OIDCAuthExecutor) ValidateIDToken(execResp *flowmodel.ExecutorResponse, idToken string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Validating ID token")
 
@@ -486,7 +492,8 @@ func (o *OIDCAuthExecutor) ValidateIDToken(idToken string) error {
 	if o.GetJWKSEndpoint() != "" {
 		signErr := jwtutils.VerifyJWTSignatureWithJWKS(idToken, o.GetJWKSEndpoint())
 		if signErr != nil {
-			return fmt.Errorf("ID token signature verification failed: %w", signErr)
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "ID token signature verification failed: " + signErr.Error()
 		}
 	}
 
@@ -494,14 +501,15 @@ func (o *OIDCAuthExecutor) ValidateIDToken(idToken string) error {
 }
 
 // GetIDTokenClaims extracts the ID token claims from the provided ID token.
-func (o *OIDCAuthExecutor) GetIDTokenClaims(idToken string) (map[string]interface{}, error) {
+func (o *OIDCAuthExecutor) GetIDTokenClaims(execResp *flowmodel.ExecutorResponse,
+	idToken string) (map[string]interface{}, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Extracting claims from the ID token")
 
 	claims, err := jwtutils.ParseJWTClaims(idToken)
 	if err != nil {
-		logger.Error("Failed to parse ID token claims", log.Error(err))
-		return nil, fmt.Errorf("failed to parse ID token claims: %w", err)
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Failed to parse ID token claims: " + err.Error()
 	}
 
 	logger.Debug("ID token claims extracted successfully", log.Any("numClaims", len(claims)))

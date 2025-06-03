@@ -75,6 +75,7 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 		Inputs:         flowStep.InputData,
 		AdditionalInfo: flowStep.AdditionalInfo,
 		Assertion:      flowStep.Assertion,
+		FailureReason:  flowStep.FailureReason,
 	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)

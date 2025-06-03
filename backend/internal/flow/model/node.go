@@ -25,12 +25,12 @@ import (
 
 // NodeResponse represents the response from a node execution
 type NodeResponse struct {
-	Status         constants.FlowStatus   `json:"status"`
-	Type           constants.FlowStepType `json:"type"`
-	Error          string                 `json:"error,omitempty"`
-	RequiredData   []InputData            `json:"required_data,omitempty"`
-	AdditionalInfo map[string]string      `json:"additional_info,omitempty"`
-	Assertion      string                 `json:"assertion,omitempty"`
+	Status         constants.NodeStatus       `json:"status"`
+	Type           constants.NodeResponseType `json:"type"`
+	FailureReason  string                     `json:"failure_reason,omitempty"`
+	RequiredData   []InputData                `json:"required_data,omitempty"`
+	AdditionalInfo map[string]string          `json:"additional_info,omitempty"`
+	Assertion      string                     `json:"assertion,omitempty"`
 }
 
 // NodeInterface defines the interface for nodes in the graph
@@ -96,23 +96,29 @@ func (n *Node) Execute(ctx *NodeContext) (*NodeResponse, *serviceerror.ServiceEr
 	}
 
 	nodeResp := &NodeResponse{
-		Error:          execResp.Error,
+		FailureReason:  execResp.FailureReason,
 		RequiredData:   execResp.RequiredData,
 		AdditionalInfo: execResp.AdditionalInfo,
 		Assertion:      execResp.Assertion,
 	}
 
 	if execResp.Status == constants.ExecComplete {
-		nodeResp.Status = constants.Complete
+		nodeResp.Status = constants.NodeStatusComplete
 		nodeResp.Type = ""
 	} else if execResp.Status == constants.ExecUserInputRequired {
-		nodeResp.Status = constants.Incomplete
-		nodeResp.Type = constants.View
+		nodeResp.Status = constants.NodeStatusIncomplete
+		nodeResp.Type = constants.NodeResponseTypeView
 	} else if execResp.Status == constants.ExecExternalRedirection {
-		nodeResp.Status = constants.Incomplete
-		nodeResp.Type = constants.Redirection
+		nodeResp.Status = constants.NodeStatusIncomplete
+		nodeResp.Type = constants.NodeResponseTypeRedirection
+	} else if execResp.Status == constants.ExecRetry {
+		nodeResp.Status = constants.NodeStatusIncomplete
+		nodeResp.Type = constants.NodeResponseTypeRetry
+	} else if execResp.Status == constants.ExecFailure {
+		nodeResp.Status = constants.NodeStatusFailure
+		nodeResp.Type = ""
 	} else {
-		nodeResp.Status = constants.Error
+		nodeResp.Status = constants.NodeStatusIncomplete
 		nodeResp.Type = ""
 	}
 

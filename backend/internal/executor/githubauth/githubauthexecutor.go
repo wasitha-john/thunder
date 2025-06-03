@@ -103,9 +103,7 @@ func (g *GithubOIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel
 	logger.Debug("Executing GitHub OIDC auth executor",
 		log.String("executorID", g.GetID()), log.String("flowID", ctx.FlowID))
 
-	execResp := &flowmodel.ExecutorResponse{
-		Status: flowconst.ExecIncomplete,
-	}
+	execResp := &flowmodel.ExecutorResponse{}
 
 	// Check if the required input data is provided
 	if g.requiredInputData(ctx, execResp) {
@@ -129,31 +127,27 @@ func (g *GithubOIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel
 
 // ProcessAuthFlowResponse processes the response from the GitHub OIDC authentication flow.
 func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse) {
+	execResp *flowmodel.ExecutorResponse) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String("executorID", o.GetID()), log.String("flowID", ctx.FlowID))
 	logger.Debug("Processing GitHub OIDC auth flow response")
-
-	execResp.Status = flowconst.ExecIncomplete
 
 	// Process authorization code if available
 	code, ok := ctx.UserInputData["code"]
 	if ok && code != "" {
 		// Exchange authorization code for tokenResp
-		tokenResp, err := o.ExchangeCodeForToken(ctx, code)
+		tokenResp, err := o.ExchangeCodeForToken(ctx, execResp, code)
 		if err != nil {
 			logger.Error("Failed to exchange code for a token", log.Error(err))
-			execResp.Status = flowconst.ExecError
-			execResp.Error = "Failed to authenticate with OIDC provider: " + err.Error()
-			return
+			return fmt.Errorf("failed to exchange code for a token: %w", err)
 		}
 
 		// Validate the token response
 		if tokenResp.AccessToken == "" {
 			logger.Debug("Access token is empty in the token response")
-			execResp.Status = flowconst.ExecUserError
-			execResp.Error = "Access token is empty in the token response. Please provide a valid authorization code."
-			return
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "Access token is empty in the token response."
+			return nil
 		}
 
 		if tokenResp.Scope == "" {
@@ -167,12 +161,13 @@ func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeCont
 			}
 		} else {
 			// Get user info using the access token
-			userInfo, err := o.GetUserInfo(ctx, tokenResp.AccessToken)
+			userInfo, err := o.GetUserInfo(ctx, execResp, tokenResp.AccessToken)
 			if err != nil {
 				logger.Error("Failed to get user info", log.Error(err))
-				execResp.Status = flowconst.ExecUserError
-				execResp.Error = "Failed to get user information: " + err.Error()
-				return
+				return fmt.Errorf("failed to get user info: %w", err)
+			}
+			if execResp.Status == flowconst.ExecFailure {
+				return nil
 			}
 
 			// Populate authenticated user from user info
@@ -205,10 +200,11 @@ func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeCont
 	if ctx.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
 	} else {
-		execResp.Status = flowconst.ExecUserError
-		execResp.Type = flowconst.ExecRedirection
-		execResp.Error = "User is not authenticated. Please provide a valid authorization code."
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Authentication failed. Authorization code not provided or invalid."
 	}
+
+	return nil
 }
 
 // requiredInputData adds the required input data for the GitHub OIDC authentication flow.
@@ -285,7 +281,7 @@ func (g *GithubOIDCAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext,
 }
 
 // GetUserInfo fetches user information from the GitHub OIDC provider using the access token.
-func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
+func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
 	accessToken string) (map[string]string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Fetching user info from Github OIDC provider",
@@ -307,7 +303,9 @@ func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.Error("Failed to send userinfo request", log.Error(err))
-		return nil, fmt.Errorf("failed to send userinfo request: %w", err)
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Failed to fetch user information: " + err.Error()
+		return nil, nil
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
@@ -319,15 +317,16 @@ func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		logger.Error("Userinfo request failed", log.String("status", resp.Status), log.String("body", string(body)))
-		return nil, fmt.Errorf("userinfo request failed with status %s: %s", resp.Status, string(body))
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = fmt.Sprintf("Userinfo request failed with status %s: %s", resp.Status, string(body))
+		return nil, nil
 	}
 
 	// Parse the response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Error("Failed to read userinfo response", log.Error(err))
-		return nil, fmt.Errorf("failed to read userinfo response: %w", err)
+		logger.Error("Failed to read userinfo response body", log.Error(err))
+		return nil, fmt.Errorf("failed to read userinfo response body: %w", err)
 	}
 
 	var userInfo map[string]interface{}
@@ -355,8 +354,9 @@ func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
 
 		resp, err = client.Do(req)
 		if err != nil {
-			logger.Error("Failed to send user email request: ", log.Error(err))
-			return nil, errors.New("failed to fetch user email: " + err.Error())
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "Failed to fetch user email: " + err.Error()
+			return nil, nil
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -366,7 +366,11 @@ func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
 		logger.Debug("User email response received from GitHub", log.Int("statusCode", resp.StatusCode))
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, errors.New("user email request failed with status: " + resp.Status)
+			body, _ := io.ReadAll(resp.Body)
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = fmt.Sprintf("User email request failed with status %s: %s",
+				resp.Status, string(body))
+			return nil, nil
 		}
 
 		var emails []map[string]interface{}

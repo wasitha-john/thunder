@@ -100,6 +100,11 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 		return nil, svcErr
 	}
 
+	// Append any input data present to the context
+	if len(inputData) > 0 {
+		context.UserInputData = sysutils.MergeStringMaps(context.UserInputData, inputData)
+	}
+
 	engine := engine.GetFlowEngine()
 	flowStep, flowErr := engine.Execute(context)
 	if flowErr != nil {
@@ -120,7 +125,7 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 func (s *FlowService) loadContext(appID, flowID, actionID string, inputData map[string]string,
 	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
 	var context model.EngineContext
-	if flowID == "" && actionID == "" && len(inputData) == 0 {
+	if flowID == "" && actionID == "" {
 		ctx, err := s.initContext(appID, logger)
 		if err != nil {
 			return nil, err
@@ -205,7 +210,6 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 	delete(s.store, flowID)
 	s.mu.Unlock()
 
-	ctx.UserInputData = sysutils.MergeStringMaps(ctx.UserInputData, inputData)
 	ctx.CurrentActionID = actionID
 
 	return &ctx, nil
@@ -213,7 +217,7 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 
 // updateContext updates the flow context in the store based on the flow step status.
 func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.FlowStep, logger *log.Logger) {
-	if flowStep.Status != "" && flowStep.Status == constants.Complete {
+	if flowStep.Status != "" && flowStep.Status == constants.FlowStatusComplete {
 		s.mu.Lock()
 		delete(s.store, ctx.FlowID)
 		s.mu.Unlock()
