@@ -24,8 +24,8 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/constants"
 )
 
-// FlowContext holds the overall context for flow execution
-type FlowContext struct {
+// EngineContext holds the overall context used by the flow engine during execution.
+type EngineContext struct {
 	FlowID        string
 	AppID         string
 	UserInputData map[string]string
@@ -35,6 +35,17 @@ type FlowContext struct {
 	CurrentActionID     string
 
 	Graph GraphInterface
+
+	AuthenticatedUser authnmodel.AuthenticatedUser
+}
+
+// NodeContext holds the context for a specific node in the flow execution.
+type NodeContext struct {
+	FlowID string
+	AppID  string
+
+	NodeInputData []InputData
+	UserInputData map[string]string
 
 	AuthenticatedUser authnmodel.AuthenticatedUser
 }

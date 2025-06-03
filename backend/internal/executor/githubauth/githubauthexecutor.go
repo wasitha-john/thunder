@@ -98,7 +98,7 @@ func NewGithubOIDCAuthExecutor(id, name, clientID, clientSecret, redirectURI str
 }
 
 // Execute executes the GitHub OIDC authentication flow.
-func (g *GithubOIDCAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.ExecutorResponse, error) {
+func (g *GithubOIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.ExecutorResponse, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Executing GitHub OIDC auth executor",
 		log.String("executorID", g.GetID()), log.String("flowID", ctx.FlowID))
@@ -128,7 +128,7 @@ func (g *GithubOIDCAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel
 }
 
 // ProcessAuthFlowResponse processes the response from the GitHub OIDC authentication flow.
-func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowContext,
+func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 	execResp *flowmodel.ExecutorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String("executorID", o.GetID()), log.String("flowID", ctx.FlowID))
@@ -213,7 +213,7 @@ func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.FlowCont
 
 // requiredInputData adds the required input data for the GitHub OIDC authentication flow.
 // Returns true if input data should be requested from the user.
-func (g *GithubOIDCAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext,
+func (g *GithubOIDCAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext,
 	execResp *flowmodel.ExecutorResponse) bool {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
@@ -234,7 +234,7 @@ func (g *GithubOIDCAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext,
 	// Check for the required input data. Also appends the authenticator specific input data.
 	// TODO: This validation should be moved to the flow composer. Ideally the validation and appending
 	//  should happen during the flow definition creation.
-	requiredData := ctx.CurrentNode.GetInputData()
+	requiredData := ctx.NodeInputData
 	if len(requiredData) == 0 {
 		logger.Debug("No required input data defined for GitHub OIDC auth executor")
 		// If no required input data is defined, use the default required data.
@@ -285,7 +285,7 @@ func (g *GithubOIDCAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext,
 }
 
 // GetUserInfo fetches user information from the GitHub OIDC provider using the access token.
-func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.FlowContext,
+func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
 	accessToken string) (map[string]string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Fetching user info from Github OIDC provider",

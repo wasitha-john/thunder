@@ -47,7 +47,7 @@ type ExecutorConfig struct {
 
 // ExecutorInterface defines the interface for executors.
 type ExecutorInterface interface {
-	Execute(ctx *FlowContext) (*ExecutorResponse, error)
+	Execute(ctx *NodeContext) (*ExecutorResponse, error)
 	GetID() string
 	GetName() string
 	GetProperties() ExecutorProperties
@@ -76,7 +76,7 @@ func (e *Executor) GetProperties() ExecutorProperties {
 }
 
 // Execute executes the executor logic.
-func (e *Executor) Execute(ctx *FlowContext) (*ExecutorResponse, error) {
+func (e *Executor) Execute(ctx *NodeContext) (*ExecutorResponse, error) {
 	// Implement the logic for executing the executor here.
 	// This is just a placeholder implementation
 	return nil, nil

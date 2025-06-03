@@ -37,7 +37,7 @@ var (
 
 // FlowEngineInterface defines the interface for the flow engine.
 type FlowEngineInterface interface {
-	Execute(ctx *model.FlowContext) (model.FlowStep, *serviceerror.ServiceError)
+	Execute(ctx *model.EngineContext) (model.FlowStep, *serviceerror.ServiceError)
 }
 
 // FlowEngine is the main engine implementation for orchestrating flow executions.
@@ -52,7 +52,7 @@ func GetFlowEngine() FlowEngineInterface {
 }
 
 // Execute executes a step in the flow
-func (fe *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *serviceerror.ServiceError) {
+func (fe *FlowEngine) Execute(ctx *model.EngineContext) (model.FlowStep, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowEngine"))
 
 	flowStep := model.FlowStep{
@@ -94,14 +94,24 @@ func (fe *FlowEngine) Execute(ctx *model.FlowContext) (model.FlowStep, *servicee
 			currentNode.SetExecutor(executor)
 		}
 
+		// Construct the current node context
+		nodeCtx := &model.NodeContext{
+			FlowID:            ctx.FlowID,
+			AppID:             ctx.AppID,
+			NodeInputData:     ctx.CurrentNode.GetInputData(),
+			UserInputData:     ctx.UserInputData,
+			AuthenticatedUser: ctx.AuthenticatedUser,
+		}
+
 		// Execute the current node
-		nodeResp, nodeErr := currentNode.Execute(ctx)
+		nodeResp, nodeErr := currentNode.Execute(nodeCtx)
 		if nodeErr != nil {
 			return flowStep, nodeErr
 		}
 
 		// Update the context with the current node response
 		ctx.CurrentNodeResponse = nodeResp
+		ctx.AuthenticatedUser = nodeCtx.AuthenticatedUser
 
 		if nodeResp.Status == "" {
 			return flowStep, &constants.ErrorNodeResponseStatusNotFound
