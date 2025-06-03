@@ -89,10 +89,15 @@ function build_backend() {
     -o "../$BUILD_DIR/$output_binary" ./cmd/server
 
     echo "Initializing databases..."
-    initialize_databases
+    initialize_databases true
 }
 
 function initialize_databases() {
+    local override=$1
+    if [[ -z "$override" ]]; then
+        override=false
+    fi
+
     echo "Initializing SQLite databases..."
 
     mkdir -p "$REPOSITORY_DB_DIR"
@@ -108,8 +113,13 @@ function initialize_databases() {
 
         if [[ -f "$script_path" ]]; then
             if [[ -f "$db_path" ]]; then
-                echo " - Removing existing $db_file"
-                rm "$db_path"
+                if $override; then
+                    echo " - Removing existing $db_file as override is true"
+                    rm "$db_path"
+                else
+                    echo " ! Skipping $db_file: DB already exists. Delete the existing and re-run to recreate."
+                    continue
+                fi
             fi
 
             echo " - Creating $db_file using $script_path"
@@ -287,6 +297,9 @@ function run() {
 
     echo "=== Ensuring sample app certificates exist ==="
     ensure_certificates "$SAMPLE_APP_DIR"
+
+    echo "Initializing databases..."
+    initialize_databases
 
     # Kill known ports
     function kill_port() {
