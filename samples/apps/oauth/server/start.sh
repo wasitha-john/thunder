@@ -18,7 +18,7 @@
 # ----------------------------------------------------------------------------
 
 # Server port
-BACKEND_PORT=8090
+SERVER_PORT=3000
 
 set -e  # Exit immediately if a command exits with a non-zero status
 
@@ -29,20 +29,20 @@ function kill_port() {
 }
 
 # Kill ports before binding
-kill_port $BACKEND_PORT
+kill_port $SERVER_PORT
 
-# Run thunder
-echo "⚡ Starting Thunder Server ..."
-BACKEND_PORT=$BACKEND_PORT ./thunder &
-THUNDER_PID=$!
+# Run server
+echo "⚡ Starting App Server ..."
+SERVER_PORT=$SERVER_PORT ./server &
+NODE_PID=$!
 
 # Cleanup on Ctrl+C
-trap 'echo -e "\n🛑 Stopping server..."; kill $THUNDER_PID; exit' SIGINT
+trap 'echo -e "\n🛑 Stopping server..."; kill $NODE_PID; exit' SIGINT
 
 # Status
 echo ""
-echo "🚀 Server running"
+echo "🚀 App Server running"
 echo "Press Ctrl+C to stop the server."
 
 # Wait for background processes
-wait $THUNDER_PID
+wait $NODE_PID

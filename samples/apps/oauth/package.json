@@ -1,14 +1,17 @@
 {
-  "name": "oauth",
+  "name": "react-oauth-sample-app",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run build:server",
     "start": "tsc -b && vite build && vite preview",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "copy:app": "rm -rf server/app && mkdir -p server/app && cp -r dist/* server/app",
+    "copy:certs": "cp -r server.key server.cert server ",
+    "build:server": "npm run copy:app && npm run copy:certs && cd server && npm install"
   },
   "dependencies": {
     "@emotion/react": "^11.11.0",

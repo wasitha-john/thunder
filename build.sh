@@ -19,16 +19,76 @@
 
 set -e
 
-GOOS=${2:-darwin}
-GOARCH=${3:-arm64}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# --- Set Default OS and the architecture --- 
+# Auto-detect GO OS
+DEFAULT_OS=$(go env GOOS 2>/dev/null)
+if [ -z "$DEFAULT_OS" ]; then
+  UNAME_OS="$(uname -s)"
+  case "$UNAME_OS" in
+    Darwin) DEFAULT_OS="darwin" ;;
+    Linux) DEFAULT_OS="linux" ;;
+    MINGW*|MSYS*|CYGWIN*) DEFAULT_OS="windows" ;;
+    *) echo "Unsupported OS: $UNAME_OS"; exit 1 ;;
+  esac
+fi
+# Auto-detect GO ARCH
+DEFAULT_ARCH=$(go env GOARCH 2>/dev/null)
+if [ -z "$DEFAULT_ARCH" ]; then
+  UNAME_ARCH="$(uname -m)"
+  case "$UNAME_ARCH" in
+    x86_64|amd64) DEFAULT_ARCH="amd64" ;;
+    arm64|aarch64) DEFAULT_ARCH="arm64" ;;
+    *) echo "Unsupported architecture: $UNAME_ARCH"; exit 1 ;;
+  esac
+fi
+
+GO_OS=${2:-$DEFAULT_OS}
+GO_ARCH=${3:-$DEFAULT_ARCH}
+
+SAMPLE_DIST_NODE_VERSION=node18
+SAMPLE_DIST_OS=${2:-$DEFAULT_OS}
+SAMPLE_DIST_ARCH=${3:-$DEFAULT_ARCH}
+
+# Transform OS for node packaging executor
+if [ "$SAMPLE_DIST_OS" = "darwin" ]; then
+    SAMPLE_DIST_OS=macos
+elif [ "$SAMPLE_DIST_OS" = "windows" ]; then
+    SAMPLE_DIST_OS="win"
+fi
+
+if [ "$SAMPLE_DIST_ARCH" = "amd64" ]; then
+    SAMPLE_DIST_ARCH=x64
+fi
+
+# --- Thunder Package Distribution details ---
+GO_PACKAGE_OS=$GO_OS
+GO_PACKAGE_ARCH=$GO_ARCH
+
+# Normalize OS name for distribution packaging
+if [ "$GO_OS" = "darwin" ]; then
+    GO_PACKAGE_OS=macos
+elif [ "$GO_OS" = "windows" ]; then
+    GO_PACKAGE_OS="win"
+fi
+
+if [ "$GO_ARCH" = "amd64" ]; then
+    GO_PACKAGE_ARCH=x64
+fi
 
 VERSION_FILE=version.txt
-BINARY_NAME=thunder
 VERSION=$(cat "$VERSION_FILE")
-PRODUCT_FOLDER=${BINARY_NAME}_${GOOS}_${GOARCH}-${VERSION}
+BINARY_NAME=thunder
+PRODUCT_FOLDER=${BINARY_NAME}-${VERSION}-${GO_PACKAGE_OS}-${GO_PACKAGE_ARCH}
 
+# --- Sample App Distribution details ---
+SAMPLE_PACKAGE_OS=$SAMPLE_DIST_OS
+SAMPLE_PACKAGE_ARCH=$SAMPLE_DIST_ARCH
+
+SAMPLE_APP_SERVER_BINARY_NAME=server
 SAMPLE_APP_VERSION=$(grep -o '"version": *"[^"]*"' samples/apps/oauth/package.json | sed 's/"version": *"\(.*\)"/\1/')
-SAMPLE_APP_FOLDER="thunder-sample-app-${SAMPLE_APP_VERSION}"
+SAMPLE_APP_FOLDER="${BINARY_NAME}-sample-app-${SAMPLE_APP_VERSION}-${SAMPLE_PACKAGE_OS}-${SAMPLE_PACKAGE_ARCH}"
 
 # Server ports
 BACKEND_PORT=8090
@@ -48,6 +108,7 @@ SERVER_DB_SCRIPTS_DIR=$BACKEND_BASE_DIR/dbscripts
 SECURITY_DIR=repository/resources/security
 SAMPLE_BASE_DIR=samples
 SAMPLE_APP_DIR=$SAMPLE_BASE_DIR/apps/oauth
+SAMPLE_APP_SERVER_DIR=$SAMPLE_APP_DIR/server
 
 function clean_all() {
     echo "Cleaning all build artifacts..."
@@ -59,6 +120,8 @@ function clean_all() {
     echo "Removing certificates in the $SAMPLE_APP_DIR"
     rm -f "$SAMPLE_APP_DIR/server.cert"
     rm -f "$SAMPLE_APP_DIR/server.key"
+    rm -f "$SAMPLE_APP_SERVER_DIR/server.cert"
+    rm -f "$SAMPLE_APP_SERVER_DIR/server.key"
 }
 
 function clean() {
@@ -79,11 +142,11 @@ function build_backend() {
 
     # Set binary name with .exe extension for Windows
     local output_binary="$BINARY_NAME"
-    if [ "$GOOS" = "windows" ]; then
+    if [ "$GO_OS" = "windows" ]; then
         output_binary="${BINARY_NAME}.exe"
     fi
 
-    GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build -C "$BACKEND_BASE_DIR" \
+    GO_OS=$GO_OS GO_ARCH=$GO_ARCH CGO_ENABLED=0 go build -C "$BACKEND_BASE_DIR" \
     -x -ldflags "-X \"main.version=$VERSION\" \
     -X \"main.buildDate=$$(date -u '+%Y-%m-%d %H:%M:%S UTC')\"" \
     -o "../$BUILD_DIR/$output_binary" ./cmd/server
@@ -127,7 +190,7 @@ function prepare_backend_for_packaging() {
 
     # Use appropriate binary name based on OS
     local binary_name="$BINARY_NAME"
-    if [ "$GOOS" = "windows" ]; then
+    if [ "$GO_OS" = "windows" ]; then
         binary_name="${BINARY_NAME}.exe"
     fi
 
@@ -150,7 +213,7 @@ function package_backend() {
     prepare_backend_for_packaging
 
     # Copy the appropriate startup script based on the target OS
-    if [ "$GOOS" = "windows" ]; then
+    if [ "$GO_OS" = "windows" ]; then
         echo "Including Windows start script (start.bat)..."
         cp -r "start.bat" "$DIST_DIR/$PRODUCT_FOLDER"
     else
@@ -165,7 +228,7 @@ function package_backend() {
 
 function build_sample_app() {
     echo "Building sample app..."
-    
+
     # Ensure certificate exists for the sample app
     echo "=== Ensuring sample app certificates exist ==="
     ensure_certificates "$SAMPLE_APP_DIR"
@@ -173,58 +236,56 @@ function build_sample_app() {
     # Build the application
     cd "$SAMPLE_APP_DIR" || exit 1
     echo "Installing dependencies..."
-    npm install || pnpm install
+    npm install
     
     echo "Building the app..."
-    npm run build || pnpm run build
+    npm run build
     
     cd - || exit 1
     
     echo "Sample app built successfully."
 }
 
-function create_sample_package_json() {
-    local dir=$1
-
-    # Add a package.json for the server
-    local package_path="$dir/package.json"
-    
-    cat > "$package_path" << EOL
-{
-  "name": "sample-app",
-  "version": "${SAMPLE_APP_VERSION}",
-  "description": "Sample App for Thunder",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2"
-  }
-}
-EOL
-}
-
 function package_sample_app() {
-    echo "Packaging sample app..."
+    echo "Copying sample artifacts..."
+
+    # Use appropriate binary name based on OS
+    local binary_name="$SAMPLE_APP_SERVER_BINARY_NAME"
+    local executable_name="$SAMPLE_APP_SERVER_BINARY_NAME-$SAMPLE_DIST_OS-$SAMPLE_DIST_ARCH"
+
+    if [ "$SAMPLE_DIST_OS" = "win" ]; then
+        binary_name="${SAMPLE_APP_SERVER_BINARY_NAME}.exe"
+        executable_name="${SAMPLE_APP_SERVER_BINARY_NAME}-${SAMPLE_DIST_OS}-${SAMPLE_DIST_ARCH}.exe"
+    fi
     
     mkdir -p "$DIST_DIR/$SAMPLE_APP_FOLDER"
     
     # Copy the built app files
-    cp -r "$SAMPLE_APP_DIR/dist" "$DIST_DIR/$SAMPLE_APP_FOLDER/"
+    cp -r "$SAMPLE_APP_SERVER_DIR/app" "$DIST_DIR/$SAMPLE_APP_FOLDER/"
 
-    # Copy the README file
-    cp "$SAMPLE_APP_DIR/README.md" "$DIST_DIR/$SAMPLE_APP_FOLDER/"
+    cd $SAMPLE_APP_SERVER_DIR
 
-    # Copy the server script
-    cp "$SAMPLE_APP_DIR/server.js" "$DIST_DIR/$SAMPLE_APP_FOLDER/"
-    
-    # Create the package.json for the sample app
-    create_sample_package_json "$DIST_DIR/$SAMPLE_APP_FOLDER"
+    mkdir -p "executables"
+
+    npx pkg . -t $SAMPLE_DIST_NODE_VERSION-$SAMPLE_DIST_OS-$SAMPLE_DIST_ARCH -o executables/$SAMPLE_APP_SERVER_BINARY_NAME-$SAMPLE_DIST_OS-$SAMPLE_DIST_ARCH
+
+    cd $SCRIPT_DIR
+
+    # Copy the server binary
+    cp "$SAMPLE_APP_SERVER_DIR/executables/$executable_name" "$DIST_DIR/$SAMPLE_APP_FOLDER/$binary_name"
 
     # Ensure the certificates exist in the sample app directory
     echo "=== Ensuring certificates exist in the sample distribution ==="
     ensure_certificates "$DIST_DIR/$SAMPLE_APP_FOLDER"
+
+    # Copy the appropriate startup script based on the target OS
+    if [ "$SAMPLE_DIST_OS" = "win" ]; then
+        echo "Including Windows start script (start.bat)..."
+        cp -r "$SAMPLE_APP_SERVER_DIR/start.bat" "$DIST_DIR/$SAMPLE_APP_FOLDER"
+    else
+        echo "Including Unix start script (start.sh)..."
+        cp -r "$SAMPLE_APP_SERVER_DIR/start.sh" "$DIST_DIR/$SAMPLE_APP_FOLDER"
+    fi
 
     echo "Creating zip file..."
     (cd "$DIST_DIR" && zip -r "$SAMPLE_APP_FOLDER.zip" "$SAMPLE_APP_FOLDER")
@@ -322,6 +383,9 @@ case "$1" in
         ;;
     build_samples)
         build_sample_app
+        package_sample_app
+        ;;
+    package_samples)
         package_sample_app
         ;;
     build)
