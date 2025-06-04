@@ -18,7 +18,7 @@
                 }
             ],
             "executor": {
-                "name": "GoogleAuthExecutor",
+                "name": "GoogleOIDCAuthExecutor",
                 "idpName": "Google"
             }
         },

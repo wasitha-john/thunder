@@ -39,8 +39,6 @@ const (
 	StepTypeView FlowStepType = "VIEW"
 	// StepTypeRedirection represents a step in the flow that redirects the user to another URL.
 	StepTypeRedirection FlowStepType = "REDIRECTION"
-	// StepTypeRetry represents a step in the flow indicating a retry response.
-	StepTypeRetry FlowStepType = "RETRY"
 )
 
 // NodeType defines the node types in the flow execution.
@@ -95,7 +93,7 @@ const (
 	ExecExternalRedirection ExecutorStatus = "EXTERNAL_REDIRECTION"
 	// ExecFailure indicates that the executor has failed during its execution.
 	ExecFailure ExecutorStatus = "FAILURE"
-
+	// ExecRetry indicates that the executor is retrying its execution.
 	ExecRetry ExecutorStatus = "RETRY"
 )
 

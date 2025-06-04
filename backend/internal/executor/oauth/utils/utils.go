@@ -16,7 +16,7 @@
  * under the License.
  */
 
-// Package utils provides utility functions for oidc auth flow executors.
+// Package utils provides utility functions for OAuth flow executors.
 package utils
 
 import (

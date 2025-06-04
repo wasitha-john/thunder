@@ -26,8 +26,8 @@ import (
 	"time"
 
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
+	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	"github.com/asgardeo/thunder/internal/executor/oidcauth"
-	"github.com/asgardeo/thunder/internal/executor/oidcauth/model"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 	jwtutils "github.com/asgardeo/thunder/internal/system/crypto/jwt/utils"
@@ -35,7 +35,7 @@ import (
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
-const loggerComponentName = "GoogleAuthExecutor"
+const loggerComponentName = "GoogleOIDCAuthExecutor"
 
 // GoogleOIDCAuthExecutor implements the OIDC authentication executor for Google.
 type GoogleOIDCAuthExecutor struct {
@@ -44,21 +44,21 @@ type GoogleOIDCAuthExecutor struct {
 
 // NewGoogleOIDCAuthExecutorFromProps creates a new instance of GoogleOIDCAuthExecutor with the provided properties.
 func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
-	oidcProps *model.BasicOIDCExecProperties) oidcauth.OIDCAuthExecutorInterface {
-	// Prepare the complete OIDC properties for Google
-	compOIDCProps := &model.OIDCExecProperties{
+	oAuthProps *model.BasicOAuthExecProperties) oidcauth.OIDCAuthExecutorInterface {
+	// Prepare the complete OAuth properties for Google
+	compOAuthProps := &model.OAuthExecProperties{
 		AuthorizationEndpoint: googleAuthorizeEndpoint,
 		TokenEndpoint:         googleTokenEndpoint,
 		UserInfoEndpoint:      googleUserInfoEndpoint,
 		JwksEndpoint:          googleJwksEndpoint,
-		ClientID:              oidcProps.ClientID,
-		ClientSecret:          oidcProps.ClientSecret,
-		RedirectURI:           oidcProps.RedirectURI,
-		Scopes:                oidcProps.Scopes,
-		AdditionalParams:      oidcProps.AdditionalParams,
+		ClientID:              oAuthProps.ClientID,
+		ClientSecret:          oAuthProps.ClientSecret,
+		RedirectURI:           oAuthProps.RedirectURI,
+		Scopes:                oAuthProps.Scopes,
+		AdditionalParams:      oAuthProps.AdditionalParams,
 	}
 
-	base := oidcauth.NewOIDCAuthExecutor("google_oidc_auth_executor", execProps.Name, compOIDCProps)
+	base := oidcauth.NewOIDCAuthExecutor("google_oidc_auth_executor", execProps.Name, compOAuthProps)
 
 	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
 	if !ok {
@@ -72,8 +72,8 @@ func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 // NewGoogleOIDCAuthExecutor creates a new instance of GoogleOIDCAuthExecutor with the provided details.
 func NewGoogleOIDCAuthExecutor(id, name, clientID, clientSecret, redirectURI string,
 	scopes []string, additionalParams map[string]string) oidcauth.OIDCAuthExecutorInterface {
-	// Prepare the OIDC properties for Google
-	oidcProps := &model.OIDCExecProperties{
+	// Prepare the OAuth properties for Google
+	oAuthProps := &model.OAuthExecProperties{
 		AuthorizationEndpoint: googleAuthorizeEndpoint,
 		TokenEndpoint:         googleTokenEndpoint,
 		UserInfoEndpoint:      googleUserInfoEndpoint,
@@ -85,7 +85,7 @@ func NewGoogleOIDCAuthExecutor(id, name, clientID, clientSecret, redirectURI str
 		AdditionalParams:      additionalParams,
 	}
 
-	base := oidcauth.NewOIDCAuthExecutor(id, name, oidcProps)
+	base := oidcauth.NewOIDCAuthExecutor(id, name, oAuthProps)
 
 	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
 	if !ok {
@@ -108,13 +108,18 @@ func (g *GoogleOIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel
 	if g.requiredInputData(ctx, execResp) {
 		// If required input data is not provided, return incomplete status with redirection to Google.
 		logger.Debug("Required input data for Google OIDC auth executor is not provided")
-
-		g.BuildAuthorizeFlow(ctx, execResp)
+		err := g.BuildAuthorizeFlow(ctx, execResp)
+		if err != nil {
+			return nil, err
+		}
 
 		logger.Debug("Google OIDC auth executor execution completed",
 			log.String("status", string(execResp.Status)))
 	} else {
-		g.ProcessAuthFlowResponse(ctx, execResp)
+		err := g.ProcessAuthFlowResponse(ctx, execResp)
+		if err != nil {
+			return nil, err
+		}
 
 		logger.Debug("Google OIDC auth executor execution completed",
 			log.String("status", string(execResp.Status)),
@@ -163,7 +168,7 @@ func (g *GoogleOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeCont
 			}
 		} else {
 			// If scopes contains openid, check if the id token is present.
-			if slices.Contains(g.GetOIDCProperties().Scopes, "openid") && tokenResp.IDToken == "" {
+			if slices.Contains(g.GetOAuthProperties().Scopes, "openid") && tokenResp.IDToken == "" {
 				logger.Debug("ID token is empty in the token response")
 				execResp.Status = flowconst.ExecFailure
 				execResp.FailureReason = "ID token is empty in the token response."
@@ -209,8 +214,8 @@ func (g *GoogleOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeCont
 				}
 			}
 
-			if len(g.GetOIDCProperties().Scopes) == 0 ||
-				(len(g.GetOIDCProperties().Scopes) == 1 && slices.Contains(g.GetOIDCProperties().Scopes, "openid")) {
+			if len(g.GetOAuthProperties().Scopes) == 0 ||
+				(len(g.GetOAuthProperties().Scopes) == 1 && slices.Contains(g.GetOAuthProperties().Scopes, "openid")) {
 				logger.Debug("No additional scopes configured.")
 			} else {
 				// Get user info using the access token
@@ -371,7 +376,7 @@ func (g *GoogleOIDCAuthExecutor) ValidateIDToken(execResp *flowmodel.ExecutorRes
 
 	// Validate audience
 	aud, ok := claims["aud"].(string)
-	if !ok || aud != g.GetOIDCProperties().ClientID {
+	if !ok || aud != g.GetOAuthProperties().ClientID {
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = fmt.Sprintf("Invalid audience: %s in the id token", aud)
 		return nil
@@ -405,7 +410,7 @@ func (g *GoogleOIDCAuthExecutor) ValidateIDToken(execResp *flowmodel.ExecutorRes
 
 	// Check for specific domain if configured in additional params
 	if hd, found := claims["hd"]; found {
-		if domain, exists := g.GetOIDCProperties().AdditionalParams["hd"]; exists && domain != "" {
+		if domain, exists := g.GetOAuthProperties().AdditionalParams["hd"]; exists && domain != "" {
 			if hdStr, ok := hd.(string); !ok || hdStr != domain {
 				execResp.Status = flowconst.ExecFailure
 				execResp.FailureReason = fmt.Sprintf("ID token is not from the expected hosted domain: %s", domain)
