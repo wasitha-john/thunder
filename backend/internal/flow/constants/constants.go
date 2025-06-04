@@ -101,3 +101,13 @@ const (
 	// DataIDPName is the key used for the identity provider name in the flow response.
 	DataIDPName = "idpName"
 )
+
+// ActionType defines the type of action that can be performed in a decision node.
+type ActionType string
+
+const (
+	// ActionTypeView indicates that the action is a view type, requiring user selection.
+	ActionTypeView ActionType = "VIEW"
+	// ActionTypeUserInput indicates that the action requires user input to proceed.
+	ActionTypeUserInput ActionType = "USER_INPUT"
+)

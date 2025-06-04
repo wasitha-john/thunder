@@ -32,14 +32,14 @@ type TaskExecutionNode struct {
 func NewTaskExecutionNode(id string, isStartNode bool, isFinalNode bool) NodeInterface {
 	return &TaskExecutionNode{
 		Node: &Node{
-			id:             id,
-			_type:          constants.NodeTypeTaskExecution,
-			isStartNode:    isStartNode,
-			isFinalNode:    isFinalNode,
-			nextNodeID:     "",
-			previousNodeID: "",
-			inputData:      []InputData{},
-			executorConfig: &ExecutorConfig{},
+			id:               id,
+			_type:            constants.NodeTypeTaskExecution,
+			isStartNode:      isStartNode,
+			isFinalNode:      isFinalNode,
+			nextNodeList:     []string{},
+			previousNodeList: []string{},
+			inputData:        []InputData{},
+			executorConfig:   &ExecutorConfig{},
 		},
 	}
 }

@@ -22,9 +22,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"html"
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode"
 
 	"github.com/asgardeo/thunder/internal/system/log"
 )
@@ -115,4 +117,41 @@ func DecodeJSONBody[T any](r *http.Request) (*T, error) {
 		return nil, errors.New("failed to decode JSON: " + err.Error())
 	}
 	return &data, nil
+}
+
+// SanitizeString trims whitespace, removes control characters, and escapes HTML.
+func SanitizeString(input string) string {
+	if input == "" {
+		return input
+	}
+
+	// Trim leading and trailing whitespace
+	trimmed := strings.TrimSpace(input)
+
+	// Remove non-printable/control characters (except newline and tab)
+	cleaned := strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) && r != '\n' && r != '\t' {
+			return -1
+		}
+		return r
+	}, trimmed)
+
+	// Escape HTML to prevent XSS
+	safe := html.EscapeString(cleaned)
+
+	return safe
+}
+
+// SanitizeStringMap sanitizes a map of strings.
+// This function trim whitespace, removes control characters, and escapes HTML in each map entry.
+func SanitizeStringMap(inputs map[string]string) map[string]string {
+	if len(inputs) == 0 {
+		return inputs
+	}
+
+	sanitized := make(map[string]string, len(inputs))
+	for key, value := range inputs {
+		sanitized[key] = SanitizeString(value)
+	}
+	return sanitized
 }

@@ -134,14 +134,14 @@ func (g *Graph) ToJSON() (string, error) {
 	}
 
 	type JSONNode struct {
-		ID             string          `json:"id"`
-		Type           string          `json:"type"`
-		IsStartNode    bool            `json:"isStartNode,omitempty"`
-		IsFinalNode    bool            `json:"isFinalNode,omitempty"`
-		NextNodeID     string          `json:"nextNodeId,omitempty"`
-		PreviousNodeID string          `json:"previousNodeId,omitempty"`
-		InputData      []JSONInputData `json:"inputData,omitempty"`
-		Executor       string          `json:"executor,omitempty"`
+		ID                 string          `json:"id"`
+		Type               string          `json:"type"`
+		IsStartNode        bool            `json:"isStartNode,omitempty"`
+		IsFinalNode        bool            `json:"isFinalNode,omitempty"`
+		NextNodeIDList     []string        `json:"nextNodeIds"`
+		PreviousNodeIDList []string        `json:"previousNodeIds"`
+		InputData          []JSONInputData `json:"inputData,omitempty"`
+		Executor           string          `json:"executor,omitempty"`
 	}
 
 	type JSONGraph struct {
@@ -161,12 +161,12 @@ func (g *Graph) ToJSON() (string, error) {
 	// Convert nodes to JSONNode
 	for id, node := range g.nodes {
 		jsonNode := JSONNode{
-			ID:             id,
-			Type:           node.GetType(),
-			IsStartNode:    node.IsStartNode(),
-			IsFinalNode:    node.IsFinalNode(),
-			NextNodeID:     node.GetNextNodeID(),
-			PreviousNodeID: node.GetPreviousNodeID(),
+			ID:                 id,
+			Type:               string(node.GetType()),
+			IsStartNode:        node.IsStartNode(),
+			IsFinalNode:        node.IsFinalNode(),
+			NextNodeIDList:     node.GetNextNodeList(),
+			PreviousNodeIDList: node.GetPreviousNodeList(),
 		}
 
 		// Set executor if available
