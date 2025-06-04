@@ -74,7 +74,7 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 	// Add all nodes to the graph
 	for _, nodeDef := range definition.Nodes {
 		isStartNode := (nodeDef.ID == startNodeID)
-		isFinalNode := (nodeDef.Type == string(constants.AuthSuccessNode))
+		isFinalNode := (nodeDef.Type == string(constants.NodeTypeAuthSuccess))
 
 		// Construct a new node
 		node := model.NewNode(nodeDef.ID, nodeDef.Type, isStartNode, isFinalNode)
@@ -97,7 +97,7 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 				return nil, fmt.Errorf("error while getting executor %s: %w", nodeDef.Executor, err)
 			}
 			node.SetExecutorConfig(executor)
-		} else if nodeDef.Type == string(constants.AuthSuccessNode) {
+		} else if nodeDef.Type == string(constants.NodeTypeAuthSuccess) {
 			executor, err := getExecutorConfigByName(jsonmodel.ExecutorDefinition{
 				Name: "AuthAssertExecutor",
 			})
@@ -173,14 +173,14 @@ func getExecutorConfigByName(execDef jsonmodel.ExecutorDefinition) (*model.Execu
 			Name:    "BasicAuthExecutor",
 			IdpName: "Local",
 		}
-	case "GithubAuthExecutor":
+	case "GithubOAuthExecutor":
 		executor = model.ExecutorConfig{
-			Name:    "GithubAuthExecutor",
+			Name:    "GithubOAuthExecutor",
 			IdpName: execDef.IdpName,
 		}
-	case "GoogleAuthExecutor":
+	case "GoogleOIDCAuthExecutor":
 		executor = model.ExecutorConfig{
-			Name:    "GoogleAuthExecutor",
+			Name:    "GoogleOIDCAuthExecutor",
 			IdpName: execDef.IdpName,
 		}
 	case "AuthAssertExecutor":
@@ -215,17 +215,17 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 			return nil, fmt.Errorf("error while getting IDP for BasicAuthExecutor: %w", err)
 		}
 		executor = basicauth.NewBasicAuthExecutor(idp.ID, idp.Name)
-	case "GithubAuthExecutor":
+	case "GithubOAuthExecutor":
 		idp, err := getIDP(execConfig.IdpName)
 		if err != nil {
-			return nil, fmt.Errorf("error while getting IDP for GithubAuthExecutor: %w", err)
+			return nil, fmt.Errorf("error while getting IDP for GithubOAuthExecutor: %w", err)
 		}
-		executor = githubauth.NewGithubOIDCAuthExecutor(idp.ID, idp.Name, idp.ClientID, idp.ClientSecret,
+		executor = githubauth.NewGithubOAuthExecutor(idp.ID, idp.Name, idp.ClientID, idp.ClientSecret,
 			idp.RedirectURI, idp.Scopes, map[string]string{})
-	case "GoogleAuthExecutor":
+	case "GoogleOIDCAuthExecutor":
 		idp, err := getIDP(execConfig.IdpName)
 		if err != nil {
-			return nil, fmt.Errorf("error while getting IDP for GoogleAuthExecutor: %w", err)
+			return nil, fmt.Errorf("error while getting IDP for GoogleOIDCAuthExecutor: %w", err)
 		}
 		executor = googleauth.NewGoogleOIDCAuthExecutor(idp.ID, idp.Name, idp.ClientID, idp.ClientSecret,
 			idp.RedirectURI, idp.Scopes, map[string]string{})

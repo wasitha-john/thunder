@@ -16,7 +16,7 @@
  * under the License.
  */
 
-// Package githubauth provides the GitHub OIDC authentication executor.
+// Package githubauth provides the GitHub OAuth authentication executor.
 package githubauth
 
 import (
@@ -29,8 +29,8 @@ import (
 	"time"
 
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
-	"github.com/asgardeo/thunder/internal/executor/oidcauth"
-	"github.com/asgardeo/thunder/internal/executor/oidcauth/model"
+	"github.com/asgardeo/thunder/internal/executor/oauth"
+	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/system/constants"
@@ -38,44 +38,49 @@ import (
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
-const loggerComponentName = "GithubAuthExecutor"
+const loggerComponentName = "GithubOAuthExecutor"
 
-// GithubOIDCAuthExecutor implements the OIDC authentication executor for GitHub.
-type GithubOIDCAuthExecutor struct {
-	*oidcauth.OIDCAuthExecutor
+// GithubOAuthExecutor implements the OAuth authentication executor for GitHub.
+type GithubOAuthExecutor struct {
+	*oauth.OAuthExecutor
 }
 
-// NewGithubOIDCAuthExecutorFromProps creates a new instance of GithubOIDCAuthExecutor with the provided properties.
-func NewGithubOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
-	oidcProps *model.BasicOIDCExecProperties) oidcauth.OIDCAuthExecutorInterface {
-	// Prepare the complete OIDC properties for GitHub
-	compOIDCProps := &model.OIDCExecProperties{
+// NewGithubOAuthExecutorFromProps creates a new instance of GithubOAuthExecutor with the provided properties.
+func NewGithubOAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
+	oAuthProps *model.BasicOAuthExecProperties) oauth.OAuthExecutorInterface {
+	// Prepare the complete OAuth properties for GitHub
+	compOAuthProps := &model.OAuthExecProperties{
 		AuthorizationEndpoint: githubAuthorizeEndpoint,
 		TokenEndpoint:         githubTokenEndpoint,
 		UserInfoEndpoint:      githubUserInfoEndpoint,
-		ClientID:              oidcProps.ClientID,
-		ClientSecret:          oidcProps.ClientSecret,
-		RedirectURI:           oidcProps.RedirectURI,
-		Scopes:                oidcProps.Scopes,
-		AdditionalParams:      oidcProps.AdditionalParams,
+		ClientID:              oAuthProps.ClientID,
+		ClientSecret:          oAuthProps.ClientSecret,
+		RedirectURI:           oAuthProps.RedirectURI,
+		Scopes:                oAuthProps.Scopes,
+		AdditionalParams:      oAuthProps.AdditionalParams,
 	}
 
-	base := oidcauth.NewOIDCAuthExecutor("github_oidc_auth_executor", execProps.Name, compOIDCProps)
+	base := oauth.NewOAuthExecutor("github_oauth_executor", execProps.Name, compOAuthProps)
 
-	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
+	exec, ok := base.(*oauth.OAuthExecutor)
 	if !ok {
-		panic("failed to cast GithubOIDCAuthExecutor to OIDCAuthExecutor")
+		panic("failed to cast GithubOAuthExecutor to OAuthExecutor")
 	}
-	return &GithubOIDCAuthExecutor{
-		OIDCAuthExecutor: exec,
+	return &GithubOAuthExecutor{
+		OAuthExecutor: exec,
 	}
 }
 
-// NewGithubOIDCAuthExecutor creates a new instance of GithubOIDCAuthExecutor with the provided details.
-func NewGithubOIDCAuthExecutor(id, name, clientID, clientSecret, redirectURI string,
-	scopes []string, additionalParams map[string]string) oidcauth.OIDCAuthExecutorInterface {
-	// Prepare the OIDC properties for GitHub
-	oidcProps := &model.OIDCExecProperties{
+// NewGithubOAuthExecutor creates a new instance of GithubOAuthExecutor with the provided details.
+func // The code appears to be written in a comment and does not actually execute any functionality. It
+// seems to be written in Go language and mentions a "NewGithubOAuthExecutor" which could
+// potentially be a constructor or function related to handling GitHub OAuth authentication.
+// However, without the actual implementation details or context, it is difficult to determine the
+// exact purpose or functionality of this code snippet.
+NewGithubOAuthExecutor(id, name, clientID, clientSecret, redirectURI string,
+	scopes []string, additionalParams map[string]string) oauth.OAuthExecutorInterface {
+	// Prepare the OAuth properties for GitHub
+	oAuthProps := &model.OAuthExecProperties{
 		AuthorizationEndpoint: githubAuthorizeEndpoint,
 		TokenEndpoint:         githubTokenEndpoint,
 		UserInfoEndpoint:      githubUserInfoEndpoint,
@@ -86,40 +91,43 @@ func NewGithubOIDCAuthExecutor(id, name, clientID, clientSecret, redirectURI str
 		AdditionalParams:      additionalParams,
 	}
 
-	base := oidcauth.NewOIDCAuthExecutor(id, name, oidcProps)
-
-	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
+	base := oauth.NewOAuthExecutor(id, name, oAuthProps)
+	exec, ok := base.(*oauth.OAuthExecutor)
 	if !ok {
-		panic("failed to cast GithubOIDCAuthExecutor to OIDCAuthExecutor")
+		panic("failed to cast GithubOAuthExecutor to OAuthExecutor")
 	}
-	return &GithubOIDCAuthExecutor{
-		OIDCAuthExecutor: exec,
+	return &GithubOAuthExecutor{
+		OAuthExecutor: exec,
 	}
 }
 
-// Execute executes the GitHub OIDC authentication flow.
-func (g *GithubOIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.ExecutorResponse, error) {
+// Execute executes the GitHub OAuth authentication flow.
+func (g *GithubOAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.ExecutorResponse, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-	logger.Debug("Executing GitHub OIDC auth executor",
+	logger.Debug("Executing GitHub OAuth executor",
 		log.String("executorID", g.GetID()), log.String("flowID", ctx.FlowID))
 
-	execResp := &flowmodel.ExecutorResponse{
-		Status: flowconst.ExecIncomplete,
-	}
+	execResp := &flowmodel.ExecutorResponse{}
 
 	// Check if the required input data is provided
 	if g.requiredInputData(ctx, execResp) {
 		// If required input data is not provided, return incomplete status with redirection to github.
-		logger.Debug("Required input data for GitHub OIDC auth executor is not provided")
+		logger.Debug("Required input data for GitHub OAuth executor is not provided")
 
-		g.BuildAuthorizeFlow(ctx, execResp)
+		err := g.BuildAuthorizeFlow(ctx, execResp)
+		if err != nil {
+			return nil, err
+		}
 
-		logger.Debug("GitHub OIDC auth executor execution completed",
+		logger.Debug("GitHub OAuth executor execution completed",
 			log.String("status", string(execResp.Status)))
 	} else {
-		g.ProcessAuthFlowResponse(ctx, execResp)
+		err := g.ProcessAuthFlowResponse(ctx, execResp)
+		if err != nil {
+			return nil, err
+		}
 
-		logger.Debug("GitHub OIDC auth executor execution completed",
+		logger.Debug("GitHub OAuth executor execution completed",
 			log.String("status", string(execResp.Status)),
 			log.Bool("isAuthenticated", ctx.AuthenticatedUser.IsAuthenticated))
 	}
@@ -127,33 +135,29 @@ func (g *GithubOIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel
 	return execResp, nil
 }
 
-// ProcessAuthFlowResponse processes the response from the GitHub OIDC authentication flow.
-func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse) {
+// ProcessAuthFlowResponse processes the response from the GitHub OAuth authentication flow.
+func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String("executorID", o.GetID()), log.String("flowID", ctx.FlowID))
-	logger.Debug("Processing GitHub OIDC auth flow response")
-
-	execResp.Status = flowconst.ExecIncomplete
+	logger.Debug("Processing GitHub OAuth flow response")
 
 	// Process authorization code if available
 	code, ok := ctx.UserInputData["code"]
 	if ok && code != "" {
 		// Exchange authorization code for tokenResp
-		tokenResp, err := o.ExchangeCodeForToken(ctx, code)
+		tokenResp, err := o.ExchangeCodeForToken(ctx, execResp, code)
 		if err != nil {
 			logger.Error("Failed to exchange code for a token", log.Error(err))
-			execResp.Status = flowconst.ExecError
-			execResp.Error = "Failed to authenticate with OIDC provider: " + err.Error()
-			return
+			return fmt.Errorf("failed to exchange code for a token: %w", err)
 		}
 
 		// Validate the token response
 		if tokenResp.AccessToken == "" {
 			logger.Debug("Access token is empty in the token response")
-			execResp.Status = flowconst.ExecUserError
-			execResp.Error = "Access token is empty in the token response. Please provide a valid authorization code."
-			return
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "Access token is empty in the token response."
+			return nil
 		}
 
 		if tokenResp.Scope == "" {
@@ -167,12 +171,13 @@ func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeCont
 			}
 		} else {
 			// Get user info using the access token
-			userInfo, err := o.GetUserInfo(ctx, tokenResp.AccessToken)
+			userInfo, err := o.GetUserInfo(ctx, execResp, tokenResp.AccessToken)
 			if err != nil {
 				logger.Error("Failed to get user info", log.Error(err))
-				execResp.Status = flowconst.ExecUserError
-				execResp.Error = "Failed to get user information: " + err.Error()
-				return
+				return fmt.Errorf("failed to get user info: %w", err)
+			}
+			if execResp.Status == flowconst.ExecFailure {
+				return nil
 			}
 
 			// Populate authenticated user from user info
@@ -205,15 +210,16 @@ func (o *GithubOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeCont
 	if ctx.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
 	} else {
-		execResp.Status = flowconst.ExecUserError
-		execResp.Type = flowconst.ExecRedirection
-		execResp.Error = "User is not authenticated. Please provide a valid authorization code."
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Authentication failed. Authorization code not provided or invalid."
 	}
+
+	return nil
 }
 
-// requiredInputData adds the required input data for the GitHub OIDC authentication flow.
+// requiredInputData adds the required input data for the GitHub OAuth authentication flow.
 // Returns true if input data should be requested from the user.
-func (g *GithubOIDCAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext,
+func (g *GithubOAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext,
 	execResp *flowmodel.ExecutorResponse) bool {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
@@ -236,7 +242,7 @@ func (g *GithubOIDCAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext,
 	//  should happen during the flow definition creation.
 	requiredData := ctx.NodeInputData
 	if len(requiredData) == 0 {
-		logger.Debug("No required input data defined for GitHub OIDC auth executor")
+		logger.Debug("No required input data defined for GitHub OAuth executor")
 		// If no required input data is defined, use the default required data.
 		requiredData = gitReqData
 	} else {
@@ -284,11 +290,11 @@ func (g *GithubOIDCAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext,
 	return requireData
 }
 
-// GetUserInfo fetches user information from the GitHub OIDC provider using the access token.
-func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
+// GetUserInfo fetches user information from the GitHub OAuth provider using the access token.
+func (o *GithubOAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
 	accessToken string) (map[string]string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-	logger.Debug("Fetching user info from Github OIDC provider",
+	logger.Debug("Fetching user info from Github OAuth provider",
 		log.String("userInfoEndpoint", o.GetUserInfoEndpoint()))
 
 	// Create HTTP request
@@ -301,33 +307,36 @@ func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
 	req.Header.Set(constants.AcceptHeaderName, "application/json")
 
 	// Execute the request
-	logger.Debug("Sending userinfo request to GitHub OIDC provider")
+	logger.Debug("Sending userinfo request to GitHub OAuth provider")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.Error("Failed to send userinfo request", log.Error(err))
-		return nil, fmt.Errorf("failed to send userinfo request: %w", err)
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Failed to fetch user information: " + err.Error()
+		return nil, nil
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
 			logger.Error("Failed to close userinfo response body", log.Error(closeErr))
 		}
 	}()
-	logger.Debug("Userinfo response received from GitHub OIDC provider",
+	logger.Debug("Userinfo response received from GitHub OAuth provider",
 		log.Int("statusCode", resp.StatusCode))
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		logger.Error("Userinfo request failed", log.String("status", resp.Status), log.String("body", string(body)))
-		return nil, fmt.Errorf("userinfo request failed with status %s: %s", resp.Status, string(body))
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = fmt.Sprintf("Userinfo request failed with status %s: %s", resp.Status, string(body))
+		return nil, nil
 	}
 
 	// Parse the response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Error("Failed to read userinfo response", log.Error(err))
-		return nil, fmt.Errorf("failed to read userinfo response: %w", err)
+		logger.Error("Failed to read userinfo response body", log.Error(err))
+		return nil, fmt.Errorf("failed to read userinfo response body: %w", err)
 	}
 
 	var userInfo map[string]interface{}
@@ -339,7 +348,7 @@ func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
 	// If the user info doesn't contain the email, but scopes contain "user" or "user:email",
 	// then fetch the primary email from the email endpoint.
 	email := userInfo["email"]
-	scopes := o.GetOIDCProperties().Scopes
+	scopes := o.GetOAuthProperties().Scopes
 	if (email == nil || email == "") &&
 		(slices.Contains(scopes, userScope) || slices.Contains(scopes, userEmailScope)) {
 		logger.Debug("Fetching user email from Github email endpoint",
@@ -355,8 +364,9 @@ func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
 
 		resp, err = client.Do(req)
 		if err != nil {
-			logger.Error("Failed to send user email request: ", log.Error(err))
-			return nil, errors.New("failed to fetch user email: " + err.Error())
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "Failed to fetch user email: " + err.Error()
+			return nil, nil
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -366,7 +376,11 @@ func (o *GithubOIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext,
 		logger.Debug("User email response received from GitHub", log.Int("statusCode", resp.StatusCode))
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, errors.New("user email request failed with status: " + resp.Status)
+			body, _ := io.ReadAll(resp.Body)
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = fmt.Sprintf("User email request failed with status %s: %s",
+				resp.Status, string(body))
+			return nil, nil
 		}
 
 		var emails []map[string]interface{}

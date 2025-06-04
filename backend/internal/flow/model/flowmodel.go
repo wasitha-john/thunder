@@ -60,6 +60,7 @@ type FlowStep struct {
 	Actions        []Action
 	Assertion      string
 	AdditionalInfo map[string]string
+	FailureReason  string
 }
 
 // InputData represents the input data required for a flow step
@@ -99,4 +100,5 @@ type FlowResponse struct {
 	Inputs         []InputData       `json:"inputs,omitempty"`
 	AdditionalInfo map[string]string `json:"additionalInfo,omitempty"`
 	Assertion      string            `json:"assertion,omitempty"`
+	FailureReason  string            `json:"failureReason,omitempty"`
 }

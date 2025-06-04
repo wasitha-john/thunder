@@ -16,15 +16,7 @@
  * under the License.
  */
 
-// Package model provides the data structures for OIDC authentication properties and responses.
-package model
+package oidcauth
 
-// OIDCTokenResponse represents the response from the OIDC token endpoint.
-type OIDCTokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	Scope        string `json:"scope"`
-	RefreshToken string `json:"refresh_token"`
-	IDToken      string `json:"id_token"`
-	ExpiresIn    int    `json:"expires_in"`
-}
+// idTokenNonUserAttributes contains the list of non-user attributes that are expected in the ID token.
+var idTokenNonUserAttributes = []string{"aud", "exp", "iat", "iss", "at_hash", "azp"}

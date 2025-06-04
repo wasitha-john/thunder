@@ -70,40 +70,39 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exec
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing basic authentication executor")
 
-	execResp := &flowmodel.ExecutorResponse{
-		Status: flowconst.ExecIncomplete,
-	}
+	execResp := &flowmodel.ExecutorResponse{}
 
 	// Validate for the required input data.
 	if b.requiredInputData(ctx, execResp) {
 		// If required input data is not provided, return incomplete status.
 		logger.Debug("Required input data for basic authentication executor is not provided")
 		execResp.Status = flowconst.ExecUserInputRequired
-		execResp.Type = flowconst.ExecView
 		return execResp, nil
 	}
 
 	username := ctx.UserInputData["username"]
-	authenticatedUser, err2 := getAuthenticatedUser(username, ctx.UserInputData["password"], logger)
-	if err2 != nil {
-		logger.Error("Failed to authenticate user",
-			log.String("username", log.MaskString(username)),
-			log.Error(err2))
-		execResp.Status = flowconst.ExecError
-		execResp.Type = flowconst.ExecView
-		execResp.Error = "Failed to authenticate user: " + err2.Error()
-		return execResp, err2
+	// TODO: Should handle client errors here. Service should return a ServiceError and
+	//  client errors should be appended as a failure.
+	//  For the moment handling returned error as a authentication failure.
+	authenticatedUser, err := getAuthenticatedUser(username, ctx.UserInputData["password"], logger)
+	if err != nil {
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Failed to authenticate user: " + err.Error()
+		return execResp, nil
 	}
-	ctx.AuthenticatedUser = *authenticatedUser
+	if authenticatedUser == nil {
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Authenticated user not found."
+		return execResp, nil
+	}
+	if !authenticatedUser.IsAuthenticated {
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "User authentication failed."
+		return execResp, nil
+	}
 
-	// Set the flow response status based on the authentication result.
-	if ctx.AuthenticatedUser.IsAuthenticated {
-		execResp.Status = flowconst.ExecComplete
-	} else {
-		execResp.Status = flowconst.ExecUserError
-		execResp.Type = flowconst.ExecView
-		execResp.Error = "Invalid credentials provided for basic authentication."
-	}
+	ctx.AuthenticatedUser = *authenticatedUser
+	execResp.Status = flowconst.ExecComplete
 
 	logger.Debug("Basic authentication executor execution completed",
 		log.String("status", string(execResp.Status)),
@@ -186,8 +185,8 @@ func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext, execRe
 	return requireData
 }
 
-// getAuthenticatedUser perform authentication based on the provided username and password and return authenticated user
-// details.
+// getAuthenticatedUser perform authentication based on the provided username and password and return
+// authenticated user details.
 func getAuthenticatedUser(username, password string, logger *log.Logger) (*authnmodel.AuthenticatedUser, error) {
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
