@@ -48,6 +48,9 @@ build: build_backend build_samples
 build_backend:
 	./build.sh build_backend $(OS) $(ARCH)
 
+package_samples:
+	./build.sh package_samples $(OS) $(ARCH)
+
 build_samples:
 	./build.sh build_samples
 
@@ -62,18 +65,19 @@ lint: golangci-lint
 
 help:
 	@echo "Makefile targets:"
-	@echo "  all    		- Clean, build, and test the project."
-	@echo "  clean  		- Remove build artifacts."
-	@echo "  clean_all 		- Remove all build artifacts including distribution files."
-	@echo "  build  		- Build the Go project and frontend, then package."
-	@echo "  build_backend 	- Build the backend Go application."
-	@echo "  build_samples 	- Build sample applications."
-	@echo "  test   		- Run integration tests."
-	@echo "  run    		- Build and run the application locally."
-	@echo "  lint   		- Run golangci-lint on the project."
-	@echo "  help   		- Show this help message."
+	@echo "  all    		 - Clean, build, and test the project."
+	@echo "  clean  		 - Remove build artifacts."
+	@echo "  clean_all 		 - Remove all build artifacts including distribution files."
+	@echo "  build  		 - Build the Go project and frontend, then package."
+	@echo "  build_backend 	 - Build the backend Go application."
+	@echo "  package_samples - Package sample applications."
+	@echo "  build_samples 	 - Build sample applications."
+	@echo "  test   		 - Run integration tests."
+	@echo "  run    		 - Build and run the application locally."
+	@echo "  lint   		 - Run golangci-lint on the project."
+	@echo "  help   		 - Show this help message."
 
-.PHONY: all prepare clean clean_all build test run lint help
+.PHONY: all prepare clean clean_all build build_samples package_samples test run lint help
 
 .PHONY: go_install_tool golangci-lint
 

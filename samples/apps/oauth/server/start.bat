@@ -17,13 +17,13 @@ REM specific language governing permissions and limitations
 REM under the License.
 REM ----------------------------------------------------------------------------
 
-REM Server port
-set BACKEND_PORT=8090
+REM Server ports
+set SERVER_PORT=3000
 
 REM Kill processes using the port if any
-echo Checking for processes using port %BACKEND_PORT%...
-for /f "tokens=5" %%p in ('netstat -ano ^| findstr :%BACKEND_PORT%') do (
-    echo Found process using port %BACKEND_PORT% with PID: %%p
+echo Checking for processes using port %SERVER_PORT%...
+for /f "tokens=5" %%p in ('netstat -ano ^| findstr :%SERVER_PORT%') do (
+    echo Found process using port %SERVER_PORT% with PID: %%p
     taskkill /F /PID %%p 2>NUL
     if not errorlevel 1 (
         echo Process with PID %%p terminated successfully
@@ -31,12 +31,12 @@ for /f "tokens=5" %%p in ('netstat -ano ^| findstr :%BACKEND_PORT%') do (
 )
 
 REM Run thunder
-echo [92m⚡ Starting Thunder Server ...[0m
-set BACKEND_PORT=%BACKEND_PORT%
-start /B "" thunder.exe
+echo [92m⚡ Starting App Server ...[0m
+set SERVER_PORT=%SERVER_PORT%
+start /B "" server.exe
 
 echo.
-echo [92m🚀 Server running[0m
+echo [92m🚀 App Server running[0m
 echo [93mPress Ctrl+C to stop the server.[0m
 echo [93mIf Ctrl+C doesn't work, close this window and use Task Manager to end the thunder.exe process.[0m
 

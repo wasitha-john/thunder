@@ -5,6 +5,7 @@
 *.so
 *.dylib
 *.db
+*/**/executables/*
 
 # Test binary, built with `go test -c`
 *.test
@@ -96,6 +97,7 @@ out
 out-tsc
 backend/bin
 frontend/packages/*/modules
+samples/apps/*/server/app
 
 # IDE settings
 settings.json
