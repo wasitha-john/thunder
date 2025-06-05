@@ -45,8 +45,8 @@ func (hch *HealthCheckHandler) HandleLivenessRequest(w http.ResponseWriter, r *h
 	logger.Debug("Health Check Liveness response sent")
 }
 
-// HandleRedinessRequest handles the health check readiness request.
-func (hch *HealthCheckHandler) HandleRedinessRequest(w http.ResponseWriter, r *http.Request) {
+// HandleReadinessRequest handles the health check readiness request.
+func (hch *HealthCheckHandler) HandleReadinessRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "HealthCheckHandler"))
 
 	healthcheckProvider := provider.NewHealthCheckProvider()
