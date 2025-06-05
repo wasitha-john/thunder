@@ -75,6 +75,27 @@ func (s *FlowService) Init() error {
 	return nil
 }
 
+// Execute executes a flow with the given data
+func (s *FlowService) Execute(appID, flowID, actionID string,
+	inputData map[string]string) (*model.FlowStep, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowService"))
+
+	context, svcErr := s.loadContext(appID, flowID, actionID, inputData, logger)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+
+	flowStep, flowErr := engine.GetFlowEngine().Execute(context)
+	if flowErr != nil {
+		s.removeContext(flowID, logger)
+		return nil, flowErr
+	}
+
+	s.updateContext(context, &flowStep, logger)
+
+	return &flowStep, nil
+}
+
 // validateDefaultFlowConfigs validates the default flow configurations.
 func validateDefaultFlowConfigs(flowDAO dao.FlowDAOInterface) error {
 	flowConfig := config.GetThunderRuntime().Config.Flow
@@ -88,32 +109,6 @@ func validateDefaultFlowConfigs(flowDAO dao.FlowDAOInterface) error {
 	}
 
 	return nil
-}
-
-// Execute executes a flow with the given data
-func (s *FlowService) Execute(appID, flowID, actionID string,
-	inputData map[string]string) (*model.FlowStep, *serviceerror.ServiceError) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowService"))
-
-	context, svcErr := s.loadContext(appID, flowID, actionID, inputData, logger)
-	if svcErr != nil {
-		return nil, svcErr
-	}
-
-	engine := engine.GetFlowEngine()
-	flowStep, flowErr := engine.Execute(context)
-	if flowErr != nil {
-		// Remove the flow context from the store
-		s.mu.Lock()
-		delete(s.store, context.FlowID)
-		s.mu.Unlock()
-
-		return nil, flowErr
-	}
-
-	s.updateContext(context, &flowStep, logger)
-
-	return &flowStep, nil
 }
 
 // loadContext loads or initializes a flow context based on the provided parameters.
@@ -212,12 +207,27 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 	return &ctx, nil
 }
 
+// prepareContext prepares the flow context by merging any data.
+func prepareContext(ctx *model.EngineContext, inputData map[string]string) {
+	// Append any input data present to the context
+	if len(inputData) > 0 {
+		ctx.UserInputData = sysutils.MergeStringMaps(ctx.UserInputData, inputData)
+	}
+}
+
+// removeContext removes the flow context from the store.
+func (s *FlowService) removeContext(flowID string, logger *log.Logger) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.store, flowID)
+	logger.Debug("Flow context removed from the store", log.String("flowID", flowID))
+}
+
 // updateContext updates the flow context in the store based on the flow step status.
 func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.FlowStep, logger *log.Logger) {
-	if flowStep.Status != "" && flowStep.Status == constants.FlowStatusComplete {
-		s.mu.Lock()
-		delete(s.store, ctx.FlowID)
-		s.mu.Unlock()
+	if flowStep.Status == constants.FlowStatusComplete {
+		s.removeContext(ctx.FlowID, logger)
 	} else {
 		logger.Debug("Flow execution is incomplete, storing the flow context",
 			log.String("flowID", ctx.FlowID))
@@ -225,13 +235,5 @@ func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.Fl
 		s.mu.Lock()
 		s.store[ctx.FlowID] = *ctx
 		s.mu.Unlock()
-	}
-}
-
-// prepareContext prepares the flow context by merging any data.
-func prepareContext(ctx *model.EngineContext, inputData map[string]string) {
-	// Append any input data present to the context
-	if len(inputData) > 0 {
-		ctx.UserInputData = sysutils.MergeStringMaps(ctx.UserInputData, inputData)
 	}
 }
