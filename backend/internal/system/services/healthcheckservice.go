@@ -60,5 +60,5 @@ func (h *HealthCheckService) RegisterRoutes(mux *http.ServeMux) {
 	server.WrapHandleFunction(mux, "OPTIONS /health/readiness", &opts1, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	server.WrapHandleFunction(mux, "GET /health/readiness", &opts1, h.healthCheckHandler.HandleRedinessRequest)
+	server.WrapHandleFunction(mux, "GET /health/readiness", &opts1, h.healthCheckHandler.HandleReadinessRequest)
 }
