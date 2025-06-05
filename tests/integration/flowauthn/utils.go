@@ -283,3 +283,86 @@ func deleteUser(userID string) error {
 	}
 	return nil
 }
+
+// getAppConfig retrieves the current application configuration
+func getAppConfig(appID string) (map[string]interface{}, error) {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/applications/%s", testServerURL, appID),
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var appConfig map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&appConfig); err != nil {
+		return nil, fmt.Errorf("failed to parse app config: %w", err)
+	}
+
+	return appConfig, nil
+}
+
+// updateAppConfig updates the application configuration with the specified auth flow graph ID
+func updateAppConfig(appID string, authFlowGraphID string) error {
+	appConfig, err := getAppConfig(appID)
+	if err != nil {
+		return fmt.Errorf("failed to get current app config: %w", err)
+	}
+
+	appConfig["auth_flow_graph_id"] = authFlowGraphID
+	appConfig["client_secret"] = "secret123"
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	jsonPayload, err := json.Marshal(appConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON payload: %w", err)
+	}
+
+	req, err := http.NewRequest(
+		"PUT",
+		fmt.Sprintf("%s/applications/%s", testServerURL, appID),
+		bytes.NewBuffer(jsonPayload),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}

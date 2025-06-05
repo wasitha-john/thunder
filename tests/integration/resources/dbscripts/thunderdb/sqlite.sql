@@ -140,4 +140,5 @@ VALUES (
 INSERT INTO IDP (IDP_ID, NAME, DESCRIPTION, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, SCOPES, CREATED_AT, UPDATED_AT)
 VALUES
 ('550e8400-e29b-41d4-a716-446655440000', 'Local', 'Local Identity Provider', 'local', 'local', 'https://localhost:8090', '["local"]', datetime('now'), datetime('now')),
-('550e8400-e29b-41d4-a716-446655440001', 'Github', 'Login with Github', 'client1', 'secret1', 'https://localhost:3000', '["user:email","read:user"]', datetime('now'), datetime('now'));
+('550e8400-e29b-41d4-a716-446655440001', 'Github', 'Login with Github', 'client1', 'secret1', 'https://localhost:3000', '["user:email","read:user"]', datetime('now'), datetime('now')),
+('550e8400-e29b-41d4-a716-446655440002', 'Google', 'Login with Google', 'client1', 'secret1', 'https://localhost:3000', '["openid","email","profile"]', datetime('now'), datetime('now'));
