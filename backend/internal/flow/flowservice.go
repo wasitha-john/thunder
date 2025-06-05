@@ -80,9 +80,17 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 	inputData map[string]string) (*model.FlowStep, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowService"))
 
-	context, svcErr := s.loadContext(appID, flowID, actionID, inputData, logger)
-	if svcErr != nil {
-		return nil, svcErr
+	var context *model.EngineContext
+	var loadErr *serviceerror.ServiceError
+
+	if isNewFlow(flowID, actionID) {
+		context, loadErr = s.loadNewContext(appID, inputData, logger)
+	} else {
+		context, loadErr = s.loadPrevContext(flowID, actionID, inputData, logger)
+	}
+
+	if loadErr != nil {
+		return nil, loadErr
 	}
 
 	flowStep, flowErr := engine.GetFlowEngine().Execute(context)
@@ -91,47 +99,25 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 		return nil, flowErr
 	}
 
-	s.updateContext(context, &flowStep, logger)
+	if isComplete(flowStep) {
+		s.removeContext(flowID, logger)
+	} else {
+		s.updateContext(context, &flowStep, logger)
+	}
 
 	return &flowStep, nil
 }
 
-// validateDefaultFlowConfigs validates the default flow configurations.
-func validateDefaultFlowConfigs(flowDAO dao.FlowDAOInterface) error {
-	flowConfig := config.GetThunderRuntime().Config.Flow
-
-	// Validate auth flow.
-	if flowConfig.Authn.DefaultFlow == "" {
-		return errors.New("default authentication flow is not configured")
-	}
-	if !flowDAO.IsValidGraphID(flowConfig.Authn.DefaultFlow) {
-		return errors.New("default authentication flow graph ID is invalid")
+// initContext initializes a new flow context with the given details.
+func (s *FlowService) loadNewContext(appID string,
+	inputData map[string]string, logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
+	ctx, err := s.initContext(appID, logger)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
-}
-
-// loadContext loads or initializes a flow context based on the provided parameters.
-func (s *FlowService) loadContext(appID, flowID, actionID string, inputData map[string]string,
-	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
-	var context model.EngineContext
-	if flowID == "" && actionID == "" {
-		ctx, err := s.initContext(appID, logger)
-		if err != nil {
-			return nil, err
-		}
-		context = *ctx
-	} else {
-		ctx, err := s.loadContextFromStore(flowID, actionID, inputData, logger)
-		if err != nil {
-			return nil, err
-		}
-		context = *ctx
-	}
-
-	prepareContext(&context, inputData)
-
-	return &context, nil
+	prepareContext(ctx, inputData)
+	return ctx, nil
 }
 
 // initContext initializes a new flow context with the given details.
@@ -158,27 +144,16 @@ func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.Engi
 	return &ctx, nil
 }
 
-// validateApplication checks if the provided application ID is valid and returns the associated auth flow graph ID.
-func validateApplication(appID string) (string, *serviceerror.ServiceError) {
-	if appID == "" {
-		return "", &constants.ErrorInvalidAppID
-	}
-
-	appSvc := appservice.GetApplicationService()
-	app, err := appSvc.GetApplication(appID)
+// loadPrevContext retrieves the flow context from the store based on the given details.
+func (s *FlowService) loadPrevContext(flowID, actionID string, inputData map[string]string,
+	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
+	ctx, err := s.loadContextFromStore(flowID, actionID, inputData, logger)
 	if err != nil {
-		return "", &constants.ErrorInvalidAppID
-	}
-	if app == nil {
-		return "", &constants.ErrorInvalidAppID
+		return nil, err
 	}
 
-	// At this point, we assume auth flow graph is configured for the application.
-	if app.AuthFlowGraphID == "" {
-		return "", &constants.ErrorAuthFlowNotConfiguredForApplication
-	}
-
-	return app.AuthFlowGraphID, nil
+	prepareContext(ctx, inputData)
+	return ctx, nil
 }
 
 // loadContextFromStore retrieves the flow context from the store based on the given details.
@@ -207,14 +182,6 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 	return &ctx, nil
 }
 
-// prepareContext prepares the flow context by merging any data.
-func prepareContext(ctx *model.EngineContext, inputData map[string]string) {
-	// Append any input data present to the context
-	if len(inputData) > 0 {
-		ctx.UserInputData = sysutils.MergeStringMaps(ctx.UserInputData, inputData)
-	}
-}
-
 // removeContext removes the flow context from the store.
 func (s *FlowService) removeContext(flowID string, logger *log.Logger) {
 	s.mu.Lock()
@@ -236,4 +203,60 @@ func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.Fl
 		s.store[ctx.FlowID] = *ctx
 		s.mu.Unlock()
 	}
+}
+
+// validateDefaultFlowConfigs validates the default flow configurations.
+func validateDefaultFlowConfigs(flowDAO dao.FlowDAOInterface) error {
+	flowConfig := config.GetThunderRuntime().Config.Flow
+
+	// Validate auth flow.
+	if flowConfig.Authn.DefaultFlow == "" {
+		return errors.New("default authentication flow is not configured")
+	}
+	if !flowDAO.IsValidGraphID(flowConfig.Authn.DefaultFlow) {
+		return errors.New("default authentication flow graph ID is invalid")
+	}
+
+	return nil
+}
+
+// isNewFlow checks if the flow is a new flow based on the provided flowID and actionID.
+func isNewFlow(flowID string, actionID string) bool {
+	return flowID == "" && actionID == ""
+}
+
+// isComplete checks if the flow step status indicates completion.
+func isComplete(step model.FlowStep) bool {
+	return step.Status == constants.FlowStatusComplete
+}
+
+// prepareContext prepares the flow context by merging any data.
+func prepareContext(ctx *model.EngineContext, inputData map[string]string) {
+	// Append any input data present to the context
+	if len(inputData) > 0 {
+		ctx.UserInputData = sysutils.MergeStringMaps(ctx.UserInputData, inputData)
+	}
+}
+
+// validateApplication checks if the provided application ID is valid and returns the associated auth flow graph ID.
+func validateApplication(appID string) (string, *serviceerror.ServiceError) {
+	if appID == "" {
+		return "", &constants.ErrorInvalidAppID
+	}
+
+	appSvc := appservice.GetApplicationService()
+	app, err := appSvc.GetApplication(appID)
+	if err != nil {
+		return "", &constants.ErrorInvalidAppID
+	}
+	if app == nil {
+		return "", &constants.ErrorInvalidAppID
+	}
+
+	// At this point, we assume auth flow graph is configured for the application.
+	if app.AuthFlowGraphID == "" {
+		return "", &constants.ErrorAuthFlowNotConfiguredForApplication
+	}
+
+	return app.AuthFlowGraphID, nil
 }
