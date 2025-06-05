@@ -17,7 +17,7 @@ servers:
         default: "8090"
 
 paths:
-  /flow/execution:
+  /flow/execute:
     post:
       summary: Execute a flow step
       description: Execute a step in an authentication flow.

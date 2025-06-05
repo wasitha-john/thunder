@@ -79,7 +79,7 @@ npm install
 Open the `runtime.json` file in the thunder-sample-app-<version>/dist directory and update the configurations as per your setup. The default configurations should work for most cases, but you can customize the following properties:
 
 - `applicationID`: The ID of the application you want to use for authentication. By default, it is set to `550e8400-e29b-41d4-a716-446655440000`.
-- `flowEndpoint`: The endpoint for the flow execution API. By default, it is set to `https://localhost:8090/flow/execution`.
+- `flowEndpoint`: The endpoint for the flow execution API. By default, it is set to `https://localhost:8090/flow/execute`.
 
 #### Step 4: Start the sample app
 
@@ -297,7 +297,7 @@ Open the sample app in your browser and enter the username and password you crea
 - Start login flow for the application with the following cURL command:
 
   ```bash
-  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
       "applicationId": "<application_id>"
   }'
@@ -328,7 +328,7 @@ Open the sample app in your browser and enter the username and password you crea
 - Make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response. Also, replace the `username` and `password` with the credentials of the user you created in the first step.
 
   ```bash
-  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
       "flowId": "<flow_id>",
       "inputs": {
@@ -391,7 +391,7 @@ Open the sample app in your browser and enter the username and password you crea
 - Start login flow for the application with the following cURL command:
 
   ```bash
-  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
       "applicationId": "<application_id>"
   }'
@@ -434,7 +434,7 @@ Open the sample app in your browser and enter the username and password you crea
 - Copy the authorization code and make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
 
   ```bash
-  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
       "flowId": "<flow_id>",
       "inputs": {
@@ -495,7 +495,7 @@ Open the sample app in your browser and enter the username and password you crea
 - Start login flow for the application with the following cURL command:
 
   ```bash
-  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
       "applicationId": "<application_id>"
   }'
@@ -533,7 +533,7 @@ Open the sample app in your browser and enter the username and password you crea
 - Copy the authorization code and make the second cURL request to complete the login flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
 
   ```bash
-  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execution \
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
       "flowId": "<flow_id>",
       "inputs": {

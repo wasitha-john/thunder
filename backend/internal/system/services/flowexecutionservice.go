@@ -42,7 +42,7 @@ func NewFlowExecutionService(mux *http.ServeMux) *FlowExecutionService {
 
 // RegisterRoutes registers the routes for the FlowExecutionService.
 func (s *FlowExecutionService) RegisterRoutes(mux *http.ServeMux) {
-	// TODO: Ideally this should be renamed to "/flow/authn". Keeping it as "/flow/execution" until the
+	// TODO: Ideally this should be renamed to "/flow/authn". Keeping it as "/flow/execute" until the
 	//  previous authenticator implementation is removed.
 	opts := server.RequestWrapOptions{
 		Cors: &server.Cors{
@@ -51,8 +51,8 @@ func (s *FlowExecutionService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "POST /flow/execution", &opts, s.flowExecutionHandler.HandleFlowExecutionRequest)
-	server.WrapHandleFunction(mux, "OPTIONS /flow/execution", &opts, func(w http.ResponseWriter, r *http.Request) {
+	server.WrapHandleFunction(mux, "POST /flow/execute", &opts, s.flowExecutionHandler.HandleFlowExecutionRequest)
+	server.WrapHandleFunction(mux, "OPTIONS /flow/execute", &opts, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 }
