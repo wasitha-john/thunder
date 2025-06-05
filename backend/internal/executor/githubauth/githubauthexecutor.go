@@ -72,12 +72,7 @@ func NewGithubOAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 }
 
 // NewGithubOAuthExecutor creates a new instance of GithubOAuthExecutor with the provided details.
-func // The code appears to be written in a comment and does not actually execute any functionality. It
-// seems to be written in Go language and mentions a "NewGithubOAuthExecutor" which could
-// potentially be a constructor or function related to handling GitHub OAuth authentication.
-// However, without the actual implementation details or context, it is difficult to determine the
-// exact purpose or functionality of this code snippet.
-NewGithubOAuthExecutor(id, name, clientID, clientSecret, redirectURI string,
+func NewGithubOAuthExecutor(id, name, clientID, clientSecret, redirectURI string,
 	scopes []string, additionalParams map[string]string) oauth.OAuthExecutorInterface {
 	// Prepare the OAuth properties for GitHub
 	oAuthProps := &model.OAuthExecProperties{
