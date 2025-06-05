@@ -60,6 +60,11 @@ jobs:
           cd ../tests/integration
           go mod download
 
+      - name: 🧹 Clean Previous Builds
+        run: |
+          set -e
+          make clean_all
+
       - name: 🔨 Build and Run Tests
         run: |
           set -e

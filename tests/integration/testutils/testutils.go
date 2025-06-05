@@ -26,11 +26,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 const (
 	TargetDir                   = "../../target/dist"
-	ZipFilePattern              = "thunder-*-macos-arm64.zip"
 	ExtractedDir                = "../../target/out/.test"
 	ServerBinary                = "thunder"
 	TestDeploymentYamlPath      = "./resources/deployment.yaml"
@@ -40,10 +40,10 @@ const (
 	DatabaseFileBasePath        = "repository/database/"
 )
 
-func UnzipProduct() error {
+func UnzipProduct(zipFilePattern string) error {
 
 	// Find the zip file.
-	files, err := filepath.Glob(filepath.Join(TargetDir, ZipFilePattern))
+	files, err := filepath.Glob(filepath.Join(TargetDir, zipFilePattern))
 	if err != nil || len(files) == 0 {
 		return fmt.Errorf("zip file not found in target directory")
 	}
@@ -65,7 +65,7 @@ func UnzipProduct() error {
 	}
 
 	// Set executable permissions for the server binary
-	productHome, err := getExtractedProductHome()
+	productHome, err := getExtractedProductHome(zipFilePattern)
 	if err != nil {
 		return err
 	}
@@ -103,18 +103,19 @@ func extractFile(f *zip.File, dest string) error {
 }
 
 // getExtractedProductHome constructs the path to the unzipped folder.
-func getExtractedProductHome() (string, error) {
+func getExtractedProductHome(zipFilePattern string) (string, error) {
 
-	files, err := filepath.Glob(filepath.Join(TargetDir, ZipFilePattern))
+	path := filepath.Join(TargetDir, zipFilePattern)
+	files, err := filepath.Glob(path)
 	if err != nil || len(files) == 0 {
-		return "", fmt.Errorf("zip file not found in target directory")
+		return "", fmt.Errorf("zip file not found in target directory: %s", path)
 	}
 	zipFile := files[0]
 
 	return filepath.Join(ExtractedDir, filepath.Base(zipFile[:len(zipFile)-4])), nil
 }
 
-func ReplaceResources() error {
+func ReplaceResources(zipFilePattern string) error {
 
 	log.Println("Replacing resources...")
 
@@ -125,7 +126,7 @@ func ReplaceResources() error {
 		log.Printf("Current working directory: %s", cwd)
 	}
 
-	productHome, err := getExtractedProductHome()
+	productHome, err := getExtractedProductHome(zipFilePattern)
 	if err != nil {
 		return err
 	}
@@ -201,7 +202,7 @@ func copyDirectory(src, dest string) error {
 	return nil
 }
 
-func RunInitScript() error {
+func RunInitScript(zipFilePattern string) error {
 
 	log.Println("Running init script...")
 
@@ -212,7 +213,7 @@ func RunInitScript() error {
 		log.Printf("Current working directory: %s", cwd)
 	}
 
-	productHome, err := getExtractedProductHome()
+	productHome, err := getExtractedProductHome(zipFilePattern)
 	if err != nil {
 		return err
 	}
@@ -247,10 +248,10 @@ func RunInitScript() error {
 	return nil
 }
 
-func StartServer(port string) (*exec.Cmd, error) {
+func StartServer(port string, zipFilePattern string) (*exec.Cmd, error) {
 
 	log.Println("Starting server...")
-	productHome, err := getExtractedProductHome()
+	productHome, err := getExtractedProductHome(zipFilePattern)
 	if err != nil {
 		return nil, err
 	}
@@ -274,4 +275,85 @@ func StopServer(cmd *exec.Cmd) {
 		cmd.Process.Kill()
 		cmd.Wait()
 	}
+}
+
+func GetZipFilePattern() string {
+	goos, goarch := detectOSAndArchitecture()
+	return fmt.Sprintf("thunder-*-%s-%s.zip", goos, goarch)
+}
+
+// detectOSAndArchitecture detects the OS and architecture using Go environment variables
+// or falls back to system detection if environment variables are not available
+func detectOSAndArchitecture() (string, string) {
+	// Try to get from environment variables first
+	goos := os.Getenv("GOOS")
+	goarch := os.Getenv("GOARCH")
+
+	// If GOOS is not set, try to detect from system
+	if goos == "" {
+		// Try using go env command first
+		cmd := exec.Command("go", "env", "GOOS")
+		output, err := cmd.Output()
+		if err == nil {
+			goos = strings.TrimSpace(string(output))
+		}
+
+		// Fallback to uname if go env didn't work
+		if goos == "" {
+			cmd := exec.Command("uname", "-s")
+			output, err := cmd.Output()
+			if err == nil {
+				osName := strings.TrimSpace(string(output))
+				switch {
+				case osName == "Darwin":
+					goos = "darwin"
+				case osName == "Linux":
+					goos = "linux"
+				case strings.HasPrefix(osName, "MINGW") ||
+					strings.HasPrefix(osName, "MSYS") ||
+					strings.HasPrefix(osName, "CYGWIN"):
+					goos = "windows"
+				}
+			}
+		}
+	}
+
+	// If GOARCH is not set, try to detect from system
+	if goarch == "" {
+		// Try using go env command first
+		cmd := exec.Command("go", "env", "GOARCH")
+		output, err := cmd.Output()
+		if err == nil {
+			goarch = strings.TrimSpace(string(output))
+		}
+
+		// Fall back to uname if go env didn't work
+		if goarch == "" {
+			cmd := exec.Command("uname", "-m")
+			output, err := cmd.Output()
+			if err == nil {
+				arch := strings.TrimSpace(string(output))
+				switch arch {
+				case "x86_64", "amd64":
+					goarch = "amd64"
+				case "arm64", "aarch64":
+					goarch = "arm64"
+				}
+			}
+		}
+	}
+
+	// Normalize OS name according to distribution packaging
+	if goos == "darwin" {
+		goos = "macos"
+	} else if goos == "windows" {
+		goos = "win"
+	}
+
+	// Normalize architecture
+	if goarch == "amd64" {
+		goarch = "x64"
+	}
+
+	return goos, goarch
 }
