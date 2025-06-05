@@ -18,7 +18,10 @@
 
 package model
 
-import "github.com/asgardeo/thunder/internal/flow/constants"
+import (
+	"github.com/asgardeo/thunder/internal/flow/constants"
+	"github.com/asgardeo/thunder/internal/system/log"
+)
 
 // ExecutorResponse represents the response from an executor
 type ExecutorResponse struct {
@@ -50,13 +53,27 @@ type ExecutorInterface interface {
 	GetID() string
 	GetName() string
 	GetProperties() ExecutorProperties
+	GetDefaultExecutorInputs() []InputData
+	CheckInputData(ctx *NodeContext, execResp *ExecutorResponse) bool
 }
 
 var _ ExecutorInterface = (*Executor)(nil)
 
 // Executor represents the basic implementation of an executor.
 type Executor struct {
-	Properties ExecutorProperties
+	Properties            ExecutorProperties
+	DefaultExecutorInputs []InputData
+}
+
+// NewExecutor creates a new instance of Executor with the given properties.
+func NewExecutor(id, name string, defaultInputs []InputData) *Executor {
+	return &Executor{
+		Properties: ExecutorProperties{
+			ID:   id,
+			Name: name,
+		},
+		DefaultExecutorInputs: defaultInputs,
+	}
 }
 
 // GetID returns the ID of the executor.
@@ -79,4 +96,78 @@ func (e *Executor) Execute(ctx *NodeContext) (*ExecutorResponse, error) {
 	// Implement the logic for executing the executor here.
 	// This is just a placeholder implementation
 	return nil, nil
+}
+
+// GetDefaultExecutorInputs returns the default required input data for the executor.
+func (e *Executor) GetDefaultExecutorInputs() []InputData {
+	return e.DefaultExecutorInputs
+}
+
+// CheckInputData checks if the required input data is provided in the context.
+// If not, it adds the required data to the executor response and returns true.
+func (e *Executor) CheckInputData(ctx *NodeContext, execResp *ExecutorResponse) bool {
+	requiredData := e.getRequiredData(ctx)
+
+	if execResp.RequiredData == nil {
+		execResp.RequiredData = make([]InputData, 0)
+	}
+	if len(ctx.UserInputData) == 0 {
+		execResp.RequiredData = append(execResp.RequiredData, requiredData...)
+		return true
+	}
+
+	return e.appendRequiredData(ctx, execResp, requiredData)
+}
+
+// getRequiredData returns the required input data for the executor.
+// It combines the default executor inputs with the node input data, ensuring no duplicates.
+// TODO: This validation should be moved to the flow composer. Ideally this should happen during flow creation.
+func (e *Executor) getRequiredData(ctx *NodeContext) []InputData {
+	executorReqData := e.GetDefaultExecutorInputs()
+	requiredData := ctx.NodeInputData
+
+	if len(requiredData) == 0 {
+		requiredData = executorReqData
+	} else {
+		// Append the default required data if not already present.
+		for _, inputData := range executorReqData {
+			exists := false
+			for _, existingInputData := range requiredData {
+				if existingInputData.Name == inputData.Name {
+					exists = true
+					break
+				}
+			}
+			// If the input data already exists, skip adding it again.
+			if !exists {
+				requiredData = append(requiredData, inputData)
+			}
+		}
+	}
+
+	return requiredData
+}
+
+// appendRequiredData appends the user not provided required input data to the executor response.
+func (e *Executor) appendRequiredData(ctx *NodeContext, execResp *ExecutorResponse, requiredData []InputData) bool {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "Executor"),
+		log.String(log.LoggerKeyExecutorID, e.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+
+	requireData := false
+	for _, inputData := range requiredData {
+		if _, ok := ctx.UserInputData[inputData.Name]; !ok {
+			if !inputData.Required {
+				logger.Debug("Skipping optional input data that is not provided by user",
+					log.String("inputDataName", inputData.Name))
+				continue
+			}
+			execResp.RequiredData = append(execResp.RequiredData, inputData)
+			requireData = true
+			logger.Debug("Required input data not provided by user",
+				log.String("inputDataName", inputData.Name))
+		}
+	}
+
+	return requireData
 }

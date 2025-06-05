@@ -38,13 +38,20 @@ type BasicAuthExecutor struct {
 
 // NewBasicAuthExecutor creates a new instance of BasicAuthExecutor.
 func NewBasicAuthExecutor(id, name string) flowmodel.ExecutorInterface {
-	return &BasicAuthExecutor{
-		internal: flowmodel.Executor{
-			Properties: flowmodel.ExecutorProperties{
-				ID:   id,
-				Name: name,
-			},
+	defaultInputs := []flowmodel.InputData{
+		{
+			Name:     "username",
+			Type:     "string",
+			Required: true,
 		},
+		{
+			Name:     "password",
+			Type:     "string",
+			Required: true,
+		},
+	}
+	return &BasicAuthExecutor{
+		internal: *flowmodel.NewExecutor(id, name, defaultInputs),
 	}
 }
 
@@ -73,7 +80,7 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exec
 	execResp := &flowmodel.ExecutorResponse{}
 
 	// Validate for the required input data.
-	if b.requiredInputData(ctx, execResp) {
+	if b.CheckInputData(ctx, execResp) {
 		// If required input data is not provided, return incomplete status.
 		logger.Debug("Required input data for basic authentication executor is not provided")
 		execResp.Status = flowconst.ExecUserInputRequired
@@ -111,78 +118,14 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exec
 	return execResp, nil
 }
 
-// requiredInputData checks and adds the required input data for basic authentication.
-// Returns true if needed to request user input data.
-func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
-		log.String(log.LoggerKeyExecutorID, b.GetID()),
-		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+// GetDefaultExecutorInputs returns the default required input data for the BasicAuthExecutor.
+func (b *BasicAuthExecutor) GetDefaultExecutorInputs() []flowmodel.InputData {
+	return b.internal.DefaultExecutorInputs
+}
 
-	// TODO: Convert password to a secure type (i.e. byte_array)
-	basicReqData := []flowmodel.InputData{
-		{
-			Name:     "username",
-			Type:     "string",
-			Required: true,
-		},
-		{
-			Name:     "password",
-			Type:     "string",
-			Required: true,
-		},
-	}
-
-	// Check for the required input data. Also appends the authenticator specific input data.
-	// TODO: This validation should be moved to the flow composer. Ideally the validation and appending
-	//  should happen during the flow definition creation.
-	requiredData := ctx.NodeInputData
-	if len(requiredData) == 0 {
-		logger.Debug("No required input data defined for basic authentication executor")
-		requiredData = basicReqData
-	} else {
-		// Append the default required data if not already present.
-		for _, inputData := range basicReqData {
-			exists := false
-			for _, existingInputData := range requiredData {
-				if existingInputData.Name == inputData.Name {
-					exists = true
-					break
-				}
-			}
-			// If the input data already exists, skip adding it again.
-			if !exists {
-				requiredData = append(requiredData, inputData)
-			}
-		}
-	}
-
-	requireData := false
-
-	if execResp.RequiredData == nil {
-		execResp.RequiredData = make([]flowmodel.InputData, 0)
-	}
-
-	if len(ctx.UserInputData) == 0 {
-		execResp.RequiredData = append(execResp.RequiredData, requiredData...)
-		return true
-	}
-
-	// Check if the required input data is provided by the user.
-	for _, inputData := range requiredData {
-		if _, ok := ctx.UserInputData[inputData.Name]; !ok {
-			if !inputData.Required {
-				logger.Debug("Skipping optional input data that is not provided by user",
-					log.String("inputDataName", inputData.Name))
-				continue
-			}
-			execResp.RequiredData = append(execResp.RequiredData, inputData)
-			requireData = true
-			logger.Debug("Required input data not provided by user",
-				log.String("inputDataName", inputData.Name))
-		}
-	}
-
-	return requireData
+// CheckInputData checks if the required input data is provided in the context.
+func (b *BasicAuthExecutor) CheckInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
+	return b.internal.CheckInputData(ctx, execResp)
 }
 
 // getAuthenticatedUser perform authentication based on the provided username and password and return

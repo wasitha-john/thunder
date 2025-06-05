@@ -38,12 +38,7 @@ type AuthAssertExecutor struct {
 // NewAuthAssertExecutor creates a new instance of AuthAssertExecutor.
 func NewAuthAssertExecutor(id, name string) flowmodel.ExecutorInterface {
 	return &AuthAssertExecutor{
-		internal: flowmodel.Executor{
-			Properties: flowmodel.ExecutorProperties{
-				ID:   id,
-				Name: name,
-			},
-		},
+		internal: *flowmodel.NewExecutor(id, name, []flowmodel.InputData{}),
 	}
 }
 
@@ -94,4 +89,14 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 	logger.Debug("Authentication assertion executor execution completed", log.String("status", string(exeResp.Status)))
 
 	return exeResp, nil
+}
+
+// GetDefaultExecutorInputs returns the default required input data for the AuthAssertExecutor.
+func (a *AuthAssertExecutor) GetDefaultExecutorInputs() []flowmodel.InputData {
+	return a.internal.GetDefaultExecutorInputs()
+}
+
+// CheckInputData checks if the required input data is provided in the context.
+func (a *AuthAssertExecutor) CheckInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
+	return a.internal.CheckInputData(ctx, execResp)
 }

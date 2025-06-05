@@ -67,14 +67,19 @@ type OAuthExecutor struct {
 }
 
 // NewOAuthExecutor creates a new instance of OAuthExecutor.
-func NewOAuthExecutor(id, name string, oAuthProps *model.OAuthExecProperties) OAuthExecutorInterface {
-	return &OAuthExecutor{
-		internal: flowmodel.Executor{
-			Properties: flowmodel.ExecutorProperties{
-				ID:   id,
-				Name: name,
+func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData,
+	oAuthProps *model.OAuthExecProperties) OAuthExecutorInterface {
+	if len(defaultInputs) == 0 {
+		defaultInputs = []flowmodel.InputData{
+			{
+				Name:     "code",
+				Type:     "string",
+				Required: true,
 			},
-		},
+		}
+	}
+	return &OAuthExecutor{
+		internal:        *flowmodel.NewExecutor(id, name, defaultInputs),
 		oAuthProperties: *oAuthProps,
 	}
 }
@@ -139,7 +144,7 @@ func (o *OAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Executor
 	execResp := &flowmodel.ExecutorResponse{}
 
 	// Check if the required input data is provided
-	if o.requiredInputData(ctx, execResp) {
+	if o.CheckInputData(ctx, execResp) {
 		// If required input data is not provided, return incomplete status with redirection.
 		logger.Debug("Required input data for OAuth authentication executor is not provided")
 		err := o.BuildAuthorizeFlow(ctx, execResp)
@@ -292,78 +297,17 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 	return nil
 }
 
-// requiredInputData adds the required input data for the OAuth authentication flow to the executor response.
-// Returns true if input data should be requested from the user.
-func (o *OAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
-		log.String(log.LoggerKeyExecutorID, o.GetID()), log.String(log.LoggerKeyFlowID, ctx.FlowID))
+// GetDefaultExecutorInputs returns the default required input data for the OAuthExecutor.
+func (o *OAuthExecutor) GetDefaultExecutorInputs() []flowmodel.InputData {
+	return o.internal.GetDefaultExecutorInputs()
+}
 
-	// Check if the authorization code is already provided
+// CheckInputData checks if the required input data is provided in the context.
+func (o *OAuthExecutor) CheckInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
 	if code, ok := ctx.UserInputData["code"]; ok && code != "" {
 		return false
 	}
-
-	// Define the authenticator specific required input data.
-	gitReqData := []flowmodel.InputData{
-		{
-			Name:     "code",
-			Type:     "string",
-			Required: true,
-		},
-	}
-
-	// Check for the required input data. Also appends the authenticator specific input data.
-	// TODO: This validation should be moved to the flow composer. Ideally the validation and appending
-	//  should happen during the flow definition creation.
-	requiredData := ctx.NodeInputData
-	if len(requiredData) == 0 {
-		logger.Debug("No required input data defined for OAuth authentication executor")
-		// If no required input data is defined, use the default required data.
-		requiredData = gitReqData
-	} else {
-		// Append the default required data if not already present.
-		for _, inputData := range gitReqData {
-			exists := false
-			for _, existingInputData := range requiredData {
-				if existingInputData.Name == inputData.Name {
-					exists = true
-					break
-				}
-			}
-			// If the input data already exists, skip adding it again.
-			if !exists {
-				requiredData = append(requiredData, inputData)
-			}
-		}
-	}
-
-	requireData := false
-
-	if execResp.RequiredData == nil {
-		execResp.RequiredData = make([]flowmodel.InputData, 0)
-	}
-
-	if len(ctx.UserInputData) == 0 {
-		execResp.RequiredData = append(execResp.RequiredData, requiredData...)
-		return true
-	}
-
-	// Check if the required input data is provided by the user.
-	for _, inputData := range requiredData {
-		if _, ok := ctx.UserInputData[inputData.Name]; !ok {
-			if !inputData.Required {
-				logger.Debug("Skipping optional input data that is not provided by user",
-					log.String("inputDataName", inputData.Name))
-				continue
-			}
-			execResp.RequiredData = append(execResp.RequiredData, inputData)
-			requireData = true
-			logger.Debug("Required input data not provided by user",
-				log.String("inputDataName", inputData.Name))
-		}
-	}
-
-	return requireData
+	return o.internal.CheckInputData(ctx, execResp)
 }
 
 // ExchangeCodeForToken exchanges the authorization code for an access token.
