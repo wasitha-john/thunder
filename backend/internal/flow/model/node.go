@@ -19,6 +19,8 @@
 package model
 
 import (
+	"errors"
+
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 )
@@ -57,7 +59,7 @@ type NodeInterface interface {
 // Node implements the NodeInterface
 type Node struct {
 	id             string
-	_type          string
+	_type          constants.NodeType
 	isStartNode    bool
 	isFinalNode    bool
 	nextNodeID     string
@@ -66,63 +68,28 @@ type Node struct {
 	executorConfig *ExecutorConfig
 }
 
-// NewNode creates a new Node with the given parameters
-func NewNode(id string, _type string, isStartNode bool, isFinalNode bool) NodeInterface {
-	return &Node{
-		id:             id,
-		_type:          _type,
-		isStartNode:    isStartNode,
-		isFinalNode:    isFinalNode,
-		nextNodeID:     "",
-		previousNodeID: "",
-		executorConfig: nil,
+// NewNode creates a new Node with the given type and properties.
+func NewNode(id string, _type string, isStartNode bool, isFinalNode bool) (NodeInterface, error) {
+	var nodeType constants.NodeType
+	if _type == "" {
+		return nil, errors.New("node type cannot be empty")
+	} else {
+		nodeType = constants.NodeType(_type)
+	}
+
+	switch nodeType {
+	case constants.NodeTypeTaskExecution:
+		return NewTaskExecutionNode(id, isStartNode, isFinalNode), nil
+	case constants.NodeTypeAuthSuccess:
+		return NewTaskExecutionNode(id, isStartNode, isFinalNode), nil
+	default:
+		return nil, errors.New("unsupported node type: " + _type)
 	}
 }
 
-// Execute executes the node's executor
+// Execute executes the node
 func (n *Node) Execute(ctx *NodeContext) (*NodeResponse, *serviceerror.ServiceError) {
-	if n.executorConfig == nil || n.executorConfig.Executor == nil {
-		return nil, &constants.ErrorNodeExecutorNotFound
-	}
-
-	execResp, err := n.executorConfig.Executor.Execute(ctx)
-	if err != nil {
-		svcErr := constants.ErrorNodeExecutorExecError
-		svcErr.ErrorDescription = "Error executing node executor: " + err.Error()
-		return nil, &svcErr
-	}
-	if execResp == nil {
-		return nil, &constants.ErrorNilResponseFromExecutor
-	}
-
-	nodeResp := &NodeResponse{
-		FailureReason:  execResp.FailureReason,
-		RequiredData:   execResp.RequiredData,
-		AdditionalInfo: execResp.AdditionalInfo,
-		Assertion:      execResp.Assertion,
-	}
-
-	if execResp.Status == constants.ExecComplete {
-		nodeResp.Status = constants.NodeStatusComplete
-		nodeResp.Type = ""
-	} else if execResp.Status == constants.ExecUserInputRequired {
-		nodeResp.Status = constants.NodeStatusIncomplete
-		nodeResp.Type = constants.NodeResponseTypeView
-	} else if execResp.Status == constants.ExecExternalRedirection {
-		nodeResp.Status = constants.NodeStatusIncomplete
-		nodeResp.Type = constants.NodeResponseTypeRedirection
-	} else if execResp.Status == constants.ExecRetry {
-		nodeResp.Status = constants.NodeStatusIncomplete
-		nodeResp.Type = constants.NodeResponseTypeRetry
-	} else if execResp.Status == constants.ExecFailure {
-		nodeResp.Status = constants.NodeStatusFailure
-		nodeResp.Type = ""
-	} else {
-		nodeResp.Status = constants.NodeStatusIncomplete
-		nodeResp.Type = ""
-	}
-
-	return nodeResp, nil
+	return nil, nil
 }
 
 // GetID returns the node's ID
@@ -132,7 +99,7 @@ func (n *Node) GetID() string {
 
 // GetType returns the node's type
 func (n *Node) GetType() string {
-	return n._type
+	return string(n._type)
 }
 
 // IsStartNode checks if the node is a start node
@@ -210,14 +177,4 @@ func (n *Node) SetExecutor(executor ExecutorInterface) {
 		n.executorConfig.Name = executor.GetName()
 	}
 	n.executorConfig.Executor = executor
-}
-
-// PromptNode represents a node that only takes user input
-type PromptNode struct {
-	*Node
-}
-
-// TaskExecutionNode represents a node that executes a task
-type TaskExecutionNode struct {
-	*Node
 }
