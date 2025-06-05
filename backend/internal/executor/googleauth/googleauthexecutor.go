@@ -58,8 +58,8 @@ func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 		AdditionalParams:      oAuthProps.AdditionalParams,
 	}
 
-	base := oidcauth.NewOIDCAuthExecutor("google_oidc_auth_executor", execProps.Name, compOAuthProps)
-
+	base := oidcauth.NewOIDCAuthExecutor("google_oidc_auth_executor", execProps.Name,
+		[]flowmodel.InputData{}, compOAuthProps)
 	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
 	if !ok {
 		panic("failed to cast GoogleOIDCAuthExecutor to OIDCAuthExecutor")
@@ -85,8 +85,7 @@ func NewGoogleOIDCAuthExecutor(id, name, clientID, clientSecret, redirectURI str
 		AdditionalParams:      additionalParams,
 	}
 
-	base := oidcauth.NewOIDCAuthExecutor(id, name, oAuthProps)
-
+	base := oidcauth.NewOIDCAuthExecutor(id, name, []flowmodel.InputData{}, oAuthProps)
 	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
 	if !ok {
 		panic("failed to cast GoogleOIDCAuthExecutor to OIDCAuthExecutor")
@@ -105,7 +104,7 @@ func (g *GoogleOIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel
 	execResp := &flowmodel.ExecutorResponse{}
 
 	// Check if the required input data is provided
-	if g.requiredInputData(ctx, execResp) {
+	if g.CheckInputData(ctx, execResp) {
 		// If required input data is not provided, return incomplete status with redirection to Google.
 		logger.Debug("Required input data for Google OIDC auth executor is not provided")
 		err := g.BuildAuthorizeFlow(ctx, execResp)
@@ -266,79 +265,6 @@ func (g *GoogleOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeCont
 	}
 
 	return nil
-}
-
-// requiredInputData adds the required input data for the Google OIDC authentication flow.
-// Returns true if input data should be requested from the user.
-func (g *GoogleOIDCAuthExecutor) requiredInputData(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse) bool {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	// Check if the authorization code is already provided
-	if code, ok := ctx.UserInputData["code"]; ok && code != "" {
-		return false
-	}
-
-	// Define the authenticator specific required input data.
-	googleReqData := []flowmodel.InputData{
-		{
-			Name:     "code",
-			Type:     "string",
-			Required: true,
-		},
-	}
-
-	// Check for the required input data. Also appends the authenticator specific input data.
-	// TODO: This validation should be moved to the flow composer. Ideally the validation and appending
-	//  should happen during the flow definition creation.
-	requiredData := ctx.NodeInputData
-	if len(requiredData) == 0 {
-		logger.Debug("No required input data defined for Google OIDC auth executor")
-		// If no required input data is defined, use the default required data.
-		requiredData = googleReqData
-	} else {
-		// Append the default required data if not already present.
-		for _, inputData := range googleReqData {
-			exists := false
-			for _, existingInputData := range requiredData {
-				if existingInputData.Name == inputData.Name {
-					exists = true
-					break
-				}
-			}
-			// If the input data already exists, skip adding it again.
-			if !exists {
-				requiredData = append(requiredData, inputData)
-			}
-		}
-	}
-
-	requireData := false
-
-	if execResp.RequiredData == nil {
-		execResp.RequiredData = make([]flowmodel.InputData, 0)
-	}
-
-	if len(ctx.UserInputData) == 0 {
-		execResp.RequiredData = append(execResp.RequiredData, requiredData...)
-		return true
-	}
-
-	// Check if the required input data is provided by the user.
-	for _, inputData := range requiredData {
-		if _, ok := ctx.UserInputData[inputData.Name]; !ok {
-			if !inputData.Required {
-				logger.Debug("Skipping optional input data that is not provided by user",
-					log.String("inputDataName", inputData.Name))
-				continue
-			}
-			execResp.RequiredData = append(execResp.RequiredData, inputData)
-			requireData = true
-			logger.Debug("Required input data not provided by user", log.String("inputDataName", inputData.Name))
-		}
-	}
-
-	return requireData
 }
 
 // ValidateIDToken validates the ID token received from Google.
