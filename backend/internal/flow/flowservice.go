@@ -100,11 +100,6 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 		return nil, svcErr
 	}
 
-	// Append any input data present to the context
-	if len(inputData) > 0 {
-		context.UserInputData = sysutils.MergeStringMaps(context.UserInputData, inputData)
-	}
-
 	engine := engine.GetFlowEngine()
 	flowStep, flowErr := engine.Execute(context)
 	if flowErr != nil {
@@ -139,11 +134,14 @@ func (s *FlowService) loadContext(appID, flowID, actionID string, inputData map[
 		context = *ctx
 	}
 
+	prepareContext(&context, inputData)
+
 	return &context, nil
 }
 
 // initContext initializes a new flow context with the given details.
-func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
+func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.EngineContext,
+	*serviceerror.ServiceError) {
 	graphID, svcErr := validateApplication(appID)
 	if svcErr != nil {
 		return nil, svcErr
@@ -165,8 +163,7 @@ func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.Engi
 	return &ctx, nil
 }
 
-// validateApplication checks if the provided application ID is valid and
-// returns the associated auth flow graph ID.
+// validateApplication checks if the provided application ID is valid and returns the associated auth flow graph ID.
 func validateApplication(appID string) (string, *serviceerror.ServiceError) {
 	if appID == "" {
 		return "", &constants.ErrorInvalidAppID
@@ -228,5 +225,13 @@ func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.Fl
 		s.mu.Lock()
 		s.store[ctx.FlowID] = *ctx
 		s.mu.Unlock()
+	}
+}
+
+// prepareContext prepares the flow context by merging any data.
+func prepareContext(ctx *model.EngineContext, inputData map[string]string) {
+	// Append any input data present to the context
+	if len(inputData) > 0 {
+		ctx.UserInputData = sysutils.MergeStringMaps(ctx.UserInputData, inputData)
 	}
 }
