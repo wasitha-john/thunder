@@ -4,7 +4,7 @@
     "nodes": [
         {
             "id": "basic_auth",
-            "type": "TASK_EXECUTOR",
+            "type": "TASK_EXECUTION",
             "inputData": [
                 {
                     "name": "username",

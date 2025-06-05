@@ -77,7 +77,10 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 		isFinalNode := (nodeDef.Type == string(constants.NodeTypeAuthSuccess))
 
 		// Construct a new node
-		node := model.NewNode(nodeDef.ID, nodeDef.Type, isStartNode, isFinalNode)
+		node, err := model.NewNode(nodeDef.ID, nodeDef.Type, isStartNode, isFinalNode)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create node %s: %w", nodeDef.ID, err)
+		}
 
 		// Convert and set input data from definition
 		inputData := make([]model.InputData, len(nodeDef.InputData))
@@ -107,7 +110,7 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 			node.SetExecutorConfig(executor)
 		}
 
-		err := g.AddNode(node)
+		err = g.AddNode(node)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add node %s to the graph: %w", nodeDef.ID, err)
 		}
