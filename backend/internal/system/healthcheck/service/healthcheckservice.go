@@ -20,10 +20,17 @@
 package service
 
 import (
+	"sync"
+
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/healthcheck/model"
 	"github.com/asgardeo/thunder/internal/system/log"
+)
+
+var (
+	instance *HealthCheckService
+	once     sync.Once
 )
 
 // HealthCheckServiceInterface defines the interface for the health check service.
@@ -34,13 +41,16 @@ type HealthCheckServiceInterface interface {
 // HealthCheckService is the default implementation of the HealthCheckServiceInterface.
 type HealthCheckService struct{}
 
-// GetHealthCheckService creates a new instance of HealthCheckService.
+// GetHealthCheckService returns a singleton instance of HealthCheckService.
 func GetHealthCheckService() HealthCheckServiceInterface {
-	return &HealthCheckService{}
+	once.Do(func() {
+		instance = &HealthCheckService{}
+	})
+	return instance
 }
 
 // CheckReadiness checks the readiness of the server and its dependencies.
-func (as *HealthCheckService) CheckReadiness() model.ServerStatus {
+func (hcs *HealthCheckService) CheckReadiness() model.ServerStatus {
 	configDBStatus := model.ServiceStatus{
 		ServiceName: "IdentityDB",
 		Status:      checkDatabaseStatus("identity", queryConfigDBTable),
@@ -65,7 +75,7 @@ func (as *HealthCheckService) CheckReadiness() model.ServerStatus {
 }
 
 // checkDatabaseStatus checks the status of the specified database with the specified query.
-func checkDatabaseStatus(dbname string, query dbmodel.DBQuery) string {
+func checkDatabaseStatus(dbname string, query dbmodel.DBQuery) model.Status {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "HealthCheckService"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient(dbname)

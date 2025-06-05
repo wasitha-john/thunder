@@ -37,6 +37,6 @@ func NewHealthCheckProvider() HealthCheckProviderInterface {
 }
 
 // GetHealthCheckService returns the health check service instance.
-func (ap *HealthCheckProvider) GetHealthCheckService() service.HealthCheckServiceInterface {
+func (hcp *HealthCheckProvider) GetHealthCheckService() service.HealthCheckServiceInterface {
 	return service.GetHealthCheckService()
 }

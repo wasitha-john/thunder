@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/healthcheck/model"
 	"github.com/asgardeo/thunder/internal/system/healthcheck/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -54,14 +55,14 @@ func (hch *HealthCheckHandler) HandleRedinessRequest(w http.ResponseWriter, r *h
 	serverstatus := healthcheckService.CheckReadiness()
 
 	if serverstatus.Status != model.StatusUp {
-		logger.Error("Readiness check failed", log.String("server status", serverstatus.Status))
+		logger.Error("Readiness check failed", log.String("serverstatus", string(serverstatus.Status)))
 		w.WriteHeader(http.StatusServiceUnavailable)
 	} else {
-		logger.Debug("Readiness check passed", log.String("server status", serverstatus.Status))
+		logger.Debug("Readiness check passed", log.String("serverstatus", string(serverstatus.Status)))
 		w.WriteHeader(http.StatusOK)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(constants.ContentTypeHeaderName, constants.ContentTypeJSON)
 	err := json.NewEncoder(w).Encode(serverstatus)
 	if err != nil {
 		logger.Error("Error while checking readiness", log.Error(err))
