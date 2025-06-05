@@ -127,7 +127,7 @@ const LoginPage = () => {
                 }
 
                 if (result.data?.type === "REDIRECTION") {
-                    let idpName = result.data?.additionalInfo?.idp_name;
+                    let idpName = result.data?.data?.additionalData?.idpName;
 
                     if (idpName) {
                         setIdpName(idpName);
@@ -145,7 +145,7 @@ const LoginPage = () => {
                         setShowSocialLoginButton(true);
                     }
 
-                    setSocialLoginRedirectURL(result.data?.additionalInfo?.redirect_url);
+                    setSocialLoginRedirectURL(result.data?.data?.redirectURL);
                 }
                 
                 setFlowId(result.data.flowId);

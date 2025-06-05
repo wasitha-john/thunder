@@ -78,7 +78,8 @@ func buildNodeResponse(execResp *ExecutorResponse) *NodeResponse {
 	nodeResp := &NodeResponse{
 		FailureReason:  execResp.FailureReason,
 		RequiredData:   execResp.RequiredData,
-		AdditionalInfo: execResp.AdditionalInfo,
+		AdditionalData: execResp.AdditionalData,
+		RedirectURL:    execResp.RedirectURL,
 		Assertion:      execResp.Assertion,
 	}
 

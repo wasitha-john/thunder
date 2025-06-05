@@ -27,7 +27,8 @@ import (
 type ExecutorResponse struct {
 	Status         constants.ExecutorStatus `json:"status"`
 	RequiredData   []InputData              `json:"required_data,omitempty"`
-	AdditionalInfo map[string]string        `json:"additional_info,omitempty"`
+	AdditionalData map[string]string        `json:"additional_data,omitempty"`
+	RedirectURL    string                   `json:"redirect_url,omitempty"`
 	Assertion      string                   `json:"assertion,omitempty"`
 	FailureReason  string                   `json:"failure_reason,omitempty"`
 }

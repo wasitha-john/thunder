@@ -310,7 +310,8 @@ Open the sample app in your browser and enter the username and password you crea
       "flowId": "db93a19e-c23f-4cfc-a45f-0e0bc157f6d5",
       "flowStatus": "PROMPT_ONLY",
       "type": "VIEW",
-      "inputs": [
+      "data": {
+        "inputs": [
           {
               "name": "username",
               "type": "string",
@@ -321,7 +322,8 @@ Open the sample app in your browser and enter the username and password you crea
               "type": "string",
               "required": true
           }
-      ]
+        ]
+      }
   }
   ```
 
@@ -404,21 +406,23 @@ Open the sample app in your browser and enter the username and password you crea
       "flowId": "80d57e64-8082-4096-bb0e-22b2187f8265",
       "flowStatus": "INCOMPLETE",
       "type": "REDIRECTION",
-      "inputs": [
-          {
-              "name": "code",
-              "type": "string",
-              "required": true
-          },
-          {
-              "name": "nonce",
-              "type": "string",
-              "required": false
+      "data": {
+          "redirectURL": "<google_auth_redirect_url>",
+          "inputs": [
+            {
+                "name": "code",
+                "type": "string",
+                "required": true
+            },
+            {
+                "name": "nonce",
+                "type": "string",
+                "required": false
+            }
+          ],
+          "additionalData": {
+            "idpName": "Google"
           }
-      ],
-      "additionalInfo": {
-          "redirect_url": "<google_auth_redirect_url>",
-          "idp_name": "Google"
       }
   }
   ```
@@ -508,16 +512,18 @@ Open the sample app in your browser and enter the username and password you crea
       "flowId": "80d57e64-8082-4096-bb0e-22b2187f8265",
       "flowStatus": "INCOMPLETE",
       "type": "REDIRECTION",
-      "inputs": [
+      "data": {
+        "redirectURL": "<github_auth_redirect_url>",
+        "inputs": [
           {
-              "name": "code",
-              "type": "string",
-              "required": true
+            "name": "code",
+            "type": "string",
+            "required": true
           }
-      ],
-      "additionalInfo": {
-          "redirect_url": "<github_auth_redirect_url>",
-          "idp_name": "Github"
+        ],
+        "additionalData": {
+          "idpName": "Github"
+        }
       }
   }
   ```

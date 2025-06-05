@@ -279,29 +279,28 @@ func (fe *FlowEngine) resolveStepForRedirection(nodeResp *model.NodeResponse, fl
 	if nodeResp == nil {
 		return errors.New("node response is nil")
 	}
-	if len(nodeResp.AdditionalInfo) == 0 {
-		return errors.New("additional info not found in the node response")
-	}
-	if nodeResp.AdditionalInfo[constants.DataRedirectURL] == "" {
-		return errors.New("redirect URL not found in the additional info")
+	if nodeResp.RedirectURL == "" {
+		return errors.New("redirect URL not found in the node response")
 	}
 
-	if flowStep.AdditionalInfo == nil {
-		flowStep.AdditionalInfo = make(map[string]string)
-		flowStep.AdditionalInfo = nodeResp.AdditionalInfo
+	if flowStep.Data.AdditionalData == nil {
+		flowStep.Data.AdditionalData = make(map[string]string)
+		flowStep.Data.AdditionalData = nodeResp.AdditionalData
 	} else {
 		// Append to the existing additional info
-		for key, value := range nodeResp.AdditionalInfo {
-			flowStep.AdditionalInfo[key] = value
+		for key, value := range nodeResp.AdditionalData {
+			flowStep.Data.AdditionalData[key] = value
 		}
 	}
 
-	if flowStep.InputData == nil {
-		flowStep.InputData = make([]model.InputData, 0)
-		flowStep.InputData = nodeResp.RequiredData
+	flowStep.Data.RedirectURL = nodeResp.RedirectURL
+
+	if flowStep.Data.Inputs == nil {
+		flowStep.Data.Inputs = make([]model.InputData, 0)
+		flowStep.Data.Inputs = nodeResp.RequiredData
 	} else {
 		// Append to the existing input data
-		flowStep.InputData = append(flowStep.InputData, nodeResp.RequiredData...)
+		flowStep.Data.Inputs = append(flowStep.Data.Inputs, nodeResp.RequiredData...)
 	}
 
 	flowStep.Status = constants.FlowStatusIncomplete
@@ -318,12 +317,12 @@ func (fe *FlowEngine) resolveStepDetailsForPrompt(nodeResp *model.NodeResponse, 
 		return errors.New("required data not found in the node response")
 	}
 
-	if flowStep.InputData == nil {
-		flowStep.InputData = make([]model.InputData, 0)
-		flowStep.InputData = nodeResp.RequiredData
+	if flowStep.Data.Inputs == nil {
+		flowStep.Data.Inputs = make([]model.InputData, 0)
+		flowStep.Data.Inputs = nodeResp.RequiredData
 	} else {
 		// Append to the existing input data
-		flowStep.InputData = append(flowStep.InputData, nodeResp.RequiredData...)
+		flowStep.Data.Inputs = append(flowStep.Data.Inputs, nodeResp.RequiredData...)
 	}
 
 	flowStep.Status = constants.FlowStatusIncomplete

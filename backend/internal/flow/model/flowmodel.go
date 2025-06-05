@@ -52,15 +52,21 @@ type NodeContext struct {
 
 // FlowStep represents the outcome of a individual flow step
 type FlowStep struct {
-	FlowID         string
-	StepID         string
-	Type           constants.FlowStepType
-	Status         constants.FlowStatus
-	InputData      []InputData
-	Actions        []Action
-	Assertion      string
-	AdditionalInfo map[string]string
-	FailureReason  string
+	FlowID        string
+	StepID        string
+	Type          constants.FlowStepType
+	Status        constants.FlowStatus
+	Data          FlowData
+	Assertion     string
+	FailureReason string
+}
+
+// FlowData holds the data returned by a flow execution step
+type FlowData struct {
+	Inputs         []InputData       `json:"inputs,omitempty"`
+	RedirectURL    string            `json:"redirectURL,omitempty"`
+	Actions        []Action          `json:"actions,omitempty"`
+	AdditionalData map[string]string `json:"additionalData,omitempty"`
 }
 
 // InputData represents the input data required for a flow step
@@ -83,22 +89,19 @@ type ExecutorModel struct {
 
 // FlowRequest represents the flow execution API request body
 type FlowRequest struct {
-	ApplicationID string `json:"applicationId"`
-	// CallbackURL   string            `json:"callbackUrl"`
-	FlowID   string            `json:"flowId"`
-	ActionID string            `json:"actionId"`
-	Inputs   map[string]string `json:"inputs"`
+	ApplicationID string            `json:"applicationId"`
+	FlowID        string            `json:"flowId"`
+	ActionID      string            `json:"actionId"`
+	Inputs        map[string]string `json:"inputs"`
 }
 
 // FlowResponse represents the flow execution API response body
 type FlowResponse struct {
-	FlowID         string            `json:"flowId"`
-	StepID         string            `json:"stepId,omitempty"`
-	FlowStatus     string            `json:"flowStatus"`
-	Type           string            `json:"type,omitempty"`
-	Actions        []Action          `json:"actions,omitempty"`
-	Inputs         []InputData       `json:"inputs,omitempty"`
-	AdditionalInfo map[string]string `json:"additionalInfo,omitempty"`
-	Assertion      string            `json:"assertion,omitempty"`
-	FailureReason  string            `json:"failureReason,omitempty"`
+	FlowID        string   `json:"flowId"`
+	StepID        string   `json:"stepId,omitempty"`
+	FlowStatus    string   `json:"flowStatus"`
+	Type          string   `json:"type,omitempty"`
+	Data          FlowData `json:"data,omitempty"`
+	Assertion     string   `json:"assertion,omitempty"`
+	FailureReason string   `json:"failureReason,omitempty"`
 }
