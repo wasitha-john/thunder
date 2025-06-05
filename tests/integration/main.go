@@ -31,34 +31,37 @@ const (
 	serverPort = "8095"
 )
 
+var zipFilePattern string
+
 func main() {
+	initTests()
 
 	// Step 1: Unzip the product
-	err := testutils.UnzipProduct()
+	err := testutils.UnzipProduct(zipFilePattern)
 	if err != nil {
 		fmt.Printf("Failed to unzip product: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	// Step 2: Replace the resource files in the unzipped directory.
-	err = testutils.ReplaceResources()
+	err = testutils.ReplaceResources(zipFilePattern)
 	if err != nil {
 		fmt.Printf("Failed to replace resources: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	// Step 3: Run the init script to create the SQLite database
-	err = testutils.RunInitScript()
+	err = testutils.RunInitScript(zipFilePattern)
 	if err != nil {
 		fmt.Printf("Failed to run init script: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	// Step 4: Start the server
-	serverCmd, err := testutils.StartServer(serverPort)
+	serverCmd, err := testutils.StartServer(serverPort, zipFilePattern)
 	if err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
-		return
+		os.Exit(1)
 	}
 	defer testutils.StopServer(serverCmd)
 
@@ -73,6 +76,15 @@ func main() {
 		testutils.StopServer(serverCmd)
 		os.Exit(1)
 	}
+}
+
+func initTests() {
+	zipFilePattern = testutils.GetZipFilePattern()
+	if zipFilePattern == "" {
+		fmt.Println("Failed to determine the zip file pattern.")
+		os.Exit(1)
+	}
+	fmt.Printf("Using zip file pattern: %s\n", zipFilePattern)
 }
 
 func runTests() error {
