@@ -136,21 +136,21 @@ func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext
 		log.String("executorID", o.GetID()), log.String("flowID", ctx.FlowID))
 	logger.Debug("Processing GitHub OAuth flow response")
 
-	// Process authorization code if available
 	code, ok := ctx.UserInputData["code"]
 	if ok && code != "" {
-		// Exchange authorization code for tokenResp
 		tokenResp, err := o.ExchangeCodeForToken(ctx, execResp, code)
 		if err != nil {
 			logger.Error("Failed to exchange code for a token", log.Error(err))
 			return fmt.Errorf("failed to exchange code for a token: %w", err)
 		}
+		if execResp.Status == flowconst.ExecFailure {
+			return nil
+		}
 
-		// Validate the token response
-		if tokenResp.AccessToken == "" {
-			logger.Debug("Access token is empty in the token response")
+		err = o.validateTokenResponse(tokenResp)
+		if err != nil {
 			execResp.Status = flowconst.ExecFailure
-			execResp.FailureReason = "Access token is empty in the token response."
+			execResp.FailureReason = err.Error()
 			return nil
 		}
 
@@ -164,43 +164,21 @@ func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext
 				AuthenticatedSubjectID: "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
 			}
 		} else {
-			// Get user info using the access token
-			userInfo, err := o.GetUserInfo(ctx, execResp, tokenResp.AccessToken)
+			authenticatedUser, err := o.getAuthenticatedUserWithAttributes(ctx, execResp, tokenResp.AccessToken)
 			if err != nil {
-				logger.Error("Failed to get user info", log.Error(err))
-				return fmt.Errorf("failed to get user info: %w", err)
+				return err
 			}
-			if execResp.Status == flowconst.ExecFailure {
+			if authenticatedUser == nil {
 				return nil
 			}
-
-			// Populate authenticated user from user info
-			username := userInfo["username"]
-
-			attributes := make(map[string]string)
-			for key, value := range userInfo {
-				if key != "username" && key != "sub" {
-					attributes[key] = value
-				}
-			}
-
-			ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
-				IsAuthenticated:        true,
-				UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-				Username:               username,
-				Domain:                 o.GetName(),
-				AuthenticatedSubjectID: username,
-				Attributes:             attributes,
-			}
+			ctx.AuthenticatedUser = *authenticatedUser
 		}
 	} else {
-		// Fail the authentication if the authorization code is not provided
 		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
 
-	// Set the flow response status based on the authentication result.
 	if ctx.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
 	} else {
@@ -322,4 +300,52 @@ func (o *GithubOAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *
 	}
 
 	return systemutils.ConvertInterfaceMapToStringMap(userInfo), nil
+}
+
+// validateTokenResponse validates the token response received from the github.
+func (o *GithubOAuthExecutor) validateTokenResponse(tokenResp *model.TokenResponse) error {
+	if tokenResp == nil {
+		return errors.New("token response is nil")
+	}
+	if tokenResp.AccessToken == "" {
+		return errors.New("access token is empty in the token response")
+	}
+	return nil
+}
+
+// getAuthenticatedUserWithAttributes retrieves the authenticated user with attributes from github.
+func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse, accessToken string) (*authnmodel.AuthenticatedUser, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, o.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+
+	userInfo, err := o.GetUserInfo(ctx, execResp, accessToken)
+	if err != nil {
+		logger.Error("Failed to get user info", log.Error(err))
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+	if execResp.Status == flowconst.ExecFailure {
+		return nil, nil
+	}
+
+	// Populate authenticated user from user info
+	username := userInfo["username"]
+	attributes := make(map[string]string)
+	for key, value := range userInfo {
+		if key != "username" && key != "sub" {
+			attributes[key] = value
+		}
+	}
+
+	authenticatedUser := authnmodel.AuthenticatedUser{
+		IsAuthenticated:        true,
+		UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		Username:               username,
+		Domain:                 o.GetName(),
+		AuthenticatedSubjectID: username,
+		Attributes:             attributes,
+	}
+
+	return &authenticatedUser, nil
 }

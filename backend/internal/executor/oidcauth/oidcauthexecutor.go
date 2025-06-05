@@ -170,10 +170,8 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Processing OIDC authentication response")
 
-	// Process authorization code if available
 	code, ok := ctx.UserInputData["code"]
 	if ok && code != "" {
-		// Exchange authorization code for tokenResp
 		tokenResp, err := o.ExchangeCodeForToken(ctx, execResp, code)
 		if err != nil {
 			logger.Error("Failed to exchange code for a token", log.Error(err))
@@ -183,23 +181,13 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 			return nil
 		}
 
-		// Validate the token response
-		if tokenResp.AccessToken == "" {
-			logger.Debug("Access token is empty in the token response")
+		err = o.validateTokenResponse(tokenResp)
+		if err != nil {
 			execResp.Status = flowconst.ExecFailure
-			execResp.FailureReason = "Access token is empty in the token response."
+			execResp.FailureReason = err.Error()
 			return nil
 		}
 
-		if tokenResp.Scope == "" && tokenResp.IDToken == "" {
-			execResp.Status = flowconst.ExecFailure
-			execResp.FailureReason = "ID token is empty in the token response."
-			return nil
-		}
-
-		userClaims := make(map[string]string)
-
-		// Validate the id token.
 		if err := o.ValidateIDToken(execResp, tokenResp.IDToken); err != nil {
 			return errors.New("failed to validate ID token: " + err.Error())
 		}
@@ -207,7 +195,6 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 			return nil
 		}
 
-		// Extract claims from the id token.
 		idTokenClaims, err := o.GetIDTokenClaims(execResp, tokenResp.IDToken)
 		if err != nil {
 			return errors.New("failed to extract ID token claims: " + err.Error())
@@ -215,58 +202,22 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 		if execResp.Status == flowconst.ExecFailure {
 			return nil
 		}
-		if len(idTokenClaims) != 0 {
-			// Filter non-user claims from the ID token claims.
-			for attr, val := range idTokenClaims {
-				if !slices.Contains(idTokenNonUserAttributes, attr) {
-					userClaims[attr] = systemutils.ConvertInterfaceValueToString(val)
-				}
-			}
-			logger.Debug("Extracted ID token claims", log.Any("claims", userClaims))
-		}
 
-		if len(o.GetOAuthProperties().Scopes) == 1 && slices.Contains(o.GetOAuthProperties().Scopes, "openid") {
-			logger.Debug("No additional scopes configured.")
-		} else {
-			// Get user info using the access token
-			userInfo, err := o.GetUserInfo(ctx, execResp, tokenResp.AccessToken)
-			if err != nil {
-				return errors.New("failed to get user info: " + err.Error())
-			}
-			if execResp.Status == flowconst.ExecFailure {
-				return nil
-			}
-			for key, value := range userInfo {
-				userClaims[key] = value
-			}
+		authenticatedUser, err := o.getAuthenticatedUserWithAttributes(ctx, execResp,
+			tokenResp.AccessToken, idTokenClaims)
+		if err != nil {
+			return err
 		}
-
-		// Determine username from the user claims.
-		username := ""
-		if sub, ok := userClaims["sub"]; ok {
-			username = sub
-			delete(userClaims, "sub")
+		if authenticatedUser == nil {
+			return nil
 		}
-		if email, ok := userClaims["email"]; ok && email != "" {
-			username = email
-		}
-
-		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
-			IsAuthenticated:        true,
-			UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-			Username:               username,
-			Domain:                 o.GetName(),
-			AuthenticatedSubjectID: username,
-			Attributes:             userClaims,
-		}
+		ctx.AuthenticatedUser = *authenticatedUser
 	} else {
-		// Fail the authentication if the authorization code is not provided
 		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
 
-	// Set the flow response status based on the authentication result.
 	if ctx.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
 	} else {
@@ -330,4 +281,76 @@ func (o *OIDCAuthExecutor) GetIDTokenClaims(execResp *flowmodel.ExecutorResponse
 
 	logger.Debug("ID token claims extracted successfully", log.Any("numClaims", len(claims)))
 	return claims, nil
+}
+
+// validateTokenResponse validates the token response received from the OIDC provider.
+func (o *OIDCAuthExecutor) validateTokenResponse(tokenResp *model.TokenResponse) error {
+	if tokenResp == nil {
+		return errors.New("token response is nil")
+	}
+	if tokenResp.AccessToken == "" {
+		return errors.New("access token is empty in the token response")
+	}
+	if tokenResp.IDToken == "" {
+		return errors.New("ID token is empty in the token response")
+	}
+	return nil
+}
+
+// getAuthenticatedUserWithAttributes constructs the authenticated user object with attributes from the
+// ID token and user info.
+func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse, accessToken string,
+	idTokenClaims map[string]interface{}) (*authnmodel.AuthenticatedUser, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, o.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+
+	userClaims := make(map[string]string)
+	if len(idTokenClaims) != 0 {
+		// Filter non-user claims from the ID token claims.
+		for attr, val := range idTokenClaims {
+			if !slices.Contains(idTokenNonUserAttributes, attr) {
+				userClaims[attr] = systemutils.ConvertInterfaceValueToString(val)
+			}
+		}
+		logger.Debug("Extracted ID token claims", log.Any("claims", userClaims))
+	}
+
+	if len(o.GetOAuthProperties().Scopes) == 1 && slices.Contains(o.GetOAuthProperties().Scopes, "openid") {
+		logger.Debug("No additional scopes configured.")
+	} else {
+		// Get user info using the access token
+		userInfo, err := o.GetUserInfo(ctx, execResp, accessToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user info: %w", err)
+		}
+		if execResp.Status == flowconst.ExecFailure {
+			return nil, nil
+		}
+		for key, value := range userInfo {
+			userClaims[key] = value
+		}
+	}
+
+	// Determine username from the user claims.
+	username := ""
+	if sub, ok := userClaims["sub"]; ok {
+		username = sub
+		delete(userClaims, "sub")
+	}
+	if email, ok := userClaims["email"]; ok && email != "" {
+		username = email
+	}
+
+	authenticatedUser := authnmodel.AuthenticatedUser{
+		IsAuthenticated:        true,
+		UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		Username:               username,
+		Domain:                 o.GetName(),
+		AuthenticatedSubjectID: username,
+		Attributes:             userClaims,
+	}
+
+	return &authenticatedUser, nil
 }

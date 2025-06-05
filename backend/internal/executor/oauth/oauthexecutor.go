@@ -172,26 +172,10 @@ func (o *OAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execResp 
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Initiating OAuth authentication flow")
 
-	// Construct and add the redirect URL for OAuth authentication
-	var queryParams = make(map[string]string)
-	queryParams[oauth2const.ClientID] = o.oAuthProperties.ClientID
-	queryParams[oauth2const.RedirectURI] = o.oAuthProperties.RedirectURI
-	queryParams[oauth2const.ResponseType] = oauth2const.Code
-	queryParams[oauth2const.Scope] = authnutils.GetScopesString(o.oAuthProperties.Scopes)
-
-	// append any configured additional parameters as query params.
-	additionalParams := o.oAuthProperties.AdditionalParams
-	if len(additionalParams) > 0 {
-		for key, value := range additionalParams {
-			if key != "" && value != "" {
-				resolvedValue, err := utils.GetResolvedAdditionalParam(key, value, ctx)
-				if err != nil {
-					logger.Error("Failed to resolve additional parameter", log.String("key", key), log.Error(err))
-					return fmt.Errorf("failed to resolve additional parameter %s: %w", key, err)
-				}
-				queryParams[key] = resolvedValue
-			}
-		}
+	queryParams, err := o.getQueryParams(ctx)
+	if err != nil {
+		logger.Error("Failed to construct query parameters", log.Error(err))
+		return fmt.Errorf("failed to construct query parameters: %w", err)
 	}
 
 	// Construct the authorization URL
@@ -219,10 +203,8 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Processing OAuth authentication response")
 
-	// Process authorization code if available
 	code, ok := ctx.UserInputData["code"]
 	if ok && code != "" {
-		// Exchange authorization code for tokenResp
 		tokenResp, err := o.ExchangeCodeForToken(ctx, execResp, code)
 		if err != nil {
 			logger.Error("Failed to exchange code for a token", log.Error(err))
@@ -232,11 +214,10 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 			return nil
 		}
 
-		// Validate the token response
-		if tokenResp.AccessToken == "" {
-			logger.Debug("Access token is empty in the token response")
+		err = o.validateTokenResponse(tokenResp)
+		if err != nil {
 			execResp.Status = flowconst.ExecFailure
-			execResp.FailureReason = "Access token is empty in the token response."
+			execResp.FailureReason = err.Error()
 			return nil
 		}
 
@@ -250,43 +231,21 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 				AuthenticatedSubjectID: "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
 			}
 		} else {
-			// Get user info using the access token
-			userInfo, err := o.GetUserInfo(ctx, execResp, tokenResp.AccessToken)
+			authenticatedUser, err := o.getAuthenticatedUserWithAttributes(ctx, execResp, tokenResp.AccessToken)
 			if err != nil {
-				logger.Error("Failed to get user info", log.Error(err))
-				return fmt.Errorf("failed to get user info: %w", err)
+				return err
 			}
-			if execResp.Status == flowconst.ExecFailure {
+			if authenticatedUser == nil {
 				return nil
 			}
-
-			// Populate authenticated user from user info
-			username := userInfo["username"]
-
-			attributes := make(map[string]string)
-			for key, value := range userInfo {
-				if key != "username" && key != "sub" {
-					attributes[key] = value
-				}
-			}
-
-			ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
-				IsAuthenticated:        true,
-				UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-				Username:               username,
-				Domain:                 o.GetName(),
-				AuthenticatedSubjectID: username,
-				Attributes:             attributes,
-			}
+			ctx.AuthenticatedUser = *authenticatedUser
 		}
 	} else {
-		// Fail the authentication if the authorization code is not provided
 		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
 
-	// Set the flow response status based on the authentication result.
 	if ctx.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
 	} else {
@@ -426,4 +385,80 @@ func (o *OAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *flowmo
 	}
 
 	return systemutils.ConvertInterfaceMapToStringMap(userInfo), nil
+}
+
+// getQueryParams constructs the query parameters for the OAuth authorization request.
+func (o *OAuthExecutor) getQueryParams(ctx *flowmodel.NodeContext) (map[string]string, error) {
+	var queryParams = make(map[string]string)
+	queryParams[oauth2const.ClientID] = o.oAuthProperties.ClientID
+	queryParams[oauth2const.RedirectURI] = o.oAuthProperties.RedirectURI
+	queryParams[oauth2const.ResponseType] = oauth2const.Code
+	queryParams[oauth2const.Scope] = authnutils.GetScopesString(o.oAuthProperties.Scopes)
+
+	// append any configured additional parameters.
+	additionalParams := o.oAuthProperties.AdditionalParams
+	if len(additionalParams) > 0 {
+		for key, value := range additionalParams {
+			if key != "" && value != "" {
+				resolvedValue, err := utils.GetResolvedAdditionalParam(key, value, ctx)
+				if err != nil {
+					return nil, fmt.Errorf("failed to resolve additional parameter %s: %w", key, err)
+				}
+				queryParams[key] = resolvedValue
+			}
+		}
+	}
+
+	return queryParams, nil
+}
+
+// validateTokenResponse validates the token response received from the OAuth provider.
+func (o *OAuthExecutor) validateTokenResponse(tokenResp *model.TokenResponse) error {
+	if tokenResp == nil {
+		return fmt.Errorf("token response is nil")
+	}
+	if tokenResp.AccessToken == "" {
+		return fmt.Errorf("access token is empty in the token response")
+	}
+	return nil
+}
+
+// getAuthenticatedUserWithAttributes retrieves the authenticated user information with additional attributes
+// from the OAuth provider using the access token.
+func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse, accessToken string) (*authnmodel.AuthenticatedUser, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, o.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+
+	// Get user info using the access token
+	userInfo, err := o.GetUserInfo(ctx, execResp, accessToken)
+	if err != nil {
+		logger.Error("Failed to get user info", log.Error(err))
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+	if execResp.Status == flowconst.ExecFailure {
+		return nil, nil
+	}
+
+	// Populate authenticated user from user info
+	username := userInfo["username"]
+
+	attributes := make(map[string]string)
+	for key, value := range userInfo {
+		if key != "username" && key != "sub" {
+			attributes[key] = value
+		}
+	}
+
+	authenticatedUser := authnmodel.AuthenticatedUser{
+		IsAuthenticated:        true,
+		UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		Username:               username,
+		Domain:                 o.GetName(),
+		AuthenticatedSubjectID: username,
+		Attributes:             attributes,
+	}
+
+	return &authenticatedUser, nil
 }
