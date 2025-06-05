@@ -46,17 +46,12 @@ type FlowServiceInterface interface {
 }
 
 // FlowService is the implementation of FlowServiceInterface
-type FlowService struct {
-	store map[string]model.EngineContext
-	mu    sync.Mutex
-}
+type FlowService struct{}
 
 // GetFlowService returns a singleton instance of FlowService
 func GetFlowService() FlowServiceInterface {
 	once.Do(func() {
-		instance = &FlowService{
-			store: make(map[string]model.EngineContext),
-		}
+		instance = &FlowService{}
 	})
 	return instance
 }
@@ -166,16 +161,12 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 		return nil, &constants.ErrorInputDataNotFound
 	}
 
-	s.mu.Lock()
-	ctx, ok := s.store[flowID]
-	if !ok {
-		s.mu.Unlock()
-		logger.Error("Flow context not found in the store")
+	flowDAO := dao.GetFlowDAO()
+	ctx, exists := flowDAO.GetContextFromStore(flowID)
+	if !exists {
 		return nil, &constants.ErrorInvalidFlowID
 	}
-
-	delete(s.store, flowID)
-	s.mu.Unlock()
+	s.removeContext(flowID, logger)
 
 	ctx.CurrentActionID = actionID
 
@@ -184,10 +175,12 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 
 // removeContext removes the flow context from the store.
 func (s *FlowService) removeContext(flowID string, logger *log.Logger) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	delete(s.store, flowID)
+	flowDAO := dao.GetFlowDAO()
+	err := flowDAO.RemoveContextFromStore(flowID)
+	if err != nil {
+		logger.Error("Failed to remove flow context from the store", log.String("flowID", flowID), log.Error(err))
+		return
+	}
 	logger.Debug("Flow context removed from the store", log.String("flowID", flowID))
 }
 
@@ -199,9 +192,12 @@ func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.Fl
 		logger.Debug("Flow execution is incomplete, storing the flow context",
 			log.String("flowID", ctx.FlowID))
 
-		s.mu.Lock()
-		s.store[ctx.FlowID] = *ctx
-		s.mu.Unlock()
+		flowDAO := dao.GetFlowDAO()
+		if err := flowDAO.StoreContextInStore(ctx.FlowID, *ctx); err != nil {
+			logger.Error("Failed to store flow context in the store", log.String("flowID", ctx.FlowID), log.Error(err))
+			return
+		}
+		logger.Debug("Flow context stored in the store", log.String("flowID", ctx.FlowID))
 	}
 }
 

@@ -45,18 +45,25 @@ type FlowDAOInterface interface {
 	RegisterGraph(graphID string, g model.GraphInterface)
 	GetGraph(graphID string) (model.GraphInterface, bool)
 	IsValidGraphID(graphID string) bool
+	GetContextFromStore(flowID string) (model.EngineContext, bool)
+	StoreContextInStore(flowID string, context model.EngineContext) error
+	RemoveContextFromStore(flowID string) error
 }
 
 // FlowDAO is the implementation of FlowDAOInterface.
 type FlowDAO struct {
-	graphs map[string]model.GraphInterface
+	graphs   map[string]model.GraphInterface
+	ctxStore map[string]model.EngineContext
+	mu       sync.Mutex
 }
 
 // GetFlowDAO returns a singleton instance of FlowDAOInterface.
 func GetFlowDAO() FlowDAOInterface {
 	once.Do(func() {
 		instance = &FlowDAO{
-			graphs: make(map[string]model.GraphInterface),
+			graphs:   make(map[string]model.GraphInterface),
+			ctxStore: make(map[string]model.EngineContext),
+			mu:       sync.Mutex{},
 		}
 	})
 	return instance
@@ -162,4 +169,45 @@ func (c *FlowDAO) IsValidGraphID(graphID string) bool {
 	}
 	_, exists := c.graphs[graphID]
 	return exists
+}
+
+// GetContextFromStore retrieves the flow context from the store based on the flow ID.
+func (c *FlowDAO) GetContextFromStore(flowID string) (model.EngineContext, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ctx, exists := c.ctxStore[flowID]
+	if !exists {
+		return model.EngineContext{}, false
+	}
+	return ctx, true
+}
+
+// StoreContextInStore stores the flow context in the store based on the flow ID.
+func (c *FlowDAO) StoreContextInStore(flowID string, context model.EngineContext) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if flowID == "" {
+		return fmt.Errorf("flow ID cannot be empty")
+	}
+
+	c.ctxStore[flowID] = context
+	return nil
+}
+
+// RemoveContextFromStore removes the flow context from the store based on the flow ID.
+func (c *FlowDAO) RemoveContextFromStore(flowID string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if flowID == "" {
+		return fmt.Errorf("flow ID cannot be empty")
+	}
+
+	if _, exists := c.ctxStore[flowID]; !exists {
+		return nil
+	}
+	delete(c.ctxStore, flowID)
+	return nil
 }
