@@ -20,6 +20,7 @@ import Alert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import Checkbox from '@mui/material/Checkbox';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -62,6 +63,7 @@ const LoginPage = () => {
     const [errorMessage, setErrorMessage] = useState<string>('Login failed');
     const [connectionError, setConnectionError] = useState<boolean>(false);
 
+    const [loading, setLoading] = useState<boolean>(true);
     const [flowId, setFlowId] = useState<string>(sessionStorage.getItem(FLOW_ID_KEY) || '');
     const [startInit] = useState<boolean>(JSON.parse(sessionStorage.getItem(START_INIT_KEY) || 'true'));
 
@@ -77,6 +79,22 @@ const LoginPage = () => {
     const [showGoogleLoginButton, setShowGoogleLoginButton] = useState<boolean>(false);
     const [showSocialLoginButton, setShowSocialLoginButton] = useState<boolean>(false);
     const [socialLoginRedirectURL, setSocialLoginRedirectURL] = useState<string>('');
+
+    const GradientCircularProgress = () => {
+        return (
+          <>
+            <svg width={0} height={0}>
+              <defs>
+                <linearGradient id="my_gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#fc4700" />
+                  <stop offset="100%" stopColor="#f87643" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <CircularProgress sx={{ 'svg circle': { stroke: 'url(#my_gradient)' } }} />
+          </>
+        );
+    }
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = event.target;
@@ -131,9 +149,11 @@ const LoginPage = () => {
                 }
                 
                 setFlowId(result.data.flowId);
+                setLoading(false);
             }).catch((error) => {
                 console.error("Error during authentication:", error);
                 setConnectionError(true);
+                setLoading(false);
             });
     }, [clearToken]);
 
@@ -152,8 +172,11 @@ const LoginPage = () => {
                     setError(true);
                     setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
                 }
+
+                setLoading(false);
             }).catch((error) => {
                 console.error("Error during authentication:", error);
+
                 // Check if it's a network error or authentication error
                 if (error.message && error.message.includes("Network Error")) {
                     setConnectionError(true);
@@ -161,6 +184,8 @@ const LoginPage = () => {
                     setError(true);
                     init();
                 }
+
+                setLoading(false);
             });
     };
 
@@ -214,183 +239,187 @@ const LoginPage = () => {
 
     return (
         <Layout>
-            <Grid size={{ xs: 12, md: 6 }}>
-                <Paper
-                    sx={{
-                        display: "flex",
-                        width: "100%",
-                        height: "100%",
-                        flexDirection: "column",
-                    }}
-                >
-                    <Box
+            { loading ? (
+                <GradientCircularProgress />
+            ) : (
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <Paper
                         sx={{
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: 6,
+                            display: "flex",
                             width: "100%",
-                            maxWidth: 500,
-                            margin: "auto",
+                            height: "100%",
+                            flexDirection: "column",
                         }}
                     >
-                        <Box>
-                            <Box sx={{ mb: 4 }}>
-                                <Typography variant="h5" gutterBottom>
-                                Login to Account
-                                </Typography>
+                        <Box
+                            sx={{
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 6,
+                                width: "100%",
+                                maxWidth: 500,
+                                margin: "auto",
+                            }}
+                        >
+                            <Box>
+                                <Box sx={{ mb: 4 }}>
+                                    <Typography variant="h5" gutterBottom>
+                                    Login to Account
+                                    </Typography>
 
-                                {showSignUp && (
-                                <Typography>
-                                    Don&apos;t have an account <Link href="">Sign up!</Link>
-                                </Typography>
-                                )}
-                            </Box>
-                            
-                            {connectionError && (
-                                <ConnectionErrorModal 
-                                    onRetry={handleRetry}
-                                />
-                            )}
-
-                            {error && !connectionError && (
-                                <Alert severity="error" sx={{ my: 2 }}>
-                                    {errorMessage}
-                                </Alert>
-                            )}
-
-                            {!connectionError && (
-                                <>
-                                    {(showGoogleLoginButton || showGitHubLoginButton || showSocialLoginButton) && (
-                                        <>
-                                            <Box>
-                                                { showGoogleLoginButton && (
-                                                    <Button
-                                                        fullWidth
-                                                        variant="contained"
-                                                        startIcon={<GoogleIcon />}
-                                                        color="secondary"
-                                                        onClick={() => handleSocialLoginClick()}
-                                                        sx={{ my: 1 }}
-                                                    >
-                                                        Continue with { idpName }
-                                                    </Button>
-                                                )}
-                                                { showGitHubLoginButton && (
-                                                    <Button
-                                                        fullWidth
-                                                        variant="contained"
-                                                        startIcon={<GitHubIcon />}
-                                                        color="secondary"
-                                                        onClick={() => handleSocialLoginClick()}
-                                                        sx={{ my: 1 }}
-                                                    >
-                                                        Continue with { idpName }
-                                                    </Button>
-                                                )}
-                                                { showSocialLoginButton && (
-                                                    <Button
-                                                        fullWidth
-                                                        variant="contained"
-                                                        startIcon={<AccountCircleIcon />}
-                                                        color="secondary"
-                                                        onClick={() => handleSocialLoginClick()}
-                                                        sx={{ my: 1 }}
-                                                    >
-                                                        Continue with { idpName }
-                                                    </Button>
-                                                )}
-                                            </Box>
-                                            
-                                            { userNamePasswordLogin &&
-                                                <Divider sx={{ my: 3 }}>or</Divider>
-                                            }
-                                        </>
+                                    {showSignUp && (
+                                    <Typography>
+                                        Don&apos;t have an account <Link href="">Sign up!</Link>
+                                    </Typography>
                                     )}
+                                </Box>
+                                
+                                {connectionError && (
+                                    <ConnectionErrorModal 
+                                        onRetry={handleRetry}
+                                    />
+                                )}
 
-                                    { userNamePasswordLogin &&
-                                        <form onSubmit={handelBasicAuthSubmit}>
-                                            <Box display="flex" flexDirection="column" gap={2}>
-                                                <Box display="flex" flexDirection="column" gap={0.5}>
-                                                    <InputLabel htmlFor="username">Username</InputLabel>
-                                                    <OutlinedInput
-                                                        type="text"
-                                                        id="username"
-                                                        name="username"
-                                                        placeholder="Enter your username"
-                                                        size="small"
-                                                        value={basicAuthFormData.username}
-                                                        onChange={handleInputChange}
-                                                        required
-                                                    />
+                                {error && !connectionError && (
+                                    <Alert severity="error" sx={{ my: 2 }}>
+                                        {errorMessage}
+                                    </Alert>
+                                )}
+
+                                {!connectionError && (
+                                    <>
+                                        {(showGoogleLoginButton || showGitHubLoginButton || showSocialLoginButton) && (
+                                            <>
+                                                <Box>
+                                                    { showGoogleLoginButton && (
+                                                        <Button
+                                                            fullWidth
+                                                            variant="contained"
+                                                            startIcon={<GoogleIcon />}
+                                                            color="secondary"
+                                                            onClick={() => handleSocialLoginClick()}
+                                                            sx={{ my: 1 }}
+                                                        >
+                                                            Continue with { idpName }
+                                                        </Button>
+                                                    )}
+                                                    { showGitHubLoginButton && (
+                                                        <Button
+                                                            fullWidth
+                                                            variant="contained"
+                                                            startIcon={<GitHubIcon />}
+                                                            color="secondary"
+                                                            onClick={() => handleSocialLoginClick()}
+                                                            sx={{ my: 1 }}
+                                                        >
+                                                            Continue with { idpName }
+                                                        </Button>
+                                                    )}
+                                                    { showSocialLoginButton && (
+                                                        <Button
+                                                            fullWidth
+                                                            variant="contained"
+                                                            startIcon={<AccountCircleIcon />}
+                                                            color="secondary"
+                                                            onClick={() => handleSocialLoginClick()}
+                                                            sx={{ my: 1 }}
+                                                        >
+                                                            Continue with { idpName }
+                                                        </Button>
+                                                    )}
                                                 </Box>
-                                                <Box display="flex" flexDirection="column" gap={0.5}>
-                                                    <InputLabel htmlFor="password">Password</InputLabel>
-                                                    <OutlinedInput
-                                                        type={showPassword ? 'text' : 'password'}
-                                                        id="password"
-                                                        name="password"
-                                                        placeholder="Enter your password"
-                                                        size="small"
-                                                        value={basicAuthFormData.password}
-                                                        onChange={handleInputChange}
-                                                        required
-                                                        endAdornment={
-                                                            <InputAdornment position="end">
-                                                                <IconButton
-                                                                    aria-label="toggle password visibility"
-                                                                    onClick={handleTogglePasswordVisibility}
-                                                                    onMouseDown={handleMouseDownPassword}
-                                                                    edge="end"
-                                                                >
-                                                                    { showPassword ?
-                                                                        <VisibilityOff /> : <Visibility />
-                                                                    }
-                                                                </IconButton>
-                                                            </InputAdornment>
-                                                        }
-                                                    />
-                                                </Box>
-                                                { (showRememberMe || showForgotPassword) && (
-                                                    <Box
-                                                        sx={{
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'center',
-                                                        }}
-                                                    >
-                                                        { showRememberMe && (
-                                                            <FormControlLabel
-                                                                control={<Checkbox name="remember-me-checkbox" />} 
-                                                                label="Remember me" />
-                                                        )}
-                                                        { showForgotPassword &&
-                                                            <Link href="">Forgot your password?</Link>
-                                                        }
+                                                
+                                                { userNamePasswordLogin &&
+                                                    <Divider sx={{ my: 3 }}>or</Divider>
+                                                }
+                                            </>
+                                        )}
+
+                                        { userNamePasswordLogin &&
+                                            <form onSubmit={handelBasicAuthSubmit}>
+                                                <Box display="flex" flexDirection="column" gap={2}>
+                                                    <Box display="flex" flexDirection="column" gap={0.5}>
+                                                        <InputLabel htmlFor="username">Username</InputLabel>
+                                                        <OutlinedInput
+                                                            type="text"
+                                                            id="username"
+                                                            name="username"
+                                                            placeholder="Enter your username"
+                                                            size="small"
+                                                            value={basicAuthFormData.username}
+                                                            onChange={handleInputChange}
+                                                            required
+                                                        />
                                                     </Box>
-                                                )}
-                                                <Button
-                                                    variant="contained"
-                                                    color="primary"
-                                                    type="submit"
-                                                    fullWidth
-                                                    sx={{ mt: 2 }}
-                                                >
-                                                    Sign In
-                                                </Button>
-                                            </Box>
-                                        </form>
-                                    }
-                                </>
-                            )}
-                            <Box component="footer" sx={{ mt: 6 }}>
-                                <Typography sx={{ textAlign: "center" }}>
-                                    © Copyright {new Date().getFullYear()}
-                                </Typography>
+                                                    <Box display="flex" flexDirection="column" gap={0.5}>
+                                                        <InputLabel htmlFor="password">Password</InputLabel>
+                                                        <OutlinedInput
+                                                            type={showPassword ? 'text' : 'password'}
+                                                            id="password"
+                                                            name="password"
+                                                            placeholder="Enter your password"
+                                                            size="small"
+                                                            value={basicAuthFormData.password}
+                                                            onChange={handleInputChange}
+                                                            required
+                                                            endAdornment={
+                                                                <InputAdornment position="end">
+                                                                    <IconButton
+                                                                        aria-label="toggle password visibility"
+                                                                        onClick={handleTogglePasswordVisibility}
+                                                                        onMouseDown={handleMouseDownPassword}
+                                                                        edge="end"
+                                                                    >
+                                                                        { showPassword ?
+                                                                            <VisibilityOff /> : <Visibility />
+                                                                        }
+                                                                    </IconButton>
+                                                                </InputAdornment>
+                                                            }
+                                                        />
+                                                    </Box>
+                                                    { (showRememberMe || showForgotPassword) && (
+                                                        <Box
+                                                            sx={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            }}
+                                                        >
+                                                            { showRememberMe && (
+                                                                <FormControlLabel
+                                                                    control={<Checkbox name="remember-me-checkbox" />} 
+                                                                    label="Remember me" />
+                                                            )}
+                                                            { showForgotPassword &&
+                                                                <Link href="">Forgot your password?</Link>
+                                                            }
+                                                        </Box>
+                                                    )}
+                                                    <Button
+                                                        variant="contained"
+                                                        color="primary"
+                                                        type="submit"
+                                                        fullWidth
+                                                        sx={{ mt: 2 }}
+                                                    >
+                                                        Sign In
+                                                    </Button>
+                                                </Box>
+                                            </form>
+                                        }
+                                    </>
+                                )}
+                                <Box component="footer" sx={{ mt: 6 }}>
+                                    <Typography sx={{ textAlign: "center" }}>
+                                        © Copyright {new Date().getFullYear()}
+                                    </Typography>
+                                </Box>
                             </Box>
                         </Box>
-                    </Box>
-                </Paper>
-            </Grid>
+                    </Paper>
+                </Grid>
+            )}
         </Layout>
     );
 };
