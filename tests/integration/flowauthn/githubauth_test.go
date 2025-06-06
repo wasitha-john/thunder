@@ -61,9 +61,9 @@ func (ts *GithubAuthFlowTestSuite) TestGithubAuthFlowInitiation() {
 	ts.Require().NotEmpty(flowStep.FlowID, "Flow ID should not be empty")
 
 	// Validate redirect information
-	ts.Require().NotEmpty(flowStep.AdditionalInfo, "Additional info should not be empty")
-	redirectURLStr, ok := flowStep.AdditionalInfo["redirect_url"]
-	ts.Require().True(ok, "Redirect URL should be present in additional info")
+	ts.Require().NotEmpty(flowStep.Data, "Flow data should not be empty")
+	ts.Require().NotEmpty(flowStep.Data.RedirectURL, "Redirect URL should not be empty")
+	redirectURLStr := flowStep.Data.RedirectURL
 	ts.Require().True(strings.HasPrefix(redirectURLStr, "https://github.com/login/oauth/authorize"),
 		"Redirect URL should point to GitHub authentication")
 

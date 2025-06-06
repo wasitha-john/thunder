@@ -21,13 +21,18 @@ package flowauthn
 import "encoding/json"
 
 type FlowStep struct {
-	FlowID         string            `json:"flowId"`
-	FlowStatus     string            `json:"flowStatus"`
-	Type           string            `json:"type,omitempty"`
+	FlowID        string   `json:"flowId"`
+	FlowStatus    string   `json:"flowStatus"`
+	Type          string   `json:"type,omitempty"`
+	Data          FlowData `json:"data,omitempty"`
+	Assertion     string   `json:"assertion,omitempty"`
+	FailureReason string   `json:"failureReason,omitempty"`
+}
+
+type FlowData struct {
 	Inputs         []InputData       `json:"inputs,omitempty"`
-	AdditionalInfo map[string]string `json:"additionalInfo,omitempty"`
-	Assertion      string            `json:"assertion,omitempty"`
-	FailureReason  string            `json:"failureReason,omitempty"`
+	RedirectURL    string            `json:"redirectURL,omitempty"`
+	AdditionalData map[string]string `json:"additionalData,omitempty"`
 }
 
 type InputData struct {

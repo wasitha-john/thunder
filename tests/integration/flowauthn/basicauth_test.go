@@ -82,11 +82,12 @@ func (ts *BasicAuthFlowTestSuite) TestBasicAuthFlowSuccess() {
 	ts.Require().NotEmpty(flowStep.FlowID, "Flow ID should not be empty")
 
 	// Validate that the required inputs are returned
-	ts.Require().NotEmpty(flowStep.Inputs, "Flow should require inputs")
+	ts.Require().NotEmpty(flowStep.Data, "Flow data should not be empty")
+	ts.Require().NotEmpty(flowStep.Data.Inputs, "Flow should require inputs")
 
 	// Verify username and password are required inputs
 	var hasUsername, hasPassword bool
-	for _, input := range flowStep.Inputs {
+	for _, input := range flowStep.Data.Inputs {
 		if input.Name == "username" {
 			hasUsername = true
 		}
@@ -137,7 +138,7 @@ func (ts *BasicAuthFlowTestSuite) TestBasicAuthFlowSuccessWithSingleRequest() {
 
 	// Verify successful authentication
 	ts.Require().Equal("COMPLETE", flowStep.FlowStatus, "Expected flow status to be COMPLETE")
-	ts.Require().Empty(flowStep.Inputs, "Flow should not require additional inputs after providing credentials")
+	ts.Require().Empty(flowStep.Data, "Flow should not require additional data after successful authentication")
 	ts.Require().NotEmpty(flowStep.Assertion,
 		"JWT assertion should be returned after successful authentication")
 	ts.Require().Empty(flowStep.FailureReason, "Failure reason should be empty for successful authentication")
@@ -171,11 +172,12 @@ func (ts *BasicAuthFlowTestSuite) TestBasicAuthFlowWithTwoStepInput() {
 	ts.Require().NotEmpty(intermediateFlowStep.FlowID, "Flow ID should not be empty")
 
 	// Validate that the required inputs are returned
-	ts.Require().NotEmpty(intermediateFlowStep.Inputs, "Flow should require inputs")
+	ts.Require().NotEmpty(intermediateFlowStep.Data, "Flow data should not be empty")
+	ts.Require().NotEmpty(intermediateFlowStep.Data.Inputs, "Flow should require inputs")
 
 	// Verify password is required input
 	var hasPassword bool
-	for _, input := range flowStep.Inputs {
+	for _, input := range flowStep.Data.Inputs {
 		if input.Name == "password" {
 			hasPassword = true
 		}
@@ -249,7 +251,8 @@ func (ts *BasicAuthFlowTestSuite) TestBasicAuthFlowInvalidFlowID() {
 	ts.Require().Equal("INCOMPLETE", flowStep.FlowStatus, "Expected flow status to be INCOMPLETE")
 	ts.Require().Equal("VIEW", flowStep.Type, "Expected flow type to be VIEW")
 	ts.Require().NotEmpty(flowStep.FlowID, "Flow ID should not be empty")
-	ts.Require().NotEmpty(flowStep.Inputs, "Flow should require inputs")
+	ts.Require().NotEmpty(flowStep.Data, "Flow data should not be empty")
+	ts.Require().NotEmpty(flowStep.Data.Inputs, "Flow should require inputs")
 
 	// Step 2: Attempt to complete a flow with an invalid flow ID
 	inputs := map[string]string{

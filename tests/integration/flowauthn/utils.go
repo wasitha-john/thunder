@@ -43,7 +43,7 @@ func initiateAuthFlow(appID string, inputs map[string]string) (*FlowStep, error)
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", testServerURL+"/flow/execution", bytes.NewReader(reqBody))
+	req, err := http.NewRequest("POST", testServerURL+"/flow/execute", bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create flow request: %w", err)
 	}
@@ -90,7 +90,7 @@ func initiateAuthFlowWithError(appID string, inputs map[string]string) (*ErrorRe
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", testServerURL+"/flow/execution", bytes.NewReader(reqBody))
+	req, err := http.NewRequest("POST", testServerURL+"/flow/execute", bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create flow request: %w", err)
 	}
@@ -136,7 +136,7 @@ func completeAuthFlow(flowID string, inputs map[string]string) (*FlowStep, error
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", testServerURL+"/flow/execution", bytes.NewReader(reqBody))
+	req, err := http.NewRequest("POST", testServerURL+"/flow/execute", bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create flow request: %w", err)
 	}
@@ -182,7 +182,7 @@ func completeAuthFlowWithError(flowID string, inputs map[string]string) (*ErrorR
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", testServerURL+"/flow/execution", bytes.NewReader(reqBody))
+	req, err := http.NewRequest("POST", testServerURL+"/flow/execute", bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create flow request: %w", err)
 	}
