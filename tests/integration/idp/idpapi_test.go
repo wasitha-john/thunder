@@ -50,19 +50,26 @@ var (
 			ClientID:    "client1",
 			Scopes:      json.RawMessage(`["user:email","read:user"]`),
 		},
+		{
+			ID:          "550e8400-e29b-41d4-a716-446655440002",
+			Name:        "Google",
+			Description: "Login with Google",
+			ClientID:    "client1",
+			Scopes:      json.RawMessage(`["openid","email","profile"]`),
+		},
 	}
 
 	idpToCreate = IDP{
-		Name:         "Google",
+		Name:         "Google 2",
 		Description:  "Google User Login",
 		ClientID:     "client2",
 		ClientSecret: "secret2",
 		RedirectURI:  "https://localhost:8090/flow/authn2",
-		Scopes:       json.RawMessage(`["user:email","read:user"]`),
+		Scopes:       json.RawMessage(`["openid","email","profile"]`),
 	}
 
 	idpToUpdate = IDP{
-		Name:         "Github",
+		Name:         "Github 2",
 		Description:  "Github User Login",
 		ClientID:     "client3",
 		ClientSecret: "secret3",
@@ -143,8 +150,8 @@ func (ts *IdpAPITestSuite) TestIdpListing() {
 		ts.T().Fatalf("Response does not contain any identity providers")
 	}
 
-	if idpListLength != 3 {
-		ts.T().Fatalf("Expected 3 identity providers, got %d", idpListLength)
+	if idpListLength != 4 {
+		ts.T().Fatalf("Expected 4 identity providers, got %d", idpListLength)
 	}
 
 	createdIdp := buildCreatedIdpToList()
