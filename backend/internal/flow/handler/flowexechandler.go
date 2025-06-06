@@ -67,15 +67,13 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 	}
 
 	flowResp := model.FlowResponse{
-		FlowID:         flowStep.FlowID,
-		StepID:         flowStep.StepID,
-		FlowStatus:     string(flowStep.Status),
-		Type:           string(flowStep.Type),
-		Actions:        flowStep.Actions,
-		Inputs:         flowStep.InputData,
-		AdditionalInfo: flowStep.AdditionalInfo,
-		Assertion:      flowStep.Assertion,
-		FailureReason:  flowStep.FailureReason,
+		FlowID:        flowStep.FlowID,
+		StepID:        flowStep.StepID,
+		FlowStatus:    string(flowStep.Status),
+		Type:          string(flowStep.Type),
+		Data:          flowStep.Data,
+		Assertion:     flowStep.Assertion,
+		FailureReason: flowStep.FailureReason,
 	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)

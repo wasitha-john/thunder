@@ -58,7 +58,7 @@ export const initiateNativeAuth = async () => {
     }
 
     try {
-        const response = await axios.post(`${flowEndpoint}/execution`, data, {
+        const response = await axios.post(`${flowEndpoint}/execute`, data, {
             headers,
         });
 
@@ -114,7 +114,7 @@ export const submitNativeAuth = async (
     }
 
     try {
-        const response = await axios.post(`${flowEndpoint}/execution`, data, {
+        const response = await axios.post(`${flowEndpoint}/execute`, data, {
             headers,
         });
 

@@ -17,7 +17,7 @@ servers:
         default: "8090"
 
 paths:
-  /flow/execution:
+  /flow/execute:
     post:
       summary: Execute a flow step
       description: Execute a step in an authentication flow.
@@ -95,28 +95,39 @@ components:
           type: string
           description: Type of flow step response
           example: "VIEW"
+        data:
+          $ref: '#/components/schemas/Data'
+          description: Data for the next step in the flow
+        assertion:
+          type: string
+          description: Authentication assertion. This will be the JWT authentication token
+          example: "<jwt_token>"
+
+    Data:
+      type: object
+      properties:
         inputs:
           type: array
           items:
             $ref: '#/components/schemas/InputData'
           description: Required input data for the next flow step
-        additionalInfo:
+        redirectURL:
+          type: string
+          description: Redirect URL for the next step in the flow if applicable
+          example: "https://example.com/redirect"
+        additionalData:
           type: object
           additionalProperties:
             type: string
           description: Additional information provided by the flow step
           example: {
-            "redirect_url": "<github_auth_redirect_url>"
+            "idpName": "<idp_name>"
           }
         actions:
           type: array
           items:
             $ref: '#/components/schemas/Action'
           description: Available actions for the current flow step
-        assertion:
-          type: string
-          description: Authentication assertion. This will be the JWT authentication token
-          example: "<jwt_token>"
 
     Action:
       type: object

@@ -187,9 +187,9 @@ func (o *OAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execResp 
 
 	// Set the response to redirect the user to the authorization URL.
 	execResp.Status = flowconst.ExecExternalRedirection
-	execResp.AdditionalInfo = map[string]string{
-		flowconst.DataRedirectURL: authURL,
-		flowconst.DataIDPName:     o.GetName(),
+	execResp.RedirectURL = authURL
+	execResp.AdditionalData = map[string]string{
+		flowconst.DataIDPName: o.GetName(),
 	}
 
 	return nil
