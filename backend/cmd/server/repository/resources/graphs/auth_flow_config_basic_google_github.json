@@ -1,5 +1,5 @@
 {
-    "id": "auth_flow_config_basic_or_google",
+    "id": "auth_flow_config_basic_google_github",
     "type": "AUTHENTICATION",
     "nodes": [
         {
@@ -46,13 +46,29 @@
             }
         },
         {
+            "id": "github_auth",
+            "type": "TASK_EXECUTION",
+            "inputData": [
+                {
+                    "name": "code",
+                    "type": "string",
+                    "required": true
+                }
+            ],
+            "executor": {
+                "name": "GithubOAuthExecutor",
+                "idpName": "Github"
+            }
+        },
+        {
             "id": "authenticated",
             "type": "AUTHENTICATION_SUCCESS"
         }
     ],
     "edges": {
-        "choose_auth": ["basic_auth", "google_auth"],
+        "choose_auth": ["basic_auth", "google_auth", "github_auth"],
         "basic_auth": ["authenticated"],
-        "google_auth": ["authenticated"]
+        "google_auth": ["authenticated"],
+        "github_auth": ["authenticated"]
     }
 }
