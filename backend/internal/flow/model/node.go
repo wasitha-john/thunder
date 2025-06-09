@@ -89,6 +89,8 @@ func NewNode(id string, _type string, isStartNode bool, isFinalNode bool) (NodeI
 		return NewTaskExecutionNode(id, isStartNode, isFinalNode), nil
 	case constants.NodeTypeDecision:
 		return NewDecisionNode(id, isStartNode, isFinalNode), nil
+	case constants.NodeTypePromptOnly:
+		return NewPromptOnlyNode(id, isStartNode, isFinalNode), nil
 	case constants.NodeTypeAuthSuccess:
 		return NewTaskExecutionNode(id, isStartNode, isFinalNode), nil
 	default:

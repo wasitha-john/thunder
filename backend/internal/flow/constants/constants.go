@@ -71,8 +71,6 @@ const (
 	NodeStatusComplete NodeStatus = "COMPLETE"
 	// NodeStatusIncomplete indicates that the node has not completed its execution.
 	NodeStatusIncomplete NodeStatus = "INCOMPLETE"
-	// NodeStatusPromptOnly indicates that the node is in a prompt-only state, waiting for user input.
-	NodeStatusPromptOnly NodeStatus = "PROMPT_ONLY"
 	// NodeStatusFailure indicates that the node has failed during its execution.
 	NodeStatusFailure NodeStatus = "FAILURE"
 )
