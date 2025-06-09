@@ -39,14 +39,36 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Layout from '../components/Layout';
 import ConnectionErrorModal from '../components/ConnectionErrorModal';
-import { NativeAuthSubmitType, initiateNativeAuth, submitNativeAuth } from '../services/authService';
+import { 
+    NativeAuthSubmitType, 
+    initiateNativeAuth, 
+    submitNativeAuth, 
+    submitAuthDecision 
+} from '../services/authService';
 import useAuth from '../hooks/useAuth';
 
+// Define interfaces for login options
+interface BasicAuthOption {
+  type: 'BASIC';
+}
+
+interface SocialAuthOption {
+  type: 'SOCIAL';
+  idpName: string;
+  redirectURL: string;
+}
+
+type LoginOption = BasicAuthOption | SocialAuthOption;
+
+// Define the interface for the authentication input
+interface AuthInput {
+    name: string;
+    type: string;
+    required: boolean;
+}
+
 /**
- * LoginPage component renders the login page with options for username/password login,
- * 
- * @param props LoginPageProps
- * @returns 
+ * LoginPage component renders the login page with dynamic options based on the server response.
  */
 const LoginPage = () => {
 
@@ -67,19 +89,19 @@ const LoginPage = () => {
     const [flowId, setFlowId] = useState<string>(sessionStorage.getItem(FLOW_ID_KEY) || '');
     const [startInit] = useState<boolean>(JSON.parse(sessionStorage.getItem(START_INIT_KEY) || 'true'));
 
-    const [userNamePasswordLogin, setUserNamePasswordLogin] = useState<boolean>(false);
     const [showPassword, setShowPassword] = useState(false);
     const [basicAuthFormData, setBasicAuthFormData] = useState({
         username: '',
         password: '',
     });
 
-    const [idpName, setIdpName] = useState<string>('Social Login');
-    const [showGitHubLoginButton, setShowGithubLoginButton] = useState<boolean>(false);
-    const [showGoogleLoginButton, setShowGoogleLoginButton] = useState<boolean>(false);
-    const [showSocialLoginButton, setShowSocialLoginButton] = useState<boolean>(false);
-    const [socialLoginRedirectURL, setSocialLoginRedirectURL] = useState<string>('');
+    // Replace individual login option states with a unified structure
+    const [loginOptions, setLoginOptions] = useState<LoginOption[]>([]);
 
+    // Add new state variables to track auth flow
+    const [needsDecision, setNeedsDecision] = useState<boolean>(false);
+    const [availableActions, setAvailableActions] = useState<Array<{type: string, id: string}>>([]);
+    
     const GradientCircularProgress = () => {
         return (
           <>
@@ -110,44 +132,125 @@ const LoginPage = () => {
         event.preventDefault(); // Prevent focus loss
     };
 
-    const handleSocialLoginClick = () => {
+    const handleSocialLoginClick = (redirectURL: string) => {
+        setLoading(true);
         sessionStorage.setItem(FLOW_ID_KEY, flowId);
         sessionStorage.setItem(START_INIT_KEY, "false");
-        window.location.href = socialLoginRedirectURL;
+        window.location.href = redirectURL;
+    };
+
+    // Add a handler for when user selects an auth option
+    const handleAuthOptionSelection = (actionId: string) => {
+        setLoading(true);
+        
+        submitAuthDecision(flowId, actionId)
+            .then((result) => {
+                const data = result.data;
+                
+                // Process the next step based on the response
+                if (data.type === "VIEW") {
+                    // Now we should have inputs for the selected auth method
+                    setNeedsDecision(false);
+                    
+                    // Handle special case for social logins
+                    if (actionId.includes("google") || actionId.includes("github")) {
+                        const idpName = actionId.includes("google") ? "Google" : "GitHub";
+                        const socialOptions = loginOptions.filter(
+                            opt => opt.type === 'SOCIAL' && opt.idpName === idpName
+                        ) as SocialAuthOption[];
+                        
+                        if (socialOptions.length > 0 && socialOptions[0].redirectURL) {
+                            handleSocialLoginClick(socialOptions[0].redirectURL);
+                            return;
+                        }
+                    }
+                    
+                    // For basic auth, we just update the UI to show the form
+                    if (data.data?.inputs) {
+                        // Check if inputs contain username and password fields
+                        const hasUsername = data.data.inputs.some((input: AuthInput) => input.name === "username");
+                        const hasPassword = data.data.inputs.some((input: AuthInput) => input.name === "password");
+                        
+                        if (hasUsername && hasPassword) {
+                            // Update login options to only show basic auth
+                            setLoginOptions([{ type: 'BASIC' }]);
+                        }
+                    }
+                } else if (data.type === "REDIRECTION") {
+                    // Handle redirection for social logins
+                    // const idpName = data.data?.additionalData?.idpName || 'Social Login';
+                    const redirectURL = data.data?.redirectURL;
+                    
+                    if (redirectURL) {
+                        handleSocialLoginClick(redirectURL);
+                    }
+                }
+                
+                setLoading(false);
+            })
+            .catch((error) => {
+                console.error("Error during authentication decision:", error);
+                setError(true);
+                setErrorMessage(error.message || 'Error processing your selection');
+                setLoading(false);
+            });
     };
 
     const init = useCallback(() => {
         clearToken();
         setConnectionError(false);
+        setLoginOptions([]);
+        setNeedsDecision(false);
+        setAvailableActions([]);
 
         initiateNativeAuth()
             .then((result) => {
-                if (result.data?.type === "VIEW") {
-                    setUserNamePasswordLogin(true);
-                }
-
-                if (result.data?.type === "REDIRECTION") {
-                    let idpName = result.data?.data?.additionalData?.idpName;
-
-                    if (idpName) {
-                        setIdpName(idpName);
-                        
-                        idpName = idpName?.toLowerCase();
-
-                        if (idpName.includes("github")) {
-                            setShowGithubLoginButton(true);
-                        } else if (idpName.includes("google")) {
-                            setShowGoogleLoginButton(true);
-                        } else {
-                            setShowSocialLoginButton(true);
+                const newLoginOptions: LoginOption[] = [];
+                
+                // Check if we need user to make a decision first
+                if (result.data?.type === "VIEW" && result.data?.data?.actions) {
+                    setNeedsDecision(true);
+                    setAvailableActions(result.data.data.actions);
+                    
+                    // Create login options based on available actions
+                    const actions = result.data.data.actions;
+                    actions.forEach((action: {type: string, id: string}) => {
+                        if (action.id === "basic_auth") {
+                            newLoginOptions.push({ type: 'BASIC' });
+                        } else if (action.id === "google_auth") {
+                            newLoginOptions.push({
+                                type: 'SOCIAL',
+                                idpName: 'Google',
+                                redirectURL: ""
+                            });
+                        } else if (action.id === "github_auth") {
+                            newLoginOptions.push({
+                                type: 'SOCIAL',
+                                idpName: 'GitHub',
+                                redirectURL: ""
+                            });
                         }
-                    } else {
-                        setShowSocialLoginButton(true);
+                    });
+                }
+                // Regular flow with inputs for basic auth
+                else if (result.data?.type === "VIEW" && result.data?.data?.inputs) {
+                    newLoginOptions.push({ type: 'BASIC' });
+                }
+                // Direct redirection for social login
+                else if (result.data?.type === "REDIRECTION") {
+                    const idpName = result.data?.data?.additionalData?.idpName || 'Social Login';
+                    const redirectURL = result.data?.data?.redirectURL;
+                    
+                    if (redirectURL) {
+                        newLoginOptions.push({
+                            type: 'SOCIAL',
+                            idpName,
+                            redirectURL
+                        });
                     }
-
-                    setSocialLoginRedirectURL(result.data?.data?.redirectURL);
                 }
                 
+                setLoginOptions(newLoginOptions);
                 setFlowId(result.data.flowId);
                 setLoading(false);
             }).catch((error) => {
@@ -159,6 +262,7 @@ const LoginPage = () => {
 
     const handelBasicAuthSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        setLoading(true);
 
         submitNativeAuth(flowId, { type: NativeAuthSubmitType.BASIC, ...basicAuthFormData })
             .then((result) => {
@@ -194,6 +298,19 @@ const LoginPage = () => {
             init();
         }, 500);
     };
+    
+    // Helper function to get appropriate icon for social login
+    const getSocialLoginIcon = (idpName: string) => {
+        const lowerIdpName = idpName.toLowerCase();
+        
+        if (lowerIdpName.includes('github')) {
+            return <GitHubIcon />;
+        } else if (lowerIdpName.includes('google')) {
+            return <GoogleIcon />;
+        } else {
+            return <AccountCircleIcon />;
+        }
+    };
 
     // This effect is to handle initial component mount
     useEffect(() => {
@@ -210,8 +327,12 @@ const LoginPage = () => {
             const code = params.get('code');
 
             if (code) {
+                // Clear query parameters to avoid re-submission
+                window.history.replaceState({}, document.title, window.location.pathname);
+
                 submitNativeAuth(flowId, { type: NativeAuthSubmitType.SOCIAL, code: code })
                     .then((result) => {
+                        setLoading(false);
                         const data = result.data;
 
                         // Handle successful authentication
@@ -220,6 +341,7 @@ const LoginPage = () => {
                             setError(false);
                         }
                     }).catch((error) => {
+                        setLoading(false);
                         console.error("Error during social authentication:", error);
 
                         if (error.message && error.message.includes("Network Error")) {
@@ -231,11 +353,70 @@ const LoginPage = () => {
                     });
             } else {
                 setError(true);
+                setLoading(false);
             }
 
             sessionStorage.setItem(START_INIT_KEY, "true");
         }
     },[startInit, init, flowId, setToken]);
+
+    // Check if we have any basic auth options
+    const hasBasicAuth = loginOptions.some(option => option.type === 'BASIC');
+    // Get all social auth options
+    const socialOptions = loginOptions.filter(option => option.type === 'SOCIAL') as SocialAuthOption[];
+
+    console.log("Login options:", loginOptions);
+    console.log("has BasicAuth:", hasBasicAuth);
+    console.log("Social options:", socialOptions);
+    
+    // Handle basic auth form submission directly from decision screen
+    const handleBasicAuthDecision = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setLoading(true);
+        
+        // Find the basic_auth action ID
+        const basicAuthAction = availableActions.find(action => action.id === "basic_auth");
+        if (!basicAuthAction) {
+            setError(true);
+            setErrorMessage("Basic authentication not available");
+            setLoading(false);
+            return;
+        }
+        
+        // Submit both the decision and credentials together
+        submitAuthDecision(flowId, basicAuthAction.id, {
+            username: basicAuthFormData.username,
+            password: basicAuthFormData.password
+        })
+            .then((result) => {
+                const data = result.data;
+                
+                // Handle successful authentication
+                if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
+                    setToken(data.assertion);
+                    setError(false);
+                } else if (data.type === "VIEW") {
+                    // Additional steps might be needed
+                    setNeedsDecision(false);
+                    setLoginOptions([{ type: 'BASIC' }]);
+                    setLoading(false);
+                } else if (data.flowStatus && data.flowStatus === 'ERROR') {
+                    setError(true);
+                    setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
+                    setLoading(false);
+                }
+            })
+            .catch((error) => {
+                console.error("Error during authentication:", error);
+                setError(true);
+                setErrorMessage(error.message || 'Error during authentication');
+                setLoading(false);
+            });
+    };
+    
+    // Check if the current decision screen has basic auth option
+    const hasBasicAuthOption = availableActions.some(action => action.id === "basic_auth");
+    const hasSocialAuthOptions = availableActions.some(action => action.id !== "basic_auth");
 
     return (
         <Layout>
@@ -288,126 +469,219 @@ const LoginPage = () => {
 
                                 {!connectionError && (
                                     <>
-                                        {(showGoogleLoginButton || showGitHubLoginButton || showSocialLoginButton) && (
-                                            <>
-                                                <Box>
-                                                    { showGoogleLoginButton && (
-                                                        <Button
-                                                            fullWidth
-                                                            variant="contained"
-                                                            startIcon={<GoogleIcon />}
-                                                            color="secondary"
-                                                            onClick={() => handleSocialLoginClick()}
-                                                            sx={{ my: 1 }}
-                                                        >
-                                                            Continue with { idpName }
-                                                        </Button>
-                                                    )}
-                                                    { showGitHubLoginButton && (
-                                                        <Button
-                                                            fullWidth
-                                                            variant="contained"
-                                                            startIcon={<GitHubIcon />}
-                                                            color="secondary"
-                                                            onClick={() => handleSocialLoginClick()}
-                                                            sx={{ my: 1 }}
-                                                        >
-                                                            Continue with { idpName }
-                                                        </Button>
-                                                    )}
-                                                    { showSocialLoginButton && (
-                                                        <Button
-                                                            fullWidth
-                                                            variant="contained"
-                                                            startIcon={<AccountCircleIcon />}
-                                                            color="secondary"
-                                                            onClick={() => handleSocialLoginClick()}
-                                                            sx={{ my: 1 }}
-                                                        >
-                                                            Continue with { idpName }
-                                                        </Button>
-                                                    )}
-                                                </Box>
+                                        {needsDecision ? (
+                                            <Box sx={{ my: 2 }}>
+                                                {/* Social auth options */}
+                                                {hasSocialAuthOptions && (
+                                                    <Box>
+                                                        {availableActions.filter(action => action.id !== "basic_auth").map((action, index) => (
+                                                            <Button
+                                                                key={`action-${index}`}
+                                                                fullWidth
+                                                                variant="contained"
+                                                                color="secondary"
+                                                                onClick={() => handleAuthOptionSelection(action.id)}
+                                                                sx={{ my: 1 }}
+                                                                startIcon={
+                                                                    action.id === "google_auth" ? <GoogleIcon /> : 
+                                                                    action.id === "github_auth" ? <GitHubIcon /> : 
+                                                                    <AccountCircleIcon />
+                                                                }
+                                                            >
+                                                                {action.id === "google_auth" ? "Continue with Google" :
+                                                                 action.id === "github_auth" ? "Continue with GitHub" : 
+                                                                 action.id}
+                                                            </Button>
+                                                        ))}
+                                                    </Box>
+                                                )}
                                                 
-                                                { userNamePasswordLogin &&
+                                                {/* Show divider if we have both social and basic auth options */}
+                                                {hasBasicAuthOption && hasSocialAuthOptions && (
                                                     <Divider sx={{ my: 3 }}>or</Divider>
-                                                }
+                                                )}
+                                                
+                                                {/* Basic auth form */}
+                                                {hasBasicAuthOption && (
+                                                    <form onSubmit={handleBasicAuthDecision}>
+                                                        <Box display="flex" flexDirection="column" gap={2}>
+                                                            <Box display="flex" flexDirection="column" gap={0.5}>
+                                                                <InputLabel htmlFor="username">Username</InputLabel>
+                                                                <OutlinedInput
+                                                                    type="text"
+                                                                    id="username"
+                                                                    name="username"
+                                                                    placeholder="Enter your username"
+                                                                    size="small"
+                                                                    value={basicAuthFormData.username}
+                                                                    onChange={handleInputChange}
+                                                                    required
+                                                                />
+                                                            </Box>
+                                                            <Box display="flex" flexDirection="column" gap={0.5}>
+                                                                <InputLabel htmlFor="password">Password</InputLabel>
+                                                                <OutlinedInput
+                                                                    type={showPassword ? 'text' : 'password'}
+                                                                    id="password"
+                                                                    name="password"
+                                                                    placeholder="Enter your password"
+                                                                    size="small"
+                                                                    value={basicAuthFormData.password}
+                                                                    onChange={handleInputChange}
+                                                                    required
+                                                                    endAdornment={
+                                                                        <InputAdornment position="end">
+                                                                            <IconButton
+                                                                                aria-label="toggle password visibility"
+                                                                                onClick={handleTogglePasswordVisibility}
+                                                                                onMouseDown={handleMouseDownPassword}
+                                                                                edge="end"
+                                                                            >
+                                                                                {showPassword ? 
+                                                                                    <VisibilityOff /> : <Visibility />
+                                                                                }
+                                                                            </IconButton>
+                                                                        </InputAdornment>
+                                                                    }
+                                                                />
+                                                            </Box>
+                                                            {(showRememberMe || showForgotPassword) && (
+                                                                <Box
+                                                                    sx={{
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                    alignItems: 'center',
+                                                                    }}
+                                                                >
+                                                                    { showRememberMe && (
+                                                                        <FormControlLabel
+                                                                            control={<Checkbox name="remember-me-checkbox" />} 
+                                                                            label="Remember me" />
+                                                                    )}
+                                                                    { showForgotPassword &&
+                                                                        <Link href="">Forgot your password?</Link>
+                                                                    }
+                                                                </Box>
+                                                            )}
+                                                            <Button
+                                                                variant="contained"
+                                                                color="primary"
+                                                                type="submit"
+                                                                fullWidth
+                                                                sx={{ mt: 2 }}
+                                                            >
+                                                                Sign In
+                                                            </Button>
+                                                        </Box>
+                                                    </form>
+                                                )}
+                                            </Box>
+                                        ) : (
+                                            // Regular login UI with social and basic auth options
+                                            <>
+                                                {socialOptions.length > 0 && (
+                                                    <>
+                                                        <Box>
+                                                            {socialOptions.map((option, index) => (
+                                                                <Button
+                                                                    key={`social-login-${index}`}
+                                                                    fullWidth
+                                                                    variant="contained"
+                                                                    startIcon={getSocialLoginIcon(option.idpName)}
+                                                                    color="secondary"
+                                                                    onClick={() => handleSocialLoginClick(option.redirectURL)}
+                                                                    sx={{ my: 1 }}
+                                                                >
+                                                                    Continue with {option.idpName}
+                                                                </Button>
+                                                            ))}
+                                                        </Box>
+                                                        
+                                                        {hasBasicAuth && <Divider sx={{ my: 3 }}>or</Divider>}
+                                                    </>
+                                                )}
+
+                                                {hasBasicAuth && (
+                                                    <form onSubmit={handelBasicAuthSubmit}>
+                                                        <Box display="flex" flexDirection="column" gap={2}>
+                                                            <Box display="flex" flexDirection="column" gap={0.5}>
+                                                                <InputLabel htmlFor="username">Username</InputLabel>
+                                                                <OutlinedInput
+                                                                    type="text"
+                                                                    id="username"
+                                                                    name="username"
+                                                                    placeholder="Enter your username"
+                                                                    size="small"
+                                                                    value={basicAuthFormData.username}
+                                                                    onChange={handleInputChange}
+                                                                    required
+                                                                />
+                                                            </Box>
+                                                            <Box display="flex" flexDirection="column" gap={0.5}>
+                                                                <InputLabel htmlFor="password">Password</InputLabel>
+                                                                <OutlinedInput
+                                                                    type={showPassword ? 'text' : 'password'}
+                                                                    id="password"
+                                                                    name="password"
+                                                                    placeholder="Enter your password"
+                                                                    size="small"
+                                                                    value={basicAuthFormData.password}
+                                                                    onChange={handleInputChange}
+                                                                    required
+                                                                    endAdornment={
+                                                                        <InputAdornment position="end">
+                                                                            <IconButton
+                                                                                aria-label="toggle password visibility"
+                                                                                onClick={handleTogglePasswordVisibility}
+                                                                                onMouseDown={handleMouseDownPassword}
+                                                                                edge="end"
+                                                                            >
+                                                                                { showPassword ?
+                                                                                    <VisibilityOff /> : <Visibility />
+                                                                                }
+                                                                            </IconButton>
+                                                                        </InputAdornment>
+                                                                    }
+                                                                />
+                                                            </Box>
+                                                            { (showRememberMe || showForgotPassword) && (
+                                                                <Box
+                                                                    sx={{
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                    alignItems: 'center',
+                                                                    }}
+                                                                >
+                                                                    { showRememberMe && (
+                                                                        <FormControlLabel
+                                                                            control={<Checkbox name="remember-me-checkbox" />} 
+                                                                            label="Remember me" />
+                                                                    )}
+                                                                    { showForgotPassword &&
+                                                                        <Link href="">Forgot your password?</Link>
+                                                                    }
+                                                                </Box>
+                                                            )}
+                                                            <Button
+                                                                variant="contained"
+                                                                color="primary"
+                                                                type="submit"
+                                                                fullWidth
+                                                                sx={{ mt: 2 }}
+                                                            >
+                                                                Sign In
+                                                            </Button>
+                                                        </Box>
+                                                    </form>
+                                                )}
+
+                                                {loginOptions.length === 0 && !connectionError && !loading && (
+                                                    <Alert severity="info">
+                                                        No login options available. Please contact your administrator.
+                                                    </Alert>
+                                                )}
                                             </>
                                         )}
-
-                                        { userNamePasswordLogin &&
-                                            <form onSubmit={handelBasicAuthSubmit}>
-                                                <Box display="flex" flexDirection="column" gap={2}>
-                                                    <Box display="flex" flexDirection="column" gap={0.5}>
-                                                        <InputLabel htmlFor="username">Username</InputLabel>
-                                                        <OutlinedInput
-                                                            type="text"
-                                                            id="username"
-                                                            name="username"
-                                                            placeholder="Enter your username"
-                                                            size="small"
-                                                            value={basicAuthFormData.username}
-                                                            onChange={handleInputChange}
-                                                            required
-                                                        />
-                                                    </Box>
-                                                    <Box display="flex" flexDirection="column" gap={0.5}>
-                                                        <InputLabel htmlFor="password">Password</InputLabel>
-                                                        <OutlinedInput
-                                                            type={showPassword ? 'text' : 'password'}
-                                                            id="password"
-                                                            name="password"
-                                                            placeholder="Enter your password"
-                                                            size="small"
-                                                            value={basicAuthFormData.password}
-                                                            onChange={handleInputChange}
-                                                            required
-                                                            endAdornment={
-                                                                <InputAdornment position="end">
-                                                                    <IconButton
-                                                                        aria-label="toggle password visibility"
-                                                                        onClick={handleTogglePasswordVisibility}
-                                                                        onMouseDown={handleMouseDownPassword}
-                                                                        edge="end"
-                                                                    >
-                                                                        { showPassword ?
-                                                                            <VisibilityOff /> : <Visibility />
-                                                                        }
-                                                                    </IconButton>
-                                                                </InputAdornment>
-                                                            }
-                                                        />
-                                                    </Box>
-                                                    { (showRememberMe || showForgotPassword) && (
-                                                        <Box
-                                                            sx={{
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center',
-                                                            }}
-                                                        >
-                                                            { showRememberMe && (
-                                                                <FormControlLabel
-                                                                    control={<Checkbox name="remember-me-checkbox" />} 
-                                                                    label="Remember me" />
-                                                            )}
-                                                            { showForgotPassword &&
-                                                                <Link href="">Forgot your password?</Link>
-                                                            }
-                                                        </Box>
-                                                    )}
-                                                    <Button
-                                                        variant="contained"
-                                                        color="primary"
-                                                        type="submit"
-                                                        fullWidth
-                                                        sx={{ mt: 2 }}
-                                                    >
-                                                        Sign In
-                                                    </Button>
-                                                </Box>
-                                            </form>
-                                        }
                                     </>
                                 )}
                                 <Box component="footer" sx={{ mt: 6 }}>
