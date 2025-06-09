@@ -21,9 +21,9 @@ package jsonmodel
 
 // GraphDefinition represents the direct graph structure from JSON
 type GraphDefinition struct {
-	ID    string              `json:"id"`
-	Nodes []NodeDefinition    `json:"nodes"`
-	Edges map[string][]string `json:"edges"`
+	ID    string           `json:"id"`
+	Type  string           `json:"type"`
+	Nodes []NodeDefinition `json:"nodes"`
 }
 
 // NodeDefinition represents a node in the graph definition
@@ -32,6 +32,7 @@ type NodeDefinition struct {
 	Type      string             `json:"type"`
 	InputData []InputDefinition  `json:"inputData"`
 	Executor  ExecutorDefinition `json:"executor"`
+	NextNodes []string           `json:"nextNodes,omitempty"`
 }
 
 // InputDefinition represents an input parameter for a node

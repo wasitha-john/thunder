@@ -40,46 +40,33 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 	}
 
 	// Create a graph
-	g := model.NewGraph(definition.ID)
-
-	// Map to track which nodes have incoming edges
-	hasIncomingEdge := make(map[string]bool)
-
-	// First, mark all nodes that have incoming edges
-	for _, targetIDs := range definition.Edges {
-		for _, targetID := range targetIDs {
-			hasIncomingEdge[targetID] = true
-		}
+	_type, err := getGraphType(definition.Type)
+	if err != nil {
+		return nil, fmt.Errorf("error while retrieving graph type: %w", err)
 	}
-
-	// Find the start node (node without incoming edges)
-	startNodeID := ""
-	for _, node := range definition.Nodes {
-		if !hasIncomingEdge[node.ID] {
-			startNodeID = node.ID
-			break
-		}
-	}
-
-	// If no start node found, fallback to the first node
-	if startNodeID == "" && len(definition.Nodes) > 0 {
-		startNodeID = definition.Nodes[0].ID
-	}
-
-	// Validate that we have a valid start node
-	if startNodeID == "" {
-		return nil, fmt.Errorf("no valid start node found in the graph definition")
-	}
+	g := model.NewGraph(definition.ID, _type)
 
 	// Add all nodes to the graph
+	edges := make(map[string][]string)
 	for _, nodeDef := range definition.Nodes {
-		isStartNode := (nodeDef.ID == startNodeID)
-		isFinalNode := (nodeDef.Type == string(constants.NodeTypeAuthSuccess))
+		isFinalNode := len(nodeDef.NextNodes) == 0
 
-		// Construct a new node
-		node, err := model.NewNode(nodeDef.ID, nodeDef.Type, isStartNode, isFinalNode)
+		// Construct a new node. Here we set isStartNode to false by default.
+		node, err := model.NewNode(nodeDef.ID, nodeDef.Type, false, isFinalNode)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create node %s: %w", nodeDef.ID, err)
+		}
+
+		// Set next nodes if defined
+		if len(nodeDef.NextNodes) > 0 {
+			node.SetNextNodeList(nodeDef.NextNodes)
+
+			// Store edges based on the node definition
+			_, exists := edges[nodeDef.ID]
+			if !exists {
+				edges[nodeDef.ID] = []string{}
+			}
+			edges[nodeDef.ID] = append(edges[nodeDef.ID], nodeDef.NextNodes...)
 		}
 
 		// Convert and set input data from definition
@@ -116,13 +103,8 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 		}
 	}
 
-	err := g.SetStartNodeID(startNodeID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set start node ID: %w", err)
-	}
-
 	// Set edges in the graph
-	for sourceID, targetIDs := range definition.Edges {
+	for sourceID, targetIDs := range edges {
 		for _, targetID := range targetIDs {
 			err := g.AddEdge(sourceID, targetID)
 			if err != nil {
@@ -139,7 +121,34 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 		}
 	}
 
+	// Determine the start node and set it in the graph
+	startNodeID := ""
+	for _, node := range g.GetNodes() {
+		if len(node.GetPreviousNodeList()) == 0 {
+			startNodeID = node.GetID()
+			break
+		}
+	}
+	if startNodeID == "" {
+		return nil, fmt.Errorf("no start node found in the graph definition")
+	}
+
+	err = g.SetStartNode(startNodeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set start node ID: %w", err)
+	}
+
 	return g, nil
+}
+
+// getGraphType retrieves the graph type from a string representation.
+func getGraphType(graphType string) (constants.GraphType, error) {
+	switch graphType {
+	case string(constants.GraphTypeAuthentication):
+		return constants.GraphTypeAuthentication, nil
+	default:
+		return "", fmt.Errorf("unsupported graph type: %s", graphType)
+	}
 }
 
 // getExecutorConfigByName constructs an executor configuration by its definition if it exists.

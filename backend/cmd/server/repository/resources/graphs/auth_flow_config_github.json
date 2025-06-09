@@ -15,14 +15,14 @@
             "executor": {
                 "name": "GithubOAuthExecutor",
                 "idpName": "Github"
-            }
+            },
+            "nextNodes": [
+                "authenticated"
+            ]
         },
         {
             "id": "authenticated",
             "type": "AUTHENTICATION_SUCCESS"
         }
-    ],
-    "edges": {
-        "github_auth": ["authenticated"]
-    }
+    ]
 }
