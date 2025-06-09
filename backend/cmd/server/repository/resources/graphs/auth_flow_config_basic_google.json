@@ -4,7 +4,11 @@
     "nodes": [
         {
             "id": "choose_auth",
-            "type": "DECISION"
+            "type": "DECISION",
+            "nextNodes": [
+                "basic_auth",
+                "google_auth"
+            ]
         },
         {
             "id": "basic_auth",
@@ -23,7 +27,10 @@
             ],
             "executor": {
                 "name": "BasicAuthExecutor"
-            }
+            },
+            "nextNodes": [
+                "authenticated"
+            ]
         },
         {
             "id": "google_auth",
@@ -43,16 +50,14 @@
             "executor": {
                 "name": "GoogleOIDCAuthExecutor",
                 "idpName": "Google"
-            }
+            },
+            "nextNodes": [
+                "authenticated"
+            ]
         },
         {
             "id": "authenticated",
             "type": "AUTHENTICATION_SUCCESS"
         }
-    ],
-    "edges": {
-        "choose_auth": ["basic_auth", "google_auth"],
-        "basic_auth": ["authenticated"],
-        "google_auth": ["authenticated"]
-    }
+    ]
 }

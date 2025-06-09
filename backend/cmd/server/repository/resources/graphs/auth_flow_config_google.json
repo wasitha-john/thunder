@@ -20,14 +20,14 @@
             "executor": {
                 "name": "GoogleOIDCAuthExecutor",
                 "idpName": "Google"
-            }
+            },
+            "nextNodes": [
+                "authenticated"
+            ]
         },
         {
             "id": "authenticated",
             "type": "AUTHENTICATION_SUCCESS"
         }
-    ],
-    "edges": {
-        "google_auth": ["authenticated"]
-    }
+    ]
 }

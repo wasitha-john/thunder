@@ -19,6 +19,14 @@
 // Package constants defines the constants used in the flow execution service and engine.
 package constants
 
+// GraphType defines the type of graph used in the flow execution.
+type GraphType string
+
+const (
+	// GraphTypeAuthentication represents a graph type for authentication flows.
+	GraphTypeAuthentication GraphType = "AUTHENTICATION"
+)
+
 // FlowStatus defines the status of a flow execution.
 type FlowStatus string
 

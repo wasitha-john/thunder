@@ -119,10 +119,10 @@ func setCurrentExecutionNode(ctx *model.EngineContext, logger *log.Logger) (mode
 
 	currentNode := ctx.CurrentNode
 	if currentNode == nil {
-		logger.Debug("Current node is nil. Setting the start node as the current node.")
-		var ok bool
-		currentNode, ok = graph.GetNode(graph.GetStartNodeID())
-		if !ok {
+		logger.Debug("Current node is nil. Setting start node as the current node.")
+		var err error
+		currentNode, err = graph.GetStartNode()
+		if err != nil {
 			return nil, &constants.ErrorStartNodeNotFoundInGraph
 		}
 		ctx.CurrentNode = currentNode

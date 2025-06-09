@@ -24,14 +24,14 @@
             ],
             "executor": {
                 "name": "BasicAuthExecutor"
-            }
+            },
+            "nextNodes": [
+                "authenticated"
+            ]
         },
         {
             "id": "authenticated",
             "type": "AUTHENTICATION_SUCCESS"
         }
-    ],
-    "edges": {
-        "basic_auth": ["authenticated"]
-    }
+    ]
 }

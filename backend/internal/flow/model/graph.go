@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/asgardeo/thunder/internal/flow/constants"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
@@ -34,26 +35,32 @@ type GraphInterface interface {
 	GetNodes() map[string]NodeInterface
 	GetEdges() map[string][]string
 	GetStartNodeID() string
-	SetStartNodeID(startNodeID string) error
+	GetStartNode() (NodeInterface, error)
+	SetStartNode(startNodeID string) error
 	ToJSON() (string, error)
 }
 
 // Graph implements the GraphInterface for the flow execution
 type Graph struct {
 	id          string
+	_type       constants.GraphType
 	nodes       map[string]NodeInterface
 	edges       map[string][]string
 	startNodeID string
 }
 
 // NewGraph creates a new Graph with a unique ID
-func NewGraph(id string) GraphInterface {
+func NewGraph(id string, _type constants.GraphType) GraphInterface {
 	if id == "" {
 		id = sysutils.GenerateUUID()
+	}
+	if _type == "" {
+		_type = constants.GraphTypeAuthentication
 	}
 
 	return &Graph{
 		id:    id,
+		_type: _type,
 		nodes: make(map[string]NodeInterface),
 		edges: make(map[string][]string),
 	}
@@ -116,12 +123,27 @@ func (g *Graph) GetStartNodeID() string {
 	return g.startNodeID
 }
 
-// SetStartNodeID sets the start node ID for the graph
-func (g *Graph) SetStartNodeID(startNodeID string) error {
-	if _, exists := g.nodes[startNodeID]; !exists {
+// GetStartNode retrieves the start node of the graph
+func (g *Graph) GetStartNode() (NodeInterface, error) {
+	if g.startNodeID == "" {
+		return nil, errors.New("start node not set for the graph")
+	}
+	node, exists := g.nodes[g.startNodeID]
+	if !exists {
+		return nil, errors.New("start node does not exist in the graph")
+	}
+	return node, nil
+}
+
+// SetStartNode sets the start node ID for the graph
+func (g *Graph) SetStartNode(startNodeID string) error {
+	node, exists := g.nodes[startNodeID]
+	if !exists {
 		return errors.New("node with startNodeID does not exist")
 	}
 	g.startNodeID = startNodeID
+	node.SetAsStartNode()
+
 	return nil
 }
 
