@@ -76,6 +76,47 @@ export const initiateNativeAuth = async () => {
 };
 
 /**
+ * Submits the user's selected authentication option when multiple options are available.
+ * 
+ * @param {string} flowId - The flow ID received from the initiateNativeAuth response.
+ * @param {string} actionId - The ID of the selected authentication action.
+ * @param {object} inputs - Optional input data to submit with the decision.
+ * @returns {Promise<object>} - A promise that resolves to the response data from the server.
+ */
+export const submitAuthDecision = async (flowId: string, actionId: string, inputs?: Record<string, unknown>) => {
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+
+    const data: Record<string, unknown> = {
+        flowId: flowId,
+        actionId: actionId
+    };
+
+    // Include inputs if provided
+    if (inputs && Object.keys(inputs).length > 0) {
+        data.inputs = inputs;
+    }
+
+    try {
+        const response = await axios.post(`${flowEndpoint}/execute`, data, {
+            headers,
+        });
+
+        return { data: response.data };
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            const message = error.response?.status === 400
+              ? 'Error processing authentication option.'
+              : error.response?.data?.message || 'Server error occurred.';
+            throw new Error(message);
+        } else {
+            throw new Error('Unexpected error occurred.');
+        }
+    }
+};
+
+/**
  * Submits the native authentication form data to the server.
  * 
  * @param {string} flowId - The flow ID received from the initiateNativeAuth response.
