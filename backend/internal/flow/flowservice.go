@@ -79,7 +79,7 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 	var loadErr *serviceerror.ServiceError
 
 	if isNewFlow(flowID, actionID) {
-		context, loadErr = s.loadNewContext(appID, inputData, logger)
+		context, loadErr = s.loadNewContext(appID, actionID, inputData, logger)
 	} else {
 		context, loadErr = s.loadPrevContext(flowID, actionID, inputData, logger)
 	}
@@ -104,14 +104,14 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 }
 
 // initContext initializes a new flow context with the given details.
-func (s *FlowService) loadNewContext(appID string,
+func (s *FlowService) loadNewContext(appID, actionID string,
 	inputData map[string]string, logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
 	ctx, err := s.initContext(appID, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	prepareContext(ctx, inputData)
+	prepareContext(ctx, actionID, inputData)
 	return ctx, nil
 }
 
@@ -147,7 +147,7 @@ func (s *FlowService) loadPrevContext(flowID, actionID string, inputData map[str
 		return nil, err
 	}
 
-	prepareContext(ctx, inputData)
+	prepareContext(ctx, actionID, inputData)
 	return ctx, nil
 }
 
@@ -157,7 +157,7 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 	if flowID == "" {
 		return nil, &constants.ErrorInvalidFlowID
 	}
-	if len(inputData) == 0 {
+	if len(inputData) == 0 && actionID == "" {
 		return nil, &constants.ErrorInputDataNotFound
 	}
 
@@ -167,8 +167,6 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 		return nil, &constants.ErrorInvalidFlowID
 	}
 	s.removeContext(flowID, logger)
-
-	ctx.CurrentActionID = actionID
 
 	return &ctx, nil
 }
@@ -227,10 +225,15 @@ func isComplete(step model.FlowStep) bool {
 }
 
 // prepareContext prepares the flow context by merging any data.
-func prepareContext(ctx *model.EngineContext, inputData map[string]string) {
+func prepareContext(ctx *model.EngineContext, actionID string, inputData map[string]string) {
 	// Append any input data present to the context
 	if len(inputData) > 0 {
 		ctx.UserInputData = sysutils.MergeStringMaps(ctx.UserInputData, inputData)
+	}
+
+	// Set the action ID if provided
+	if actionID != "" {
+		ctx.CurrentActionID = actionID
 	}
 }
 

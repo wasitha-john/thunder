@@ -33,6 +33,8 @@ type NodeResponse struct {
 	RequiredData   []InputData                `json:"required_data,omitempty"`
 	AdditionalData map[string]string          `json:"additional_data,omitempty"`
 	RedirectURL    string                     `json:"redirect_url,omitempty"`
+	Actions        []Action                   `json:"actions,omitempty"`
+	NextNodeID     string                     `json:"next_node_id,omitempty"`
 	Assertion      string                     `json:"assertion,omitempty"`
 }
 
@@ -40,15 +42,17 @@ type NodeResponse struct {
 type NodeInterface interface {
 	Execute(ctx *NodeContext) (*NodeResponse, *serviceerror.ServiceError)
 	GetID() string
-	GetType() string
+	GetType() constants.NodeType
 	IsStartNode() bool
-	SetAsStartNode(isStart bool)
+	SetAsStartNode()
 	IsFinalNode() bool
-	SetAsFinalNode(isFinal bool)
-	GetNextNodeID() string
-	SetNextNodeID(nextNodeID string)
-	GetPreviousNodeID() string
-	SetPreviousNodeID(previousNodeID string)
+	SetAsFinalNode()
+	GetNextNodeList() []string
+	SetNextNodeList(nextNodeIDList []string)
+	AddNextNodeID(nextNodeID string)
+	GetPreviousNodeList() []string
+	SetPreviousNodeList(previousNodeIDList []string)
+	AddPreviousNodeID(previousNodeID string)
 	GetInputData() []InputData
 	SetInputData(inputData []InputData)
 	GetExecutorConfig() *ExecutorConfig
@@ -59,15 +63,17 @@ type NodeInterface interface {
 
 // Node implements the NodeInterface
 type Node struct {
-	id             string
-	_type          constants.NodeType
-	isStartNode    bool
-	isFinalNode    bool
-	nextNodeID     string
-	previousNodeID string
-	inputData      []InputData
-	executorConfig *ExecutorConfig
+	id               string
+	_type            constants.NodeType
+	isStartNode      bool
+	isFinalNode      bool
+	nextNodeList     []string
+	previousNodeList []string
+	inputData        []InputData
+	executorConfig   *ExecutorConfig
 }
+
+var _ NodeInterface = (*Node)(nil)
 
 // NewNode creates a new Node with the given type and properties.
 func NewNode(id string, _type string, isStartNode bool, isFinalNode bool) (NodeInterface, error) {
@@ -81,6 +87,8 @@ func NewNode(id string, _type string, isStartNode bool, isFinalNode bool) (NodeI
 	switch nodeType {
 	case constants.NodeTypeTaskExecution:
 		return NewTaskExecutionNode(id, isStartNode, isFinalNode), nil
+	case constants.NodeTypeDecision:
+		return NewDecisionNode(id, isStartNode, isFinalNode), nil
 	case constants.NodeTypeAuthSuccess:
 		return NewTaskExecutionNode(id, isStartNode, isFinalNode), nil
 	default:
@@ -99,8 +107,8 @@ func (n *Node) GetID() string {
 }
 
 // GetType returns the node's type
-func (n *Node) GetType() string {
-	return string(n._type)
+func (n *Node) GetType() constants.NodeType {
+	return n._type
 }
 
 // IsStartNode checks if the node is a start node
@@ -109,8 +117,8 @@ func (n *Node) IsStartNode() bool {
 }
 
 // SetAsStartNode sets the node as a start node
-func (n *Node) SetAsStartNode(isStart bool) {
-	n.isStartNode = isStart
+func (n *Node) SetAsStartNode() {
+	n.isStartNode = true
 }
 
 // IsFinalNode checks if the node is a final node
@@ -119,28 +127,76 @@ func (n *Node) IsFinalNode() bool {
 }
 
 // SetAsFinalNode sets the node as a final node
-func (n *Node) SetAsFinalNode(isFinal bool) {
-	n.isFinalNode = isFinal
+func (n *Node) SetAsFinalNode() {
+	n.isFinalNode = true
 }
 
-// GetNextNodeID returns the ID of the next node
-func (n *Node) GetNextNodeID() string {
-	return n.nextNodeID
+// GetNextNodeList returns the list of next node IDs
+func (n *Node) GetNextNodeList() []string {
+	if n.nextNodeList == nil {
+		return []string{}
+	}
+	return n.nextNodeList
 }
 
-// SetNextNodeID sets the ID of the next node
-func (n *Node) SetNextNodeID(nextNodeID string) {
-	n.nextNodeID = nextNodeID
+// SetNextNodeList sets the list of next node IDs
+func (n *Node) SetNextNodeList(nextNodeIDList []string) {
+	if nextNodeIDList == nil {
+		n.nextNodeList = []string{}
+	} else {
+		n.nextNodeList = nextNodeIDList
+	}
 }
 
-// GetPreviousNodeID returns the ID of the previous node
-func (n *Node) GetPreviousNodeID() string {
-	return n.previousNodeID
+// AddNextNodeID adds a next node ID to the list
+func (n *Node) AddNextNodeID(nextNodeID string) {
+	if nextNodeID == "" {
+		return
+	}
+	if n.nextNodeList == nil {
+		n.nextNodeList = []string{}
+	}
+	// Check for duplicates before adding
+	for _, id := range n.nextNodeList {
+		if id == nextNodeID {
+			return
+		}
+	}
+	n.nextNodeList = append(n.nextNodeList, nextNodeID)
 }
 
-// SetPreviousNodeID sets the ID of the previous node
-func (n *Node) SetPreviousNodeID(previousNodeID string) {
-	n.previousNodeID = previousNodeID
+// GetPreviousNodeList returns the list of previous node IDs
+func (n *Node) GetPreviousNodeList() []string {
+	if n.previousNodeList == nil {
+		return []string{}
+	}
+	return n.previousNodeList
+}
+
+// SetPreviousNodeList sets the list of previous node IDs
+func (n *Node) SetPreviousNodeList(previousNodeIDList []string) {
+	if previousNodeIDList == nil {
+		n.previousNodeList = []string{}
+	} else {
+		n.previousNodeList = previousNodeIDList
+	}
+}
+
+// AddPreviousNodeID adds a previous node ID to the list
+func (n *Node) AddPreviousNodeID(previousNodeID string) {
+	if previousNodeID == "" {
+		return
+	}
+	if n.previousNodeList == nil {
+		n.previousNodeList = []string{}
+	}
+	// Check for duplicates before adding
+	for _, id := range n.previousNodeList {
+		if id == previousNodeID {
+			return
+		}
+	}
+	n.previousNodeList = append(n.previousNodeList, previousNodeID)
 }
 
 // GetInputData returns the input data for the node

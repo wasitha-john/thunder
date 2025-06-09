@@ -121,39 +121,20 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 		return nil, fmt.Errorf("failed to set start node ID: %w", err)
 	}
 
-	// Add all edges to the graph
+	// Set edges in the graph
 	for sourceID, targetIDs := range definition.Edges {
 		for _, targetID := range targetIDs {
 			err := g.AddEdge(sourceID, targetID)
 			if err != nil {
 				return nil, fmt.Errorf("failed to add edge from %s to %s: %w", sourceID, targetID, err)
 			}
-		}
-	}
 
-	// Set PreviousNodeID and NextNodeID based on edges
-	for fromNodeID, toNodeIDs := range g.GetEdges() {
-		if len(toNodeIDs) > 0 {
-			// Set the NextNodeID for the source node
-			if sourceNode, exists := g.GetNode(fromNodeID); exists {
-				sourceNode.SetNextNodeID(toNodeIDs[0])
-				// Update the source node in the graph
-				err := g.AddNode(sourceNode)
-				if err != nil {
-					return nil, fmt.Errorf("failed to update source node %s in the graph: %w", fromNodeID, err)
-				}
+			if sourceNode, exists := g.GetNode(sourceID); exists {
+				sourceNode.AddNextNodeID(targetID)
 			}
 
-			// Set the PreviousNodeID for each target node
-			for _, toNodeID := range toNodeIDs {
-				if targetNode, exists := g.GetNode(toNodeID); exists {
-					targetNode.SetPreviousNodeID(fromNodeID)
-					// Update the target node in the graph
-					err := g.AddNode(targetNode)
-					if err != nil {
-						return nil, fmt.Errorf("failed to update target node %s in the graph: %w", toNodeID, err)
-					}
-				}
+			if targetNode, exists := g.GetNode(targetID); exists {
+				targetNode.AddPreviousNodeID(sourceID)
 			}
 		}
 	}

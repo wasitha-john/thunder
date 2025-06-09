@@ -41,8 +41,9 @@ type EngineContext struct {
 
 // NodeContext holds the context for a specific node in the flow execution.
 type NodeContext struct {
-	FlowID string
-	AppID  string
+	FlowID          string
+	AppID           string
+	CurrentActionID string
 
 	NodeInputData []InputData
 	UserInputData map[string]string
@@ -78,8 +79,9 @@ type InputData struct {
 
 // Action represents an action to be executed in a flow step
 type Action struct {
-	Type     string         `json:"type"`
-	Executor *ExecutorModel `json:"executor,omitempty"`
+	Type constants.ActionType `json:"type"`
+	ID   string               `json:"id"`
+	// Executor *ExecutorModel `json:"executor,omitempty"`
 }
 
 // ExecutorModel represents an executor configuration within an action

@@ -67,7 +67,7 @@ func (fe *FlowEngine) Execute(ctx *model.EngineContext) (model.FlowStep, *servic
 	// Execute the graph nodes until a terminal condition is met or currentNode is nil
 	for currentNode != nil {
 		logger.Debug("Executing node", log.String("nodeID", currentNode.GetID()),
-			log.String("nodeType", currentNode.GetType()))
+			log.String("nodeType", string(currentNode.GetType())))
 
 		svcErr := setNodeExecutor(currentNode, logger)
 		if svcErr != nil {
@@ -77,6 +77,7 @@ func (fe *FlowEngine) Execute(ctx *model.EngineContext) (model.FlowStep, *servic
 		nodeCtx := &model.NodeContext{
 			FlowID:            ctx.FlowID,
 			AppID:             ctx.AppID,
+			CurrentActionID:   ctx.CurrentActionID,
 			NodeInputData:     ctx.CurrentNode.GetInputData(),
 			UserInputData:     ctx.UserInputData,
 			AuthenticatedUser: ctx.AuthenticatedUser,
@@ -132,6 +133,10 @@ func setCurrentExecutionNode(ctx *model.EngineContext, logger *log.Logger) (mode
 
 // setNodeExecutor sets the executor for the given node if it is not already set.
 func setNodeExecutor(node model.NodeInterface, logger *log.Logger) *serviceerror.ServiceError {
+	if node.GetType() != constants.NodeTypeTaskExecution {
+		return nil
+	}
+
 	if node.GetExecutor() == nil {
 		logger.Debug("Executor not set for the node. Constructing executor.", log.String("nodeID", node.GetID()))
 
@@ -152,6 +157,7 @@ func updateContextWithNodeResponse(engineCtx *model.EngineContext, nodeCtx *mode
 	nodeResp *model.NodeResponse) {
 	engineCtx.CurrentNodeResponse = nodeResp
 	engineCtx.AuthenticatedUser = nodeCtx.AuthenticatedUser
+	engineCtx.CurrentActionID = ""
 }
 
 // processNodeResponse processes the node response and determines the next action.
@@ -165,7 +171,7 @@ func (fe *FlowEngine) processNodeResponse(ctx *model.EngineContext, currentNode 
 		return nil, false, &constants.ErrorNodeResponseStatusNotFound
 	}
 	if nodeResp.Status == constants.NodeStatusComplete {
-		nextNode, svcErr := fe.handleCompletedResponse(ctx, currentNode)
+		nextNode, svcErr := fe.handleCompletedResponse(ctx, currentNode, nodeResp)
 		if svcErr != nil {
 			return nil, false, svcErr
 		}
@@ -191,9 +197,9 @@ func (fe *FlowEngine) processNodeResponse(ctx *model.EngineContext, currentNode 
 }
 
 // handleCompletedResponse handles the completed node and returns the next node to execute.
-func (fe *FlowEngine) handleCompletedResponse(ctx *model.EngineContext,
-	currentNode model.NodeInterface) (model.NodeInterface, *serviceerror.ServiceError) {
-	nextNode, err := fe.resolveToNextNode(ctx.Graph, currentNode)
+func (fe *FlowEngine) handleCompletedResponse(ctx *model.EngineContext, currentNode model.NodeInterface,
+	nodeResp *model.NodeResponse) (model.NodeInterface, *serviceerror.ServiceError) {
+	nextNode, err := fe.resolveToNextNode(ctx.Graph, currentNode, nodeResp)
 	if err != nil {
 		svcErr := constants.ErrorMovingToNextNode
 		svcErr.ErrorDescription = "error moving to next node: " + err.Error()
@@ -237,7 +243,7 @@ func (fe *FlowEngine) handleIncompleteResponse(nodeResp *model.NodeResponse,
 // The next node will be executed in the next request with the requested data.
 func (fe *FlowEngine) handlePromptOnlyResponse(ctx *model.EngineContext, currentNode model.NodeInterface,
 	nodeResp *model.NodeResponse, flowStep *model.FlowStep) *serviceerror.ServiceError {
-	nextNode, err := fe.resolveToNextNode(ctx.Graph, currentNode)
+	nextNode, err := fe.resolveToNextNode(ctx.Graph, currentNode, nodeResp)
 	if err != nil {
 		svcErr := constants.ErrorMovingToNextNode
 		svcErr.ErrorDescription = "error moving to next node: " + err.Error()
@@ -255,11 +261,26 @@ func (fe *FlowEngine) handlePromptOnlyResponse(ctx *model.EngineContext, current
 }
 
 // resolveToNextNode resolves the next node to execute based on the current node.
-func (fe *FlowEngine) resolveToNextNode(graph model.GraphInterface,
-	currentNode model.NodeInterface) (model.NodeInterface, error) {
+func (fe *FlowEngine) resolveToNextNode(graph model.GraphInterface, currentNode model.NodeInterface,
+	nodeResp *model.NodeResponse) (model.NodeInterface, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowEngine"))
 
-	nextNodeID := currentNode.GetNextNodeID()
+	nextNodeID := ""
+	if currentNode.GetType() == constants.NodeTypeDecision {
+		logger.Debug("Current node is a decision node. Trying to resolve next node based on decision.")
+		if nodeResp == nil || nodeResp.NextNodeID == "" {
+			logger.Debug("No next node ID found in the node response. Returning nil.")
+			return nil, nil
+		}
+		nextNodeID = nodeResp.NextNodeID
+	} else {
+		// Set the first element of the next node list assuming only decision nodes can have multiple next nodes.
+		if len(currentNode.GetNextNodeList()) == 0 {
+			logger.Debug("No next node found in the current node. Returning nil.")
+			return nil, nil
+		}
+		nextNodeID = currentNode.GetNextNodeList()[0]
+	}
 	if nextNodeID == "" {
 		logger.Debug("No next node found. Returning nil.")
 		return nil, nil
@@ -313,16 +334,25 @@ func (fe *FlowEngine) resolveStepDetailsForPrompt(nodeResp *model.NodeResponse, 
 	if nodeResp == nil {
 		return errors.New("node response is nil")
 	}
-	if len(nodeResp.RequiredData) == 0 {
-		return errors.New("required data not found in the node response")
+	if len(nodeResp.RequiredData) == 0 && len(nodeResp.Actions) == 0 {
+		return errors.New("no required data or actions found in the node response")
 	}
 
-	if flowStep.Data.Inputs == nil {
-		flowStep.Data.Inputs = make([]model.InputData, 0)
-		flowStep.Data.Inputs = nodeResp.RequiredData
-	} else {
-		// Append to the existing input data
-		flowStep.Data.Inputs = append(flowStep.Data.Inputs, nodeResp.RequiredData...)
+	if len(nodeResp.RequiredData) > 0 {
+		if flowStep.Data.Inputs == nil {
+			flowStep.Data.Inputs = make([]model.InputData, 0)
+			flowStep.Data.Inputs = nodeResp.RequiredData
+		} else {
+			// Append to the existing input data
+			flowStep.Data.Inputs = append(flowStep.Data.Inputs, nodeResp.RequiredData...)
+		}
+	}
+
+	if len(nodeResp.Actions) > 0 {
+		if flowStep.Data.Actions == nil {
+			flowStep.Data.Actions = make([]model.Action, 0)
+		}
+		flowStep.Data.Actions = nodeResp.Actions
 	}
 
 	flowStep.Status = constants.FlowStatusIncomplete

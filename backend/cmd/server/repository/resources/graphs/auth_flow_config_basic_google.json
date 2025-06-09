@@ -1,0 +1,58 @@
+{
+    "id": "auth_flow_config_basic_google",
+    "type": "AUTHENTICATION",
+    "nodes": [
+        {
+            "id": "choose_auth",
+            "type": "DECISION"
+        },
+        {
+            "id": "basic_auth",
+            "type": "TASK_EXECUTION",
+            "inputData": [
+                {
+                    "name": "username",
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "password",
+                    "type": "string",
+                    "required": true
+                }
+            ],
+            "executor": {
+                "name": "BasicAuthExecutor"
+            }
+        },
+        {
+            "id": "google_auth",
+            "type": "TASK_EXECUTION",
+            "inputData": [
+                {
+                    "name": "code",
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "nonce",
+                    "type": "string",
+                    "required": false
+                }
+            ],
+            "executor": {
+                "name": "GoogleOIDCAuthExecutor",
+                "idpName": "Google"
+            }
+        },
+        {
+            "id": "authenticated",
+            "type": "AUTHENTICATION_SUCCESS"
+        }
+    ],
+    "edges": {
+        "choose_auth": ["basic_auth", "google_auth"],
+        "basic_auth": ["authenticated"],
+        "google_auth": ["authenticated"]
+    }
+}

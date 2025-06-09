@@ -195,3 +195,11 @@ var ErrorInvalidAuthFlowConfiguredForApplication = serviceerror.ServiceError{
 	Error:            "Invalid configuration",
 	ErrorDescription: "The configured flow graph is not valid for the application authentication flow",
 }
+
+// ErrorNoActionsDefinedForNode defines the error response for nodes without any actions defined.
+var ErrorNoActionsDefinedForNode = serviceerror.ServiceError{
+	Code:             "FES-65017",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Invalid configuration",
+	ErrorDescription: "No actions defined for the node",
+}

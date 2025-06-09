@@ -3,7 +3,7 @@
     "type": "AUTHENTICATION",
     "nodes": [
         {
-            "id": "git_auth",
+            "id": "github_auth",
             "type": "TASK_EXECUTION",
             "inputData": [
                 {
@@ -23,6 +23,6 @@
         }
     ],
     "edges": {
-        "git_auth": ["authenticated"]
+        "github_auth": ["authenticated"]
     }
 }
