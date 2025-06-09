@@ -182,9 +182,6 @@ func (fe *FlowEngine) processNodeResponse(ctx *model.EngineContext, currentNode 
 			return nil, false, svcErr
 		}
 		return nil, false, nil
-	} else if nodeResp.Status == constants.NodeStatusPromptOnly {
-		svcErr := fe.handlePromptOnlyResponse(ctx, currentNode, nodeResp, flowStep)
-		return nil, false, svcErr
 	} else if nodeResp.Status == constants.NodeStatusFailure {
 		flowStep.Status = constants.FlowStatusError
 		flowStep.FailureReason = nodeResp.FailureReason
@@ -236,28 +233,6 @@ func (fe *FlowEngine) handleIncompleteResponse(nodeResp *model.NodeResponse,
 		return &svcErr
 	}
 	// TODO: Handle retry scenarios with nodeResp.Type == constants.NodeResponseTypeRetry
-}
-
-// handlePromptOnlyResponse handles the node response when the status is prompt only.
-// It sets the next node to execute and resolves the flow step details for the prompt.
-// The next node will be executed in the next request with the requested data.
-func (fe *FlowEngine) handlePromptOnlyResponse(ctx *model.EngineContext, currentNode model.NodeInterface,
-	nodeResp *model.NodeResponse, flowStep *model.FlowStep) *serviceerror.ServiceError {
-	nextNode, err := fe.resolveToNextNode(ctx.Graph, currentNode, nodeResp)
-	if err != nil {
-		svcErr := constants.ErrorMovingToNextNode
-		svcErr.ErrorDescription = "error moving to next node: " + err.Error()
-		return &svcErr
-	}
-	ctx.CurrentNode = nextNode
-
-	err = fe.resolveStepDetailsForPrompt(nodeResp, flowStep)
-	if err != nil {
-		svcErr := constants.ErrorResolvingStepForPrompt
-		svcErr.ErrorDescription = "error resolving step details for prompt: " + err.Error()
-		return &svcErr
-	}
-	return nil
 }
 
 // resolveToNextNode resolves the next node to execute based on the current node.

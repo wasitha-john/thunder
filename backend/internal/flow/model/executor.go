@@ -149,7 +149,8 @@ func (e *Executor) getRequiredData(ctx *NodeContext) []InputData {
 	return requiredData
 }
 
-// appendRequiredData appends the user not provided required input data to the executor response.
+// appendRequiredData appends the required input data to the executor response if not present in the context.
+// returns true if any required data is missing, false otherwise.
 func (e *Executor) appendRequiredData(ctx *NodeContext, execResp *ExecutorResponse, requiredData []InputData) bool {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "Executor"),
 		log.String(log.LoggerKeyExecutorID, e.GetID()),
@@ -158,15 +159,12 @@ func (e *Executor) appendRequiredData(ctx *NodeContext, execResp *ExecutorRespon
 	requireData := false
 	for _, inputData := range requiredData {
 		if _, ok := ctx.UserInputData[inputData.Name]; !ok {
-			if !inputData.Required {
-				logger.Debug("Skipping optional input data that is not provided by user",
-					log.String("inputDataName", inputData.Name))
-				continue
+			if inputData.Required {
+				requireData = true
 			}
 			execResp.RequiredData = append(execResp.RequiredData, inputData)
-			requireData = true
-			logger.Debug("Required input data not provided by user",
-				log.String("inputDataName", inputData.Name))
+			logger.Debug("Input data not available in the context",
+				log.String("inputDataName", inputData.Name), log.Bool("isRequired", inputData.Required))
 		}
 	}
 
