@@ -106,6 +106,26 @@ type FlowConfig struct {
 	Authn          FlowAuthnConfig `yaml:"authn"`
 }
 
+// Provider holds the configuration details for an individual notification provider.
+type Provider struct {
+	Name        string            `yaml:"name"`
+	Provider    string            `yaml:"provider"`
+	DisplayName string            `yaml:"display_name"`
+	Description string            `yaml:"description"`
+	Properties  map[string]string `yaml:"properties"`
+}
+
+// SMS holds the configuration details for SMS notification providers.
+type SMS struct {
+	DefaultProvider string     `yaml:"default_provider"`
+	Providers       []Provider `yaml:"providers"`
+}
+
+// ProviderConfig holds the configuration details for notification providers.
+type ProviderConfig struct {
+	SMS SMS `yaml:"sms"`
+}
+
 // Config holds the complete configuration details of the server.
 type Config struct {
 	Server        ServerConfig        `yaml:"server"`
@@ -115,6 +135,7 @@ type Config struct {
 	OAuth         OAuthConfig         `yaml:"oauth"`
 	Authenticator AuthenticatorConfig `yaml:"authenticator"`
 	Flow          FlowConfig          `yaml:"flow"`
+	Provider      ProviderConfig      `yaml:"provider"`
 }
 
 // LoadConfig loads the configurations from the specified YAML file.

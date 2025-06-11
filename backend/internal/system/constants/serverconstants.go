@@ -40,3 +40,6 @@ const TokenTypeBearer = "Bearer"
 
 // ContentTypeJSON is the content type for JSON data.
 const ContentTypeJSON = "application/json"
+
+// ContentTypeFormURLEncoded is the content type for form-urlencoded data.
+const ContentTypeFormURLEncoded = "application/x-www-form-urlencoded"
