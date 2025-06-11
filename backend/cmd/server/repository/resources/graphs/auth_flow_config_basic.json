@@ -25,7 +25,7 @@
             "executor": {
                 "name": "BasicAuthExecutor"
             },
-            "nextNodes": [
+            "next": [
                 "authenticated"
             ]
         },

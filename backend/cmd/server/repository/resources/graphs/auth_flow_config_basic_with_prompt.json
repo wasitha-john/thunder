@@ -12,7 +12,7 @@
                     "required": true
                 }
             ],
-            "nextNodes": [
+            "next": [
                 "basic_auth"
             ]
         },
@@ -29,7 +29,7 @@
             "executor": {
                 "name": "BasicAuthExecutor"
             },
-            "nextNodes": [
+            "next": [
                 "authenticated"
             ]
         },

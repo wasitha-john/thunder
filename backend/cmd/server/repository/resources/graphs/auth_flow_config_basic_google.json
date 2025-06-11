@@ -5,7 +5,7 @@
         {
             "id": "choose_auth",
             "type": "DECISION",
-            "nextNodes": [
+            "next": [
                 "basic_auth",
                 "google_auth"
             ]
@@ -28,7 +28,7 @@
             "executor": {
                 "name": "BasicAuthExecutor"
             },
-            "nextNodes": [
+            "next": [
                 "authenticated"
             ]
         },
@@ -51,7 +51,7 @@
                 "name": "GoogleOIDCAuthExecutor",
                 "idpName": "Google"
             },
-            "nextNodes": [
+            "next": [
                 "authenticated"
             ]
         },

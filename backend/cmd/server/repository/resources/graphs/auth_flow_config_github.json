@@ -16,7 +16,7 @@
                 "name": "GithubOAuthExecutor",
                 "idpName": "Github"
             },
-            "nextNodes": [
+            "next": [
                 "authenticated"
             ]
         },
