@@ -364,10 +364,6 @@ const LoginPage = () => {
     const hasBasicAuth = loginOptions.some(option => option.type === 'BASIC');
     // Get all social auth options
     const socialOptions = loginOptions.filter(option => option.type === 'SOCIAL') as SocialAuthOption[];
-
-    console.log("Login options:", loginOptions);
-    console.log("has BasicAuth:", hasBasicAuth);
-    console.log("Social options:", socialOptions);
     
     // Handle basic auth form submission directly from decision screen
     const handleBasicAuthDecision = (event: React.FormEvent<HTMLFormElement>) => {
