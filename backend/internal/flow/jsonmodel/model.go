@@ -32,7 +32,7 @@ type NodeDefinition struct {
 	Type      string             `json:"type"`
 	InputData []InputDefinition  `json:"inputData"`
 	Executor  ExecutorDefinition `json:"executor"`
-	NextNodes []string           `json:"nextNodes,omitempty"`
+	Next      []string           `json:"next,omitempty"`
 }
 
 // InputDefinition represents an input parameter for a node

@@ -21,7 +21,7 @@
                 "name": "GoogleOIDCAuthExecutor",
                 "idpName": "Google"
             },
-            "nextNodes": [
+            "next": [
                 "authenticated"
             ]
         },

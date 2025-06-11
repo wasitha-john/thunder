@@ -49,7 +49,7 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 	// Add all nodes to the graph
 	edges := make(map[string][]string)
 	for _, nodeDef := range definition.Nodes {
-		isFinalNode := len(nodeDef.NextNodes) == 0
+		isFinalNode := len(nodeDef.Next) == 0
 
 		// Construct a new node. Here we set isStartNode to false by default.
 		node, err := model.NewNode(nodeDef.ID, nodeDef.Type, false, isFinalNode)
@@ -58,15 +58,15 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 		}
 
 		// Set next nodes if defined
-		if len(nodeDef.NextNodes) > 0 {
-			node.SetNextNodeList(nodeDef.NextNodes)
+		if len(nodeDef.Next) > 0 {
+			node.SetNextNodeList(nodeDef.Next)
 
 			// Store edges based on the node definition
 			_, exists := edges[nodeDef.ID]
 			if !exists {
 				edges[nodeDef.ID] = []string{}
 			}
-			edges[nodeDef.ID] = append(edges[nodeDef.ID], nodeDef.NextNodes...)
+			edges[nodeDef.ID] = append(edges[nodeDef.ID], nodeDef.Next...)
 		}
 
 		// Convert and set input data from definition
