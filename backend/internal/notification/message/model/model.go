@@ -16,10 +16,10 @@
  * under the License.
  */
 
-// Package model defines the data structures used for SMS notifications.
+// Package model defines the data structures used for message notifications.
 package model
 
-import "github.com/asgardeo/thunder/internal/notification/sms/constants"
+import "github.com/asgardeo/thunder/internal/notification/message/constants"
 
 // SMSData represents the data structure for a SMS message.
 type SMSData struct {
@@ -30,11 +30,11 @@ type SMSData struct {
 	HttpHeaders map[string]string `json:"http_headers"`
 }
 
-// SMSSenderDTO represents the data object for an SMS sender configuration.
-type SMSSenderDTO struct {
-	Name        string                    `json:"name"`
-	Provider    constants.SMSProviderType `json:"provider"`
-	DisplayName string                    `json:"display_name"`
-	Description string                    `json:"description"`
-	Properties  map[string]string         `json:"properties"`
+// MessageSenderDTO represents the data object for a message sender configuration.
+type MessageSenderDTO struct {
+	Name        string                        `json:"name"`
+	Provider    constants.MessageProviderType `json:"provider"`
+	DisplayName string                        `json:"display_name"`
+	Description string                        `json:"description"`
+	Properties  map[string]string             `json:"properties"`
 }

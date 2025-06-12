@@ -16,18 +16,18 @@
  * under the License.
  */
 
-// Package constants defines global constants used in the SMS notification module.
+// Package constants defines global constants used in the message notification module.
 package constants
 
-type SMSProviderType string
+type MessageProviderType string
 
 const (
-	// SMSProviderTypeVonage represents the Vonage SMS provider.
-	SMSProviderTypeVonage SMSProviderType = "vonage"
-	// SMSProviderTypeTwilio represents the Twilio SMS provider.
-	SMSProviderTypeTwilio SMSProviderType = "twilio"
-	// SMSProviderTypeCustom represents a custom SMS provider.
-	SMSProviderTypeCustom SMSProviderType = "custom"
+	// MessageProviderTypeVonage represents the Vonage messaging provider.
+	MessageProviderTypeVonage MessageProviderType = "vonage"
+	// MessageProviderTypeTwilio represents the Twilio messaging provider.
+	MessageProviderTypeTwilio MessageProviderType = "twilio"
+	// MessageProviderTypeCustom represents a custom messaging provider.
+	MessageProviderTypeCustom MessageProviderType = "custom"
 )
 
 const (

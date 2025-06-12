@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/asgardeo/thunder/internal/flow"
-	sms "github.com/asgardeo/thunder/internal/notification/sms/provider"
+	message "github.com/asgardeo/thunder/internal/notification/message/provider"
 	"github.com/asgardeo/thunder/internal/system/cert"
 	"github.com/asgardeo/thunder/internal/system/managers"
 
@@ -126,12 +126,12 @@ func initFlowService(logger *log.Logger) {
 	}
 }
 
-// initNotificationProviders initializes the notification providers, such as SMS.
+// initNotificationProviders initializes the notification providers.
 func initNotificationProviders(logger *log.Logger) {
-	// Initialize the SMS provider.
-	smsProvider := sms.NewSMSClientProvider()
-	if err := smsProvider.Init(); err != nil {
-		logger.Fatal("Failed to initialize SMS provider", log.Error(err))
+	// Initialize the message provider.
+	msgClientProvider := message.NewMessageClientProvider()
+	if err := msgClientProvider.Init(); err != nil {
+		logger.Fatal("Failed to initialize message client provider", log.Error(err))
 	}
 }
 

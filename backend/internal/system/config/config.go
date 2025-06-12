@@ -115,15 +115,15 @@ type Provider struct {
 	Properties  map[string]string `yaml:"properties"`
 }
 
-// SMS holds the configuration details for SMS notification providers.
-type SMS struct {
+// Message holds the configuration details for message notification providers.
+type Message struct {
 	DefaultProvider string     `yaml:"default_provider"`
 	Providers       []Provider `yaml:"providers"`
 }
 
 // ProviderConfig holds the configuration details for notification providers.
 type ProviderConfig struct {
-	SMS SMS `yaml:"sms"`
+	Message Message `yaml:"message"`
 }
 
 // Config holds the complete configuration details of the server.

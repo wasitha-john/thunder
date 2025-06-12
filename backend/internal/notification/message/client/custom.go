@@ -27,17 +27,17 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/asgardeo/thunder/internal/notification/sms/constants"
-	"github.com/asgardeo/thunder/internal/notification/sms/model"
+	"github.com/asgardeo/thunder/internal/notification/message/constants"
+	"github.com/asgardeo/thunder/internal/notification/message/model"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 const (
-	customClientLoggerComponentName = "CustomClient"
+	customClientLoggerComponentName = "CustomMessageClient"
 )
 
-// CustomClient implements the SMSClientInterface for sending SMS via a custom sms provider.
+// CustomClient implements the MessageClientInterface for sending messages via a custom message provider.
 type CustomClient struct {
 	name            string
 	url             string
@@ -48,7 +48,7 @@ type CustomClient struct {
 }
 
 // NewCustomClient creates a new instance of CustomClient.
-func NewCustomClient(senderDTO model.SMSSenderDTO) (SMSClientInterface, error) {
+func NewCustomClient(senderDTO model.MessageSenderDTO) (MessageClientInterface, error) {
 	client := &CustomClient{}
 
 	err := client.validate(senderDTO)
@@ -87,7 +87,7 @@ func (c *CustomClient) GetName() string {
 }
 
 // validate checks if the Custom client is properly configured.
-func (c *CustomClient) validate(senderDTO model.SMSSenderDTO) error {
+func (c *CustomClient) validate(senderDTO model.MessageSenderDTO) error {
 	if senderDTO.Properties[constants.CustomPropKeyURL] == "" {
 		return errors.New("Custom client URL is required")
 	}

@@ -27,8 +27,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/asgardeo/thunder/internal/notification/sms/constants"
-	"github.com/asgardeo/thunder/internal/notification/sms/model"
+	"github.com/asgardeo/thunder/internal/notification/message/constants"
+	"github.com/asgardeo/thunder/internal/notification/message/model"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
@@ -38,7 +38,7 @@ const (
 	sIDRegex                  = `^AC[0-9a-fA-F]{32}$`
 )
 
-// TwilioClient implements the SMSClientInterface for sending SMS via Twilio API.
+// TwilioClient implements the MessageClientInterface for sending messages via Twilio API.
 type TwilioClient struct {
 	name       string
 	url        string
@@ -48,7 +48,7 @@ type TwilioClient struct {
 }
 
 // NewTwilioClient creates a new instance of TwilioClient.
-func NewTwilioClient(senderDTO model.SMSSenderDTO) (SMSClientInterface, error) {
+func NewTwilioClient(senderDTO model.MessageSenderDTO) (MessageClientInterface, error) {
 	client := &TwilioClient{}
 
 	err := client.validate(senderDTO)
@@ -71,7 +71,7 @@ func (c *TwilioClient) GetName() string {
 }
 
 // validate checks if the Twilio client is properly configured.
-func (c *TwilioClient) validate(senderDTO model.SMSSenderDTO) error {
+func (c *TwilioClient) validate(senderDTO model.MessageSenderDTO) error {
 	if senderDTO.Properties[constants.TwilioPropKeyAccountSID] == "" {
 		return errors.New("Twilio account SID is required")
 	}

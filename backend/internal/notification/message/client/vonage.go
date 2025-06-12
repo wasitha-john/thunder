@@ -26,8 +26,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/notification/sms/constants"
-	"github.com/asgardeo/thunder/internal/notification/sms/model"
+	"github.com/asgardeo/thunder/internal/notification/message/constants"
+	"github.com/asgardeo/thunder/internal/notification/message/model"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
@@ -36,7 +36,7 @@ const (
 	vonageLoggerComponentName = "VonageClient"
 )
 
-// VonageClient implements the SMSClientInterface for sending SMS via Vonage API.
+// VonageClient implements the MessageClientInterface for sending messages via Vonage API.
 type VonageClient struct {
 	name      string
 	url       string
@@ -46,7 +46,7 @@ type VonageClient struct {
 }
 
 // NewVonageClient creates a new instance of VonageClient.
-func NewVonageClient(senderDTO model.SMSSenderDTO) (SMSClientInterface, error) {
+func NewVonageClient(senderDTO model.MessageSenderDTO) (MessageClientInterface, error) {
 	client := &VonageClient{}
 
 	err := client.validate(senderDTO)
@@ -64,7 +64,7 @@ func NewVonageClient(senderDTO model.SMSSenderDTO) (SMSClientInterface, error) {
 }
 
 // validate checks if the required properties for Vonage are set.
-func (v *VonageClient) validate(senderDTO model.SMSSenderDTO) error {
+func (v *VonageClient) validate(senderDTO model.MessageSenderDTO) error {
 	if senderDTO.Properties[constants.VonagePropKeyAPIKey] == "" {
 		return errors.New("Vonage API key is required")
 	}
