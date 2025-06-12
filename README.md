@@ -146,14 +146,28 @@ Open the sample app in your browser and enter the username and password you crea
       "id": "550e8400-e29b-41d4-a716-446655440001",
       "name": "Google",
       "description": "Login with Google",
-      "client_id": "<client_id>",
-      "client_secret": "<client_secret>",
-      "redirect_uri": "<app_callback_url>",
-      "scopes": [
-          "openid",
-          "email",
-          "profile"
-      ]
+      "properties": [
+        {
+            "name": "client_id",
+            "value": "<client_id>",
+            "is_secret": false
+        },
+        {
+            "name": "client_secret",
+            "value": "<client_secret>",
+            "is_secret": true
+        },
+        {
+            "name": "redirect_uri",
+            "value": "<app_callback_url>",
+            "is_secret": false
+        },
+        {
+            "name": "scopes",
+            "value": "openid,email,profile",
+            "is_secret": false
+        }
+    ]
   }'
   ```
 
@@ -196,13 +210,28 @@ Open the sample app in your browser and enter the username and password you crea
       "id": "550e8400-e29b-41d4-a716-446655440001",
       "name": "Github",
       "description": "Login with Github",
-      "client_id": "<client_id>",
-      "client_secret": "<client_secret>",
-      "redirect_uri": "<app_callback_url>",
-      "scopes": [
-          "user:email",
-          "read:user"
-      ]
+      "properties": [
+          {
+              "name": "client_id",
+              "value": "<client_id>",
+              "is_secret": false
+          },
+          {
+              "name": "client_secret",
+              "value": "<client_secret>",
+              "is_secret": true
+          },
+          {
+              "name": "redirect_uri",
+              "value": "<app_callback_url>",
+              "is_secret": false
+          },
+          {
+              "name": "scopes",
+              "value": "user:email,read:user",
+              "is_secret": false
+          }
+      ],
   }'
   ```
 
@@ -358,13 +387,27 @@ Open the sample app in your browser and enter the username and password you crea
       "id": "550e8400-e29b-41d4-a716-446655440001",
       "name": "Google",
       "description": "Login with Google",
-      "client_id": "<client_id>",
-      "client_secret": "<client_secret>",
-      "redirect_uri": "<app_callback_url>",
-      "scopes": [
-          "openid",
-          "email",
-          "profile"
+      "properties": [
+          {
+              "name": "client_id",
+              "value": "<client_id>",
+              "is_secret": false
+          },
+          {
+              "name": "client_secret",
+              "value": "<client_secret>",
+              "is_secret": true
+          },
+          {
+              "name": "redirect_uri",
+              "value": "<app_callback_url>",
+              "is_secret": false
+          },
+          {
+              "name": "scopes",
+              "value": "openid,email,profile",
+              "is_secret": false
+          }
       ]
   }'
   ```
@@ -465,12 +508,27 @@ Open the sample app in your browser and enter the username and password you crea
       "id": "550e8400-e29b-41d4-a716-446655440001",
       "name": "Github",
       "description": "Login with Github",
-      "client_id": "<client_id>",
-      "client_secret": "<client_secret>",
-      "redirect_uri": "<app_callback_url>",
-      "scopes": [
-          "user:email",
-          "read:user"
+      "properties": [
+          {
+              "name": "client_id",
+              "value": "<client_id>",
+              "is_secret": false
+          },
+          {
+              "name": "client_secret",
+              "value": "<client_secret>",
+              "is_secret": true
+          },
+          {
+              "name": "redirect_uri",
+              "value": "<app_callback_url>",
+              "is_secret": false
+          },
+          {
+              "name": "scopes",
+              "value": "user:email,read:user",
+              "is_secret": false
+          }
       ]
   }'
   ```

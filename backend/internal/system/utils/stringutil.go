@@ -103,3 +103,16 @@ func MergeStringMaps(dst, src map[string]string) map[string]string {
 	}
 	return dst
 }
+
+// BoolToNumString converts a boolean value to a numeric string representation.
+func BoolToNumString(b bool) string {
+	if b {
+		return "1"
+	}
+	return "0"
+}
+
+// NumStringToBool converts a numeric string representation to a boolean value.
+func NumStringToBool(s string) bool {
+	return s == "1"
+}

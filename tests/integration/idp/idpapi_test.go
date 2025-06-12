@@ -40,41 +40,116 @@ var (
 			ID:          "550e8400-e29b-41d4-a716-446655440000",
 			Name:        "Local",
 			Description: "Local Identity Provider",
-			ClientID:    "local",
-			Scopes:      json.RawMessage(`["local"]`),
+			Properties:  []IDPProperty{},
 		},
 		{
 			ID:          "550e8400-e29b-41d4-a716-446655440001",
 			Name:        "Github",
 			Description: "Login with Github",
-			ClientID:    "client1",
-			Scopes:      json.RawMessage(`["user:email","read:user"]`),
+			Properties: []IDPProperty{
+				{
+					Name:     "client_id",
+					Value:    "client1",
+					IsSecret: false,
+				},
+				{
+					Name:     "client_secret",
+					Value:    "secret1",
+					IsSecret: true,
+				},
+				{
+					Name:     "redirect_uri",
+					Value:    "https://localhost:3000",
+					IsSecret: false,
+				},
+				{
+					Name:     "scopes",
+					Value:    "user:email,read:user",
+					IsSecret: false,
+				},
+			},
 		},
 		{
 			ID:          "550e8400-e29b-41d4-a716-446655440002",
 			Name:        "Google",
 			Description: "Login with Google",
-			ClientID:    "client1",
-			Scopes:      json.RawMessage(`["openid","email","profile"]`),
+			Properties: []IDPProperty{
+				{
+					Name:     "client_id",
+					Value:    "client2",
+					IsSecret: false,
+				},
+				{
+					Name:     "client_secret",
+					Value:    "secret2",
+					IsSecret: true,
+				},
+				{
+					Name:     "redirect_uri",
+					Value:    "https://localhost:3000",
+					IsSecret: false,
+				},
+				{
+					Name:     "scopes",
+					Value:    "openid,email,profile",
+					IsSecret: false,
+				},
+			},
 		},
 	}
 
 	idpToCreate = IDP{
-		Name:         "Google 2",
-		Description:  "Google User Login",
-		ClientID:     "client2",
-		ClientSecret: "secret2",
-		RedirectURI:  "https://localhost:8090/flow/authn2",
-		Scopes:       json.RawMessage(`["openid","email","profile"]`),
+		Name:        "Google 2",
+		Description: "Google User Login",
+		Properties: []IDPProperty{
+			{
+				Name:     "client_id",
+				Value:    "client2",
+				IsSecret: false,
+			},
+			{
+				Name:     "client_secret",
+				Value:    "secret2",
+				IsSecret: true,
+			},
+			{
+				Name:     "redirect_uri",
+				Value:    "https://localhost:3000",
+				IsSecret: false,
+			},
+			{
+				Name:     "scopes",
+				Value:    "openid,email,profile",
+				IsSecret: false,
+			},
+		},
 	}
 
 	idpToUpdate = IDP{
-		Name:         "Github 2",
-		Description:  "Github User Login",
-		ClientID:     "client3",
-		ClientSecret: "secret3",
-		RedirectURI:  "https://localhost:8090/flow/authn3",
-		Scopes:       json.RawMessage(`["user:email","read:user"]`),
+		Name:        "Github 2",
+		Description: "Github User Login",
+		Properties: []IDPProperty{
+			{
+				Name:     "client_id",
+				Value:    "client3",
+				IsSecret: false,
+			},
+			{
+				Name:     "client_secret",
+				Value:    "secret3",
+				IsSecret: true,
+			},
+			{
+				Name:     "redirect_uri",
+				Value:    "https://localhost:3000",
+				IsSecret: false,
+			},
+			{
+				Name:     "scopes",
+				Value:    "user:email,read:user",
+				IsSecret: false,
+			},
+		},
 	}
 )
 
@@ -226,9 +301,7 @@ func (ts *IdpAPITestSuite) TestIdpUpdate() {
 		ID:          createdIdpID,
 		Name:        idpToUpdate.Name,
 		Description: idpToUpdate.Description,
-		ClientID:    idpToUpdate.ClientID,
-		RedirectURI: idpToUpdate.RedirectURI,
-		Scopes:      idpToUpdate.Scopes,
+		Properties:  idpToUpdate.Properties,
 	})
 }
 
@@ -349,9 +422,7 @@ func buildCreatedIdp() IDP {
 		ID:          createdIdpID,
 		Name:        idpToCreate.Name,
 		Description: idpToCreate.Description,
-		ClientID:    idpToCreate.ClientID,
-		RedirectURI: idpToCreate.RedirectURI,
-		Scopes:      idpToCreate.Scopes,
+		Properties:  idpToCreate.Properties,
 	}
 }
 
@@ -361,7 +432,6 @@ func buildCreatedIdpToList() IDP {
 		ID:          createdIdpID,
 		Name:        idpToCreate.Name,
 		Description: idpToCreate.Description,
-		ClientID:    idpToCreate.ClientID,
-		Scopes:      idpToCreate.Scopes,
+		Properties:  idpToCreate.Properties,
 	}
 }

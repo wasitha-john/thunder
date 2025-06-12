@@ -31,6 +31,7 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/model"
 	idpmodel "github.com/asgardeo/thunder/internal/idp/model"
 	idpservice "github.com/asgardeo/thunder/internal/idp/service"
+	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // BuildGraphFromDefinition builds a graph from a graph definition json.
@@ -213,15 +214,29 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 		if err != nil {
 			return nil, fmt.Errorf("error while getting IDP for GithubOAuthExecutor: %w", err)
 		}
-		executor = githubauth.NewGithubOAuthExecutor(idp.ID, idp.Name, idp.ClientID, idp.ClientSecret,
-			idp.RedirectURI, idp.Scopes, map[string]string{})
+
+		clientID, clientSecret, redirectURI, scopes, additionalParams, err := getIDPConfigs(
+			idp.Properties, execConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		executor = githubauth.NewGithubOAuthExecutor(idp.ID, idp.Name, clientID, clientSecret,
+			redirectURI, scopes, additionalParams)
 	case "GoogleOIDCAuthExecutor":
 		idp, err := getIDP(execConfig.IdpName)
 		if err != nil {
 			return nil, fmt.Errorf("error while getting IDP for GoogleOIDCAuthExecutor: %w", err)
 		}
-		executor = googleauth.NewGoogleOIDCAuthExecutor(idp.ID, idp.Name, idp.ClientID, idp.ClientSecret,
-			idp.RedirectURI, idp.Scopes, map[string]string{})
+
+		clientID, clientSecret, redirectURI, scopes, additionalParams, err := getIDPConfigs(
+			idp.Properties, execConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		executor = googleauth.NewGoogleOIDCAuthExecutor(idp.ID, idp.Name, clientID, clientSecret,
+			redirectURI, scopes, additionalParams)
 	case "AuthAssertExecutor":
 		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor")
 	default:
@@ -250,4 +265,36 @@ func getIDP(idpName string) (*idpmodel.IDP, error) {
 	}
 
 	return idp, nil
+}
+
+// getIDPConfigs retrieves the IDP configurations for a given executor configuration.
+func getIDPConfigs(idpProperties []idpmodel.IDPProperty, execConfig *model.ExecutorConfig) (string,
+	string, string, []string, map[string]string, error) {
+	if len(idpProperties) == 0 {
+		return "", "", "", nil, nil, fmt.Errorf("IDP properties not found for executor with IDP name %s",
+			execConfig.IdpName)
+	}
+	var clientID, clientSecret, redirectURI, scopesStr string
+	additionalParams := map[string]string{}
+	for _, prop := range idpProperties {
+		switch prop.Name {
+		case "client_id":
+			clientID = prop.Value
+		case "client_secret":
+			clientSecret = prop.Value
+		case "redirect_uri":
+			redirectURI = prop.Value
+		case "scopes":
+			scopesStr = prop.Value
+		default:
+			additionalParams[prop.Name] = prop.Value
+		}
+	}
+	if clientID == "" || clientSecret == "" || redirectURI == "" || scopesStr == "" {
+		return "", "", "", nil, nil, fmt.Errorf("missing required properties for executor with IDP name %s",
+			execConfig.IdpName)
+	}
+	scopes := sysutils.ParseStringArray(scopesStr)
+
+	return clientID, clientSecret, redirectURI, scopes, additionalParams, nil
 }

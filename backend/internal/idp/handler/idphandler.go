@@ -58,17 +58,19 @@ func (ih *IDPHandler) HandleIDPPostRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	idpResponse := getIDPResponse(*createdIDP)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	err = json.NewEncoder(w).Encode(createdIDP)
+	err = json.NewEncoder(w).Encode(idpResponse)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	// Log the IdP creation response.
-	logger.Debug("IdP POST response sent", log.String("IdP id", createdIDP.ID))
+	logger.Debug("IdP POST response sent", log.String("IdP id", idpResponse.ID))
 }
 
 // HandleIDPListRequest handles the get identity providers request.
@@ -84,8 +86,14 @@ func (ih *IDPHandler) HandleIDPListRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Prepare the response with IdP details.
+	idpList := make([]model.IDP, 0, len(idps))
+	for _, idp := range idps {
+		idpList = append(idpList, getIDPResponse(idp))
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(idps)
+	err = json.NewEncoder(w).Encode(idpList)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -118,13 +126,24 @@ func (ih *IDPHandler) HandleIDPGetRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	properties := make([]model.IDPProperty, 0, len(idp.Properties))
+	for _, property := range idp.Properties {
+		if property.IsSecret {
+			properties = append(properties, model.IDPProperty{
+				Name:     property.Name,
+				Value:    "******",
+				IsSecret: property.IsSecret,
+			})
+		} else {
+			properties = append(properties, property)
+		}
+	}
+
 	idpMap := map[string]interface{}{
-		"id":           idp.ID,
-		"name":         idp.Name,
-		"description":  idp.Description,
-		"client_id":    idp.ClientID,
-		"redirect_uri": idp.RedirectURI,
-		"scopes":       idp.Scopes,
+		"id":          idp.ID,
+		"name":        idp.Name,
+		"description": idp.Description,
+		"properties":  properties,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -161,24 +180,28 @@ func (ih *IDPHandler) HandleIDPPutRequest(w http.ResponseWriter, r *http.Request
 	idp, err := idpService.UpdateIdentityProvider(id, &updatedIDP)
 	if err != nil {
 		if errors.Is(err, model.ErrIDPNotFound) {
-			http.Error(w, "Not Found: The identity provider with the specified id does not exist.", http.StatusNotFound)
+			http.Error(w, "Not Found: The identity provider with the specified id does not exist.",
+				http.StatusNotFound)
 		} else if errors.Is(err, model.ErrBadScopesInRequest) {
-			http.Error(w, "Bad Request: The scopes element is malformed or contains invalid data.", http.StatusBadRequest)
+			http.Error(w, "Bad Request: The scopes element is malformed or contains invalid data.",
+				http.StatusBadRequest)
 		} else {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 		return
 	}
 
+	idpResponse := getIDPResponse(*idp)
+
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(idp)
+	err = json.NewEncoder(w).Encode(idpResponse)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	// Log the IdP response.
-	logger.Debug("IdP PUT response sent", log.String("IdP id", id))
+	logger.Debug("IdP PUT response sent", log.String("IdP id", idpResponse.ID))
 }
 
 // HandleIDPDeleteRequest handles the delete identity provider request.
@@ -204,4 +227,30 @@ func (ih *IDPHandler) HandleIDPDeleteRequest(w http.ResponseWriter, r *http.Requ
 
 	// Log the IdP response.
 	logger.Debug("IdP DELETE response sent", log.String("IdP id", id))
+}
+
+// getIDPResponse constructs the response for a identity provider.
+func getIDPResponse(idp model.IDP) model.IDP {
+	returnIDP := model.IDP{
+		ID:          idp.ID,
+		Name:        idp.Name,
+		Description: idp.Description,
+	}
+
+	// Mask secret properties in the response.
+	idpProperties := make([]model.IDPProperty, 0, len(idp.Properties))
+	for _, property := range idp.Properties {
+		if property.IsSecret {
+			idpProperties = append(idpProperties, model.IDPProperty{
+				Name:     property.Name,
+				Value:    "******",
+				IsSecret: property.IsSecret,
+			})
+		} else {
+			idpProperties = append(idpProperties, property)
+		}
+	}
+	returnIDP.Properties = idpProperties
+
+	return returnIDP
 }

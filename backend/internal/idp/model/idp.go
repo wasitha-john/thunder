@@ -25,13 +25,17 @@ import (
 
 // IDP represents an identity provider in the system.
 type IDP struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`                    // Display name
-	Description  string   `json:"description,omitempty"`   // Description shown in UI
-	ClientID     string   `json:"client_id"`               // OAuth client ID
-	ClientSecret string   `json:"client_secret,omitempty"` // OAuth client secret
-	RedirectURI  string   `json:"redirect_uri,omitempty"`  // OAuth redirect URI
-	Scopes       []string `json:"scopes,omitempty"`        // OAuth scopes
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`                  // Display name
+	Description string        `json:"description,omitempty"` // Description shown in UI
+	Properties  []IDPProperty `json:"properties,omitempty"`  // Properties of the IdP
+}
+
+// IDPProperty represents a property of an identity provider.
+type IDPProperty struct {
+	Name     string `json:"name"`      // Property name
+	Value    string `json:"value"`     // Property value
+	IsSecret bool   `json:"is_secret"` // Indicates if the property is a secret
 }
 
 // ErrIDPNotFound is returned when the IdP is not found in the system.
