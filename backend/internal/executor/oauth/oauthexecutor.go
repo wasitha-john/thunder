@@ -79,7 +79,7 @@ func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData,
 		}
 	}
 	return &OAuthExecutor{
-		internal:        *flowmodel.NewExecutor(id, name, defaultInputs),
+		internal:        *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}),
 		oAuthProperties: *oAuthProps,
 	}
 }
@@ -267,6 +267,16 @@ func (o *OAuthExecutor) CheckInputData(ctx *flowmodel.NodeContext, execResp *flo
 		return false
 	}
 	return o.internal.CheckInputData(ctx, execResp)
+}
+
+// GetPrerequisites returns the prerequisites for the OAuthExecutor.
+func (o *OAuthExecutor) GetPrerequisites() []flowmodel.InputData {
+	return o.internal.GetPrerequisites()
+}
+
+// ValidatePrerequisites validates whether the prerequisites for the OAuthExecutor are met.
+func (o *OAuthExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
+	return o.internal.ValidatePrerequisites(ctx, execResp)
 }
 
 // ExchangeCodeForToken exchanges the authorization code for an access token.
