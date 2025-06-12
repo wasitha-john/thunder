@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/asgardeo/thunder/internal/flow"
+	message "github.com/asgardeo/thunder/internal/notification/message/provider"
 	"github.com/asgardeo/thunder/internal/system/cert"
 	"github.com/asgardeo/thunder/internal/system/managers"
 
@@ -38,26 +39,23 @@ import (
 )
 
 func main() {
-	// Initialize the logger.
 	logger := log.GetLogger()
 
-	// Get the Thunder home directory.
 	thunderHome := getThunderHome(logger)
 
-	// Initialize the server.
 	cfg := initThunderConfigurations(logger, thunderHome)
 	if cfg == nil {
 		logger.Fatal("Failed to initialize configurations")
 	}
 
-	// Initialize the multiplexer and register services.
 	mux := initMultiplexer(logger)
 	if mux == nil {
 		logger.Fatal("Failed to initialize multiplexer")
 	}
 
-	// Initialize the flow service.
 	initFlowService(logger)
+
+	initNotificationProviders(logger)
 
 	startServer(logger, cfg, mux, thunderHome)
 }
@@ -125,6 +123,15 @@ func initFlowService(logger *log.Logger) {
 	svc := flow.GetFlowService()
 	if err := svc.Init(); err != nil {
 		logger.Fatal("Failed to initialize flow service", log.Error(err))
+	}
+}
+
+// initNotificationProviders initializes the notification providers.
+func initNotificationProviders(logger *log.Logger) {
+	// Initialize the message provider.
+	msgClientProvider := message.NewMessageClientProvider()
+	if err := msgClientProvider.Init(); err != nil {
+		logger.Fatal("Failed to initialize message client provider", log.Error(err))
 	}
 }
 
