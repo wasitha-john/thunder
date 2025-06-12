@@ -36,28 +36,26 @@ type MessageClientProviderInterface interface {
 }
 
 // MessageClientProvider is the default implementation of the MessageClientProviderInterface.
-type MessageClientProvider struct {
-	messageClients map[string]client.MessageClientInterface
-}
+type MessageClientProvider struct{}
 
 // NewMessageClientProvider creates a new instance of MessageClientProviderInterface.
 func NewMessageClientProvider() MessageClientProviderInterface {
-	return &MessageClientProvider{
-		messageClients: make(map[string]client.MessageClientInterface),
-	}
+	return &MessageClientProvider{}
 }
 
-// Init initializes the message client provider by loading all available message clients.
+// Init initializes the message client provider by loading and validating the configurations
+// for the message providers defined in the configuration.
 func (sp *MessageClientProvider) Init() error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "MessageClientProvider"))
-	logger.Debug("Initializing message client provider")
+	logger.Debug("Validating message client provider configurations")
 
 	msgProviderConfigs := config.GetThunderRuntime().Config.Provider.Message.Providers
 	if len(msgProviderConfigs) == 0 {
-		return errors.New("no message providers configured")
+		logger.Info("No message providers configured, skipping initialization")
+		return nil
 	}
 	for _, providerConfig := range msgProviderConfigs {
-		logger.Debug("Loading message provider", log.String("providerName", providerConfig.Name))
+		logger.Debug("Loading configurations for the provider", log.String("providerName", providerConfig.Name))
 
 		senderDTO := model.MessageSenderDTO{
 			Name:        providerConfig.Name,
@@ -66,26 +64,23 @@ func (sp *MessageClientProvider) Init() error {
 			Properties:  providerConfig.Properties,
 		}
 		providerType := constants.MessageProviderType(providerConfig.Provider)
-		var messageClient client.MessageClientInterface
 		var err error
 		switch providerType {
 		case constants.MessageProviderTypeVonage:
-			messageClient, err = client.NewVonageClient(senderDTO)
+			_, err = client.NewVonageClient(senderDTO)
 		case constants.MessageProviderTypeTwilio:
-			messageClient, err = client.NewTwilioClient(senderDTO)
+			_, err = client.NewTwilioClient(senderDTO)
 		case constants.MessageProviderTypeCustom:
-			messageClient, err = client.NewCustomClient(senderDTO)
+			_, err = client.NewCustomClient(senderDTO)
 		default:
 			return errors.New("unsupported message provider type: " + string(providerType))
 		}
 
 		if err != nil {
-			logger.Error("Failed to create message client for provider",
-				log.String("providerName", providerConfig.Name), log.Error(err))
-			return errors.New("failed to create message client for provider " +
-				providerConfig.Name + ": " + err.Error())
+			logger.Error("Failed to load message provider", log.String("providerName", providerConfig.Name),
+				log.Error(err))
+			return nil
 		}
-		sp.messageClients[providerConfig.Name] = messageClient
 		logger.Debug("Message provider loaded successfully", log.String("providerName", providerConfig.Name))
 	}
 
@@ -94,8 +89,52 @@ func (sp *MessageClientProvider) Init() error {
 
 // GetMessageClient retrieves a message client by its name.
 func (sp *MessageClientProvider) GetMessageClient(name string) (client.MessageClientInterface, error) {
-	if msgClient, exists := sp.messageClients[name]; exists {
-		return msgClient, nil
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "MessageClientProvider"))
+	logger.Debug("Retrieving message client", log.String("name", name))
+
+	if name == "" {
+		return nil, errors.New("message client name cannot be empty")
 	}
-	return nil, errors.New("Message client not found: " + name)
+
+	msgProviderConfigs := config.GetThunderRuntime().Config.Provider.Message.Providers
+	if len(msgProviderConfigs) == 0 {
+		return nil, errors.New("no message providers configured")
+	}
+
+	for _, providerConfig := range msgProviderConfigs {
+		if providerConfig.Name == name {
+			logger.Debug("Loading configurations for the provider", log.String("providerName", providerConfig.Name))
+			senderDTO := model.MessageSenderDTO{
+				Name:        providerConfig.Name,
+				DisplayName: providerConfig.DisplayName,
+				Description: providerConfig.Description,
+				Properties:  providerConfig.Properties,
+			}
+			providerType := constants.MessageProviderType(providerConfig.Provider)
+
+			var msgClient client.MessageClientInterface
+			var err error
+			switch providerType {
+			case constants.MessageProviderTypeVonage:
+				msgClient, err = client.NewVonageClient(senderDTO)
+			case constants.MessageProviderTypeTwilio:
+				msgClient, err = client.NewTwilioClient(senderDTO)
+			case constants.MessageProviderTypeCustom:
+				msgClient, err = client.NewCustomClient(senderDTO)
+			default:
+				return nil, errors.New("unsupported message provider type: " + string(providerType))
+			}
+
+			if err != nil {
+				logger.Error("Failed to load message provider", log.String("providerName", providerConfig.Name),
+					log.Error(err))
+				return nil, err
+			}
+
+			logger.Debug("Message provider loaded successfully", log.String("providerName", providerConfig.Name))
+			return msgClient, nil
+		}
+	}
+
+	return nil, errors.New("message client not found: " + name)
 }

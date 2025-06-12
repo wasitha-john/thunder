@@ -101,13 +101,12 @@ func (c *TwilioClient) SendSMS(sms model.SMSData) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, twilioLoggerComponentName))
 	logger.Debug("Sending SMS via Twilio", log.String("to", log.MaskString(sms.To)))
 
-	requestURL := fmt.Sprintf(c.url, c.accountSID)
 	formData := url.Values{}
-	formData.Set("to", sms.To)
-	formData.Set("from", c.senderID)
-	formData.Set("body", sms.Body)
+	formData.Set("To", sms.To)
+	formData.Set("From", c.senderID)
+	formData.Set("Body", sms.Body)
 
-	req, err := http.NewRequest(http.MethodPost, requestURL, strings.NewReader(formData.Encode()))
+	req, err := http.NewRequest(http.MethodPost, c.url, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %w", err)
 	}
@@ -121,12 +120,15 @@ func (c *TwilioClient) SendSMS(sms model.SMSData) error {
 	if err != nil {
 		return fmt.Errorf("failed to send HTTP request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Error("Failed to close response body", log.Error(closeErr))
+		}
+	}()
 
 	logger.Debug("Received response from Twilio", log.Int("statusCode", resp.StatusCode))
 
 	// Check the response status
-	// TODO: Validate if this is the expected error assertion as per the twilio API documentation
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		logger.Error("Failed to send SMS", log.Int("statusCode", resp.StatusCode),

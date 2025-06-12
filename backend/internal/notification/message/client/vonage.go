@@ -91,11 +91,14 @@ func (v *VonageClient) SendSMS(sms model.SMSData) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, vonageLoggerComponentName))
 	logger.Debug("Sending SMS via Vonage", log.String("to", log.MaskString(sms.To)))
 
+	// Format the phone number according to Vonage requirements
+	formattedPhoneNumber := v.formatPhoneNumber(sms.To)
+
 	payload := map[string]interface{}{
 		"message_type": "text",
 		"channel":      "sms",
 		"from":         v.senderID,
-		"to":           sms.To,
+		"to":           formattedPhoneNumber,
 		"text":         sms.Body,
 		"sms": map[string]interface{}{
 			"encoding_type": "text",
@@ -122,7 +125,11 @@ func (v *VonageClient) SendSMS(sms model.SMSData) error {
 	if err != nil {
 		return fmt.Errorf("failed to send HTTP request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Error("Failed to close response body", log.Error(closeErr))
+		}
+	}()
 
 	logger.Debug("Received response from Vonage", log.Int("statusCode", resp.StatusCode))
 
@@ -135,4 +142,16 @@ func (v *VonageClient) SendSMS(sms model.SMSData) error {
 	}
 
 	return nil
+}
+
+// formatPhoneNumber formats a phone number to comply with Vonage E.164 requirements
+// by removing any leading '+' or '00' from the number.
+func (v *VonageClient) formatPhoneNumber(phoneNumber string) string {
+	if len(phoneNumber) > 0 && phoneNumber[0] == '+' {
+		return phoneNumber[1:]
+	}
+	if len(phoneNumber) > 1 && phoneNumber[0:2] == "00" {
+		return phoneNumber[2:]
+	}
+	return phoneNumber
 }

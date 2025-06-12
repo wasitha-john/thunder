@@ -23,11 +23,8 @@ import "github.com/asgardeo/thunder/internal/notification/message/constants"
 
 // SMSData represents the data structure for a SMS message.
 type SMSData struct {
-	To          string            `json:"to"`
-	Body        string            `json:"body"`
-	ContentType string            `json:"content_type"`
-	HttpMethod  string            `json:"http_method"`
-	HttpHeaders map[string]string `json:"http_headers"`
+	To   string `json:"to"`
+	Body string `json:"body"`
 }
 
 // MessageSenderDTO represents the data object for a message sender configuration.

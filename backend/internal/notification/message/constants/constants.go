@@ -19,6 +19,7 @@
 // Package constants defines global constants used in the message notification module.
 package constants
 
+// MessageProviderType defines the type of messaging provider.
 type MessageProviderType string
 
 const (
@@ -57,6 +58,4 @@ const (
 	CustomPropKeyHTTPHeaders = "http_headers"
 	// CustomPropKeyContentType is the property key for the content type.
 	CustomPropKeyContentType = "content_type"
-	// CustomPropKeyPayloadTemplate is the property key for the payload template.
-	CustomPropKeyPayloadTemplate = "payload_template"
 )

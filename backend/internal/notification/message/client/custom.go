@@ -39,12 +39,11 @@ const (
 
 // CustomClient implements the MessageClientInterface for sending messages via a custom message provider.
 type CustomClient struct {
-	name            string
-	url             string
-	httpMethod      string
-	httpHeaders     map[string]string
-	contentType     string
-	payloadTemplate string
+	name        string
+	url         string
+	httpMethod  string
+	httpHeaders map[string]string
+	contentType string
 }
 
 // NewCustomClient creates a new instance of CustomClient.
@@ -60,7 +59,6 @@ func NewCustomClient(senderDTO model.MessageSenderDTO) (MessageClientInterface, 
 	client.url = senderDTO.Properties[constants.CustomPropKeyURL]
 	client.httpMethod = senderDTO.Properties[constants.CustomPropKeyHTTPMethod]
 	client.contentType = senderDTO.Properties[constants.CustomPropKeyContentType]
-	client.payloadTemplate = senderDTO.Properties[constants.CustomPropKeyPayloadTemplate]
 
 	headersString := senderDTO.Properties[constants.CustomPropKeyHTTPHeaders]
 	if headersString != "" {
@@ -103,10 +101,6 @@ func (c *CustomClient) validate(senderDTO model.MessageSenderDTO) error {
 		return fmt.Errorf("unsupported content type: %s. Supported types are JSON and FORM", contentTypeUpper)
 	}
 
-	if senderDTO.Properties[constants.CustomPropKeyPayloadTemplate] == "" {
-		return errors.New("Custom client payload template is required")
-	}
-
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, customClientLoggerComponentName))
 	logger.Debug("Custom client properties validated successfully")
 
@@ -118,24 +112,19 @@ func (c *CustomClient) SendSMS(sms model.SMSData) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, customClientLoggerComponentName))
 	logger.Debug("Sending SMS via Custom client", log.String("to", log.MaskString(sms.To)))
 
-	// Replace placeholders in the payload template
-	payload := c.payloadTemplate
-	payload = strings.ReplaceAll(payload, "{{body}}", sms.Body)
-	payload = strings.ReplaceAll(payload, "{{mobile}}", sms.To)
-
 	var req *http.Request
 	var err error
 
 	// Create request based on content type
 	if strings.ToUpper(c.contentType) == "JSON" {
-		req, err = http.NewRequest(c.httpMethod, c.url, bytes.NewBufferString(payload))
+		req, err = http.NewRequest(c.httpMethod, c.url, bytes.NewBufferString(sms.Body))
 		if err != nil {
 			return fmt.Errorf("failed to create HTTP request: %w", err)
 		}
 		req.Header.Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	} else if strings.ToUpper(c.contentType) == "FORM" {
 		formData := url.Values{}
-		lines := strings.Split(payload, "\n")
+		lines := strings.Split(sms.Body, "\n")
 		for _, line := range lines {
 			parts := strings.SplitN(line, "=", 2)
 			if len(parts) == 2 {
@@ -162,7 +151,11 @@ func (c *CustomClient) SendSMS(sms model.SMSData) error {
 	if err != nil {
 		return fmt.Errorf("failed to send HTTP request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Error("Failed to close response body", log.Error(closeErr))
+		}
+	}()
 
 	logger.Debug("Received response from custom SMS provider", log.Int("statusCode", resp.StatusCode))
 
