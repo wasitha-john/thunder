@@ -26,6 +26,7 @@ import (
 	"github.com/asgardeo/thunder/internal/executor/basicauth"
 	"github.com/asgardeo/thunder/internal/executor/githubauth"
 	"github.com/asgardeo/thunder/internal/executor/googleauth"
+	"github.com/asgardeo/thunder/internal/executor/smsauth"
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
@@ -177,6 +178,11 @@ func getExecutorConfigByName(execDef jsonmodel.ExecutorDefinition) (*model.Execu
 			Name:    "GoogleOIDCAuthExecutor",
 			IdpName: execDef.IdpName,
 		}
+	case "SMSOTPAuthExecutor":
+		executor = model.ExecutorConfig{
+			Name:    "SMSOTPAuthExecutor",
+			IdpName: execDef.IdpName,
+		}
 	case "AuthAssertExecutor":
 		executor = model.ExecutorConfig{
 			Name: "AuthAssertExecutor",
@@ -237,6 +243,14 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 
 		executor = googleauth.NewGoogleOIDCAuthExecutor(idp.ID, idp.Name, clientID, clientSecret,
 			redirectURI, scopes, additionalParams)
+	case "SMSOTPAuthExecutor":
+		idp, err := getIDP(execConfig.IdpName)
+		if err != nil {
+			return nil, fmt.Errorf("error while getting IDP for SMSOTPAuthExecutor: %w", err)
+		}
+
+		// TODO: For the moment assume idp.clientId contains the SMS provider name.
+		executor = smsauth.NewSMSOTPAuthExecutor(idp.ID, idp.Name, idp.ClientID)
 	case "AuthAssertExecutor":
 		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor")
 	default:

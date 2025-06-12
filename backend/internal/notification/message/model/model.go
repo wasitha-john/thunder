@@ -27,6 +27,15 @@ type SMSData struct {
 	Body string `json:"body"`
 }
 
+// OTP represents the data structure for an OTP (One-Time Password).
+type OTP struct {
+	Value                  string `json:"value"`
+	GeneratedTimeInMillis  int64  `json:"generated_time_in_millis"`
+	ValidityPeriodInMillis int64  `json:"validity_period_in_millis"`
+	ExpiryTimeInMillis     int64  `json:"expiry_time_in_millis"`
+	AttemptCount           int    `json:"attempt_count"`
+}
+
 // SenderProperty represents a key-value property for a message notification sender.
 type SenderProperty struct {
 	Name     string `json:"name"`

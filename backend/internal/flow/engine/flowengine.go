@@ -28,6 +28,7 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/utils"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
+	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 var (
@@ -80,6 +81,7 @@ func (fe *FlowEngine) Execute(ctx *model.EngineContext) (model.FlowStep, *servic
 			CurrentActionID:   ctx.CurrentActionID,
 			NodeInputData:     ctx.CurrentNode.GetInputData(),
 			UserInputData:     ctx.UserInputData,
+			RuntimeData:       ctx.RuntimeData,
 			AuthenticatedUser: ctx.AuthenticatedUser,
 		}
 
@@ -158,6 +160,13 @@ func updateContextWithNodeResponse(engineCtx *model.EngineContext, nodeCtx *mode
 	engineCtx.CurrentNodeResponse = nodeResp
 	engineCtx.AuthenticatedUser = nodeCtx.AuthenticatedUser
 	engineCtx.CurrentActionID = ""
+
+	if len(nodeCtx.RuntimeData) > 0 {
+		if engineCtx.RuntimeData == nil {
+			engineCtx.RuntimeData = make(map[string]string)
+		}
+		engineCtx.RuntimeData = sysutils.MergeStringMaps(engineCtx.RuntimeData, nodeCtx.RuntimeData)
+	}
 }
 
 // processNodeResponse processes the node response and determines the next action.

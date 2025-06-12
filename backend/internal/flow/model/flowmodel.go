@@ -29,6 +29,7 @@ type EngineContext struct {
 	FlowID        string
 	AppID         string
 	UserInputData map[string]string
+	RuntimeData   map[string]string
 
 	CurrentNode         NodeInterface
 	CurrentNodeResponse *NodeResponse
@@ -47,6 +48,7 @@ type NodeContext struct {
 
 	NodeInputData []InputData
 	UserInputData map[string]string
+	RuntimeData   map[string]string
 
 	AuthenticatedUser authnmodel.AuthenticatedUser
 }
