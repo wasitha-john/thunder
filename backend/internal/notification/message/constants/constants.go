@@ -16,7 +16,7 @@
  * under the License.
  */
 
-// Package constants defines global constants used in the message notification module.
+// Package constants contains the constants for message notification service.
 package constants
 
 // MessageProviderType defines the type of messaging provider.

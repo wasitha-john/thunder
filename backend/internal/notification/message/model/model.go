@@ -35,3 +35,35 @@ type MessageSenderDTO struct {
 	Description string                        `json:"description"`
 	Properties  map[string]string             `json:"properties"`
 }
+
+// SenderProperty represents a key-value property for a message notification sender.
+type SenderProperty struct {
+	Name     string `json:"name"`
+	Value    string `json:"value"`
+	IsSecret bool   `json:"is_secret"`
+}
+
+// MessageNotificationSender represents a message notification sender.
+type MessageNotificationSender struct {
+	ID          string                        `json:"id"`
+	Name        string                        `json:"name"`
+	Description string                        `json:"description"`
+	Provider    constants.MessageProviderType `json:"provider"`
+	Properties  []SenderProperty              `json:"properties"`
+}
+
+// MessageNotificationSenderIn represents the input structure for creating a message notification sender.
+type MessageNotificationSenderIn struct {
+	Name        string                        `json:"name"`
+	Description string                        `json:"description"`
+	Provider    constants.MessageProviderType `json:"provider"`
+	Properties  []SenderProperty              `json:"properties"`
+}
+
+// MessageNotificationSenderRequest represents the request to create a message notification sender.
+type MessageNotificationSenderRequest struct {
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	Provider    string           `json:"provider"`
+	Properties  []SenderProperty `json:"properties"`
+}
