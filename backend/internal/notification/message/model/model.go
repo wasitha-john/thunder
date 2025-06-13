@@ -27,15 +27,6 @@ type SMSData struct {
 	Body string `json:"body"`
 }
 
-// MessageSenderDTO represents the data object for a message sender configuration.
-type MessageSenderDTO struct {
-	Name        string                        `json:"name"`
-	Provider    constants.MessageProviderType `json:"provider"`
-	DisplayName string                        `json:"display_name"`
-	Description string                        `json:"description"`
-	Properties  map[string]string             `json:"properties"`
-}
-
 // SenderProperty represents a key-value property for a message notification sender.
 type SenderProperty struct {
 	Name     string `json:"name"`

@@ -350,7 +350,7 @@ func getSenderFromSenderRequest(sender *model.MessageNotificationSenderRequest) 
 	providerStr := sysutils.SanitizeString(sender.Provider)
 
 	// Sanitize properties
-	var properties []model.SenderProperty
+	properties := make([]model.SenderProperty, 0, len(sender.Properties))
 	for _, prop := range sender.Properties {
 		properties = append(properties, model.SenderProperty{
 			Name:     sysutils.SanitizeString(prop.Name),

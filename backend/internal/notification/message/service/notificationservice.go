@@ -21,6 +21,10 @@ package service
 
 import (
 	"errors"
+	"fmt"
+	"net/http"
+	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/asgardeo/thunder/internal/notification/message/constants"
@@ -37,8 +41,8 @@ var (
 
 const loggerComponentName = "MessageNotificationService"
 
-// NotificationServiceInterface defines the interface for message notification service.
-type NotificationServiceInterface interface {
+// MessageNotificationServiceInterface defines the interface for message notification service.
+type MessageNotificationServiceInterface interface {
 	CreateSender(sender model.MessageNotificationSenderIn) (*model.MessageNotificationSender,
 		*serviceerror.ServiceError)
 	ListSenders() ([]model.MessageNotificationSender, *serviceerror.ServiceError)
@@ -52,7 +56,7 @@ type NotificationServiceInterface interface {
 type MessageNotificationService struct{}
 
 // GetMessageNotificationService returns a singleton instance of MessageNotificationService.
-func GetMessageNotificationService() NotificationServiceInterface {
+func GetMessageNotificationService() MessageNotificationServiceInterface {
 	once.Do(func() {
 		instance = &MessageNotificationService{}
 	})
@@ -249,9 +253,31 @@ func validateTwilioProperties(properties []model.SenderProperty) error {
 	requiredProps := map[string]bool{
 		"account_sid": false,
 		"auth_token":  false,
-		"from_number": false,
+		"sender_id":   false,
 	}
-	return validateProperties(properties, requiredProps)
+	err := validateProperties(properties, requiredProps)
+	if err != nil {
+		return err
+	}
+
+	// Validate the account SID format
+	sIDRegex := `^AC[0-9a-fA-F]{32}$`
+	sid := ""
+	for _, prop := range properties {
+		if prop.Name == constants.TwilioPropKeyAccountSID {
+			sid = prop.Value
+			break
+		}
+	}
+	matched, err := regexp.MatchString(sIDRegex, sid)
+	if err != nil {
+		return fmt.Errorf("failed to validate Twilio account SID: %w", err)
+	}
+	if !matched {
+		return errors.New("invalid Twilio account SID format")
+	}
+
+	return nil
 }
 
 // validateVonageProperties validates Vonage-specific properties.
@@ -259,24 +285,38 @@ func validateVonageProperties(properties []model.SenderProperty) error {
 	requiredProps := map[string]bool{
 		"api_key":    false,
 		"api_secret": false,
-		"from":       false,
+		"sender_id":  false,
 	}
 	return validateProperties(properties, requiredProps)
 }
 
 // validateCustomProperties validates custom provider properties.
 func validateCustomProperties(properties []model.SenderProperty) error {
-	urlFound := false
+	url := ""
+	httpMethod := ""
+	contentType := ""
 	for _, prop := range properties {
 		if prop.Name == "" {
 			return errors.New("properties must have non-empty name")
 		}
 		if prop.Name == constants.CustomPropKeyURL {
-			urlFound = true
+			url = prop.Value
+		} else if prop.Name == constants.CustomPropKeyHTTPMethod {
+			httpMethod = strings.ToUpper(prop.Value)
+		}
+		if prop.Name == constants.CustomPropKeyContentType {
+			contentType = strings.ToUpper(prop.Value)
 		}
 	}
-	if !urlFound {
-		return errors.New("custom provider requires a URL property")
+	if url == "" {
+		return errors.New("custom provider must have a URL property")
+	}
+	if httpMethod != "" && httpMethod != http.MethodGet &&
+		httpMethod != http.MethodPost && httpMethod != http.MethodPut {
+		return errors.New("custom provider must have a valid HTTP method")
+	}
+	if contentType != "" && contentType != "JSON" && contentType != "FORM" {
+		return errors.New("custom provider must have a valid content type (JSON or FORM)")
 	}
 
 	return nil

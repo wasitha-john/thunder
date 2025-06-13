@@ -27,5 +27,4 @@ import (
 type MessageClientInterface interface {
 	GetName() string
 	SendSMS(sms model.SMSData) error
-	validate(senderDTO model.MessageSenderDTO) error
 }
