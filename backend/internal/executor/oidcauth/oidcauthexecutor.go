@@ -238,6 +238,17 @@ func (o *OIDCAuthExecutor) CheckInputData(ctx *flowmodel.NodeContext, execResp *
 	return o.internal.CheckInputData(ctx, execResp)
 }
 
+// GetPrerequisites returns the prerequisites for the OIDCAuthExecutor.
+func (o *OIDCAuthExecutor) GetPrerequisites() []flowmodel.InputData {
+	return o.internal.GetPrerequisites()
+}
+
+// ValidatePrerequisites validates whether the prerequisites for the OIDCAuthExecutor are met.
+func (o *OIDCAuthExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse) bool {
+	return o.internal.ValidatePrerequisites(ctx, execResp)
+}
+
 // ExchangeCodeForToken exchanges the authorization code for an access token.
 func (o *OIDCAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
 	code string) (*model.TokenResponse, error) {

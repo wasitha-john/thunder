@@ -43,9 +43,10 @@ type ExecutorProperties struct {
 
 // ExecutorConfig holds the configuration for an executor.
 type ExecutorConfig struct {
-	Name     string `json:"name"`
-	IdpName  string `json:"idp_name,omitempty"`
-	Executor ExecutorInterface
+	Name       string            `json:"name"`
+	IdpName    string            `json:"idp_name,omitempty"`
+	Properties map[string]string `json:"properties,omitempty"`
+	Executor   ExecutorInterface
 }
 
 // ExecutorInterface defines the interface for executors.
@@ -55,7 +56,9 @@ type ExecutorInterface interface {
 	GetName() string
 	GetProperties() ExecutorProperties
 	GetDefaultExecutorInputs() []InputData
+	GetPrerequisites() []InputData
 	CheckInputData(ctx *NodeContext, execResp *ExecutorResponse) bool
+	ValidatePrerequisites(ctx *NodeContext, execResp *ExecutorResponse) bool
 }
 
 var _ ExecutorInterface = (*Executor)(nil)
@@ -64,16 +67,18 @@ var _ ExecutorInterface = (*Executor)(nil)
 type Executor struct {
 	Properties            ExecutorProperties
 	DefaultExecutorInputs []InputData
+	Prerequisites         []InputData
 }
 
 // NewExecutor creates a new instance of Executor with the given properties.
-func NewExecutor(id, name string, defaultInputs []InputData) *Executor {
+func NewExecutor(id, name string, defaultInputs []InputData, prerequisites []InputData) *Executor {
 	return &Executor{
 		Properties: ExecutorProperties{
 			ID:   id,
 			Name: name,
 		},
 		DefaultExecutorInputs: defaultInputs,
+		Prerequisites:         prerequisites,
 	}
 }
 
@@ -104,6 +109,11 @@ func (e *Executor) GetDefaultExecutorInputs() []InputData {
 	return e.DefaultExecutorInputs
 }
 
+// GetPrerequisites returns the prerequisites for the executor.
+func (e *Executor) GetPrerequisites() []InputData {
+	return e.Prerequisites
+}
+
 // CheckInputData checks if the required input data is provided in the context.
 // If not, it adds the required data to the executor response and returns true.
 func (e *Executor) CheckInputData(ctx *NodeContext, execResp *ExecutorResponse) bool {
@@ -118,6 +128,30 @@ func (e *Executor) CheckInputData(ctx *NodeContext, execResp *ExecutorResponse) 
 	}
 
 	return e.appendRequiredData(ctx, execResp, requiredData)
+}
+
+// ValidatePrerequisites validates whether the prerequisites for the executor are met.
+// Returns true if all prerequisites are met, otherwise returns false and updates the executor response.
+func (e *Executor) ValidatePrerequisites(ctx *NodeContext, execResp *ExecutorResponse) bool {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "Executor"),
+		log.String(log.LoggerKeyExecutorID, e.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+
+	prerequisites := e.GetPrerequisites()
+	if len(prerequisites) == 0 {
+		return true
+	}
+
+	for _, prerequisite := range prerequisites {
+		if _, ok := ctx.UserInputData[prerequisite.Name]; !ok {
+			logger.Debug("Prerequisite not met for the executor", log.String("name", prerequisite.Name))
+			execResp.Status = constants.ExecFailure
+			execResp.FailureReason = "Prerequisite not met: " + prerequisite.Name
+			return false
+		}
+	}
+
+	return true
 }
 
 // getRequiredData returns the required input data for the executor.

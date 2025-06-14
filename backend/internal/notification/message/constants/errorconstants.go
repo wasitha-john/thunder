@@ -36,24 +36,31 @@ var (
 		Error:            "Invalid sender ID",
 		ErrorDescription: "The provided sender ID is invalid",
 	}
+	// ErrorInvalidSenderName is the error returned when an invalid sender name is provided.
+	ErrorInvalidSenderName = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "MNS-60003",
+		Error:            "Invalid sender Name",
+		ErrorDescription: "The provided sender name is invalid",
+	}
 	// ErrorInvalidProvider is the error returned when an unsupported provider is specified.
 	ErrorInvalidProvider = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "MNS-60003",
+		Code:             "MNS-60004",
 		Error:            "Invalid provider",
 		ErrorDescription: "The specified provider is not supported",
 	}
 	// ErrorDuplicateSenderName is the error returned when a sender with the same name already exists.
 	ErrorDuplicateSenderName = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "MNS-60004",
+		Code:             "MNS-60005",
 		Error:            "Duplicate sender name",
 		ErrorDescription: "A sender with the same name already exists",
 	}
 	// ErrorInvalidRequestFormat is the error returned when the request format is invalid.
 	ErrorInvalidRequestFormat = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "MNS-60005",
+		Code:             "MNS-60006",
 		Error:            "Invalid request format",
 		ErrorDescription: "The request body is malformed or contains invalid data",
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/asgardeo/thunder/internal/executor/basicauth"
 	"github.com/asgardeo/thunder/internal/executor/githubauth"
 	"github.com/asgardeo/thunder/internal/executor/googleauth"
+	"github.com/asgardeo/thunder/internal/executor/smsauth"
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
@@ -167,6 +168,12 @@ func getExecutorConfigByName(execDef jsonmodel.ExecutorDefinition) (*model.Execu
 			Name:    "BasicAuthExecutor",
 			IdpName: "Local",
 		}
+	case "SMSOTPAuthExecutor":
+		executor = model.ExecutorConfig{
+			Name:       "SMSOTPAuthExecutor",
+			IdpName:    "Local",
+			Properties: execDef.Properties,
+		}
 	case "GithubOAuthExecutor":
 		executor = model.ExecutorConfig{
 			Name:    "GithubOAuthExecutor",
@@ -209,6 +216,20 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 			return nil, fmt.Errorf("error while getting IDP for BasicAuthExecutor: %w", err)
 		}
 		executor = basicauth.NewBasicAuthExecutor(idp.ID, idp.Name)
+	case "SMSOTPAuthExecutor":
+		idp, err := getIDP("Local")
+		if err != nil {
+			return nil, fmt.Errorf("error while getting IDP for SMSOTPAuthExecutor: %w", err)
+		}
+
+		if len(execConfig.Properties) == 0 {
+			return nil, fmt.Errorf("properties for SMSOTPAuthExecutor cannot be empty")
+		}
+		senderName, exists := execConfig.Properties["senderName"]
+		if !exists || senderName == "" {
+			return nil, fmt.Errorf("sender_name property is required for SMSOTPAuthExecutor")
+		}
+		executor = smsauth.NewSMSOTPAuthExecutor(idp.ID, idp.Name, senderName)
 	case "GithubOAuthExecutor":
 		idp, err := getIDP(execConfig.IdpName)
 		if err != nil {

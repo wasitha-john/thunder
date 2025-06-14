@@ -38,7 +38,7 @@ type AuthAssertExecutor struct {
 // NewAuthAssertExecutor creates a new instance of AuthAssertExecutor.
 func NewAuthAssertExecutor(id, name string) flowmodel.ExecutorInterface {
 	return &AuthAssertExecutor{
-		internal: *flowmodel.NewExecutor(id, name, []flowmodel.InputData{}),
+		internal: *flowmodel.NewExecutor(id, name, []flowmodel.InputData{}, []flowmodel.InputData{}),
 	}
 }
 
@@ -96,7 +96,18 @@ func (a *AuthAssertExecutor) GetDefaultExecutorInputs() []flowmodel.InputData {
 	return a.internal.GetDefaultExecutorInputs()
 }
 
+// GetPrerequisites returns the prerequisites for the AuthAssertExecutor.
+func (a *AuthAssertExecutor) GetPrerequisites() []flowmodel.InputData {
+	return a.internal.GetPrerequisites()
+}
+
 // CheckInputData checks if the required input data is provided in the context.
 func (a *AuthAssertExecutor) CheckInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
 	return a.internal.CheckInputData(ctx, execResp)
+}
+
+// ValidatePrerequisites validates whether the prerequisites for the AuthAssertExecutor are met.
+func (a *AuthAssertExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse) bool {
+	return a.internal.ValidatePrerequisites(ctx, execResp)
 }

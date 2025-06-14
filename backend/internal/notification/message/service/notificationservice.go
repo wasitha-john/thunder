@@ -16,7 +16,7 @@
  * under the License.
  */
 
-// Package service provides the implementation of the message notification service.
+// Package service provides the functionality for managing message notification senders and clients.
 package service
 
 import (
@@ -39,14 +39,15 @@ var (
 	once     sync.Once
 )
 
-const loggerComponentName = "MessageNotificationService"
+const loggerComponentName = "MessageNotificationMgtService"
 
-// MessageNotificationServiceInterface defines the interface for message notification service.
+// MessageNotificationServiceInterface defines the interface for message notification management service.
 type MessageNotificationServiceInterface interface {
 	CreateSender(sender model.MessageNotificationSenderIn) (*model.MessageNotificationSender,
 		*serviceerror.ServiceError)
 	ListSenders() ([]model.MessageNotificationSender, *serviceerror.ServiceError)
 	GetSender(id string) (*model.MessageNotificationSender, *serviceerror.ServiceError)
+	GetSenderByName(name string) (*model.MessageNotificationSender, *serviceerror.ServiceError)
 	UpdateSender(id string, sender model.MessageNotificationSenderIn) (*model.MessageNotificationSender,
 		*serviceerror.ServiceError)
 	DeleteSender(id string) *serviceerror.ServiceError
@@ -133,6 +134,26 @@ func (s *MessageNotificationService) GetSender(id string) (*model.MessageNotific
 	sender, err := notificationStore.GetSenderByID(id)
 	if err != nil {
 		logger.Error("Failed to retrieve message notification sender", log.String("id", id), log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	return sender, nil
+}
+
+// GetSenderByName retrieves a message notification sender by name.
+func (s *MessageNotificationService) GetSenderByName(name string) (*model.MessageNotificationSender,
+	*serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Retrieving message notification sender by name", log.String("name", name))
+
+	if name == "" {
+		return nil, &constants.ErrorInvalidSenderName
+	}
+
+	notificationStore := store.GetMessageNotificationStore()
+	sender, err := notificationStore.GetSenderByName(name)
+	if err != nil {
+		logger.Error("Failed to retrieve message notification sender", log.String("name", name), log.Error(err))
 		return nil, &constants.ErrorInternalServerError
 	}
 

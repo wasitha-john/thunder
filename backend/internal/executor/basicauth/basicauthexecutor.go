@@ -51,7 +51,7 @@ func NewBasicAuthExecutor(id, name string) flowmodel.ExecutorInterface {
 		},
 	}
 	return &BasicAuthExecutor{
-		internal: *flowmodel.NewExecutor(id, name, defaultInputs),
+		internal: *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}),
 	}
 }
 
@@ -123,9 +123,20 @@ func (b *BasicAuthExecutor) GetDefaultExecutorInputs() []flowmodel.InputData {
 	return b.internal.DefaultExecutorInputs
 }
 
+// GetPrerequisites returns the prerequisites for the BasicAuthExecutor.
+func (b *BasicAuthExecutor) GetPrerequisites() []flowmodel.InputData {
+	return b.internal.Prerequisites
+}
+
 // CheckInputData checks if the required input data is provided in the context.
 func (b *BasicAuthExecutor) CheckInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
 	return b.internal.CheckInputData(ctx, execResp)
+}
+
+// ValidatePrerequisites validates whether the prerequisites for the BasicAuthExecutor are met.
+func (b *BasicAuthExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse) bool {
+	return b.internal.ValidatePrerequisites(ctx, execResp)
 }
 
 // getAuthenticatedUser perform authentication based on the provided username and password and return
