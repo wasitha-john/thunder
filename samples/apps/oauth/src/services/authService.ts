@@ -20,15 +20,17 @@ import axios from 'axios';
 import config from '../config';
 
 export const NativeAuthSubmitType = {
-    BASIC: 'BASIC',
+    INPUT: 'INPUT',
     SOCIAL: 'SOCIAL',
+    OTP: 'OTP',
 } as const;
 
 export type NativeAuthSubmitType = (typeof NativeAuthSubmitType)[keyof typeof NativeAuthSubmitType];
 
 type NativeAuthSubmitPayload =
-  | { type: typeof NativeAuthSubmitType.BASIC; username: string; password: string }
-  | { type: typeof NativeAuthSubmitType.SOCIAL; code: string };
+  | { type: typeof NativeAuthSubmitType.INPUT; [key: string]: string }
+  | { type: typeof NativeAuthSubmitType.SOCIAL; code: string }
+  | { type: typeof NativeAuthSubmitType.OTP; otp: string };
 
 const { applicationID, clientId, clientSecret, flowEndpoint, redirectUri, tokenEndpoint } = config;
 
@@ -125,7 +127,7 @@ export const submitAuthDecision = async (flowId: string, actionId: string, input
  */
 export const submitNativeAuth = async (
     flowId: string,
-    payload: NativeAuthSubmitPayload
+    payload: Record<string, string> | NativeAuthSubmitPayload
 ) => {
     const headers = {
         'Content-Type': 'application/json'
@@ -133,12 +135,13 @@ export const submitNativeAuth = async (
 
     let data;
 
-    if (payload.type === NativeAuthSubmitType.BASIC) {
+    if (payload.type === NativeAuthSubmitType.INPUT) {
         data = {
             flowId: flowId,
             inputs: {
-                username: payload.username,
-                password: payload.password
+                ...payload,
+                // Remove the type property if it exists
+                type: undefined
             }
         };
     } else if (payload.type === NativeAuthSubmitType.SOCIAL) {
@@ -146,6 +149,13 @@ export const submitNativeAuth = async (
             flowId: flowId,
             inputs: {
                 code: payload.code
+            }
+        };
+    } else if (payload.type === NativeAuthSubmitType.OTP) {
+        data = {
+            flowId: flowId,
+            inputs: {
+                otp: payload.otp
             }
         };
     }
