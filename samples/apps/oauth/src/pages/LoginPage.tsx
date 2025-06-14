@@ -98,6 +98,7 @@ const LoginPage = () => {
     const [connectionError, setConnectionError] = useState<boolean>(false);
 
     const [loading, setLoading] = useState<boolean>(true);
+    const [retryCount, setRetryCount] = useState<number>(0);
     const [flowId, setFlowId] = useState<string>(sessionStorage.getItem(FLOW_ID_KEY) || '');
     const [startInit] = useState<boolean>(JSON.parse(sessionStorage.getItem(START_INIT_KEY) || 'true'));
 
@@ -1128,6 +1129,8 @@ const LoginPage = () => {
                                 {connectionError && (
                                     <ConnectionErrorModal 
                                         onRetry={handleRetry}
+                                        retryCount={retryCount}
+                                        onRetryCountIncrement={() => setRetryCount(prev => prev + 1)}
                                     />
                                 )}
 

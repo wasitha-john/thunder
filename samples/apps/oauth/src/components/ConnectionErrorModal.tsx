@@ -28,6 +28,8 @@ import { useEffect, useState, useCallback } from 'react';
 
 interface ConnectionErrorModalProps {
     onRetry: () => void | Promise<unknown>;
+    retryCount?: number;
+    onRetryCountIncrement?: () => void;
 }
 
 // Define a rotation animation for the refresh icon
@@ -39,9 +41,10 @@ const spin = keyframes`
 /**
  * Component that appears when server connectivity issues are detected.
  */
-const ConnectionErrorModal = ({ onRetry }: ConnectionErrorModalProps) => {
+const ConnectionErrorModal = ({ onRetry, retryCount = 0, onRetryCountIncrement }: ConnectionErrorModalProps) => {
     const [countdown, setCountdown] = useState<number>(5);
     const [retryStatus, setRetryStatus] = useState<'idle' | 'counting' | 'retrying'>('idle');
+    const maxRetriesReached = retryCount > 3;
 
     // Use useCallback to memoize the handleRetryOperation function
     const handleRetryOperation = useCallback(() => {
@@ -70,25 +73,31 @@ const ConnectionErrorModal = ({ onRetry }: ConnectionErrorModalProps) => {
     useEffect(() => {
         let timer: number;
         
-        if (retryStatus === 'counting' && countdown > 0) {
+        if (!maxRetriesReached && retryStatus === 'counting' && countdown > 0) {
             timer = window.setTimeout(() => {
                 setCountdown(prev => prev - 1);
             }, 1000);
-        } else if (retryStatus === 'counting' && countdown === 0) {
+        } else if (!maxRetriesReached && retryStatus === 'counting' && countdown === 0) {
             setCountdown(5);
             handleRetryOperation();
+            // Increment retry count for auto-retries
+            if (onRetryCountIncrement) {
+                onRetryCountIncrement();
+            }
         }
         
         return () => {
             if (timer) clearTimeout(timer);
         };
-    }, [retryStatus, countdown, handleRetryOperation]);
+    }, [retryStatus, countdown, handleRetryOperation, maxRetriesReached, onRetryCountIncrement]);
 
-    // Start auto retry when component mounts
+    // Start auto retry when component mounts (only if maxRetriesReached is false)
     useEffect(() => {
-        setRetryStatus('counting');
+        if (!maxRetriesReached) {
+            setRetryStatus('counting');
+        }
         return () => setRetryStatus('idle');
-    }, []);
+    }, [maxRetriesReached]);
 
     const handleManualRetry = () => {
         if (retryStatus === 'counting') {
@@ -100,7 +109,7 @@ const ConnectionErrorModal = ({ onRetry }: ConnectionErrorModalProps) => {
 
     // Derived values from the retryStatus
     const isRetrying = retryStatus === 'retrying';
-    const isAutoRetrying = retryStatus === 'counting';
+    const isAutoRetrying = retryStatus === 'counting' && !maxRetriesReached;
 
     return (
         <Paper 
@@ -132,6 +141,11 @@ const ConnectionErrorModal = ({ onRetry }: ConnectionErrorModalProps) => {
                 
                 <Typography variant="body1" component={Box} sx={{ opacity: 0.9, my: 2, textAlign: 'center' }}>
                     Unable to connect to the authentication server. Please make sure the server is running.
+                    {maxRetriesReached && (
+                        <Box sx={{ mt: 1, fontWeight: 'medium', color: 'error.main' }}>
+                            Maximum retry attempts reached.
+                        </Box>
+                    )}
                 </Typography>
                 
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 3 }}>
