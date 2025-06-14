@@ -3,7 +3,7 @@
     "type": "AUTHENTICATION",
     "nodes": [
         {
-            "id": "prompt_username",
+            "id": "mobile_prompt_username",
             "type": "PROMPT_ONLY",
             "inputData": [
                 {
