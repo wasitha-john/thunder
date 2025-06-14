@@ -21,7 +21,6 @@ package client
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -46,39 +45,27 @@ type VonageClient struct {
 }
 
 // NewVonageClient creates a new instance of VonageClient.
-func NewVonageClient(senderDTO model.MessageSenderDTO) (MessageClientInterface, error) {
+func NewVonageClient(sender model.MessageNotificationSender) (MessageClientInterface, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, vonageLoggerComponentName))
+
 	client := &VonageClient{}
-
-	err := client.validate(senderDTO)
-	if err != nil {
-		return nil, fmt.Errorf("failed to validate Vonage client: %w", err)
-	}
-
-	client.name = senderDTO.Name
+	client.name = sender.Name
 	client.url = vonageURL
-	client.apiKey = senderDTO.Properties[constants.VonagePropKeyAPIKey]
-	client.apiSecret = senderDTO.Properties[constants.VonagePropKeyAPISecret]
-	client.senderID = senderDTO.Properties[constants.VonagePropKeySenderID]
+
+	for _, prop := range sender.Properties {
+		switch prop.Name {
+		case constants.VonagePropKeyAPIKey:
+			client.apiKey = prop.Value
+		case constants.VonagePropKeyAPISecret:
+			client.apiSecret = prop.Value
+		case constants.VonagePropKeySenderID:
+			client.senderID = prop.Value
+		default:
+			logger.Warn("Unknown property for Vonage client", log.String("property", prop.Name))
+		}
+	}
 
 	return client, nil
-}
-
-// validate checks if the required properties for Vonage are set.
-func (v *VonageClient) validate(senderDTO model.MessageSenderDTO) error {
-	if senderDTO.Properties[constants.VonagePropKeyAPIKey] == "" {
-		return errors.New("Vonage API key is required")
-	}
-	if senderDTO.Properties[constants.VonagePropKeyAPISecret] == "" {
-		return errors.New("Vonage API secret is required")
-	}
-	if senderDTO.Properties[constants.VonagePropKeySenderID] == "" {
-		return errors.New("Vonage sender ID is required")
-	}
-
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, vonageLoggerComponentName))
-	logger.Debug("Vonage client properties validated successfully")
-
-	return nil
 }
 
 // GetName returns the name of the Vonage client.

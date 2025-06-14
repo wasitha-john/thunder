@@ -67,5 +67,8 @@ func (sm *ServiceManager) RegisterServices() error {
 	// Register the flow execution service.
 	services.NewFlowExecutionService(sm.mux)
 
+	// Register the notification sender service.
+	services.NewNotificationSenderService(sm.mux)
+
 	return nil
 }

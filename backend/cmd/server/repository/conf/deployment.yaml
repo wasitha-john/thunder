@@ -37,34 +37,3 @@ flow:
   graph_directory: "repository/resources/graphs/"
   authn:
     default_flow: "auth_flow_config_basic"
-
-# provider:
-#   message:
-#     default_provider: "twilio"
-#     providers:
-#       - name: "twilio"
-#         provider: "twilio"
-#         display_name: "Twilio Message Provider"
-#         description: "Send messages using Twilio"
-#         properties:
-#           account_sid: ""
-#           auth_token: ""
-#           sender_id: ""
-#       - name: "vonage"
-#         provider: "vonage"
-#         display_name: "Vonage Message Provider"
-#         description: "Send messages using Vonage"
-#         properties:
-#           api_key: ""
-#           api_secret: ""
-#           sender_id: ""
-#       - name: "custom"
-#         provider: "custom"
-#         display_name: "Custom Message Provider"
-#         description: "Send messages using a custom provider"
-#         properties:
-#           url: ""
-#           http_method: "POST"
-#           http_headers: ""
-#           content_type: "JSON"
-#           payload_template: ""

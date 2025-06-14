@@ -19,12 +19,10 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/asgardeo/thunder/internal/notification/message/constants"
@@ -48,19 +46,25 @@ type TwilioClient struct {
 }
 
 // NewTwilioClient creates a new instance of TwilioClient.
-func NewTwilioClient(senderDTO model.MessageSenderDTO) (MessageClientInterface, error) {
+func NewTwilioClient(sender model.MessageNotificationSender) (MessageClientInterface, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, twilioLoggerComponentName))
+
 	client := &TwilioClient{}
+	client.name = sender.Name
 
-	err := client.validate(senderDTO)
-	if err != nil {
-		return nil, fmt.Errorf("failed to validate Twilio client: %w", err)
+	for _, prop := range sender.Properties {
+		switch prop.Name {
+		case constants.TwilioPropKeyAccountSID:
+			client.accountSID = prop.Value
+		case constants.TwilioPropKeyAuthToken:
+			client.authToken = prop.Value
+		case constants.TwilioPropKeySenderID:
+			client.senderID = prop.Value
+		default:
+			logger.Warn("Unknown property for Twilio client", log.String("property", prop.Name))
+		}
 	}
-
-	client.name = senderDTO.Name
-	client.url = fmt.Sprintf(twilioURL, senderDTO.Properties[constants.TwilioPropKeyAccountSID])
-	client.accountSID = senderDTO.Properties[constants.TwilioPropKeyAccountSID]
-	client.authToken = senderDTO.Properties[constants.TwilioPropKeyAuthToken]
-	client.senderID = senderDTO.Properties[constants.TwilioPropKeySenderID]
+	client.url = fmt.Sprintf(twilioURL, client.accountSID)
 
 	return client, nil
 }
@@ -68,32 +72,6 @@ func NewTwilioClient(senderDTO model.MessageSenderDTO) (MessageClientInterface, 
 // GetName returns the name of the Twilio client.
 func (c *TwilioClient) GetName() string {
 	return c.name
-}
-
-// validate checks if the Twilio client is properly configured.
-func (c *TwilioClient) validate(senderDTO model.MessageSenderDTO) error {
-	if senderDTO.Properties[constants.TwilioPropKeyAccountSID] == "" {
-		return errors.New("Twilio account SID is required")
-	}
-	matched, err := regexp.MatchString(sIDRegex, senderDTO.Properties[constants.TwilioPropKeyAccountSID])
-	if err != nil {
-		return fmt.Errorf("failed to validate Twilio account SID: %w", err)
-	}
-	if !matched {
-		return errors.New("Invalid Twilio account SID format")
-	}
-
-	if senderDTO.Properties[constants.TwilioPropKeyAuthToken] == "" {
-		return errors.New("Twilio auth token is required")
-	}
-	if senderDTO.Properties[constants.TwilioPropKeySenderID] == "" {
-		return errors.New("Twilio sender ID is required")
-	}
-
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, twilioLoggerComponentName))
-	logger.Debug("Twilio client properties validated successfully")
-
-	return nil
 }
 
 // SendSMS sends an SMS using the Twilio API.

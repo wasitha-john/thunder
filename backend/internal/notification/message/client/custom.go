@@ -20,7 +20,6 @@ package client
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,33 +46,29 @@ type CustomClient struct {
 }
 
 // NewCustomClient creates a new instance of CustomClient.
-func NewCustomClient(senderDTO model.MessageSenderDTO) (MessageClientInterface, error) {
+func NewCustomClient(sender model.MessageNotificationSender) (MessageClientInterface, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, customClientLoggerComponentName))
+
 	client := &CustomClient{}
+	client.name = sender.Name
 
-	err := client.validate(senderDTO)
-	if err != nil {
-		return nil, fmt.Errorf("failed to validate Custom client: %w", err)
-	}
-
-	client.name = senderDTO.Name
-	client.url = senderDTO.Properties[constants.CustomPropKeyURL]
-	client.httpMethod = senderDTO.Properties[constants.CustomPropKeyHTTPMethod]
-	client.contentType = senderDTO.Properties[constants.CustomPropKeyContentType]
-
-	headersString := senderDTO.Properties[constants.CustomPropKeyHTTPHeaders]
-	if headersString != "" {
-		headers := make(map[string]string)
-		for _, header := range strings.Split(headersString, ",") {
-			parts := strings.SplitN(header, ":", 2)
-			if len(parts) == 2 {
-				key := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				headers[key] = value
-			} else {
-				return nil, fmt.Errorf("invalid HTTP header format: %s", header)
+	for _, prop := range sender.Properties {
+		switch prop.Name {
+		case constants.CustomPropKeyURL:
+			client.url = prop.Value
+		case constants.CustomPropKeyHTTPMethod:
+			client.httpMethod = strings.ToUpper(prop.Value)
+		case constants.CustomPropKeyHTTPHeaders:
+			headers, err := client.getHeadersFromString(prop.Value)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse HTTP headers: %w", err)
 			}
+			client.httpHeaders = headers
+		case constants.CustomPropKeyContentType:
+			client.contentType = strings.ToUpper(prop.Value)
+		default:
+			logger.Warn("Unknown property for Custom client", log.String("property", prop.Name))
 		}
-		client.httpHeaders = headers
 	}
 
 	return client, nil
@@ -82,29 +77,6 @@ func NewCustomClient(senderDTO model.MessageSenderDTO) (MessageClientInterface, 
 // GetName returns the name of the Custom client.
 func (c *CustomClient) GetName() string {
 	return c.name
-}
-
-// validate checks if the Custom client is properly configured.
-func (c *CustomClient) validate(senderDTO model.MessageSenderDTO) error {
-	if senderDTO.Properties[constants.CustomPropKeyURL] == "" {
-		return errors.New("Custom client URL is required")
-	}
-	if senderDTO.Properties[constants.CustomPropKeyHTTPMethod] == "" {
-		return errors.New("Custom client HTTP method is required")
-	}
-
-	if senderDTO.Properties[constants.CustomPropKeyContentType] == "" {
-		return errors.New("Custom client content type is required")
-	}
-	contentTypeUpper := strings.ToUpper(senderDTO.Properties[constants.CustomPropKeyContentType])
-	if contentTypeUpper != "JSON" && contentTypeUpper != "FORM" {
-		return fmt.Errorf("unsupported content type: %s. Supported types are JSON and FORM", contentTypeUpper)
-	}
-
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, customClientLoggerComponentName))
-	logger.Debug("Custom client properties validated successfully")
-
-	return nil
 }
 
 // SendSMS sends an SMS using the Custom client.
@@ -168,4 +140,20 @@ func (c *CustomClient) SendSMS(sms model.SMSData) error {
 	}
 
 	return nil
+}
+
+// getHeadersFromString parses a string of HTTP headers into a map.
+func (c *CustomClient) getHeadersFromString(headersString string) (map[string]string, error) {
+	headers := make(map[string]string)
+	for _, header := range strings.Split(headersString, ",") {
+		parts := strings.SplitN(header, ":", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			headers[key] = value
+		} else {
+			return nil, fmt.Errorf("invalid HTTP header format: %s", header)
+		}
+	}
+	return headers, nil
 }
