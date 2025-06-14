@@ -260,6 +260,137 @@ Open the sample app in your browser and enter the username and password you crea
 
 - If the login is successful, you will be redirected to the home page of the sample app with the access token.
 
+#### 6️⃣ Try SMS OTP Login
+
+SMS One-Time Password (OTP) authentication allows users to authenticate using a one-time code sent to their mobile number. Prior to using SMS OTP, you need to configure a message provider to send SMS messages. Follow the steps below to set up SMS OTP authentication.
+
+##### Step 1: Configure a Message Provider
+
+Configure a message provider to send SMS messages. You can use services like Twilio, Vonage, or a custom service of your choice.
+
+```bash
+curl -kL -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/notification-senders/message \
+-d '{
+  "name": "Custom SMS Sender",
+  "description": "Sender for sending SMS messages",
+  "provider": "custom",
+  "properties": [
+    {
+      "name": "url",
+      "value": "<custom_sms_provider_url>",
+    },
+    {
+      "name": "http_method",
+      "value": "POST"
+    },
+    {
+      "name": "content_type",
+      "value": "JSON"
+    }
+  ]
+}'
+```
+
+> Note: Make sure to use `twilio`, `vonage`, or `custom` as the `provider` based on your message provider.
+
+##### Step 2: Update SMS OTP Flow Configuration
+
+Update the `senderName` property in the `auth_flow_config_sms` flow definition to use your configured message sender.
+
+##### Step 3: Configure Application to Use SMS OTP Flow
+
+Update the system application to use the SMS OTP authentication flow template:
+
+```bash
+curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
+--data '{
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Test SPA",
+    "description": "Initial testing App",
+    "client_id": "client123",
+    "client_secret": "***",
+    "callback_url": [
+        "https://localhost:3000"
+    ],
+    "supported_grant_types": [
+        "client_credentials",
+        "authorization_code"
+    ],
+    "auth_flow_graph_id": "auth_flow_config_sms"
+}'
+```
+
+##### Step 4: Create a User with Mobile Number
+
+Create a user with a `mobileNumber` attribute to receive SMS OTP:
+
+```bash
+curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
+-d '{
+    "organizationUnit": "456e8400-e29b-41d4-a716-446655440001",
+    "type": "superhuman",
+    "attributes": {
+        "username": "thor",
+        "password": "thor123",
+        "email": "thor@thunder.sky",
+        "firstName": "Thor",
+        "lastName": "Odinson",
+        "age": 1534,
+        "abilities": [
+            "strength",
+            "speed",
+            "healing"
+        ],
+        "address": {
+            "city": "Asgard",
+            "zip": "00100"
+        },
+        "mobileNumber": "+94xxxxxxxxx"
+    }
+}'
+```
+
+##### Step 5: Try Out SMS OTP Authentication
+
+- Initiate the authentication flow with your application ID:
+
+  ```bash
+  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+  -d '{
+      "applicationId": "550e8400-e29b-41d4-a716-446655440000"
+  }'
+  ```
+
+  You'll receive a response with a flow ID and username input request.
+
+- Provide the username to continue the flow:
+
+  ```bash
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+  -d '{
+      "flowId": "<flow_id>",
+      "inputs": {
+          "username": "thor"
+      }
+  }'
+  ```
+
+  An OTP will be sent to the user's mobile number.
+
+- Complete authentication by providing the OTP:
+
+  ```bash
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+  -d '{
+      "flowId": "<flow_id>",
+      "inputs": {
+          "otp": "696546"
+      }
+  }'
+  ```
+
+- If the OTP is valid, you will receive a response with the auth assertion.
+
 ---
 
 <details>
@@ -607,6 +738,113 @@ Open the sample app in your browser and enter the username and password you crea
   ```
 
 - If the login is successful, you will receive a response with the auth assertion.
+
+</details>
+<details>
+<summary><h4>4️⃣ Login with SMS OTP</h4></summary>
+
+- Configure a message provider to send SMS messages. You can use services like Twilio, Vonage, or a custom service of your choice.
+
+  ```bash
+  curl -kL -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/notification-senders/message \
+  -d '{
+    "name": "Custom SMS Sender",
+    "description": "Sender for sending SMS messages",
+    "provider": "custom",
+    "properties": [
+      {
+        "name": "url",
+        "value": "<custom_sms_provider_url>",
+      },
+      {
+        "name": "http_method",
+        "value": "POST"
+      },
+      {
+        "name": "content_type",
+        "value": "JSON"
+      }
+    ]
+  }'
+  ```
+
+- Update the system application to use the SMS OTP authentication flow:
+
+  ```bash
+  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
+  --data '{
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Test SPA",
+      "description": "Initial testing App",
+      "client_id": "client123",
+      "client_secret": "***",
+      "callback_url": [
+          "https://localhost:3000"
+      ],
+      "supported_grant_types": [
+          "client_credentials",
+          "authorization_code"
+      ],
+      "auth_flow_graph_id": "auth_flow_config_sms"
+  }'
+  ```
+
+- Create a user with a mobile number attribute to receive SMS OTP:
+
+  ```bash
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
+  -d '{
+      "organizationUnit": "456e8400-e29b-41d4-a716-446655440001",
+      "type": "superhuman",
+      "attributes": {
+          "username": "thor",
+          "password": "thor123",
+          "email": "thor@thunder.sky",
+          "firstName": "Thor",
+          "lastName": "Odinson",
+          "mobileNumber": "+94xxxxxxxxx"
+      }
+  }'
+  ```
+
+- Start the login flow for the application:
+
+  ```bash
+  curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+  -d '{
+      "applicationId": "<application_id>"
+  }'
+  ```
+
+  You'll receive a response prompting for username input.
+
+- Provide the username to continue the flow:
+
+  ```bash
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+  -d '{
+      "flowId": "<flow_id>",
+      "inputs": {
+          "username": "thor"
+      }
+  }'
+  ```
+
+  An OTP will be sent to the user's mobile number.
+
+- Complete authentication by providing the OTP:
+
+  ```bash
+  curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+  -d '{
+      "flowId": "<flow_id>",
+      "inputs": {
+          "otp": "696546"
+      }
+  }'
+  ```
+
+- If the OTP is valid, you will receive a response with the auth assertion.
 
 </details>
 </details>
