@@ -168,6 +168,12 @@ func getExecutorConfigByName(execDef jsonmodel.ExecutorDefinition) (*model.Execu
 			Name:    "BasicAuthExecutor",
 			IdpName: "Local",
 		}
+	case "SMSOTPAuthExecutor":
+		executor = model.ExecutorConfig{
+			Name:       "SMSOTPAuthExecutor",
+			IdpName:    "Local",
+			Properties: execDef.Properties,
+		}
 	case "GithubOAuthExecutor":
 		executor = model.ExecutorConfig{
 			Name:    "GithubOAuthExecutor",
@@ -176,11 +182,6 @@ func getExecutorConfigByName(execDef jsonmodel.ExecutorDefinition) (*model.Execu
 	case "GoogleOIDCAuthExecutor":
 		executor = model.ExecutorConfig{
 			Name:    "GoogleOIDCAuthExecutor",
-			IdpName: execDef.IdpName,
-		}
-	case "SMSOTPAuthExecutor":
-		executor = model.ExecutorConfig{
-			Name:    "SMSOTPAuthExecutor",
 			IdpName: execDef.IdpName,
 		}
 	case "AuthAssertExecutor":
@@ -215,6 +216,20 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 			return nil, fmt.Errorf("error while getting IDP for BasicAuthExecutor: %w", err)
 		}
 		executor = basicauth.NewBasicAuthExecutor(idp.ID, idp.Name)
+	case "SMSOTPAuthExecutor":
+		idp, err := getIDP("Local")
+		if err != nil {
+			return nil, fmt.Errorf("error while getting IDP for SMSOTPAuthExecutor: %w", err)
+		}
+
+		if len(execConfig.Properties) == 0 {
+			return nil, fmt.Errorf("properties for SMSOTPAuthExecutor cannot be empty")
+		}
+		senderName, exists := execConfig.Properties["senderName"]
+		if !exists || senderName == "" {
+			return nil, fmt.Errorf("sender_name property is required for SMSOTPAuthExecutor")
+		}
+		executor = smsauth.NewSMSOTPAuthExecutor(idp.ID, idp.Name, senderName)
 	case "GithubOAuthExecutor":
 		idp, err := getIDP(execConfig.IdpName)
 		if err != nil {
@@ -243,14 +258,6 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 
 		executor = googleauth.NewGoogleOIDCAuthExecutor(idp.ID, idp.Name, clientID, clientSecret,
 			redirectURI, scopes, additionalParams)
-	case "SMSOTPAuthExecutor":
-		idp, err := getIDP(execConfig.IdpName)
-		if err != nil {
-			return nil, fmt.Errorf("error while getting IDP for SMSOTPAuthExecutor: %w", err)
-		}
-
-		// TODO: For the moment assume idp.clientId contains the SMS provider name.
-		executor = smsauth.NewSMSOTPAuthExecutor(idp.ID, idp.Name, idp.ClientID)
 	case "AuthAssertExecutor":
 		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor")
 	default:

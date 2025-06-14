@@ -32,7 +32,7 @@ import (
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/notification/message/model"
-	msgprovider "github.com/asgardeo/thunder/internal/notification/message/provider"
+	msgsenderprovider "github.com/asgardeo/thunder/internal/notification/message/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	userprovider "github.com/asgardeo/thunder/internal/user/provider"
 )
@@ -44,12 +44,12 @@ const (
 
 // SMSOTPAuthExecutor implements the ExecutorInterface for SMS OTP authentication.
 type SMSOTPAuthExecutor struct {
-	internal     flowmodel.Executor
-	providerName string
+	internal   flowmodel.Executor
+	senderName string
 }
 
 // NewSMSOTPAuthExecutor creates a new instance of SMSOTPAuthExecutor.
-func NewSMSOTPAuthExecutor(id, name, provider string) flowmodel.ExecutorInterface {
+func NewSMSOTPAuthExecutor(id, name, senderName string) flowmodel.ExecutorInterface {
 	defaultInputs := []flowmodel.InputData{
 		{
 			Name:     "otp",
@@ -66,8 +66,8 @@ func NewSMSOTPAuthExecutor(id, name, provider string) flowmodel.ExecutorInterfac
 	}
 
 	return &SMSOTPAuthExecutor{
-		internal:     *flowmodel.NewExecutor(id, name, defaultInputs, prerequisites),
-		providerName: provider,
+		internal:   *flowmodel.NewExecutor(id, name, defaultInputs, prerequisites),
+		senderName: senderName,
 	}
 }
 
@@ -279,10 +279,16 @@ func (s *SMSOTPAuthExecutor) generateAndSendOTP(username, mobileNumber string, c
 	}
 
 	// Send the SMS OTP.
-	msgProvider := msgprovider.NewMessageClientProvider()
-	msgClient, err := msgProvider.GetMessageClient(s.providerName)
-	if err != nil || msgClient == nil {
-		return fmt.Errorf("failed to get message client: %w", err)
+	provider := msgsenderprovider.NewNotificationServiceProvider()
+	service := provider.GetMessageClientService()
+	msgClient, svcErr := service.GetMessageClientByName(s.senderName)
+	if svcErr != nil {
+		logger.Error("Failed to get message client", log.String("senderName", s.senderName),
+			log.Any("serviceError", svcErr))
+		return fmt.Errorf("failed to get message client: %s", svcErr.ErrorDescription)
+	}
+	if msgClient == nil {
+		return fmt.Errorf("message client %s not found", s.senderName)
 	}
 
 	if err := msgClient.SendSMS(smsData); err != nil {

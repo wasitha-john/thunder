@@ -28,7 +28,9 @@
             ],
             "executor": {
                 "name": "SMSOTPAuthExecutor",
-                "idpName": "SMS OTP"
+                "properties": {
+                    "senderName": "Custom SMS Sender"
+                }
             },
             "next": [
                 "authenticated"

@@ -43,9 +43,10 @@ type ExecutorProperties struct {
 
 // ExecutorConfig holds the configuration for an executor.
 type ExecutorConfig struct {
-	Name     string `json:"name"`
-	IdpName  string `json:"idp_name,omitempty"`
-	Executor ExecutorInterface
+	Name       string            `json:"name"`
+	IdpName    string            `json:"idp_name,omitempty"`
+	Properties map[string]string `json:"properties,omitempty"`
+	Executor   ExecutorInterface
 }
 
 // ExecutorInterface defines the interface for executors.

@@ -23,20 +23,26 @@ import (
 	"github.com/asgardeo/thunder/internal/notification/message/service"
 )
 
-// MessageNotificationProviderInterface defines the interface for the message notification provider.
-type MessageNotificationProviderInterface interface {
+// NotificationServiceProviderInterface defines the interface for the message notification service provider.
+type NotificationServiceProviderInterface interface {
 	GetMessageNotificationService() service.MessageNotificationServiceInterface
+	GetMessageClientService() service.MessageClientServiceInterface
 }
 
-// MessageNotificationProvider is the default implementation of the MessageNotificationProviderInterface.
-type MessageNotificationProvider struct{}
+// NotificationServiceProvider is the default implementation of the NotificationServiceProviderInterface.
+type NotificationServiceProvider struct{}
 
-// NewMessageNotificationProvider creates a new instance of MessageNotificationProvider.
-func NewMessageNotificationProvider() MessageNotificationProviderInterface {
-	return &MessageNotificationProvider{}
+// NewNotificationServiceProvider creates a new instance of NotificationServiceProviderInterface.
+func NewNotificationServiceProvider() NotificationServiceProviderInterface {
+	return &NotificationServiceProvider{}
 }
 
 // GetMessageNotificationService returns the message notification service instance.
-func (mnp *MessageNotificationProvider) GetMessageNotificationService() service.MessageNotificationServiceInterface {
+func (mnp *NotificationServiceProvider) GetMessageNotificationService() service.MessageNotificationServiceInterface {
 	return service.GetMessageNotificationService()
+}
+
+// GetMessageClientService returns the message client service instance.
+func (mnp *NotificationServiceProvider) GetMessageClientService() service.MessageClientServiceInterface {
+	return service.GetMessageClientService()
 }
