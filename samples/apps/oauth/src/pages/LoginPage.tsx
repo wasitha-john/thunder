@@ -52,13 +52,25 @@ interface BasicAuthOption {
   type: 'BASIC';
 }
 
+interface InputPromptOption {
+    type: 'INPUT_PROMPT';
+}
+
+interface OTPAuthOptionUser {
+  type: 'OTP_USERNAME';
+}
+
+interface OTPAuthOptionOTP {
+  type: 'OTP';
+}
+
 interface SocialAuthOption {
   type: 'SOCIAL';
   idpName: string;
   redirectURL: string;
 }
 
-type LoginOption = BasicAuthOption | SocialAuthOption;
+type LoginOption = BasicAuthOption | OTPAuthOptionUser | SocialAuthOption | OTPAuthOptionOTP | InputPromptOption;
 
 // Define the interface for the authentication input
 interface AuthInput {
@@ -86,13 +98,22 @@ const LoginPage = () => {
     const [connectionError, setConnectionError] = useState<boolean>(false);
 
     const [loading, setLoading] = useState<boolean>(true);
+    const [retryCount, setRetryCount] = useState<number>(0);
     const [flowId, setFlowId] = useState<string>(sessionStorage.getItem(FLOW_ID_KEY) || '');
     const [startInit] = useState<boolean>(JSON.parse(sessionStorage.getItem(START_INIT_KEY) || 'true'));
+
+    const [inputs, setInputs] = useState<AuthInput[]>([]);
 
     const [showPassword, setShowPassword] = useState(false);
     const [basicAuthFormData, setBasicAuthFormData] = useState({
         username: '',
         password: '',
+    });
+    const [otpAuthUserFormData, setOtpAuthUserFormData] = useState({
+        username: '',
+    });
+    const [otpAuthFormData, setOtpAuthFormData] = useState({
+        otp: '',
     });
 
     // Replace individual login option states with a unified structure
@@ -121,6 +142,71 @@ const LoginPage = () => {
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = event.target;
         setBasicAuthFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleOTPUserInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = event.target;
+        setOtpAuthUserFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    // OTP input handling
+    const otpLength = 6;
+    const [otpDigits, setOtpDigits] = useState(Array(otpLength).fill(''));
+    const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    
+    useEffect(() => {
+        // Initialize refs array
+        otpInputRefs.current = otpInputRefs.current.slice(0, otpDigits.length);
+    }, [otpDigits.length]);
+    
+    const handleOTPDigitChange = (index: number, value: string) => {
+        // Only allow a single digit
+        if (value.length > 1) {
+            value = value.slice(0, 1);
+        }
+        
+        // Update the digit at the specified index
+        const newOtpDigits = [...otpDigits];
+        newOtpDigits[index] = value;
+        setOtpDigits(newOtpDigits);
+        
+        // Combine digits for the form data
+        const combinedOtp = newOtpDigits.join('');
+        setOtpAuthFormData({ otp: combinedOtp });
+        
+        // Auto-advance to next input if a digit was entered
+        if (value && index < otpDigits.length - 1) {
+            otpInputRefs.current[index + 1]?.focus();
+        }
+    };
+    
+    const handleOTPKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        // Handle backspace to go to previous input
+        if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+            otpInputRefs.current[index - 1]?.focus();
+        }
+    };
+    
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        e.preventDefault();
+        const pastedData = e.clipboardData.getData('text');
+        
+        // Only process if the pasted content looks like a valid OTP
+        if (pastedData.match(/^\d+$/) && pastedData.length <= otpDigits.length) {
+            const newOtpDigits = [...otpDigits];
+            
+            // Fill in the digits from the pasted content
+            for (let i = 0; i < pastedData.length; i++) {
+                newOtpDigits[i] = pastedData[i];
+            }
+            
+            setOtpDigits(newOtpDigits);
+            setOtpAuthFormData({ otp: newOtpDigits.join('') });
+            
+            // Focus the next empty digit or the last digit if all filled
+            const nextEmptyIndex = pastedData.length < otpDigits.length ? pastedData.length : otpDigits.length - 1;
+            otpInputRefs.current[nextEmptyIndex]?.focus();
+        }
     };
 
     const handleTogglePasswordVisibility = () => {
@@ -165,16 +251,11 @@ const LoginPage = () => {
                         }
                     }
                     
-                    // For basic auth, we just update the UI to show the form
                     if (data.data?.inputs) {
-                        // Check if inputs contain username and password fields
-                        const hasUsername = data.data.inputs.some((input: AuthInput) => input.name === "username");
-                        const hasPassword = data.data.inputs.some((input: AuthInput) => input.name === "password");
-                        
-                        if (hasUsername && hasPassword) {
-                            // Update login options to only show basic auth
-                            setLoginOptions([{ type: 'BASIC' }]);
-                        }
+                        setInputs([]);
+                        data.data.inputs.forEach((input: AuthInput) => {
+                            setInputs(prev => [...prev, input]);
+                        });
                     }
                 } else if (data.type === "REDIRECTION") {
                     // Handle redirection for social logins
@@ -229,12 +310,30 @@ const LoginPage = () => {
                                 idpName: 'GitHub',
                                 redirectURL: ""
                             });
+                        } else if (action.id === "mobile_prompt_username") {
+                            newLoginOptions.push({ type: 'OTP_USERNAME' });
                         }
                     });
                 }
                 // Regular flow with inputs for basic auth
                 else if (result.data?.type === "VIEW" && result.data?.data?.inputs) {
-                    newLoginOptions.push({ type: 'BASIC' });
+                    let hasUsername = false
+                    let hasPassword = false
+                    result.data.data.inputs.forEach((input: AuthInput) => {
+                        setInputs(prev => [...prev, input]);
+                        if (input.name === "username") {
+                            hasUsername = true;
+                        } else if (input.name === "password") {
+                            hasPassword = true;
+                        } else if (input.name === "otp") {
+                            newLoginOptions.push({ type: 'OTP' });
+                        }
+                    });
+                    if (hasUsername && hasPassword) {
+                        newLoginOptions.push({ type: 'BASIC' });
+                    } else {
+                        newLoginOptions.push({ type: 'INPUT_PROMPT' });
+                    }
                 }
                 // Direct redirection for social login
                 else if (result.data?.type === "REDIRECTION") {
@@ -260,13 +359,32 @@ const LoginPage = () => {
             });
     }, [clearToken]);
 
-    const handelBasicAuthSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleAuthInputSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setLoading(true);
 
-        submitNativeAuth(flowId, { type: NativeAuthSubmitType.BASIC, ...basicAuthFormData })
+        // Create a payload that includes all necessary input values
+        const inputPayload: Record<string, string> = {};
+        
+        // Add all input values from the form
+        inputs.forEach(input => {
+            const inputName = input.name;
+            if (input.name === "username" || input.name === "password") {
+                inputPayload[inputName] = basicAuthFormData[inputName as keyof typeof basicAuthFormData];
+            } else if (input.name === "otp") {
+                inputPayload[inputName] = otpAuthFormData.otp;
+            } else {
+                // For any other inputs, try to find their values in the form
+                const formElement = event.currentTarget.elements.namedItem(inputName) as HTMLInputElement;
+                if (formElement && formElement.value) {
+                    inputPayload[inputName] = formElement.value;
+                }
+            }
+        });
+
+        submitNativeAuth(flowId, { type: NativeAuthSubmitType.INPUT, ...inputPayload })
             .then((result) => {
-                const data = result.data;
+                const data = result?.data;
 
                 // Handle successful authentication
                 if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
@@ -275,8 +393,13 @@ const LoginPage = () => {
                 } else if (data.flowStatus && data.flowStatus === 'ERROR') {
                     setError(true);
                     setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
+                } else if (data.type === "VIEW" && data.data?.inputs) {
+                    setInputs([]);
+                    data.data.inputs.forEach((input: AuthInput) => {
+                        setInputs(prev => [...prev, input]);
+                    });
                 }
-
+                setFlowId(data.flowId);
                 setLoading(false);
             }).catch((error) => {
                 console.error("Error during authentication:", error);
@@ -409,17 +532,569 @@ const LoginPage = () => {
                 setLoading(false);
             });
     };
+
+    // Handle OTP authentication decision directly from decision screen
+    const handleOTPAuthDecision = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setLoading(true);
+        
+        // Find the basic_auth action ID
+        const smsOTPAuthAction = availableActions.find(action => action.id === "mobile_prompt_username");
+        if (!smsOTPAuthAction) {
+            setError(true);
+            setErrorMessage("SMS OTP authentication not available");
+            setLoading(false);
+            return;
+        }
+        
+        // Submit both the decision and username together
+        submitAuthDecision(flowId, smsOTPAuthAction.id, {
+            username: otpAuthUserFormData.username,
+        })
+            .then((result) => {
+                const data = result.data;
+                
+                // Handle successful authentication
+                if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
+                    setToken(data.assertion);
+                    setError(false);
+                } else if (data.type === "VIEW" && data.data?.inputs) {
+                    setNeedsDecision(false);
+                    setLoginOptions([{ type: 'OTP' }]);
+                    setInputs([]);
+                    data.data.inputs.forEach((input: AuthInput) => {
+                        setInputs(prev => [...prev, input]);
+                    });
+                    setLoading(false);
+                } else if (data.flowStatus && data.flowStatus === 'ERROR') {
+                    setError(true);
+                    setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
+                    setLoading(false);
+                }
+            })
+            .catch((error) => {
+                console.error("Error during authentication:", error);
+                setError(true);
+                setErrorMessage(error.message || 'Error during authentication');
+                setLoading(false);
+            });
+    };
+
+    const getInputPromptFields = () => {
+        let isPasswordSubmit = false;
+        let isOTPSubmit = false;
+        
+        const inputBoxes = inputs.map((input, index) => {
+            const inputId = input.name || `input-${index}`;
+            const isPassword = input.type === "password" || input.name === "password";
+            const isOTP = input.type === "otp" || input.name === "otp";
+            const isRequired = input.required;
+
+            if (isPassword) {
+                isPasswordSubmit = true;
+            }
+            if (isOTP) {
+                isOTPSubmit = true;
+            }
+            
+            // Determine appropriate label based on input name
+            let label = input.name;
+            // Capitalize first letter and replace underscores with spaces
+            if (label) {
+                label = label.charAt(0).toUpperCase() + label.slice(1).replace(/_/g, ' ');
+            }
+            // Add spaces between words
+            label = label.replace(/([a-z])([A-Z])/g, '$1 $2');
+            // Handle special case for OTP
+            if (isOTP) {
+                label = 'OTP Code';
+            } else if (isPassword) {
+                label = 'Password';
+            }
+
+            // Determine the placeholder text
+            const placeholder = `Enter your ${label.toLowerCase()}`;
+
+            return (
+                <>
+                    <Box key={inputId} display="flex" flexDirection="column" gap={0.5}>
+                        <InputLabel htmlFor={inputId} sx={{ mb: 1 }}>{label}</InputLabel>
+                        {isPassword ? (
+                            <OutlinedInput
+                                type={showPassword ? 'text' : 'password'}
+                                id={inputId}
+                                name={input.name}
+                                placeholder={placeholder}
+                                size="small"
+                                onChange={handleInputChange}
+                                required={isRequired}
+                                endAdornment={
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="toggle password visibility"
+                                            onClick={handleTogglePasswordVisibility}
+                                            onMouseDown={handleMouseDownPassword}
+                                            edge="end"
+                                        >
+                                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                }
+                            />
+                        ) : isOTP ? (
+                            <Box 
+                                sx={{ 
+                                    display: 'flex', 
+                                    gap: 1,
+                                    justifyContent: 'space-between'
+                                }}
+                            >
+                                {otpDigits.map((digit, index) => (
+                                    <OutlinedInput
+                                        key={`otp-digit-${index}`}
+                                        inputRef={el => otpInputRefs.current[index] = el}
+                                        value={digit}
+                                        onChange={(e) => handleOTPDigitChange(index, e.target.value)}
+                                        onKeyDown={(e) => handleOTPKeyDown(index, e as React.KeyboardEvent<HTMLInputElement>)}
+                                        onPaste={index === 0 ? handlePaste : undefined}
+                                        inputProps={{
+                                            maxLength: 1,
+                                            style: { textAlign: 'center', padding: '8px 0' }
+                                        }}
+                                        sx={{
+                                            width: '40px',
+                                            height: '48px',
+                                            '& input': { padding: 0 }
+                                        }}
+                                    />
+                                ))}
+                            </Box>
+                        ) : (
+                            <OutlinedInput
+                                type={input.type || "text"}
+                                id={inputId}
+                                name={input.name}
+                                placeholder={placeholder}
+                                size="small"
+                                onChange={handleInputChange}
+                                required={isRequired}
+                            />
+                        )}
+                    </Box>
+                </>
+            );
+        });
+
+        return (
+            <>
+                { inputBoxes }
+                { (showRememberMe || showForgotPassword) && (
+                    <Box
+                        sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        }}
+                    >
+                        { showRememberMe && (
+                            <FormControlLabel
+                                control={<Checkbox name="remember-me-checkbox" />} 
+                                label="Remember me" />
+                        )}
+                        { showForgotPassword &&
+                            <Link href="">Forgot your password?</Link>
+                        }
+                    </Box>
+                )}
+
+                {isPasswordSubmit ? (
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        type="submit"
+                        fullWidth
+                        sx={{ mt: 2 }}
+                    >
+                        Sign In
+                    </Button>
+                ) : isOTPSubmit ? (
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        type="submit"
+                        fullWidth
+                        sx={{ mt: 2 }}
+                    >
+                        Verify OTP
+                    </Button>
+                ) : (
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        type="submit"
+                        fullWidth
+                        sx={{ mt: 2 }}
+                    >
+                        Continue
+                    </Button>
+                )}
+            </>
+        )
+    };
+
+    const getRegularLoginForm = () => {
+        return (
+            <>
+                {socialOptions.length > 0 && (
+                    <>
+                        <Box>
+                            {socialOptions.map((option, index) => (
+                                <Button
+                                    key={`social-login-${index}`}
+                                    fullWidth
+                                    variant="contained"
+                                    startIcon={getSocialLoginIcon(option.idpName)}
+                                    color="secondary"
+                                    onClick={() => handleSocialLoginClick(option.redirectURL)}
+                                    sx={{ my: 1 }}
+                                >
+                                    Continue with {option.idpName}
+                                </Button>
+                            ))}
+                        </Box>
+                        
+                        {hasBasicAuth && <Divider sx={{ my: 3 }}>or</Divider>}
+                    </>
+                )}
+
+                <form onSubmit={handleAuthInputSubmit}>
+                    <Box display="flex" flexDirection="column" gap={2}>
+                        { getInputPromptFields() }
+                    </Box>
+                </form>
+            </>
+        )
+    }
+
+    const getBasicAndSocialLoginForm = () => {
+        return (
+            <Box sx={{ my: 2 }}>
+                {/* Social auth options */}
+                {hasSocialAuthOptions && (
+                    <Box>
+                        {availableActions.filter(action => (action.id !== "basic_auth" && action.id !== "mobile_prompt_username")).map((action, index) => (
+                            <Button
+                                key={`action-${index}`}
+                                fullWidth
+                                variant="contained"
+                                color="secondary"
+                                onClick={() => handleAuthOptionSelection(action.id)}
+                                sx={{ my: 1 }}
+                                startIcon={
+                                    action.id === "google_auth" ? <GoogleIcon /> : 
+                                    action.id === "github_auth" ? <GitHubIcon /> : 
+                                    <AccountCircleIcon />
+                                }
+                            >
+                                {action.id === "google_auth" ? "Continue with Google" :
+                                action.id === "github_auth" ? "Continue with GitHub" : 
+                                action.id}
+                            </Button>
+                        ))}
+                    </Box>
+                )}
+                
+                {/* Show divider if we have both social and basic auth options */}
+                {hasBasicAuthOption && hasSocialAuthOptions && (
+                    <Divider sx={{ my: 3 }}>or</Divider>
+                )}
+                
+                {/* Basic auth form */}
+                {hasBasicAuthOption && (
+                    <form onSubmit={handleBasicAuthDecision}>
+                        <Box display="flex" flexDirection="column" gap={2}>
+                            <Box display="flex" flexDirection="column" gap={0.5}>
+                                <InputLabel htmlFor="username">Username</InputLabel>
+                                <OutlinedInput
+                                    type="text"
+                                    id="username"
+                                    name="username"
+                                    placeholder="Enter your username"
+                                    size="small"
+                                    value={basicAuthFormData.username}
+                                    onChange={handleInputChange}
+                                    required
+                                />
+                            </Box>
+                            <Box display="flex" flexDirection="column" gap={0.5}>
+                                <InputLabel htmlFor="password">Password</InputLabel>
+                                <OutlinedInput
+                                    type={showPassword ? 'text' : 'password'}
+                                    id="password"
+                                    name="password"
+                                    placeholder="Enter your password"
+                                    size="small"
+                                    value={basicAuthFormData.password}
+                                    onChange={handleInputChange}
+                                    required
+                                    endAdornment={
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                aria-label="toggle password visibility"
+                                                onClick={handleTogglePasswordVisibility}
+                                                onMouseDown={handleMouseDownPassword}
+                                                edge="end"
+                                            >
+                                                {showPassword ? 
+                                                    <VisibilityOff /> : <Visibility />
+                                                }
+                                            </IconButton>
+                                        </InputAdornment>
+                                    }
+                                />
+                            </Box>
+                            {(showRememberMe || showForgotPassword) && (
+                                <Box
+                                    sx={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    }}
+                                >
+                                    { showRememberMe && (
+                                        <FormControlLabel
+                                            control={<Checkbox name="remember-me-checkbox" />} 
+                                            label="Remember me" />
+                                    )}
+                                    { showForgotPassword &&
+                                        <Link href="">Forgot your password?</Link>
+                                    }
+                                </Box>
+                            )}
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                type="submit"
+                                fullWidth
+                                sx={{ mt: 2 }}
+                            >
+                                Sign In
+                            </Button>
+                        </Box>
+                    </form>
+                )}
+
+                {/* Show divider if we have both social and basic auth options */}
+                {hasSMSOTPAuthOption && hasSocialAuthOptions && (
+                    <Divider sx={{ my: 3 }}>or</Divider>
+                )}
+
+                {/* SMS OTP auth form */}
+                {hasSMSOTPAuthOption && (
+                    <form onSubmit={handleOTPAuthDecision}>
+                        <Box display="flex" flexDirection="column" gap={2}>
+                            <Box display="flex" flexDirection="column" gap={0.5}>
+                                <InputLabel htmlFor="username">Username</InputLabel>
+                                <OutlinedInput
+                                    type="text"
+                                    id="username"
+                                    name="username"
+                                    placeholder="Enter your username"
+                                    size="small"
+                                    value={otpAuthUserFormData.username}
+                                    onChange={handleOTPUserInputChange}
+                                    required
+                                />
+                            </Box>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                type="submit"
+                                fullWidth
+                                sx={{ mt: 2 }}
+                            >
+                                Continue with SMS OTP
+                            </Button>
+                        </Box>
+                    </form>
+                )}
+            </Box>
+        )
+    }
+
+    const getBasicAndSMSLoginForm = () => {
+        return (
+            <Box sx={{ my: 4 }}>
+                <Box display="flex" gap={4}>
+                    {/* Left: Basic Login */}
+                    <Box sx={{ flex: 1 }}>
+                        <form onSubmit={handleBasicAuthDecision}>
+                            <Box display="flex" flexDirection="column" gap={2}>
+                                <Typography variant="body1" color="textSecondary" sx={{ mb: 2, mt: 2.7 }}>
+                                    Login with Username and Password
+                                </Typography>
+                                </Box>
+                            <Box display="flex" flexDirection="column" gap={2} sx={{ mt: 3 }}>
+                                <Box display="flex" flexDirection="column" gap={0.5}>
+                                    <InputLabel htmlFor="username">Username</InputLabel>
+                                    <OutlinedInput
+                                        type="text"
+                                        id="username"
+                                        name="username"
+                                        placeholder="Enter your username"
+                                        size="small"
+                                        value={basicAuthFormData.username}
+                                        onChange={handleInputChange}
+                                        required
+                                    />
+                                </Box>
+                                <Box display="flex" flexDirection="column" gap={0.5} sx={{ mt: 1 }}>
+                                    <InputLabel htmlFor="password">Password</InputLabel>
+                                    <OutlinedInput
+                                        type={showPassword ? 'text' : 'password'}
+                                        id="password"
+                                        name="password"
+                                        placeholder="Enter your password"
+                                        size="small"
+                                        value={basicAuthFormData.password}
+                                        onChange={handleInputChange}
+                                        required
+                                        endAdornment={
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                aria-label="toggle password visibility"
+                                                onClick={handleTogglePasswordVisibility}
+                                                onMouseDown={handleMouseDownPassword}
+                                                edge="end"
+                                            >
+                                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                        }
+                                    />
+                                </Box>
+
+                                {(showRememberMe || showForgotPassword) && (
+                                <Box display="flex" justifyContent="space-between" alignItems="center">
+                                    {showRememberMe && (
+                                        <FormControlLabel
+                                            control={<Checkbox name="remember-me-checkbox" />}
+                                            label="Remember me"
+                                        />
+                                    )}
+                                    {showForgotPassword && <Link href="#">Forgot your password?</Link>}
+                                </Box>
+                                )}
+
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    type="submit"
+                                    fullWidth
+                                    sx={{ mt: 3 }}
+                                    >
+                                    Sign In
+                                </Button>
+                            </Box>
+                        </form>
+                    </Box>
+
+                    {/* Vertical Divider */}
+                    <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+
+                    {/* Right: Social Auth and SMS Options */}
+                    <Box sx={{ flex: 1 }}>
+                        {/* Social auth options */}
+                        {hasSocialAuthOptions && (
+                            <Box>
+                            {availableActions
+                                .filter(
+                                (action) =>
+                                    action.id !== 'basic_auth' &&
+                                    action.id !== 'mobile_prompt_username'
+                                )
+                                .map((action, index) => (
+                                <Button
+                                    key={`action-${index}`}
+                                    fullWidth
+                                    variant="contained"
+                                    color="secondary"
+                                    onClick={() => handleAuthOptionSelection(action.id)}
+                                    sx={{ my: 1 }}
+                                    startIcon={
+                                    action.id === 'google_auth' ? (
+                                        <GoogleIcon />
+                                    ) : action.id === 'github_auth' ? (
+                                        <GitHubIcon />
+                                    ) : (
+                                        <AccountCircleIcon />
+                                    )
+                                    }
+                                >
+                                    {action.id === 'google_auth'
+                                    ? 'Continue with Google'
+                                    : action.id === 'github_auth'
+                                    ? 'Continue with GitHub'
+                                    : action.id}
+                                </Button>
+                                ))}
+                            </Box>
+                        )}
+
+                        {/* Show divider if we have both social and sms auth options */}
+                        {hasSMSOTPAuthOption && hasSocialAuthOptions && (
+                            <Divider sx={{ my: 3 }}>or</Divider>
+                        )}
+
+                        {/* SMS OTP Auth */}
+                        {hasSMSOTPAuthOption && (
+                            <form onSubmit={handleOTPAuthDecision} style={{ marginTop: '2rem' }}>
+                            <Box display="flex" flexDirection="column" gap={2}>
+                                <Box display="flex" flexDirection="column" gap={0.5}>
+                                    <InputLabel htmlFor="username">Username</InputLabel>
+                                    <OutlinedInput
+                                        type="text"
+                                        id="username"
+                                        name="username"
+                                        placeholder="Enter your username"
+                                        size="small"
+                                        value={otpAuthUserFormData.username}
+                                        onChange={handleOTPUserInputChange}
+                                        required
+                                    />
+                                </Box>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    type="submit"
+                                    fullWidth
+                                    sx={{ mt: 2 }}
+                                    >
+                                    Continue with SMS OTP
+                                </Button>
+                            </Box>
+                            </form>
+                        )}
+                    </Box>
+                </Box>
+            </Box>
+        )
+    }
     
     // Check if the current decision screen has basic auth option
     const hasBasicAuthOption = availableActions.some(action => action.id === "basic_auth");
+    const hasSMSOTPAuthOption = availableActions.some(action => action.id === "mobile_prompt_username");
     const hasSocialAuthOptions = availableActions.some(action => action.id !== "basic_auth");
+
+    const gridMdSize = needsDecision && hasBasicAuthOption && hasSMSOTPAuthOption ? 10 : 6;
+    const containerBoxMaxWidth = needsDecision && hasBasicAuthOption && hasSMSOTPAuthOption ? 1000 : 500;
 
     return (
         <Layout>
             { loading ? (
                 <GradientCircularProgress />
             ) : (
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: gridMdSize }}>
                     <Paper
                         sx={{
                             display: "flex",
@@ -434,7 +1109,7 @@ const LoginPage = () => {
                                 justifyContent: "center",
                                 padding: 6,
                                 width: "100%",
-                                maxWidth: 500,
+                                maxWidth: containerBoxMaxWidth,
                                 margin: "auto",
                             }}
                         >
@@ -454,6 +1129,8 @@ const LoginPage = () => {
                                 {connectionError && (
                                     <ConnectionErrorModal 
                                         onRetry={handleRetry}
+                                        retryCount={retryCount}
+                                        onRetryCountIncrement={() => setRetryCount(prev => prev + 1)}
                                     />
                                 )}
 
@@ -466,218 +1143,23 @@ const LoginPage = () => {
                                 {!connectionError && (
                                     <>
                                         {needsDecision ? (
-                                            <Box sx={{ my: 2 }}>
-                                                {/* Social auth options */}
-                                                {hasSocialAuthOptions && (
-                                                    <Box>
-                                                        {availableActions.filter(action => action.id !== "basic_auth").map((action, index) => (
-                                                            <Button
-                                                                key={`action-${index}`}
-                                                                fullWidth
-                                                                variant="contained"
-                                                                color="secondary"
-                                                                onClick={() => handleAuthOptionSelection(action.id)}
-                                                                sx={{ my: 1 }}
-                                                                startIcon={
-                                                                    action.id === "google_auth" ? <GoogleIcon /> : 
-                                                                    action.id === "github_auth" ? <GitHubIcon /> : 
-                                                                    <AccountCircleIcon />
-                                                                }
-                                                            >
-                                                                {action.id === "google_auth" ? "Continue with Google" :
-                                                                 action.id === "github_auth" ? "Continue with GitHub" : 
-                                                                 action.id}
-                                                            </Button>
-                                                        ))}
-                                                    </Box>
-                                                )}
-                                                
-                                                {/* Show divider if we have both social and basic auth options */}
-                                                {hasBasicAuthOption && hasSocialAuthOptions && (
-                                                    <Divider sx={{ my: 3 }}>or</Divider>
-                                                )}
-                                                
-                                                {/* Basic auth form */}
-                                                {hasBasicAuthOption && (
-                                                    <form onSubmit={handleBasicAuthDecision}>
-                                                        <Box display="flex" flexDirection="column" gap={2}>
-                                                            <Box display="flex" flexDirection="column" gap={0.5}>
-                                                                <InputLabel htmlFor="username">Username</InputLabel>
-                                                                <OutlinedInput
-                                                                    type="text"
-                                                                    id="username"
-                                                                    name="username"
-                                                                    placeholder="Enter your username"
-                                                                    size="small"
-                                                                    value={basicAuthFormData.username}
-                                                                    onChange={handleInputChange}
-                                                                    required
-                                                                />
-                                                            </Box>
-                                                            <Box display="flex" flexDirection="column" gap={0.5}>
-                                                                <InputLabel htmlFor="password">Password</InputLabel>
-                                                                <OutlinedInput
-                                                                    type={showPassword ? 'text' : 'password'}
-                                                                    id="password"
-                                                                    name="password"
-                                                                    placeholder="Enter your password"
-                                                                    size="small"
-                                                                    value={basicAuthFormData.password}
-                                                                    onChange={handleInputChange}
-                                                                    required
-                                                                    endAdornment={
-                                                                        <InputAdornment position="end">
-                                                                            <IconButton
-                                                                                aria-label="toggle password visibility"
-                                                                                onClick={handleTogglePasswordVisibility}
-                                                                                onMouseDown={handleMouseDownPassword}
-                                                                                edge="end"
-                                                                            >
-                                                                                {showPassword ? 
-                                                                                    <VisibilityOff /> : <Visibility />
-                                                                                }
-                                                                            </IconButton>
-                                                                        </InputAdornment>
-                                                                    }
-                                                                />
-                                                            </Box>
-                                                            {(showRememberMe || showForgotPassword) && (
-                                                                <Box
-                                                                    sx={{
-                                                                    display: 'flex',
-                                                                    justifyContent: 'space-between',
-                                                                    alignItems: 'center',
-                                                                    }}
-                                                                >
-                                                                    { showRememberMe && (
-                                                                        <FormControlLabel
-                                                                            control={<Checkbox name="remember-me-checkbox" />} 
-                                                                            label="Remember me" />
-                                                                    )}
-                                                                    { showForgotPassword &&
-                                                                        <Link href="">Forgot your password?</Link>
-                                                                    }
-                                                                </Box>
-                                                            )}
-                                                            <Button
-                                                                variant="contained"
-                                                                color="primary"
-                                                                type="submit"
-                                                                fullWidth
-                                                                sx={{ mt: 2 }}
-                                                            >
-                                                                Sign In
-                                                            </Button>
-                                                        </Box>
-                                                    </form>
-                                                )}
-                                            </Box>
-                                        ) : (
-                                            // Regular login UI with social and basic auth options
                                             <>
-                                                {socialOptions.length > 0 && (
-                                                    <>
-                                                        <Box>
-                                                            {socialOptions.map((option, index) => (
-                                                                <Button
-                                                                    key={`social-login-${index}`}
-                                                                    fullWidth
-                                                                    variant="contained"
-                                                                    startIcon={getSocialLoginIcon(option.idpName)}
-                                                                    color="secondary"
-                                                                    onClick={() => handleSocialLoginClick(option.redirectURL)}
-                                                                    sx={{ my: 1 }}
-                                                                >
-                                                                    Continue with {option.idpName}
-                                                                </Button>
-                                                            ))}
-                                                        </Box>
-                                                        
-                                                        {hasBasicAuth && <Divider sx={{ my: 3 }}>or</Divider>}
-                                                    </>
-                                                )}
-
-                                                {hasBasicAuth && (
-                                                    <form onSubmit={handelBasicAuthSubmit}>
-                                                        <Box display="flex" flexDirection="column" gap={2}>
-                                                            <Box display="flex" flexDirection="column" gap={0.5}>
-                                                                <InputLabel htmlFor="username">Username</InputLabel>
-                                                                <OutlinedInput
-                                                                    type="text"
-                                                                    id="username"
-                                                                    name="username"
-                                                                    placeholder="Enter your username"
-                                                                    size="small"
-                                                                    value={basicAuthFormData.username}
-                                                                    onChange={handleInputChange}
-                                                                    required
-                                                                />
-                                                            </Box>
-                                                            <Box display="flex" flexDirection="column" gap={0.5}>
-                                                                <InputLabel htmlFor="password">Password</InputLabel>
-                                                                <OutlinedInput
-                                                                    type={showPassword ? 'text' : 'password'}
-                                                                    id="password"
-                                                                    name="password"
-                                                                    placeholder="Enter your password"
-                                                                    size="small"
-                                                                    value={basicAuthFormData.password}
-                                                                    onChange={handleInputChange}
-                                                                    required
-                                                                    endAdornment={
-                                                                        <InputAdornment position="end">
-                                                                            <IconButton
-                                                                                aria-label="toggle password visibility"
-                                                                                onClick={handleTogglePasswordVisibility}
-                                                                                onMouseDown={handleMouseDownPassword}
-                                                                                edge="end"
-                                                                            >
-                                                                                { showPassword ?
-                                                                                    <VisibilityOff /> : <Visibility />
-                                                                                }
-                                                                            </IconButton>
-                                                                        </InputAdornment>
-                                                                    }
-                                                                />
-                                                            </Box>
-                                                            { (showRememberMe || showForgotPassword) && (
-                                                                <Box
-                                                                    sx={{
-                                                                    display: 'flex',
-                                                                    justifyContent: 'space-between',
-                                                                    alignItems: 'center',
-                                                                    }}
-                                                                >
-                                                                    { showRememberMe && (
-                                                                        <FormControlLabel
-                                                                            control={<Checkbox name="remember-me-checkbox" />} 
-                                                                            label="Remember me" />
-                                                                    )}
-                                                                    { showForgotPassword &&
-                                                                        <Link href="">Forgot your password?</Link>
-                                                                    }
-                                                                </Box>
-                                                            )}
-                                                            <Button
-                                                                variant="contained"
-                                                                color="primary"
-                                                                type="submit"
-                                                                fullWidth
-                                                                sx={{ mt: 2 }}
-                                                            >
-                                                                Sign In
-                                                            </Button>
-                                                        </Box>
-                                                    </form>
-                                                )}
-
-                                                {loginOptions.length === 0 && !connectionError && !loading && (
-                                                    <Alert severity="info">
-                                                        No login options available. Please contact your administrator.
-                                                    </Alert>
-                                                )}
+                                                { hasBasicAuthOption && hasSMSOTPAuthOption ? (
+                                                    getBasicAndSMSLoginForm()
+                                                ) : (
+                                                    getBasicAndSocialLoginForm()
+                                                ) }
                                             </>
+                                        ) : (
+                                            getRegularLoginForm()
                                         )}
+                                        <>
+                                            {loginOptions.length === 0 && !connectionError && !loading && (
+                                                <Alert severity="info">
+                                                    No login options available. Please contact your administrator.
+                                                </Alert>
+                                            )}
+                                        </>
                                     </>
                                 )}
                                 <Box component="footer" sx={{ mt: 6 }}>

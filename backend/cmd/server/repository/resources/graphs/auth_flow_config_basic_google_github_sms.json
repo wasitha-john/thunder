@@ -1,0 +1,117 @@
+{
+    "id": "auth_flow_config_basic_google_github_sms",
+    "type": "AUTHENTICATION",
+    "nodes": [
+        {
+            "id": "choose_auth",
+            "type": "DECISION",
+            "next": [
+                "basic_auth",
+                "google_auth",
+                "github_auth",
+                "mobile_prompt_username"
+            ]
+        },
+        {
+            "id": "basic_auth",
+            "type": "TASK_EXECUTION",
+            "inputData": [
+                {
+                    "name": "username",
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "password",
+                    "type": "string",
+                    "required": true
+                }
+            ],
+            "executor": {
+                "name": "BasicAuthExecutor"
+            },
+            "next": [
+                "authenticated"
+            ]
+        },
+        {
+            "id": "google_auth",
+            "type": "TASK_EXECUTION",
+            "inputData": [
+                {
+                    "name": "code",
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "nonce",
+                    "type": "string",
+                    "required": false
+                }
+            ],
+            "executor": {
+                "name": "GoogleOIDCAuthExecutor",
+                "idpName": "Google"
+            },
+            "next": [
+                "authenticated"
+            ]
+        },
+        {
+            "id": "github_auth",
+            "type": "TASK_EXECUTION",
+            "inputData": [
+                {
+                    "name": "code",
+                    "type": "string",
+                    "required": true
+                }
+            ],
+            "executor": {
+                "name": "GithubOAuthExecutor",
+                "idpName": "Github"
+            },
+            "next": [
+                "authenticated"
+            ]
+        },
+        {
+            "id": "mobile_prompt_username",
+            "type": "PROMPT_ONLY",
+            "inputData": [
+                {
+                    "name": "username",
+                    "type": "string",
+                    "required": true
+                }
+            ],
+            "next": [
+                "sms_otp_auth"
+            ]
+        },
+        {
+            "id": "sms_otp_auth",
+            "type": "TASK_EXECUTION",
+            "inputData": [
+                {
+                    "name": "otp",
+                    "type": "number",
+                    "required": true
+                }
+            ],
+            "executor": {
+                "name": "SMSOTPAuthExecutor",
+                "properties": {
+                    "senderName": "Custom SMS Sender"
+                }
+            },
+            "next": [
+                "authenticated"
+            ]
+        },
+        {
+            "id": "authenticated",
+            "type": "AUTHENTICATION_SUCCESS"
+        }
+    ]
+}
