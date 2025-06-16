@@ -101,7 +101,10 @@ func (g *GoogleOIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel
 	logger.Debug("Executing Google OIDC auth executor",
 		log.String("executorID", g.GetID()), log.String("flowID", ctx.FlowID))
 
-	execResp := &flowmodel.ExecutorResponse{}
+	execResp := &flowmodel.ExecutorResponse{
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
+	}
 
 	if g.CheckInputData(ctx, execResp) {
 		logger.Debug("Required input data for Google OIDC auth executor is not provided")

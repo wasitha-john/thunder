@@ -99,10 +99,13 @@ func (n *DecisionNode) PrepareActionInput(ctx *NodeContext, actionID string) (*N
 	}
 
 	return &NodeResponse{
-		Status:        constants.NodeStatusIncomplete,
-		Type:          constants.NodeResponseTypeView,
-		Actions:       actions,
-		FailureReason: "",
+		Status:         constants.NodeStatusIncomplete,
+		Type:           constants.NodeResponseTypeView,
+		Actions:        actions,
+		FailureReason:  "",
+		RequiredData:   make([]InputData, 0),
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
 	}, nil
 }
 

@@ -93,7 +93,10 @@ func (s *SMSOTPAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing SMS OTP authentication executor")
 
-	execResp := &flowmodel.ExecutorResponse{}
+	execResp := &flowmodel.ExecutorResponse{
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
+	}
 
 	if !s.ValidatePrerequisites(ctx, execResp) {
 		logger.Debug("Prerequisites not met for SMS OTP authentication executor")

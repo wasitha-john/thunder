@@ -84,6 +84,15 @@ func (fe *FlowEngine) Execute(ctx *model.EngineContext) (model.FlowStep, *servic
 			RuntimeData:       ctx.RuntimeData,
 			AuthenticatedUser: ctx.AuthenticatedUser,
 		}
+		if nodeCtx.NodeInputData == nil {
+			nodeCtx.NodeInputData = make([]model.InputData, 0)
+		}
+		if nodeCtx.UserInputData == nil {
+			nodeCtx.UserInputData = make(map[string]string)
+		}
+		if nodeCtx.RuntimeData == nil {
+			nodeCtx.RuntimeData = make(map[string]string)
+		}
 
 		nodeResp, nodeErr := currentNode.Execute(nodeCtx)
 		if nodeErr != nil {

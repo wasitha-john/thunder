@@ -101,7 +101,10 @@ func (g *GithubOAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Ex
 	logger.Debug("Executing GitHub OAuth executor",
 		log.String("executorID", g.GetID()), log.String("flowID", ctx.FlowID))
 
-	execResp := &flowmodel.ExecutorResponse{}
+	execResp := &flowmodel.ExecutorResponse{
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
+	}
 
 	// Check if the required input data is provided
 	if g.CheckInputData(ctx, execResp) {

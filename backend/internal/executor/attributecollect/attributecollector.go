@@ -83,7 +83,10 @@ func (a *AttributeCollector) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing attribute collect executor")
 
-	execResp := &flowmodel.ExecutorResponse{}
+	execResp := &flowmodel.ExecutorResponse{
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
+	}
 
 	if !ctx.AuthenticatedUser.IsAuthenticated {
 		logger.Debug("User is not authenticated, cannot collect attributes")
