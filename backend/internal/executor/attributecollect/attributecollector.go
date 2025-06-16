@@ -43,8 +43,16 @@ type AttributeCollector struct {
 
 // NewAttributeCollector creates a new instance of AttributeCollector.
 func NewAttributeCollector(id, name string) flowmodel.ExecutorInterface {
+	prerequisites := []flowmodel.InputData{
+		{
+			Name:     "userID",
+			Type:     "string",
+			Required: true,
+		},
+	}
+
 	return &AttributeCollector{
-		internal: *flowmodel.NewExecutor(id, name, []flowmodel.InputData{}, []flowmodel.InputData{}),
+		internal: *flowmodel.NewExecutor(id, name, []flowmodel.InputData{}, prerequisites),
 	}
 }
 
@@ -82,7 +90,7 @@ func (a *AttributeCollector) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 	if !a.ValidatePrerequisites(ctx, execResp) {
 		logger.Debug("Prerequisites validation failed for attribute collector")
 		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "Prerequisites validation failed"
+		execResp.FailureReason = "Prerequisites validation failed for attribute collector"
 		return execResp, nil
 	}
 
@@ -155,8 +163,8 @@ func (a *AttributeCollector) CheckInputData(ctx *flowmodel.NodeContext, execResp
 	// Clear the required data in the executor response to avoid duplicates.
 	missingAttributes := execResp.RequiredData
 	execResp.RequiredData = make([]flowmodel.InputData, 0)
-	if ctx.RuntimeData == nil {
-		ctx.RuntimeData = make(map[string]string)
+	if execResp.RuntimeData == nil {
+		execResp.RuntimeData = make(map[string]string)
 	}
 
 	for _, inputData := range missingAttributes {
@@ -172,9 +180,9 @@ func (a *AttributeCollector) CheckInputData(ctx *flowmodel.NodeContext, execResp
 			// TODO: This conversion should be modified according to the storage mechanism of the
 			//  user store implementation.
 			if strVal, ok := attribute.(string); ok {
-				ctx.RuntimeData[inputData.Name] = strVal
+				execResp.RuntimeData[inputData.Name] = strVal
 			} else {
-				ctx.RuntimeData[inputData.Name] = fmt.Sprintf("%v", attribute)
+				execResp.RuntimeData[inputData.Name] = fmt.Sprintf("%v", attribute)
 			}
 		} else {
 			logger.Debug("Attribute does not exist in user profile, adding to required data",
@@ -281,7 +289,7 @@ func (a *AttributeCollector) getUserFromStore(ctx *flowmodel.NodeContext) (*user
 	return user, nil
 }
 
-// getUserID retrieves the user ID from the context or by username if not available.
+// getUserID retrieves the user ID from the context.
 func (a *AttributeCollector) getUserID(ctx *flowmodel.NodeContext) (string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, a.GetID()),
@@ -295,48 +303,14 @@ func (a *AttributeCollector) getUserID(ctx *flowmodel.NodeContext) (string, erro
 	if userID == "" {
 		userID = ctx.RuntimeData["userID"]
 	}
-	if userID == "" {
-		logger.Debug("User ID is not available in the context, attempting to retrieve by username")
-
-		username, err := a.getUsername(ctx)
-		if err != nil {
-			return "", fmt.Errorf("failed to get username: %w", err)
-		}
-
-		userProvider := userprovider.NewUserProvider()
-		userService := userProvider.GetUserService()
-		userIDFromUS, err := userService.IdentityUser("username", username)
-		if err != nil {
-			return "", fmt.Errorf("failed to identify user by username: %w", err)
-		}
-		if userIDFromUS == nil || *userIDFromUS == "" {
-			return "", errors.New("user not found for the provided username")
-		}
-		userID = *userIDFromUS
-	}
 
 	if userID == "" {
-		logger.Debug("User ID is not available in the context and cannot be retrieved by username")
+		logger.Debug("User ID is not available in the context")
 		return "", errors.New("user ID is not available")
 	}
 	logger.Debug("Retrieved user ID for the authenticated user", log.String("userID", userID))
 
 	return userID, nil
-}
-
-// getUsername retrieves the username from the context or user input data.
-func (a *AttributeCollector) getUsername(ctx *flowmodel.NodeContext) (string, error) {
-	username := ctx.AuthenticatedUser.Username
-	if username == "" {
-		username = ctx.UserInputData["username"]
-	}
-	if username == "" {
-		username = ctx.RuntimeData["username"]
-	}
-	if username == "" {
-		return "", errors.New("username is not available in the context")
-	}
-	return username, nil
 }
 
 // getUpdatedUserObject creates a new user object with the updated attributes.

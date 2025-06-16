@@ -108,12 +108,12 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exec
 		return execResp, nil
 	}
 
-	ctx.AuthenticatedUser = *authenticatedUser
+	execResp.AuthenticatedUser = *authenticatedUser
 	execResp.Status = flowconst.ExecComplete
 
 	logger.Debug("Basic authentication executor execution completed",
 		log.String("status", string(execResp.Status)),
-		log.Bool("isAuthenticated", ctx.AuthenticatedUser.IsAuthenticated))
+		log.Bool("isAuthenticated", execResp.AuthenticatedUser.IsAuthenticated))
 
 	return execResp, nil
 }
@@ -195,10 +195,8 @@ func getAuthenticatedUser(username, password string, logger *log.Logger) (*authn
 		}
 
 		authenticatedUser = authnmodel.AuthenticatedUser{
-			IsAuthenticated:        true,
-			UserID:                 user.ID,
-			Username:               attrs["username"].(string),
-			AuthenticatedSubjectID: user.ID,
+			IsAuthenticated: true,
+			UserID:          user.ID,
 			Attributes: map[string]string{
 				"email":     email,
 				"firstName": firstName,

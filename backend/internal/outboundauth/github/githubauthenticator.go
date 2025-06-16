@@ -163,13 +163,11 @@ func (ga *GithubAuthenticator) ProcessAuthenticationResponse(w http.ResponseWrit
 		logger.Error("Failed to fetch user info: ", log.Error(err))
 		return errors.New("failed to fetch user info: " + err.Error())
 	}
-	username := userAttributes["email"]
 
 	// Set the authenticated user in the context.
 	ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
 		UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-		Username:        username,
 		Attributes:      userAttributes,
 	}
 	ctx.AuthTime = time.Now()

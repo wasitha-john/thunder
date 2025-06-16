@@ -19,18 +19,21 @@
 package model
 
 import (
+	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 // ExecutorResponse represents the response from an executor
 type ExecutorResponse struct {
-	Status         constants.ExecutorStatus `json:"status"`
-	RequiredData   []InputData              `json:"required_data,omitempty"`
-	AdditionalData map[string]string        `json:"additional_data,omitempty"`
-	RedirectURL    string                   `json:"redirect_url,omitempty"`
-	Assertion      string                   `json:"assertion,omitempty"`
-	FailureReason  string                   `json:"failure_reason,omitempty"`
+	Status            constants.ExecutorStatus     `json:"status"`
+	RequiredData      []InputData                  `json:"required_data,omitempty"`
+	AdditionalData    map[string]string            `json:"additional_data,omitempty"`
+	RedirectURL       string                       `json:"redirect_url,omitempty"`
+	RuntimeData       map[string]string            `json:"runtime_data,omitempty"`
+	AuthenticatedUser authnmodel.AuthenticatedUser `json:"authenticated_user,omitempty"`
+	Assertion         string                       `json:"assertion,omitempty"`
+	FailureReason     string                       `json:"failure_reason,omitempty"`
 }
 
 // ExecutorProperties holds the properties of an executor.
@@ -144,10 +147,12 @@ func (e *Executor) ValidatePrerequisites(ctx *NodeContext, execResp *ExecutorRes
 
 	for _, prerequisite := range prerequisites {
 		if _, ok := ctx.UserInputData[prerequisite.Name]; !ok {
-			logger.Debug("Prerequisite not met for the executor", log.String("name", prerequisite.Name))
-			execResp.Status = constants.ExecFailure
-			execResp.FailureReason = "Prerequisite not met: " + prerequisite.Name
-			return false
+			if _, ok := ctx.RuntimeData[prerequisite.Name]; !ok {
+				logger.Debug("Prerequisite not met for the executor", log.String("name", prerequisite.Name))
+				execResp.Status = constants.ExecFailure
+				execResp.FailureReason = "Prerequisite not met: " + prerequisite.Name
+				return false
+			}
 		}
 	}
 

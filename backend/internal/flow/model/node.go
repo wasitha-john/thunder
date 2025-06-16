@@ -21,21 +21,24 @@ package model
 import (
 	"errors"
 
+	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 )
 
 // NodeResponse represents the response from a node execution
 type NodeResponse struct {
-	Status         constants.NodeStatus       `json:"status"`
-	Type           constants.NodeResponseType `json:"type"`
-	FailureReason  string                     `json:"failure_reason,omitempty"`
-	RequiredData   []InputData                `json:"required_data,omitempty"`
-	AdditionalData map[string]string          `json:"additional_data,omitempty"`
-	RedirectURL    string                     `json:"redirect_url,omitempty"`
-	Actions        []Action                   `json:"actions,omitempty"`
-	NextNodeID     string                     `json:"next_node_id,omitempty"`
-	Assertion      string                     `json:"assertion,omitempty"`
+	Status            constants.NodeStatus         `json:"status"`
+	Type              constants.NodeResponseType   `json:"type"`
+	FailureReason     string                       `json:"failure_reason,omitempty"`
+	RequiredData      []InputData                  `json:"required_data,omitempty"`
+	AdditionalData    map[string]string            `json:"additional_data,omitempty"`
+	RedirectURL       string                       `json:"redirect_url,omitempty"`
+	Actions           []Action                     `json:"actions,omitempty"`
+	NextNodeID        string                       `json:"next_node_id,omitempty"`
+	RuntimeData       map[string]string            `json:"runtime_data,omitempty"`
+	AuthenticatedUser authnmodel.AuthenticatedUser `json:"authenticated_user,omitempty"`
+	Assertion         string                       `json:"assertion,omitempty"`
 }
 
 // NodeInterface defines the interface for nodes in the graph
