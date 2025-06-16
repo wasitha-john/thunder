@@ -31,7 +31,12 @@ import (
 	userprovider "github.com/asgardeo/thunder/internal/user/provider"
 )
 
-const loggerComponentName = "AttributeCollector"
+const (
+	loggerComponentName   = "AttributeCollector"
+	userAttributeUserID   = "userID"
+	userAttributeUsername = "username"
+	userAttributePassword = "password"
+)
 
 // TODO: Need to handle complex attributes and nested structures in the user profile.
 //  Currently executor only takes string inputs.
@@ -163,7 +168,7 @@ func (a *AttributeCollector) CheckInputData(ctx *flowmodel.NodeContext, execResp
 			attribute, exists := authnUserAttrs[inputData.Name]
 			if exists {
 				// If the attribute is a password, do not retrieve it from the profile.
-				if inputData.Name == "password" {
+				if inputData.Name == userAttributePassword {
 					continue
 				}
 				logger.Debug("Attribute exists in authenticated user attributes, adding to runtime data",
@@ -210,7 +215,7 @@ func (a *AttributeCollector) CheckInputData(ctx *flowmodel.NodeContext, execResp
 		attribute, exists := userAttributes[inputData.Name]
 		if exists {
 			// If the attribute is a password, do not retrieve it from the profile.
-			if inputData.Name == "password" {
+			if inputData.Name == userAttributePassword {
 				continue
 			}
 			logger.Debug("Attribute exists in user profile, adding to runtime data",
@@ -407,7 +412,8 @@ func (a *AttributeCollector) getInputAttributes(ctx *flowmodel.NodeContext) map[
 
 	for _, inputAttr := range requiredInputAttrs {
 		// Skip special attributes that shouldn't be stored in the user profile
-		if inputAttr.Name == "username" || inputAttr.Name == "userID" || inputAttr.Name == "password" {
+		if inputAttr.Name == userAttributeUsername || inputAttr.Name == userAttributeUserID ||
+			inputAttr.Name == userAttributePassword {
 			continue
 		}
 
