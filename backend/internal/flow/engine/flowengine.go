@@ -90,7 +90,7 @@ func (fe *FlowEngine) Execute(ctx *model.EngineContext) (model.FlowStep, *servic
 			return flowStep, nodeErr
 		}
 
-		updateContextWithNodeResponse(ctx, nodeCtx, nodeResp)
+		updateContextWithNodeResponse(ctx, nodeResp)
 
 		nextNode, continueExecution, svcErr := fe.processNodeResponse(ctx, currentNode, nodeResp, &flowStep)
 		if svcErr != nil {
@@ -155,17 +155,32 @@ func setNodeExecutor(node model.NodeInterface, logger *log.Logger) *serviceerror
 }
 
 // updateContextWithNodeResponse updates the engine context with the node response and authenticated user.
-func updateContextWithNodeResponse(engineCtx *model.EngineContext, nodeCtx *model.NodeContext,
-	nodeResp *model.NodeResponse) {
+func updateContextWithNodeResponse(engineCtx *model.EngineContext, nodeResp *model.NodeResponse) {
 	engineCtx.CurrentNodeResponse = nodeResp
-	engineCtx.AuthenticatedUser = nodeCtx.AuthenticatedUser
 	engineCtx.CurrentActionID = ""
 
-	if len(nodeCtx.RuntimeData) > 0 {
+	// Handle runtime data from the node response
+	if len(nodeResp.RuntimeData) > 0 {
 		if engineCtx.RuntimeData == nil {
 			engineCtx.RuntimeData = make(map[string]string)
 		}
-		engineCtx.RuntimeData = sysutils.MergeStringMaps(engineCtx.RuntimeData, nodeCtx.RuntimeData)
+		engineCtx.RuntimeData = sysutils.MergeStringMaps(engineCtx.RuntimeData, nodeResp.RuntimeData)
+	}
+
+	// Handle authenticated user from the node response
+	if nodeResp.AuthenticatedUser.IsAuthenticated {
+		engineCtx.AuthenticatedUser = nodeResp.AuthenticatedUser
+
+		// Append user ID as a runtime data if not already set
+		if engineCtx.AuthenticatedUser.UserID != "" {
+			userID := engineCtx.RuntimeData["userID"]
+			if userID == "" {
+				if engineCtx.RuntimeData == nil {
+					engineCtx.RuntimeData = make(map[string]string)
+				}
+				engineCtx.RuntimeData["userID"] = engineCtx.AuthenticatedUser.UserID
+			}
+		}
 	}
 }
 

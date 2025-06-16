@@ -76,11 +76,13 @@ func (n *TaskExecutionNode) triggerExecutor(ctx *NodeContext) (*ExecutorResponse
 // buildNodeResponse constructs a NodeResponse from the ExecutorResponse.
 func buildNodeResponse(execResp *ExecutorResponse) *NodeResponse {
 	nodeResp := &NodeResponse{
-		FailureReason:  execResp.FailureReason,
-		RequiredData:   execResp.RequiredData,
-		AdditionalData: execResp.AdditionalData,
-		RedirectURL:    execResp.RedirectURL,
-		Assertion:      execResp.Assertion,
+		FailureReason:     execResp.FailureReason,
+		RequiredData:      execResp.RequiredData,
+		AdditionalData:    execResp.AdditionalData,
+		RedirectURL:       execResp.RedirectURL,
+		RuntimeData:       execResp.RuntimeData,
+		AuthenticatedUser: execResp.AuthenticatedUser,
+		Assertion:         execResp.Assertion,
 	}
 
 	if execResp.Status == constants.ExecComplete {

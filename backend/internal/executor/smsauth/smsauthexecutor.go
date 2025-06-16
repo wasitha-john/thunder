@@ -114,7 +114,7 @@ func (s *SMSOTPAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 
 	logger.Debug("SMS OTP authentication executor execution completed",
 		log.String("status", string(execResp.Status)),
-		log.Bool("isAuthenticated", ctx.AuthenticatedUser.IsAuthenticated))
+		log.Bool("isAuthenticated", execResp.AuthenticatedUser.IsAuthenticated))
 
 	return execResp, nil
 }
@@ -145,11 +145,11 @@ func (s *SMSOTPAuthExecutor) InitiateOTP(ctx *flowmodel.NodeContext,
 		return nil
 	}
 
-	// Store the user ID in the context
-	if ctx.RuntimeData == nil {
-		ctx.RuntimeData = make(map[string]string)
+	// Store the user ID in runtime data for later use.
+	if execResp.RuntimeData == nil {
+		execResp.RuntimeData = make(map[string]string)
 	}
-	ctx.RuntimeData["userID"] = userID
+	execResp.RuntimeData["userID"] = userID
 
 	logger.Debug("SMS OTP sent successfully")
 	execResp.Status = flowconst.ExecUserInputRequired
@@ -186,7 +186,7 @@ func (s *SMSOTPAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 		return fmt.Errorf("failed to get authenticated user details: %w", err)
 	}
 
-	ctx.AuthenticatedUser = *authenticatedUser
+	execResp.AuthenticatedUser = *authenticatedUser
 	execResp.Status = flowconst.ExecComplete
 	return nil
 }
@@ -296,12 +296,12 @@ func (s *SMSOTPAuthExecutor) generateAndSendOTP(username, mobileNumber string, c
 	}
 
 	// Store runtime data.
-	if ctx.RuntimeData == nil {
-		ctx.RuntimeData = make(map[string]string)
+	if execResp.RuntimeData == nil {
+		execResp.RuntimeData = make(map[string]string)
 	}
-	ctx.RuntimeData["value"] = otp.Value
-	ctx.RuntimeData["expiryTimeInMillis"] = fmt.Sprintf("%d", otp.ExpiryTimeInMillis)
-	ctx.RuntimeData["attemptCount"] = strconv.Itoa(attemptCount + 1)
+	execResp.RuntimeData["value"] = otp.Value
+	execResp.RuntimeData["expiryTimeInMillis"] = fmt.Sprintf("%d", otp.ExpiryTimeInMillis)
+	execResp.RuntimeData["attemptCount"] = strconv.Itoa(attemptCount + 1)
 
 	return nil
 }
@@ -442,16 +442,16 @@ func (s *SMSOTPAuthExecutor) validateOTP(ctx *flowmodel.NodeContext, execResp *f
 
 	currentTime := time.Now().UnixMilli()
 	if currentTime > expiryTime {
-		ctx.RuntimeData["value"] = ""
-		ctx.RuntimeData["expiryTimeInMillis"] = ""
+		execResp.RuntimeData["value"] = ""
+		execResp.RuntimeData["expiryTimeInMillis"] = ""
 		logger.Debug("OTP has expired", log.String("username", log.MaskString(username)))
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "OTP has expired"
 		return nil
 	}
 
-	ctx.RuntimeData["value"] = ""
-	ctx.RuntimeData["expiryTimeInMillis"] = ""
+	execResp.RuntimeData["value"] = ""
+	execResp.RuntimeData["expiryTimeInMillis"] = ""
 	logger.Debug("OTP validated successfully", log.String("username", log.MaskString(username)))
 	return nil
 }
@@ -477,7 +477,6 @@ func (s *SMSOTPAuthExecutor) getAuthenticatedUser(userID string) (*authnmodel.Au
 	authenticatedUser := &authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
 		UserID:          user.ID,
-		Username:        attrs["username"].(string),
 		Attributes: map[string]string{
 			"email":        attrs["email"].(string),
 			"firstName":    attrs["firstName"].(string),

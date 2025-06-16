@@ -160,7 +160,7 @@ func (o *OAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Executor
 
 	logger.Debug("OAuth authentication executor execution completed",
 		log.String("status", string(execResp.Status)),
-		log.Bool("isAuthenticated", ctx.AuthenticatedUser.IsAuthenticated))
+		log.Bool("isAuthenticated", execResp.AuthenticatedUser.IsAuthenticated))
 
 	return execResp, nil
 }
@@ -223,12 +223,9 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 
 		if tokenResp.Scope == "" {
 			logger.Debug("Scope is empty in the token response")
-			ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
-				IsAuthenticated:        true,
-				UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-				Username:               "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-				Domain:                 o.GetName(),
-				AuthenticatedSubjectID: "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+			execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
+				IsAuthenticated: true,
+				UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
 			}
 		} else {
 			authenticatedUser, err := o.getAuthenticatedUserWithAttributes(ctx, execResp, tokenResp.AccessToken)
@@ -238,15 +235,15 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 			if authenticatedUser == nil {
 				return nil
 			}
-			ctx.AuthenticatedUser = *authenticatedUser
+			execResp.AuthenticatedUser = *authenticatedUser
 		}
 	} else {
-		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
+		execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
 
-	if ctx.AuthenticatedUser.IsAuthenticated {
+	if execResp.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
 	} else {
 		execResp.Status = flowconst.ExecFailure
@@ -452,8 +449,6 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 	}
 
 	// Populate authenticated user from user info
-	username := userInfo["username"]
-
 	attributes := make(map[string]string)
 	for key, value := range userInfo {
 		if key != "username" && key != "sub" {
@@ -462,12 +457,9 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 	}
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
-		IsAuthenticated:        true,
-		UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-		Username:               username,
-		Domain:                 o.GetName(),
-		AuthenticatedSubjectID: username,
-		Attributes:             attributes,
+		IsAuthenticated: true,
+		UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		Attributes:      attributes,
 	}
 
 	return &authenticatedUser, nil

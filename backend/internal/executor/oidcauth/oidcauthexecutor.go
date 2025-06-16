@@ -152,7 +152,7 @@ func (o *OIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Execu
 
 	logger.Debug("OIDC authentication executor execution completed",
 		log.String("status", string(execResp.Status)),
-		log.Bool("isAuthenticated", ctx.AuthenticatedUser.IsAuthenticated))
+		log.Bool("isAuthenticated", execResp.AuthenticatedUser.IsAuthenticated))
 
 	return execResp, nil
 }
@@ -211,14 +211,14 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 		if authenticatedUser == nil {
 			return nil
 		}
-		ctx.AuthenticatedUser = *authenticatedUser
+		execResp.AuthenticatedUser = *authenticatedUser
 	} else {
-		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
+		execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
 
-	if ctx.AuthenticatedUser.IsAuthenticated {
+	if execResp.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
 	} else {
 		execResp.Status = flowconst.ExecFailure
@@ -344,23 +344,10 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 		}
 	}
 
-	// Determine username from the user claims.
-	username := ""
-	if sub, ok := userClaims["sub"]; ok {
-		username = sub
-		delete(userClaims, "sub")
-	}
-	if email, ok := userClaims["email"]; ok && email != "" {
-		username = email
-	}
-
 	authenticatedUser := authnmodel.AuthenticatedUser{
-		IsAuthenticated:        true,
-		UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-		Username:               username,
-		Domain:                 o.GetName(),
-		AuthenticatedSubjectID: username,
-		Attributes:             userClaims,
+		IsAuthenticated: true,
+		UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		Attributes:      userClaims,
 	}
 
 	return &authenticatedUser, nil

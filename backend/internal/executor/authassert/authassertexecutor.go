@@ -68,8 +68,8 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 
 	if ctx.AuthenticatedUser.IsAuthenticated {
 		tokenSub := ""
-		if ctx.AuthenticatedUser.AuthenticatedSubjectID != "" {
-			tokenSub = ctx.AuthenticatedUser.AuthenticatedSubjectID
+		if ctx.AuthenticatedUser.UserID != "" {
+			tokenSub = ctx.AuthenticatedUser.UserID
 		}
 		token, err := jwt.GenerateJWT(tokenSub, ctx.AppID, ctx.AuthenticatedUser.Attributes)
 		if err != nil {

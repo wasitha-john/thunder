@@ -144,10 +144,8 @@ func getAuthenticatedUser(username, password string, logger *log.Logger) (*authn
 			return nil, err
 		}
 		authenticatedUser = authnmodel.AuthenticatedUser{
-			IsAuthenticated:        true,
-			UserID:                 user.ID,
-			Username:               attrs["username"].(string),
-			AuthenticatedSubjectID: attrs["email"].(string),
+			IsAuthenticated: true,
+			UserID:          user.ID,
 			Attributes: map[string]string{
 				"email":     attrs["email"].(string),
 				"firstName": attrs["firstName"].(string),
