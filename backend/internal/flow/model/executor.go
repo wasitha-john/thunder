@@ -122,7 +122,7 @@ func (e *Executor) CheckInputData(ctx *NodeContext, execResp *ExecutorResponse) 
 	if execResp.RequiredData == nil {
 		execResp.RequiredData = make([]InputData, 0)
 	}
-	if len(ctx.UserInputData) == 0 {
+	if len(ctx.UserInputData) == 0 && len(ctx.RuntimeData) == 0 {
 		execResp.RequiredData = append(execResp.RequiredData, requiredData...)
 		return true
 	}
@@ -193,6 +193,13 @@ func (e *Executor) appendRequiredData(ctx *NodeContext, execResp *ExecutorRespon
 	requireData := false
 	for _, inputData := range requiredData {
 		if _, ok := ctx.UserInputData[inputData.Name]; !ok {
+			// If the input data is available in runtime data, skip adding it to the required data.
+			if _, ok := ctx.RuntimeData[inputData.Name]; ok {
+				logger.Debug("Input data available in runtime data, skipping required data addition",
+					log.String("inputDataName", inputData.Name), log.Bool("isRequired", inputData.Required))
+				continue
+			}
+
 			if inputData.Required {
 				requireData = true
 			}

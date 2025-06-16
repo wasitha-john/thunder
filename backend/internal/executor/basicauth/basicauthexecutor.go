@@ -175,15 +175,34 @@ func getAuthenticatedUser(username, password string, logger *log.Logger) (*authn
 			logger.Error("Failed to unmarshal user attributes", log.Error(err))
 			return nil, err
 		}
+
+		email := ""
+		emailAttr := attrs["email"]
+		if emailAttr != nil {
+			email = emailAttr.(string)
+		}
+
+		firstName := ""
+		firstNameAttr := attrs["firstName"]
+		if firstNameAttr != nil {
+			firstName = firstNameAttr.(string)
+		}
+
+		lastName := ""
+		lastNameAttr := attrs["lastName"]
+		if lastNameAttr != nil {
+			lastName = lastNameAttr.(string)
+		}
+
 		authenticatedUser = authnmodel.AuthenticatedUser{
 			IsAuthenticated:        true,
 			UserID:                 user.ID,
 			Username:               attrs["username"].(string),
-			AuthenticatedSubjectID: attrs["email"].(string),
+			AuthenticatedSubjectID: user.ID,
 			Attributes: map[string]string{
-				"email":     attrs["email"].(string),
-				"firstName": attrs["firstName"].(string),
-				"lastName":  attrs["lastName"].(string),
+				"email":     email,
+				"firstName": firstName,
+				"lastName":  lastName,
 			},
 		}
 	}
