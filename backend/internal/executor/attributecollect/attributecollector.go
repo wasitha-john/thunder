@@ -34,7 +34,6 @@ import (
 const (
 	loggerComponentName   = "AttributeCollector"
 	userAttributeUserID   = "userID"
-	userAttributeUsername = "username"
 	userAttributePassword = "password"
 )
 
@@ -414,9 +413,8 @@ func (a *AttributeCollector) getInputAttributes(ctx *flowmodel.NodeContext) map[
 	requiredInputAttrs := a.getRequiredData(ctx)
 
 	for _, inputAttr := range requiredInputAttrs {
-		// Skip special attributes that shouldn't be stored in the user profile
-		if inputAttr.Name == userAttributeUsername || inputAttr.Name == userAttributeUserID ||
-			inputAttr.Name == userAttributePassword {
+		// Skip special attributes that shouldn't be stored/ updated in the user profile
+		if inputAttr.Name == userAttributeUserID {
 			continue
 		}
 

@@ -178,16 +178,18 @@ func updateContextWithNodeResponse(engineCtx *model.EngineContext, nodeResp *mod
 
 	// Handle authenticated user from the node response
 	if nodeResp.AuthenticatedUser.IsAuthenticated {
-		authnUserAttrs := engineCtx.AuthenticatedUser.Attributes
+		prevAuthnUserAttrs := engineCtx.AuthenticatedUser.Attributes
 		engineCtx.AuthenticatedUser = nodeResp.AuthenticatedUser
 
-		// If engine context already had authenticated user attributes, merge them with the new ones
-		if len(authnUserAttrs) > 0 {
+		// If engine context already had authenticated user attributes, merge them with the new ones.
+		// Here if the same attribute exists in both, the one from the node response will take precedence.
+		if len(prevAuthnUserAttrs) > 0 {
 			if engineCtx.AuthenticatedUser.Attributes == nil {
-				engineCtx.AuthenticatedUser.Attributes = make(map[string]string)
+				engineCtx.AuthenticatedUser.Attributes = prevAuthnUserAttrs
+			} else {
+				engineCtx.AuthenticatedUser.Attributes = sysutils.MergeStringMaps(
+					prevAuthnUserAttrs, engineCtx.AuthenticatedUser.Attributes)
 			}
-			engineCtx.AuthenticatedUser.Attributes = sysutils.MergeStringMaps(
-				authnUserAttrs, engineCtx.AuthenticatedUser.Attributes)
 		}
 
 		// Append user ID as a runtime data if not already set
