@@ -171,6 +171,8 @@ Open the sample app in your browser and enter the username and password you crea
   }'
   ```
 
+  > Note: Refer [Identity Provider Configuration Guide](/docs/content/configure-identity-providers.md) for more details on configuring identity providers.
+
 - Update the system default application to use the Google login template by invoking the application management API with the following cURL command.
 
   ```bash
@@ -235,6 +237,8 @@ Open the sample app in your browser and enter the username and password you crea
   }'
   ```
 
+  > Note: Refer [Identity Provider Configuration Guide](/docs/content/configure-identity-providers.md) for more details on configuring identity providers.
+
 - Update the system default application to use the Github login template by invoking the application management API with the following cURL command.
 
   ```bash
@@ -291,7 +295,7 @@ curl -kL -H 'Content-Type: application/json' -H 'Accept: application/json' https
 }'
 ```
 
-> Note: Make sure to use `twilio`, `vonage`, or `custom` as the `provider` based on your message provider.
+> Note: Refer [Message Provider Configuration Guide](/docs/content/configure-message-providers.md) for more details on configuring message providers.
 
 ##### Step 2: Update SMS OTP Flow Configuration
 
@@ -543,6 +547,8 @@ curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
   }'
   ```
 
+  > Note: Refer [Identity Provider Configuration Guide](/docs/content/configure-identity-providers.md) for more details on configuring identity providers.
+
 - Create an application or update the existing system default application to use the Google login template. You can use the following cURL command to update the default application.
 
   ```bash
@@ -664,6 +670,8 @@ curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
   }'
   ```
 
+  > Note: Refer [Identity Provider Configuration Guide](/docs/content/configure-identity-providers.md) for more details on configuring identity providers.
+
 - Create an application or update the existing system default application to use the GitHub login template. You can use the following cURL command to update the default application.
 
   ```bash
@@ -767,6 +775,8 @@ curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
     ]
   }'
   ```
+
+  > Note: Refer [Message Provider Configuration Guide](/docs/content/configure-message-providers.md) for more details on configuring message providers.
 
 - Update the system application to use the SMS OTP authentication flow:
 
