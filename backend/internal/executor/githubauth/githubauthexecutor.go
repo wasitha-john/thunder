@@ -158,7 +158,7 @@ func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext
 			logger.Debug("Scope is empty in the token response")
 			execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
 				IsAuthenticated: true,
-				UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+				UserID:          "550e8400-e29b-41d4-a716-446655440000",
 			}
 		} else {
 			authenticatedUser, err := o.getAuthenticatedUserWithAttributes(ctx, execResp, tokenResp.AccessToken)
@@ -336,7 +336,7 @@ func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		UserID:          "550e8400-e29b-41d4-a716-446655440000",
 		Attributes:      attributes,
 	}
 

@@ -149,7 +149,7 @@ func (ga *GithubAuthenticator) ProcessAuthenticationResponse(w http.ResponseWrit
 
 		ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 			IsAuthenticated: true,
-			UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+			UserID:          "550e8400-e29b-41d4-a716-446655440000",
 		}
 		ctx.AuthTime = time.Now()
 
@@ -167,7 +167,7 @@ func (ga *GithubAuthenticator) ProcessAuthenticationResponse(w http.ResponseWrit
 	// Set the authenticated user in the context.
 	ctx.AuthenticatedUser = authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		UserID:          "550e8400-e29b-41d4-a716-446655440000",
 		Attributes:      userAttributes,
 	}
 	ctx.AuthTime = time.Now()

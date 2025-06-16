@@ -155,7 +155,7 @@ func (g *GoogleOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeCont
 			logger.Debug("Scopes are empty in the token response")
 			execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
 				IsAuthenticated: true,
-				UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+				UserID:          "550e8400-e29b-41d4-a716-446655440000",
 			}
 		} else {
 			authenticatedUser, err := g.getAuthenticatedUserWithAttributes(ctx, execResp, tokenResp)
@@ -343,7 +343,7 @@ func (g *GoogleOIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmod
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		UserID:          "550e8400-e29b-41d4-a716-446655440000",
 		Attributes:      userClaims,
 	}
 

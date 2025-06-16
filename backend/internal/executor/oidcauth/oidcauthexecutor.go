@@ -346,7 +346,7 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		UserID:          "550e8400-e29b-41d4-a716-446655440000",
 		Attributes:      userClaims,
 	}
 

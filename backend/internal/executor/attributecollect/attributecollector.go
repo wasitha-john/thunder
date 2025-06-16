@@ -147,6 +147,45 @@ func (a *AttributeCollector) CheckInputData(ctx *flowmodel.NodeContext, execResp
 		return false
 	}
 
+	// Update the executor response with the required data retrieved from authenticated user attributes.
+	authnUserAttrs := ctx.AuthenticatedUser.Attributes
+	if len(authnUserAttrs) > 0 {
+		logger.Debug("Authenticated user attributes found, updating executor response required data")
+
+		// Clear the required data in the executor response to avoid duplicates.
+		missingAttributes := execResp.RequiredData
+		execResp.RequiredData = make([]flowmodel.InputData, 0)
+		if execResp.RuntimeData == nil {
+			execResp.RuntimeData = make(map[string]string)
+		}
+
+		for _, inputData := range missingAttributes {
+			attribute, exists := authnUserAttrs[inputData.Name]
+			if exists {
+				// If the attribute is a password, do not retrieve it from the profile.
+				if inputData.Name == "password" {
+					continue
+				}
+				logger.Debug("Attribute exists in authenticated user attributes, adding to runtime data",
+					log.String("attributeName", inputData.Name))
+
+				// TODO: This should be modified according to the storage mechanism of the
+				//  user store implementation.
+				execResp.RuntimeData[inputData.Name] = attribute
+			} else {
+				logger.Debug("Attribute does not exist in authenticated user attributes, adding to required data",
+					log.String("attributeName", inputData.Name))
+				execResp.RequiredData = append(execResp.RequiredData, inputData)
+			}
+		}
+
+		if len(execResp.RequiredData) == 0 {
+			logger.Debug("All required attributes are available in authenticated user attributes, " +
+				"no further action needed")
+			return false
+		}
+	}
+
 	// Update the executor response with the required data by checking the user profile.
 	userAttributes, err := a.getUserAttributes(ctx)
 	if err != nil {
@@ -371,8 +410,12 @@ func (a *AttributeCollector) getInputAttributes(ctx *flowmodel.NodeContext) map[
 		if inputAttr.Name == "username" || inputAttr.Name == "userID" || inputAttr.Name == "password" {
 			continue
 		}
-		if value, exists := ctx.UserInputData[inputAttr.Name]; exists {
+
+		value, exists := ctx.UserInputData[inputAttr.Name]
+		if exists {
 			attributesMap[inputAttr.Name] = value
+		} else if runtimeValue, exists := ctx.RuntimeData[inputAttr.Name]; exists {
+			attributesMap[inputAttr.Name] = runtimeValue
 		}
 	}
 
