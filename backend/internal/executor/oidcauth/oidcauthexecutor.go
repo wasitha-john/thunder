@@ -133,7 +133,10 @@ func (o *OIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Execu
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing OIDC authentication executor")
 
-	execResp := &flowmodel.ExecutorResponse{}
+	execResp := &flowmodel.ExecutorResponse{
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
+	}
 
 	// Check if the required input data is provided
 	if o.CheckInputData(ctx, execResp) {
@@ -346,7 +349,7 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		UserID:          "550e8400-e29b-41d4-a716-446655440000",
 		Attributes:      userClaims,
 	}
 

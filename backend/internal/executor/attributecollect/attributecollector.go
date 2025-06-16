@@ -31,7 +31,11 @@ import (
 	userprovider "github.com/asgardeo/thunder/internal/user/provider"
 )
 
-const loggerComponentName = "AttributeCollector"
+const (
+	loggerComponentName   = "AttributeCollector"
+	userAttributeUserID   = "userID"
+	userAttributePassword = "password"
+)
 
 // TODO: Need to handle complex attributes and nested structures in the user profile.
 //  Currently executor only takes string inputs.
@@ -78,7 +82,10 @@ func (a *AttributeCollector) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing attribute collect executor")
 
-	execResp := &flowmodel.ExecutorResponse{}
+	execResp := &flowmodel.ExecutorResponse{
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
+	}
 
 	if !ctx.AuthenticatedUser.IsAuthenticated {
 		logger.Debug("User is not authenticated, cannot collect attributes")
@@ -147,6 +154,45 @@ func (a *AttributeCollector) CheckInputData(ctx *flowmodel.NodeContext, execResp
 		return false
 	}
 
+	// Update the executor response with the required data retrieved from authenticated user attributes.
+	authnUserAttrs := ctx.AuthenticatedUser.Attributes
+	if len(authnUserAttrs) > 0 {
+		logger.Debug("Authenticated user attributes found, updating executor response required data")
+
+		// Clear the required data in the executor response to avoid duplicates.
+		missingAttributes := execResp.RequiredData
+		execResp.RequiredData = make([]flowmodel.InputData, 0)
+		if execResp.RuntimeData == nil {
+			execResp.RuntimeData = make(map[string]string)
+		}
+
+		for _, inputData := range missingAttributes {
+			attribute, exists := authnUserAttrs[inputData.Name]
+			if exists {
+				// If the attribute is a password, do not retrieve it from the profile.
+				if inputData.Name == userAttributePassword {
+					continue
+				}
+				logger.Debug("Attribute exists in authenticated user attributes, adding to runtime data",
+					log.String("attributeName", inputData.Name))
+
+				// TODO: This should be modified according to the storage mechanism of the
+				//  user store implementation.
+				execResp.RuntimeData[inputData.Name] = attribute
+			} else {
+				logger.Debug("Attribute does not exist in authenticated user attributes, adding to required data",
+					log.String("attributeName", inputData.Name))
+				execResp.RequiredData = append(execResp.RequiredData, inputData)
+			}
+		}
+
+		if len(execResp.RequiredData) == 0 {
+			logger.Debug("All required attributes are available in authenticated user attributes, " +
+				"no further action needed")
+			return false
+		}
+	}
+
 	// Update the executor response with the required data by checking the user profile.
 	userAttributes, err := a.getUserAttributes(ctx)
 	if err != nil {
@@ -171,7 +217,7 @@ func (a *AttributeCollector) CheckInputData(ctx *flowmodel.NodeContext, execResp
 		attribute, exists := userAttributes[inputData.Name]
 		if exists {
 			// If the attribute is a password, do not retrieve it from the profile.
-			if inputData.Name == "password" {
+			if inputData.Name == userAttributePassword {
 				continue
 			}
 			logger.Debug("Attribute exists in user profile, adding to runtime data",
@@ -367,12 +413,16 @@ func (a *AttributeCollector) getInputAttributes(ctx *flowmodel.NodeContext) map[
 	requiredInputAttrs := a.getRequiredData(ctx)
 
 	for _, inputAttr := range requiredInputAttrs {
-		// Skip special attributes that shouldn't be stored in the user profile
-		if inputAttr.Name == "username" || inputAttr.Name == "userID" || inputAttr.Name == "password" {
+		// Skip special attributes that shouldn't be stored/ updated in the user profile
+		if inputAttr.Name == userAttributeUserID {
 			continue
 		}
-		if value, exists := ctx.UserInputData[inputAttr.Name]; exists {
+
+		value, exists := ctx.UserInputData[inputAttr.Name]
+		if exists {
 			attributesMap[inputAttr.Name] = value
+		} else if runtimeValue, exists := ctx.RuntimeData[inputAttr.Name]; exists {
+			attributesMap[inputAttr.Name] = runtimeValue
 		}
 	}
 

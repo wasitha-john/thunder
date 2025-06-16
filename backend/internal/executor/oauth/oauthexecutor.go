@@ -141,7 +141,10 @@ func (o *OAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Executor
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing OAuth authentication executor")
 
-	execResp := &flowmodel.ExecutorResponse{}
+	execResp := &flowmodel.ExecutorResponse{
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
+	}
 
 	// Check if the required input data is provided
 	if o.CheckInputData(ctx, execResp) {
@@ -225,7 +228,7 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 			logger.Debug("Scope is empty in the token response")
 			execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
 				IsAuthenticated: true,
-				UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+				UserID:          "550e8400-e29b-41d4-a716-446655440000",
 			}
 		} else {
 			authenticatedUser, err := o.getAuthenticatedUserWithAttributes(ctx, execResp, tokenResp.AccessToken)
@@ -458,7 +461,7 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
+		UserID:          "550e8400-e29b-41d4-a716-446655440000",
 		Attributes:      attributes,
 	}
 

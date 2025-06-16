@@ -228,6 +228,13 @@ func prepareContext(ctx *model.EngineContext, actionID string, inputData map[str
 		ctx.UserInputData = sysutils.MergeStringMaps(ctx.UserInputData, inputData)
 	}
 
+	if ctx.UserInputData == nil {
+		ctx.UserInputData = make(map[string]string)
+	}
+	if ctx.RuntimeData == nil {
+		ctx.RuntimeData = make(map[string]string)
+	}
+
 	// Set the action ID if provided
 	if actionID != "" {
 		ctx.CurrentActionID = actionID

@@ -84,6 +84,15 @@ func (fe *FlowEngine) Execute(ctx *model.EngineContext) (model.FlowStep, *servic
 			RuntimeData:       ctx.RuntimeData,
 			AuthenticatedUser: ctx.AuthenticatedUser,
 		}
+		if nodeCtx.NodeInputData == nil {
+			nodeCtx.NodeInputData = make([]model.InputData, 0)
+		}
+		if nodeCtx.UserInputData == nil {
+			nodeCtx.UserInputData = make(map[string]string)
+		}
+		if nodeCtx.RuntimeData == nil {
+			nodeCtx.RuntimeData = make(map[string]string)
+		}
 
 		nodeResp, nodeErr := currentNode.Execute(nodeCtx)
 		if nodeErr != nil {
@@ -169,7 +178,19 @@ func updateContextWithNodeResponse(engineCtx *model.EngineContext, nodeResp *mod
 
 	// Handle authenticated user from the node response
 	if nodeResp.AuthenticatedUser.IsAuthenticated {
+		prevAuthnUserAttrs := engineCtx.AuthenticatedUser.Attributes
 		engineCtx.AuthenticatedUser = nodeResp.AuthenticatedUser
+
+		// If engine context already had authenticated user attributes, merge them with the new ones.
+		// Here if the same attribute exists in both, the one from the node response will take precedence.
+		if len(prevAuthnUserAttrs) > 0 {
+			if engineCtx.AuthenticatedUser.Attributes == nil {
+				engineCtx.AuthenticatedUser.Attributes = prevAuthnUserAttrs
+			} else {
+				engineCtx.AuthenticatedUser.Attributes = sysutils.MergeStringMaps(
+					prevAuthnUserAttrs, engineCtx.AuthenticatedUser.Attributes)
+			}
+		}
 
 		// Append user ID as a runtime data if not already set
 		if engineCtx.AuthenticatedUser.UserID != "" {

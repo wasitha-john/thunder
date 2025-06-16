@@ -77,7 +77,10 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exec
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing basic authentication executor")
 
-	execResp := &flowmodel.ExecutorResponse{}
+	execResp := &flowmodel.ExecutorResponse{
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
+	}
 
 	// Validate for the required input data.
 	if b.CheckInputData(ctx, execResp) {

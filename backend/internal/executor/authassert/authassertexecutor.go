@@ -64,7 +64,10 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing authentication assertion executor")
 
-	exeResp := &flowmodel.ExecutorResponse{}
+	execResp := &flowmodel.ExecutorResponse{
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
+	}
 
 	if ctx.AuthenticatedUser.IsAuthenticated {
 		tokenSub := ""
@@ -79,16 +82,16 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 
 		logger.Debug("Generated JWT token for authentication assertion")
 
-		exeResp.Status = flowconst.ExecComplete
-		exeResp.Assertion = token
+		execResp.Status = flowconst.ExecComplete
+		execResp.Assertion = token
 	} else {
-		exeResp.Status = flowconst.ExecFailure
-		exeResp.FailureReason = "User is not authenticated"
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "User is not authenticated"
 	}
 
-	logger.Debug("Authentication assertion executor execution completed", log.String("status", string(exeResp.Status)))
+	logger.Debug("Authentication assertion executor execution completed", log.String("status", string(execResp.Status)))
 
-	return exeResp, nil
+	return execResp, nil
 }
 
 // GetDefaultExecutorInputs returns the default required input data for the AuthAssertExecutor.

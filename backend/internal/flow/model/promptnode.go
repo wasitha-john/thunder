@@ -54,7 +54,12 @@ func (n *PromptOnlyNode) Execute(ctx *NodeContext) (*NodeResponse, *serviceerror
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing prompt-only node")
 
-	nodeResp := &NodeResponse{}
+	nodeResp := &NodeResponse{
+		RequiredData:   make([]InputData, 0),
+		AdditionalData: make(map[string]string),
+		Actions:        make([]Action, 0),
+		RuntimeData:    make(map[string]string),
+	}
 
 	if n.checkInputData(ctx, nodeResp) {
 		logger.Debug("Required input data is not available in the context, returning incomplete response",

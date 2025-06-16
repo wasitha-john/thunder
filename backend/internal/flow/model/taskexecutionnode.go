@@ -84,6 +84,18 @@ func buildNodeResponse(execResp *ExecutorResponse) *NodeResponse {
 		AuthenticatedUser: execResp.AuthenticatedUser,
 		Assertion:         execResp.Assertion,
 	}
+	if nodeResp.AdditionalData == nil {
+		nodeResp.AdditionalData = make(map[string]string)
+	}
+	if nodeResp.RuntimeData == nil {
+		nodeResp.RuntimeData = make(map[string]string)
+	}
+	if nodeResp.RequiredData == nil {
+		nodeResp.RequiredData = make([]InputData, 0)
+	}
+	if nodeResp.Actions == nil {
+		nodeResp.Actions = make([]Action, 0)
+	}
 
 	if execResp.Status == constants.ExecComplete {
 		nodeResp.Status = constants.NodeStatusComplete
