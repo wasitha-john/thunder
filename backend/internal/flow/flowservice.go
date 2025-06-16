@@ -157,9 +157,6 @@ func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData ma
 	if flowID == "" {
 		return nil, &constants.ErrorInvalidFlowID
 	}
-	if len(inputData) == 0 && actionID == "" {
-		return nil, &constants.ErrorInputDataNotFound
-	}
 
 	flowDAO := dao.GetFlowDAO()
 	ctx, exists := flowDAO.GetContextFromStore(flowID)

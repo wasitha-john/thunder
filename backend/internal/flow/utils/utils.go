@@ -22,6 +22,7 @@ package utils
 import (
 	"fmt"
 
+	"github.com/asgardeo/thunder/internal/executor/attributecollect"
 	"github.com/asgardeo/thunder/internal/executor/authassert"
 	"github.com/asgardeo/thunder/internal/executor/basicauth"
 	"github.com/asgardeo/thunder/internal/executor/githubauth"
@@ -184,6 +185,10 @@ func getExecutorConfigByName(execDef jsonmodel.ExecutorDefinition) (*model.Execu
 			Name:    "GoogleOIDCAuthExecutor",
 			IdpName: execDef.IdpName,
 		}
+	case "AttributeCollector":
+		executor = model.ExecutorConfig{
+			Name: "AttributeCollector",
+		}
 	case "AuthAssertExecutor":
 		executor = model.ExecutorConfig{
 			Name: "AuthAssertExecutor",
@@ -258,6 +263,8 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 
 		executor = googleauth.NewGoogleOIDCAuthExecutor(idp.ID, idp.Name, clientID, clientSecret,
 			redirectURI, scopes, additionalParams)
+	case "AttributeCollector":
+		executor = attributecollect.NewAttributeCollector("attribute-collector", "AttributeCollector")
 	case "AuthAssertExecutor":
 		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor")
 	default:

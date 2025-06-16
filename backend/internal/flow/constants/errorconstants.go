@@ -56,14 +56,6 @@ var ErrorInvalidFlowID = serviceerror.ServiceError{
 	ErrorDescription: "Invalid flow ID provided in the request",
 }
 
-// ErrorInputDataNotFound defines the error response for missing input data errors.
-var ErrorInputDataNotFound = serviceerror.ServiceError{
-	Code:             "FES-60005",
-	Type:             serviceerror.ClientErrorType,
-	Error:            "Invalid request",
-	ErrorDescription: "One or more input data is required to execute the flow",
-}
-
 // Server error structs
 
 // ErrorFlowGraphNotInitialized defines the error response for uninitialized flow graph errors.
