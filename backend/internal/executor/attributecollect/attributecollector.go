@@ -103,7 +103,7 @@ func (a *AttributeCollector) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 	if err := a.updateUserInStore(ctx); err != nil {
 		logger.Error("Failed to update user attributes", log.Error(err))
 		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = fmt.Sprintf("Failed to update user attributes")
+		execResp.FailureReason = "Failed to update user attributes"
 		return execResp, nil
 	}
 
@@ -144,7 +144,7 @@ func (a *AttributeCollector) CheckInputData(ctx *flowmodel.NodeContext, execResp
 	if err != nil {
 		logger.Error("Failed to retrieve user attributes", log.Error(err))
 		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = fmt.Sprintf("Failed to retrieve user attributes from user profile")
+		execResp.FailureReason = "Failed to retrieve user attributes from user profile"
 		return true
 	}
 	if userAttributes == nil {
@@ -197,6 +197,7 @@ func (a *AttributeCollector) ValidatePrerequisites(ctx *flowmodel.NodeContext,
 	return a.internal.ValidatePrerequisites(ctx, execResp)
 }
 
+// getUserAttributes retrieves the user attributes from the user profile.
 func (a *AttributeCollector) getUserAttributes(ctx *flowmodel.NodeContext) (map[string]interface{}, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, a.GetID()),
@@ -265,7 +266,6 @@ func (a *AttributeCollector) updateUserInStore(ctx *flowmodel.NodeContext) error
 
 // getUserFromStore retrieves the user profile from the user store.
 func (a *AttributeCollector) getUserFromStore(ctx *flowmodel.NodeContext) (*usermodel.User, error) {
-
 	userID, err := a.getUserID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve user ID: %w", err)
@@ -363,10 +363,7 @@ func (a *AttributeCollector) getUpdatedUserObject(ctx *flowmodel.NodeContext,
 	}
 
 	// Get new attributes from input
-	newAttrs, err := a.getInputAttributes(ctx)
-	if err != nil {
-		return false, nil, fmt.Errorf("failed to get input attributes: %w", err)
-	}
+	newAttrs := a.getInputAttributes(ctx)
 	if len(newAttrs) == 0 {
 		logger.Debug("No new attributes provided, returning existing user")
 		return false, user, nil
@@ -391,7 +388,7 @@ func (a *AttributeCollector) getUpdatedUserObject(ctx *flowmodel.NodeContext,
 }
 
 // getInputAttributes retrieves the input attributes from the context.
-func (a *AttributeCollector) getInputAttributes(ctx *flowmodel.NodeContext) (map[string]interface{}, error) {
+func (a *AttributeCollector) getInputAttributes(ctx *flowmodel.NodeContext) map[string]interface{} {
 	attributesMap := make(map[string]interface{})
 	requiredInputAttrs := a.getRequiredData(ctx)
 
@@ -405,7 +402,7 @@ func (a *AttributeCollector) getInputAttributes(ctx *flowmodel.NodeContext) (map
 		}
 	}
 
-	return attributesMap, nil
+	return attributesMap
 }
 
 // getRequiredData returns the required input data for the AttributeCollector.

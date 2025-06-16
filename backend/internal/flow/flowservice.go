@@ -142,7 +142,7 @@ func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.Engi
 // loadPrevContext retrieves the flow context from the store based on the given details.
 func (s *FlowService) loadPrevContext(flowID, actionID string, inputData map[string]string,
 	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
-	ctx, err := s.loadContextFromStore(flowID, actionID, inputData, logger)
+	ctx, err := s.loadContextFromStore(flowID, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +152,8 @@ func (s *FlowService) loadPrevContext(flowID, actionID string, inputData map[str
 }
 
 // loadContextFromStore retrieves the flow context from the store based on the given details.
-func (s *FlowService) loadContextFromStore(flowID, actionID string, inputData map[string]string,
-	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
+func (s *FlowService) loadContextFromStore(flowID string, logger *log.Logger) (*model.EngineContext,
+	*serviceerror.ServiceError) {
 	if flowID == "" {
 		return nil, &constants.ErrorInvalidFlowID
 	}
