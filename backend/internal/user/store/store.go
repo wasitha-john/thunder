@@ -242,7 +242,11 @@ func IdentifyUser(attrName, attrValue string) (*string, error) {
 	}()
 
 	filters := map[string]interface{}{attrName: attrValue}
-	identifyUserQuery, args := buildIdentifyQuery(filters)
+	identifyUserQuery, args, err := buildIdentifyQuery(filters)
+	if err != nil {
+		logger.Error("Failed to build identify query", log.Error(err))
+		return nil, fmt.Errorf("failed to build identify query: %w", err)
+	}
 
 	results, err := dbClient.Query(identifyUserQuery, args...)
 	if err != nil {

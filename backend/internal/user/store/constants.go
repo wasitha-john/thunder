@@ -20,10 +20,8 @@
 package store
 
 import (
-	"fmt"
-	"sort"
-
 	"github.com/asgardeo/thunder/internal/system/database/model"
+	"github.com/asgardeo/thunder/internal/system/database/utils"
 )
 
 var (
@@ -52,37 +50,17 @@ var (
 		ID:    "ASQ-USER_MGT-05",
 		Query: "DELETE FROM \"USER\" WHERE USER_ID = $1",
 	}
-	// QueryIdentifyUser is the query to identify user with the given attributes.
-	QueryIdentifyUser = model.DBQuery{
-		ID:    "ASQ-USER_MGT-06",
-		Query: "SELECT USER_ID FROM \"USER\" WHERE JSON_EXTRACT(attributes, '$.username') = $1",
-	}
 	// QueryValidateUserWithCredentials is the query to validate the user with the give credentials.
 	QueryValidateUserWithCredentials = model.DBQuery{
-		ID:    "ASQ-USER_MGT-07",
+		ID:    "ASQ-USER_MGT-06",
 		Query: "SELECT USER_ID, OU_ID, TYPE, ATTRIBUTES, CREDENTIALS FROM \"USER\" WHERE USER_ID = $1",
 	}
 )
 
 // buildIdentifyQuery constructs a query to identify a user based on the provided filters.
-func buildIdentifyQuery(filters map[string]interface{}) (model.DBQuery, []interface{}) {
+func buildIdentifyQuery(filters map[string]interface{}) (model.DBQuery, []interface{}, error) {
 	baseQuery := "SELECT USER_ID FROM \"USER\" WHERE 1=1"
-	args := make([]interface{}, 0, len(filters))
-
-	keys := make([]string, 0, len(filters))
-	for key := range filters {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		baseQuery += fmt.Sprintf(" AND json_extract(ATTRIBUTES, '$.%s') = ?", key)
-		args = append(args, filters[key])
-	}
-
-	identifyUserQuery := model.DBQuery{
-		ID:    "ASQ-USER_MGT-06",
-		Query: baseQuery,
-	}
-
-	return identifyUserQuery, args
+	queryID := "ASQ-USER_MGT-07"
+	columnName := "ATTRIBUTES"
+	return utils.BuildFilterQuery(queryID, baseQuery, columnName, filters)
 }
