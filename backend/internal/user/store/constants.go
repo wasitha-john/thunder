@@ -21,6 +21,7 @@ package store
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/asgardeo/thunder/internal/system/database/model"
 )
@@ -68,9 +69,14 @@ func buildIdentifyQuery(filters map[string]interface{}) (model.DBQuery, []interf
 	baseQuery := "SELECT USER_ID FROM \"USER\" WHERE 1=1"
 	args := make([]interface{}, 0, len(filters))
 
-	for key, value := range filters {
+	keys := make([]string, 0, len(filters))
+	for key := range filters {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
 		baseQuery += fmt.Sprintf(" AND json_extract(ATTRIBUTES, '$.%s') = ?", key)
-		args = append(args, value)
+		args = append(args, filters[key])
 	}
 
 	identifyUserQuery := model.DBQuery{
