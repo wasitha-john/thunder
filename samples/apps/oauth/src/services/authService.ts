@@ -122,46 +122,38 @@ export const submitAuthDecision = async (flowId: string, actionId: string, input
  * Submits the native authentication form data to the server.
  * 
  * @param {string} flowId - The flow ID received from the initiateNativeAuth response.
- * @param {object} formData - An object containing the username and password.
+ * @param {object} payload - The payload containing the form data or other required information.
  * @returns {Promise<object>} - A promise that resolves to the response data from the server.
  */
 export const submitNativeAuth = async (
     flowId: string,
-    payload: Record<string, string> | NativeAuthSubmitPayload
+    payload: Record<string, unknown> | NativeAuthSubmitPayload
 ) => {
     const headers = {
         'Content-Type': 'application/json'
     };
 
-    let data;
+    const data: Record<string, unknown> = {
+        flowId: flowId
+    };
 
-    if (payload.type === NativeAuthSubmitType.INPUT) {
-        data = {
-            flowId: flowId,
-            inputs: {
-                ...payload,
-                // Remove the type property if it exists
-                type: undefined
-            }
-        };
-    } else if (payload.type === NativeAuthSubmitType.SOCIAL) {
-        data = {
-            flowId: flowId,
-            inputs: {
+    if ('type' in payload) {
+        if (payload.type === NativeAuthSubmitType.INPUT) {
+            // For input type, include all fields except 'type'
+            const { ...inputValues } = payload;
+            data.inputs = inputValues;
+        } else if (payload.type === NativeAuthSubmitType.SOCIAL) {
+            data.inputs = {
                 code: payload.code
-            }
-        };
-    } else if (payload.type === NativeAuthSubmitType.OTP) {
-        data = {
-            flowId: flowId,
-            inputs: {
+            };
+        } else if (payload.type === NativeAuthSubmitType.OTP) {
+            data.inputs = {
                 otp: payload.otp
-            }
-        };
-    }
-
-    if (!data) {
-        throw new Error('Invalid authentication type provided.');
+            };
+        }
+    } else {
+        // Handle as generic payload
+        data.inputs = payload;
     }
 
     try {
