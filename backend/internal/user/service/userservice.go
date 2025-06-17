@@ -172,7 +172,7 @@ func (as *UserService) IdentityUser(attrName, attrValue string) (*string, error)
 		return nil, errors.New("attribute value is empty")
 	}
 
-	userID, err := store.IdentityUser(attrName, attrValue)
+	userID, err := store.IdentifyUser(attrName, attrValue)
 	if err != nil {
 		return nil, err
 	}

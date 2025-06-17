@@ -225,8 +225,8 @@ func DeleteUser(id string) error {
 	return nil
 }
 
-// IdentityUser identify user with the given attributes.
-func IdentityUser(attrName, attrValue string) (*string, error) {
+// IdentifyUser identify user with the given attributes.
+func IdentifyUser(attrName, attrValue string) (*string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -241,7 +241,10 @@ func IdentityUser(attrName, attrValue string) (*string, error) {
 		}
 	}()
 
-	results, err := dbClient.Query(QueryIdentifyUser, attrValue)
+	filters := map[string]interface{}{attrName: attrValue}
+	identifyUserQuery, args := buildIdentifyQuery(filters)
+
+	results, err := dbClient.Query(identifyUserQuery, args...)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
 		return nil, fmt.Errorf("failed to execute query: %w", err)

@@ -20,6 +20,8 @@
 package store
 
 import (
+	"fmt"
+
 	"github.com/asgardeo/thunder/internal/system/database/model"
 )
 
@@ -60,3 +62,21 @@ var (
 		Query: "SELECT USER_ID, OU_ID, TYPE, ATTRIBUTES, CREDENTIALS FROM \"USER\" WHERE USER_ID = $1",
 	}
 )
+
+// buildIdentifyQuery constructs a query to identify a user based on the provided filters.
+func buildIdentifyQuery(filters map[string]interface{}) (model.DBQuery, []interface{}) {
+	baseQuery := "SELECT USER_ID FROM \"USER\" WHERE 1=1"
+	args := make([]interface{}, 0, len(filters))
+
+	for key, value := range filters {
+		baseQuery += fmt.Sprintf(" AND json_extract(ATTRIBUTES, '$.%s') = ?", key)
+		args = append(args, value)
+	}
+
+	identifyUserQuery := model.DBQuery{
+		ID:    "ASQ-USER_MGT-06",
+		Query: baseQuery,
+	}
+
+	return identifyUserQuery, args
+}
