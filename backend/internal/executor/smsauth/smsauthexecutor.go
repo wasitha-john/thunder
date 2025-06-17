@@ -38,8 +38,15 @@ import (
 )
 
 const (
-	loggerComponentName = "SMSOTPAuthExecutor"
-	errorInvalidOTP     = "invalid OTP provided"
+	loggerComponentName       = "SMSOTPAuthExecutor"
+	userAttributeUserID       = "userID"
+	userAttributeUsername     = "username"
+	userAttributeMobileNumber = "mobileNumber"
+	userAttributeEmail        = "email"
+	userAttributeFirstName    = "firstName"
+	userAttributeLastName     = "lastName"
+	userInputOTP              = "otp"
+	errorInvalidOTP           = "invalid OTP provided"
 )
 
 // SMSOTPAuthExecutor implements the ExecutorInterface for SMS OTP authentication.
@@ -52,14 +59,15 @@ type SMSOTPAuthExecutor struct {
 func NewSMSOTPAuthExecutor(id, name, senderName string) flowmodel.ExecutorInterface {
 	defaultInputs := []flowmodel.InputData{
 		{
-			Name:     "otp",
+			Name:     userInputOTP,
 			Type:     "string",
 			Required: true,
 		},
 	}
+	// TODO: Revisit this when implementing registration flows/ JIT provisioning.
 	prerequisites := []flowmodel.InputData{
 		{
-			Name:     "username",
+			Name:     userAttributeUserID,
 			Type:     "string",
 			Required: true,
 		},
@@ -129,9 +137,19 @@ func (s *SMSOTPAuthExecutor) InitiateOTP(ctx *flowmodel.NodeContext,
 		log.String(log.LoggerKeyExecutorID, s.GetID()), log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Sending SMS OTP to user")
 
-	username := ctx.UserInputData["username"]
+	userID, err := s.GetUserIDFromContext(ctx)
+	if err != nil {
+		logger.Error("Failed to retrieve user ID from context", log.Error(err))
+		return fmt.Errorf("failed to retrieve user ID from context: %w", err)
+	}
+	if userID == "" {
+		logger.Error("User ID could not be found or resolved from context")
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "User ID could not be found"
+		return nil
+	}
 
-	userID, mobileNumber, err := s.getUserMobileNumber(username, execResp, logger)
+	mobileNumber, err := s.getUserMobileNumber(userID, ctx, execResp, logger)
 	if err != nil {
 		logger.Error("Failed to retrieve user mobile number", log.Error(err))
 		return fmt.Errorf("failed to retrieve user mobile number: %w", err)
@@ -139,8 +157,11 @@ func (s *SMSOTPAuthExecutor) InitiateOTP(ctx *flowmodel.NodeContext,
 	if execResp.Status == flowconst.ExecFailure {
 		return nil
 	}
+	if execResp.Status == flowconst.ExecUserInputRequired {
+		return nil
+	}
 
-	if err := s.generateAndSendOTP(username, mobileNumber, ctx, execResp, logger); err != nil {
+	if err := s.generateAndSendOTP(userID, mobileNumber, ctx, execResp, logger); err != nil {
 		logger.Error("Failed to send OTP", log.Error(err))
 		return fmt.Errorf("failed to send OTP: %w", err)
 	}
@@ -152,7 +173,7 @@ func (s *SMSOTPAuthExecutor) InitiateOTP(ctx *flowmodel.NodeContext,
 	if execResp.RuntimeData == nil {
 		execResp.RuntimeData = make(map[string]string)
 	}
-	execResp.RuntimeData["userID"] = userID
+	execResp.RuntimeData[userAttributeUserID] = userID
 
 	logger.Debug("SMS OTP sent successfully")
 	execResp.Status = flowconst.ExecUserInputRequired
@@ -166,8 +187,6 @@ func (s *SMSOTPAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 		log.String(log.LoggerKeyExecutorID, s.GetID()), log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Processing authentication flow response for SMS OTP")
 
-	username := ctx.UserInputData["username"]
-
 	err := s.validateOTP(ctx, execResp, logger)
 	if err != nil {
 		logger.Error("Error validating OTP", log.Error(err))
@@ -177,9 +196,9 @@ func (s *SMSOTPAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 		return nil
 	}
 
-	userID := ctx.RuntimeData["userID"]
+	userID := ctx.RuntimeData[userAttributeUserID]
 	if userID == "" {
-		logger.Error("User ID not found in context runtime data", log.String("username", log.MaskString(username)))
+		logger.Error("User ID not found in context runtime data")
 		return errors.New("user ID not found in context runtime data")
 	}
 
@@ -212,52 +231,167 @@ func (s *SMSOTPAuthExecutor) CheckInputData(ctx *flowmodel.NodeContext, execResp
 // ValidatePrerequisites validates whether the prerequisites for the SMSOTPAuthExecutor are met.
 func (s *SMSOTPAuthExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext,
 	execResp *flowmodel.ExecutorResponse) bool {
+	preReqMet := s.internal.ValidatePrerequisites(ctx, execResp)
+	if preReqMet {
+		return true
+	}
+
+	// If prerequisites are not met, try to resolve user ID from context data.
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, s.GetID()), log.String(log.LoggerKeyFlowID, ctx.FlowID))
+	logger.Debug("Trying to resolve user ID from context data")
+	userIDResolved, err := s.resolveUserID(ctx)
+	if err != nil {
+		logger.Error("Failed to resolve user ID from context data", log.Error(err))
+		return false
+	}
+	if !userIDResolved {
+		logger.Debug("User ID could not be resolved from context data")
+		return false
+	}
+
 	return s.internal.ValidatePrerequisites(ctx, execResp)
 }
 
-// getUserMobileNumber retrieves the mobile number for the given username.
-// It returns the user ID, mobile number, and any error encountered.
-func (s *SMSOTPAuthExecutor) getUserMobileNumber(username string, execResp *flowmodel.ExecutorResponse,
-	logger *log.Logger) (string, string, error) {
+// GetUserIDFromContext retrieves the user ID from the context.
+func (s *SMSOTPAuthExecutor) GetUserIDFromContext(ctx *flowmodel.NodeContext) (string, error) {
+	return s.internal.GetUserIDFromContext(ctx)
+}
+
+// GetRequiredData returns the required input data for the SMSOTPAuthExecutor.
+func (s *SMSOTPAuthExecutor) GetRequiredData(ctx *flowmodel.NodeContext) []flowmodel.InputData {
+	return s.internal.GetRequiredData(ctx)
+}
+
+// resolveUserID resolves the user ID from the context based on various attributes.
+// TODO: Move to a separate resolver when the support is added.
+func (s *SMSOTPAuthExecutor) resolveUserID(ctx *flowmodel.NodeContext) (bool, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, s.GetID()), log.String(log.LoggerKeyFlowID, ctx.FlowID))
+
+	userIDResolved := false
+
+	// Try to resolve user ID from mobile number next.
+	userIDResolved, err := s.resolveUserIDFromAttribute(ctx, userAttributeMobileNumber, logger)
+	if err != nil {
+		return false, err
+	}
+	if userIDResolved {
+		return true, nil
+	}
+
+	// Try to resolve user ID from username first.
+	userIDResolved, err = s.resolveUserIDFromAttribute(ctx, userAttributeUsername, logger)
+	if err != nil {
+		return false, err
+	}
+	if userIDResolved {
+		return true, nil
+	}
+
+	// Try to resolve user ID from email next.
+	userIDResolved, err = s.resolveUserIDFromAttribute(ctx, userAttributeEmail, logger)
+	if err != nil {
+		return false, err
+	}
+	if userIDResolved {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// resolveUserIDFromAttribute attempts to resolve the user ID from a specific attribute in the context.
+func (s *SMSOTPAuthExecutor) resolveUserIDFromAttribute(ctx *flowmodel.NodeContext,
+	attributeName string, logger *log.Logger) (bool, error) {
+	logger.Debug("Resolving user ID from attribute", log.String("attributeName", attributeName))
+
+	attributeValue := ctx.UserInputData[attributeName]
+	if attributeValue == "" {
+		attributeValue = ctx.RuntimeData[attributeName]
+	}
+	if attributeValue != "" {
+		userProvider := userprovider.NewUserProvider()
+		userService := userProvider.GetUserService()
+		userID, err := userService.IdentityUser(attributeName, attributeValue)
+		if err != nil {
+			return false, fmt.Errorf("failed to identify user by %s: %w", attributeName, err)
+		}
+		if userID != nil && *userID != "" {
+			logger.Debug("User ID resolved from attribute", log.String("attributeName", attributeName),
+				log.String("userID", *userID))
+			if ctx.RuntimeData == nil {
+				ctx.RuntimeData = make(map[string]string)
+			}
+			ctx.RuntimeData[userAttributeUserID] = *userID
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// getUserMobileNumber retrieves the mobile number for the given user ID.
+func (s *SMSOTPAuthExecutor) getUserMobileNumber(userID string, ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse, logger *log.Logger) (string, error) {
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
 
-	userID, err := userService.IdentityUser("username", username)
+	user, err := userService.GetUser(userID)
 	if err != nil {
-		logger.Error("Failed to identify user by username",
-			log.String("username", log.MaskString(username)), log.Error(err))
-		return "", "", fmt.Errorf("failed to retrieve user ID: %w", err)
-	}
-	if userID == nil || *userID == "" {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "User not found for the provided username"
-		return "", "", nil
-	}
-
-	user, err := userService.GetUser(*userID)
-	if err != nil {
-		logger.Error("Failed to retrieve user details", log.String("userID", *userID), log.Error(err))
-		return "", "", fmt.Errorf("failed to retrieve user details: %w", err)
+		logger.Error("Failed to retrieve user details", log.String("userID", userID), log.Error(err))
+		return "", fmt.Errorf("failed to retrieve user details: %w", err)
 	}
 
 	// Extract mobile number from user attributes
 	var attrs map[string]interface{}
 	if err := json.Unmarshal(user.Attributes, &attrs); err != nil {
 		logger.Error("Failed to unmarshal user attributes", log.Error(err))
-		return "", "", fmt.Errorf("failed to unmarshal user attributes: %w", err)
-	}
-	mobileNumber, ok := attrs["mobileNumber"].(string)
-	if !ok || mobileNumber == "" {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "Mobile number not found or invalid in user attributes"
-		return *userID, "", nil
+		return "", fmt.Errorf("failed to unmarshal user attributes: %w", err)
 	}
 
-	return *userID, mobileNumber, nil
+	mobileNumber := ""
+	mobileNumberAttr := attrs[userAttributeMobileNumber]
+	if mobileNumberAttr != nil && mobileNumberAttr != "" {
+		mobileNumber = mobileNumberAttr.(string)
+	}
+
+	if mobileNumber == "" {
+		// If the user is not authenticated, return an error.
+		// TODO: Revisit this logic when implementing registration flows/ JIT provisioning.
+		if !ctx.AuthenticatedUser.IsAuthenticated {
+			logger.Error("Mobile number not found in user attributes", log.String("userID", userID))
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "Mobile number not found in user attributes"
+			return "", nil
+		}
+
+		// If the user is authenticated, try to retrieve the mobile number from context or prompt for user input.
+		mobileNumber = ctx.RuntimeData[userAttributeMobileNumber]
+		if mobileNumber == "" {
+			mobileNumber = ctx.UserInputData[userAttributeMobileNumber]
+		}
+		if mobileNumber == "" {
+			logger.Debug("Mobile number not found in user attributes or context. Prompting user for input",
+				log.String("userID", userID))
+			execResp.Status = flowconst.ExecUserInputRequired
+			// Here mobile number is treated as a special attribute. Hence rest of the data will be overridden.
+			execResp.RequiredData = []flowmodel.InputData{
+				{
+					Name:     userAttributeMobileNumber,
+					Type:     "string",
+					Required: true,
+				},
+			}
+			return "", nil
+		}
+	}
+
+	return mobileNumber, nil
 }
 
 // generateAndSendOTP generates an OTP and sends it to the user's mobile number.
-func (s *SMSOTPAuthExecutor) generateAndSendOTP(username, mobileNumber string, ctx *flowmodel.NodeContext,
+func (s *SMSOTPAuthExecutor) generateAndSendOTP(userID, mobileNumber string, ctx *flowmodel.NodeContext,
 	execResp *flowmodel.ExecutorResponse, logger *log.Logger) error {
 	attemptCount, err := s.validateAttempts(ctx, execResp, logger)
 	if err != nil {
@@ -272,7 +406,7 @@ func (s *SMSOTPAuthExecutor) generateAndSendOTP(username, mobileNumber string, c
 		return fmt.Errorf("failed to generate OTP: %w", err)
 	}
 
-	logger.Debug("Sending OTP to user's mobile", log.String("username", log.MaskString(username)))
+	logger.Debug("Sending OTP to user's mobile", log.String("userID", userID))
 
 	smsData := model.SMSData{
 		To: mobileNumber,
@@ -312,7 +446,7 @@ func (s *SMSOTPAuthExecutor) generateAndSendOTP(username, mobileNumber string, c
 // validateAttempts checks if the maximum number of OTP attempts has been reached.
 func (s *SMSOTPAuthExecutor) validateAttempts(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
 	logger *log.Logger) (int, error) {
-	username := ctx.UserInputData["username"]
+	userID := ctx.RuntimeData[userAttributeUserID]
 	attemptCount := 0
 
 	attemptCountStr := ctx.RuntimeData["attemptCount"]
@@ -326,7 +460,7 @@ func (s *SMSOTPAuthExecutor) validateAttempts(ctx *flowmodel.NodeContext, execRe
 	}
 
 	if attemptCount >= s.getOTPMaxAttempts() {
-		logger.Debug("Maximum OTP attempts reached", log.String("username", log.MaskString(username)),
+		logger.Debug("Maximum OTP attempts reached", log.String("userID", userID),
 			log.Int("attemptCount", attemptCount))
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = fmt.Sprintf("maximum OTP attempts reached: %d", attemptCount)
@@ -400,13 +534,13 @@ func (s *SMSOTPAuthExecutor) getOTPValidityPeriodInMillis() int64 {
 // validateOTP validates the OTP for the given user and mobile number.
 func (s *SMSOTPAuthExecutor) validateOTP(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
 	logger *log.Logger) error {
-	username := ctx.UserInputData["username"]
-	providedOTP := ctx.UserInputData["otp"]
+	userID := ctx.RuntimeData[userAttributeUserID]
+	providedOTP := ctx.UserInputData[userInputOTP]
 
-	logger.Debug("Validating OTP", log.String("username", log.MaskString(username)))
+	logger.Debug("Validating OTP", log.String("userID", userID))
 
 	if providedOTP == "" {
-		logger.Debug("Provided OTP is empty", log.String("username", log.MaskString(username)))
+		logger.Debug("Provided OTP is empty", log.String("userID", userID))
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = errorInvalidOTP
 		return nil
@@ -414,7 +548,7 @@ func (s *SMSOTPAuthExecutor) validateOTP(ctx *flowmodel.NodeContext, execResp *f
 
 	storedOTP := ctx.RuntimeData["value"]
 	if storedOTP == "" {
-		logger.Debug("No stored OTP found for validation", log.String("username", log.MaskString(username)))
+		logger.Debug("No stored OTP found for validation", log.String("userID", userID))
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = errorInvalidOTP
 		return nil
@@ -422,7 +556,7 @@ func (s *SMSOTPAuthExecutor) validateOTP(ctx *flowmodel.NodeContext, execResp *f
 
 	// Validate for the OTP value
 	if providedOTP != storedOTP {
-		logger.Debug("Provided OTP does not match stored OTP", log.String("username", log.MaskString(username)))
+		logger.Debug("Provided OTP does not match stored OTP", log.String("userID", userID))
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = errorInvalidOTP
 		return nil
@@ -431,14 +565,14 @@ func (s *SMSOTPAuthExecutor) validateOTP(ctx *flowmodel.NodeContext, execResp *f
 	// Validate for the expiry time of the OTP
 	expiryTimeStr := ctx.RuntimeData["expiryTimeInMillis"]
 	if expiryTimeStr == "" {
-		logger.Debug("No expiry time found for stored OTP", log.String("username", log.MaskString(username)))
+		logger.Debug("No expiry time found for stored OTP", log.String("userID", userID))
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = errorInvalidOTP
 		return nil
 	}
 	expiryTime, err := strconv.ParseInt(expiryTimeStr, 10, 64)
 	if err != nil {
-		logger.Error("Failed to parse expiry time for OTP", log.String("username", log.MaskString(username)),
+		logger.Error("Failed to parse expiry time for OTP", log.String("userID", userID),
 			log.Error(err))
 		return errors.New("something went wrong while validating the OTP")
 	}
@@ -447,7 +581,7 @@ func (s *SMSOTPAuthExecutor) validateOTP(ctx *flowmodel.NodeContext, execResp *f
 	if currentTime > expiryTime {
 		execResp.RuntimeData["value"] = ""
 		execResp.RuntimeData["expiryTimeInMillis"] = ""
-		logger.Debug("OTP has expired", log.String("username", log.MaskString(username)))
+		logger.Debug("OTP has expired", log.String("userID", userID))
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "OTP has expired"
 		return nil
@@ -455,7 +589,7 @@ func (s *SMSOTPAuthExecutor) validateOTP(ctx *flowmodel.NodeContext, execResp *f
 
 	execResp.RuntimeData["value"] = ""
 	execResp.RuntimeData["expiryTimeInMillis"] = ""
-	logger.Debug("OTP validated successfully", log.String("username", log.MaskString(username)))
+	logger.Debug("OTP validated successfully", log.String("userID", userID))
 	return nil
 }
 
@@ -477,14 +611,38 @@ func (s *SMSOTPAuthExecutor) getAuthenticatedUser(userID string) (*authnmodel.Au
 	}
 
 	// Create the authenticated user object
+	email := ""
+	emailAttr := attrs[userAttributeEmail]
+	if emailAttr != nil {
+		email = emailAttr.(string)
+	}
+
+	firstName := ""
+	firstNameAttr := attrs[userAttributeFirstName]
+	if firstNameAttr != nil {
+		firstName = firstNameAttr.(string)
+	}
+
+	lastName := ""
+	lastNameAttr := attrs[userAttributeLastName]
+	if lastNameAttr != nil {
+		lastName = lastNameAttr.(string)
+	}
+
+	mobileNumber := ""
+	mobileNumberAttr := attrs[userAttributeMobileNumber]
+	if mobileNumberAttr != nil {
+		mobileNumber = mobileNumberAttr.(string)
+	}
+
 	authenticatedUser := &authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
 		UserID:          user.ID,
 		Attributes: map[string]string{
-			"email":        attrs["email"].(string),
-			"firstName":    attrs["firstName"].(string),
-			"lastName":     attrs["lastName"].(string),
-			"mobileNumber": attrs["mobileNumber"].(string),
+			userAttributeEmail:        email,
+			userAttributeFirstName:    firstName,
+			userAttributeLastName:     lastName,
+			userAttributeMobileNumber: mobileNumber,
 		},
 	}
 

@@ -65,6 +65,10 @@ func (mcs *MessageClientService) GetMessageClientByName(senderName string) (clie
 			log.Any("serviceError", svcErr))
 		return nil, svcErr
 	}
+	if sender == nil {
+		logger.Error("Sender not found", log.String("senderName", senderName))
+		return nil, &constants.ErrorSenderNotFound
+	}
 
 	client, err := getMessageClient(*sender)
 	if err != nil {

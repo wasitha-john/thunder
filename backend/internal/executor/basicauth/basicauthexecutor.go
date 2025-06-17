@@ -142,6 +142,16 @@ func (b *BasicAuthExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext,
 	return b.internal.ValidatePrerequisites(ctx, execResp)
 }
 
+// GetUserIDFromContext retrieves the user ID from the context.
+func (b *BasicAuthExecutor) GetUserIDFromContext(ctx *flowmodel.NodeContext) (string, error) {
+	return b.internal.GetUserIDFromContext(ctx)
+}
+
+// GetRequiredData returns the required input data for the BasicAuthExecutor.
+func (b *BasicAuthExecutor) GetRequiredData(ctx *flowmodel.NodeContext) []flowmodel.InputData {
+	return b.internal.GetRequiredData(ctx)
+}
+
 // getAuthenticatedUser perform authentication based on the provided username and password and return
 // authenticated user details.
 func getAuthenticatedUser(username, password string, logger *log.Logger) (*authnmodel.AuthenticatedUser, error) {

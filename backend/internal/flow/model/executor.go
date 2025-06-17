@@ -24,6 +24,10 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
+const (
+	userAttributeUserID = "userID"
+)
+
 // ExecutorResponse represents the response from an executor
 type ExecutorResponse struct {
 	Status            constants.ExecutorStatus     `json:"status"`
@@ -62,6 +66,8 @@ type ExecutorInterface interface {
 	GetPrerequisites() []InputData
 	CheckInputData(ctx *NodeContext, execResp *ExecutorResponse) bool
 	ValidatePrerequisites(ctx *NodeContext, execResp *ExecutorResponse) bool
+	GetUserIDFromContext(ctx *NodeContext) (string, error)
+	GetRequiredData(ctx *NodeContext) []InputData
 }
 
 var _ ExecutorInterface = (*Executor)(nil)
@@ -120,7 +126,7 @@ func (e *Executor) GetPrerequisites() []InputData {
 // CheckInputData checks if the required input data is provided in the context.
 // If not, it adds the required data to the executor response and returns true.
 func (e *Executor) CheckInputData(ctx *NodeContext, execResp *ExecutorResponse) bool {
-	requiredData := e.getRequiredData(ctx)
+	requiredData := e.GetRequiredData(ctx)
 
 	if execResp.RequiredData == nil {
 		execResp.RequiredData = make([]InputData, 0)
@@ -146,6 +152,14 @@ func (e *Executor) ValidatePrerequisites(ctx *NodeContext, execResp *ExecutorRes
 	}
 
 	for _, prerequisite := range prerequisites {
+		// Handle userID prerequisite specifically.
+		if prerequisite.Name == userAttributeUserID {
+			userID := ctx.AuthenticatedUser.UserID
+			if userID != "" {
+				continue
+			}
+		}
+
 		if _, ok := ctx.UserInputData[prerequisite.Name]; !ok {
 			if _, ok := ctx.RuntimeData[prerequisite.Name]; !ok {
 				logger.Debug("Prerequisite not met for the executor", log.String("name", prerequisite.Name))
@@ -159,10 +173,22 @@ func (e *Executor) ValidatePrerequisites(ctx *NodeContext, execResp *ExecutorRes
 	return true
 }
 
-// getRequiredData returns the required input data for the executor.
+// GetUserIDFromContext retrieves the user ID from the context.
+func (e *Executor) GetUserIDFromContext(ctx *NodeContext) (string, error) {
+	userID := ctx.AuthenticatedUser.UserID
+	if userID == "" {
+		userID = ctx.RuntimeData[userAttributeUserID]
+	}
+	if userID == "" {
+		userID = ctx.UserInputData[userAttributeUserID]
+	}
+
+	return userID, nil
+}
+
+// GetRequiredData returns the required input data for the executor.
 // It combines the default executor inputs with the node input data, ensuring no duplicates.
-// TODO: This validation should be moved to the flow composer. Ideally this should happen during flow creation.
-func (e *Executor) getRequiredData(ctx *NodeContext) []InputData {
+func (e *Executor) GetRequiredData(ctx *NodeContext) []InputData {
 	executorReqData := e.GetDefaultExecutorInputs()
 	requiredData := ctx.NodeInputData
 

@@ -9,7 +9,7 @@
                 "basic_auth",
                 "google_auth",
                 "github_auth",
-                "mobile_prompt_username"
+                "prompt_mobile"
             ]
         },
         {
@@ -76,11 +76,11 @@
             ]
         },
         {
-            "id": "mobile_prompt_username",
+            "id": "prompt_mobile",
             "type": "PROMPT_ONLY",
             "inputData": [
                 {
-                    "name": "username",
+                    "name": "mobileNumber",
                     "type": "string",
                     "required": true
                 }
