@@ -225,8 +225,8 @@ func DeleteUser(id string) error {
 	return nil
 }
 
-// IdentifyUser identify user with the given attributes.
-func IdentifyUser(attrName, attrValue string) (*string, error) {
+// IdentifyUser identifies a user with the given filters.
+func IdentifyUser(filters map[string]interface{}) (*string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -241,7 +241,6 @@ func IdentifyUser(attrName, attrValue string) (*string, error) {
 		}
 	}()
 
-	filters := map[string]interface{}{attrName: attrValue}
 	identifyUserQuery, args, err := buildIdentifyQuery(filters)
 	if err != nil {
 		logger.Error("Failed to build identify query", log.Error(err))
@@ -255,13 +254,18 @@ func IdentifyUser(attrName, attrValue string) (*string, error) {
 	}
 
 	if len(results) == 0 {
-		logger.Error("user not found with attribute name: " + attrName + " and value: " + log.MaskString(attrValue))
+		maskedFilters := maskMapValues(filters)
+		logger.Error("User not found with the provided filters", log.Any("filters", maskedFilters))
 		return nil, model.ErrUserNotFound
 	}
 
 	if len(results) != 1 {
-		logger.Error("unexpected number of results for attribute name: " + attrName + " and value: " +
-			log.MaskString(attrValue))
+		maskedFilters := maskMapValues(filters)
+		logger.Error(
+			"Unexpected number of results for the provided filters",
+			log.Any("filters", maskedFilters),
+			log.Int("result_count", len(results)),
+		)
 		return nil, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
@@ -377,4 +381,17 @@ func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
 	}
 
 	return user, nil
+}
+
+// maskMapValues masks the values in a map to prevent sensitive data from being logged.
+func maskMapValues(input map[string]interface{}) map[string]interface{} {
+	masked := make(map[string]interface{})
+	for key, value := range input {
+		if strValue, ok := value.(string); ok {
+			masked[key] = log.MaskString(strValue)
+		} else {
+			masked[key] = "***"
+		}
+	}
+	return masked
 }

@@ -313,7 +313,8 @@ func (s *SMSOTPAuthExecutor) resolveUserIDFromAttribute(ctx *flowmodel.NodeConte
 	if attributeValue != "" {
 		userProvider := userprovider.NewUserProvider()
 		userService := userProvider.GetUserService()
-		userID, err := userService.IdentityUser(attributeName, attributeValue)
+		filters := map[string]interface{}{attributeName: attributeValue}
+		userID, err := userService.IdentifyUser(filters)
 		if err != nil {
 			return false, fmt.Errorf("failed to identify user by %s: %w", attributeName, err)
 		}
