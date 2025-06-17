@@ -251,6 +251,16 @@ func (a *AttributeCollector) ValidatePrerequisites(ctx *flowmodel.NodeContext,
 	return a.internal.ValidatePrerequisites(ctx, execResp)
 }
 
+// GetUserIDFromContext retrieves the user ID from the context.
+func (a *AttributeCollector) GetUserIDFromContext(ctx *flowmodel.NodeContext) (string, error) {
+	return a.internal.GetUserIDFromContext(ctx)
+}
+
+// GetRequiredData returns the required input data for the AttributeCollector.
+func (a *AttributeCollector) GetRequiredData(ctx *flowmodel.NodeContext) []flowmodel.InputData {
+	return a.getRequiredData(ctx)
+}
+
 // getUserAttributes retrieves the user attributes from the user profile.
 func (a *AttributeCollector) getUserAttributes(ctx *flowmodel.NodeContext) (map[string]interface{}, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
@@ -320,9 +330,12 @@ func (a *AttributeCollector) updateUserInStore(ctx *flowmodel.NodeContext) error
 
 // getUserFromStore retrieves the user profile from the user store.
 func (a *AttributeCollector) getUserFromStore(ctx *flowmodel.NodeContext) (*usermodel.User, error) {
-	userID, err := a.getUserID(ctx)
+	userID, err := a.GetUserIDFromContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve user ID: %w", err)
+	}
+	if userID == "" {
+		return nil, errors.New("user ID is not available in the context")
 	}
 
 	userProvider := userprovider.NewUserProvider()
@@ -333,30 +346,6 @@ func (a *AttributeCollector) getUserFromStore(ctx *flowmodel.NodeContext) (*user
 	}
 
 	return user, nil
-}
-
-// getUserID retrieves the user ID from the context.
-func (a *AttributeCollector) getUserID(ctx *flowmodel.NodeContext) (string, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
-		log.String(log.LoggerKeyExecutorID, a.GetID()),
-		log.String(log.LoggerKeyFlowID, ctx.FlowID))
-	logger.Debug("Retrieving user ID for the authenticated user")
-
-	userID := ctx.AuthenticatedUser.UserID
-	if userID == "" {
-		userID = ctx.UserInputData["userID"]
-	}
-	if userID == "" {
-		userID = ctx.RuntimeData["userID"]
-	}
-
-	if userID == "" {
-		logger.Debug("User ID is not available in the context")
-		return "", errors.New("user ID is not available")
-	}
-	logger.Debug("Retrieved user ID for the authenticated user", log.String("userID", userID))
-
-	return userID, nil
 }
 
 // getUpdatedUserObject creates a new user object with the updated attributes.

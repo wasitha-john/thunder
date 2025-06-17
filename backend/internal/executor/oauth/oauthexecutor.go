@@ -279,6 +279,16 @@ func (o *OAuthExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext, execRe
 	return o.internal.ValidatePrerequisites(ctx, execResp)
 }
 
+// GetUserIDFromContext retrieves the user ID from the context.
+func (o *OAuthExecutor) GetUserIDFromContext(ctx *flowmodel.NodeContext) (string, error) {
+	return o.internal.GetUserIDFromContext(ctx)
+}
+
+// GetRequiredData returns the required input data for the OAuthExecutor.
+func (o *OAuthExecutor) GetRequiredData(ctx *flowmodel.NodeContext) []flowmodel.InputData {
+	return o.internal.GetRequiredData(ctx)
+}
+
 // ExchangeCodeForToken exchanges the authorization code for an access token.
 func (o *OAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
 	code string) (*model.TokenResponse, error) {

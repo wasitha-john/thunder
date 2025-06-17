@@ -114,3 +114,13 @@ func (a *AuthAssertExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext,
 	execResp *flowmodel.ExecutorResponse) bool {
 	return a.internal.ValidatePrerequisites(ctx, execResp)
 }
+
+// GetUserIDFromContext retrieves the user ID from the context.
+func (a *AuthAssertExecutor) GetUserIDFromContext(ctx *flowmodel.NodeContext) (string, error) {
+	return a.internal.GetUserIDFromContext(ctx)
+}
+
+// GetRequiredData returns the required input data for the AuthAssertExecutor.
+func (a *AuthAssertExecutor) GetRequiredData(ctx *flowmodel.NodeContext) []flowmodel.InputData {
+	return a.internal.GetRequiredData(ctx)
+}
