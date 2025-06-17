@@ -113,7 +113,8 @@ func getAuthenticatedUser(username, password string, logger *log.Logger) (*authn
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
 
-	userID, err := userService.IdentityUser("username", username)
+	filters := map[string]interface{}{"username": username}
+	userID, err := userService.IdentifyUser(filters)
 	if err != nil {
 		logger.Error("Failed to identify user by username",
 			log.String("username", log.MaskString(username)),

@@ -36,7 +36,7 @@ type UserServiceInterface interface {
 	GetUser(userID string) (*model.User, error)
 	UpdateUser(userID string, user *model.User) (*model.User, error)
 	DeleteUser(userID string) error
-	IdentityUser(attrName, attrValue string) (*string, error)
+	IdentifyUser(filters map[string]interface{}) (*string, error)
 	VerifyUser(userID, credType, credValue string) (*model.User, error)
 }
 
@@ -162,17 +162,13 @@ func (as *UserService) DeleteUser(userID string) error {
 	return nil
 }
 
-// IdentityUser identify user with the given attributes.
-func (as *UserService) IdentityUser(attrName, attrValue string) (*string, error) {
-	if attrName == "" {
-		return nil, errors.New("attribute name is empty")
+// IdentifyUser identifies a user with the given filters.
+func (as *UserService) IdentifyUser(filters map[string]interface{}) (*string, error) {
+	if len(filters) == 0 {
+		return nil, errors.New("filters map is empty")
 	}
 
-	if attrValue == "" {
-		return nil, errors.New("attribute value is empty")
-	}
-
-	userID, err := store.IdentifyUser(attrName, attrValue)
+	userID, err := store.IdentifyUser(filters)
 	if err != nil {
 		return nil, err
 	}
