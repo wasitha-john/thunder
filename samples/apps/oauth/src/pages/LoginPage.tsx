@@ -47,36 +47,40 @@ import {
 } from '../services/authService';
 import useAuth from '../hooks/useAuth';
 
-// Define interfaces for login options
-interface BasicAuthOption {
-  type: 'BASIC';
-}
-
-interface InputPromptOption {
-    type: 'INPUT_PROMPT';
-}
-
-interface OTPAuthOptionUser {
-  type: 'OTP_USERNAME';
-}
-
-interface OTPAuthOptionOTP {
-  type: 'OTP';
-}
-
-interface SocialAuthOption {
-  type: 'SOCIAL';
-  idpName: string;
-  redirectURL: string;
-}
-
-type LoginOption = BasicAuthOption | OTPAuthOptionUser | SocialAuthOption | OTPAuthOptionOTP | InputPromptOption;
-
 // Define the interface for the authentication input
 interface AuthInput {
     name: string;
     type: string;
     required: boolean;
+}
+
+interface ActionPrompt {
+    type: string;
+    id: string;
+}
+
+// Define the interface for the authentication response
+interface AuthResponse {
+    flowStatus?: string;
+    assertion?: string;
+    failureReason?: string;
+    type?: string;
+    data?: {
+        actions?: ActionPrompt[];
+        inputs?: AuthInput[];
+        redirectURL?: string;
+        additionalData?: {
+            idpName?: string;
+        };
+    };
+    flowId?: string;
+}
+
+// Define the interface for the submission error
+interface SubmissionError {
+    code?: string;
+    message?: string;
+    description?: string;
 }
 
 /**
@@ -102,26 +106,18 @@ const LoginPage = () => {
     const [flowId, setFlowId] = useState<string>(sessionStorage.getItem(FLOW_ID_KEY) || '');
     const [startInit] = useState<boolean>(JSON.parse(sessionStorage.getItem(START_INIT_KEY) || 'true'));
 
+    // Unified form data state
+    const [formData, setFormData] = useState<Record<string, string>>({});
     const [inputs, setInputs] = useState<AuthInput[]>([]);
-
     const [showPassword, setShowPassword] = useState(false);
-    const [basicAuthFormData, setBasicAuthFormData] = useState({
-        username: '',
-        password: '',
-    });
-    const [otpAuthUserFormData, setOtpAuthUserFormData] = useState({
-        username: '',
-    });
-    const [otpAuthFormData, setOtpAuthFormData] = useState({
-        otp: '',
-    });
 
-    // Replace individual login option states with a unified structure
-    const [loginOptions, setLoginOptions] = useState<LoginOption[]>([]);
+    // Add new state variable to track redirection URL
+    const [redirectURL, setRedirectURL] = useState<string | null>(null);
+    const [socialIdpName, setSocialIdpName] = useState<string>('');
 
     // Add new state variables to track auth flow
     const [needsDecision, setNeedsDecision] = useState<boolean>(false);
-    const [availableActions, setAvailableActions] = useState<Array<{type: string, id: string}>>([]);
+    const [availableActions, setAvailableActions] = useState<ActionPrompt[]>([]);
     
     const GradientCircularProgress = () => {
         return (
@@ -138,16 +134,6 @@ const LoginPage = () => {
           </>
         );
     }
-
-    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = event.target;
-        setBasicAuthFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleOTPUserInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = event.target;
-        setOtpAuthUserFormData(prev => ({ ...prev, [name]: value }));
-    };
 
     // OTP input handling
     const otpLength = 6;
@@ -172,7 +158,7 @@ const LoginPage = () => {
         
         // Combine digits for the form data
         const combinedOtp = newOtpDigits.join('');
-        setOtpAuthFormData({ otp: combinedOtp });
+        setFormData(prev => ({ ...prev, otp: combinedOtp }));
         
         // Auto-advance to next input if a digit was entered
         if (value && index < otpDigits.length - 1) {
@@ -201,12 +187,18 @@ const LoginPage = () => {
             }
             
             setOtpDigits(newOtpDigits);
-            setOtpAuthFormData({ otp: newOtpDigits.join('') });
+            setFormData(prev => ({ ...prev, otp: newOtpDigits.join('') }));
             
             // Focus the next empty digit or the last digit if all filled
             const nextEmptyIndex = pastedData.length < otpDigits.length ? pastedData.length : otpDigits.length - 1;
             otpInputRefs.current[nextEmptyIndex]?.focus();
         }
+    };
+
+    // Single handler for all input changes
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = event.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleTogglePasswordVisibility = () => {
@@ -225,49 +217,76 @@ const LoginPage = () => {
         window.location.href = redirectURL;
     };
 
-    // Add a handler for when user selects an auth option
+    // Process authentication response
+    const processAuthResponse = (data: AuthResponse) => {
+        const isCameFromDecision = needsDecision;
+
+        clearToken();
+        setError(false);
+        setConnectionError(false);
+        setNeedsDecision(false);
+        setFormData({});
+        if (data.flowStatus && data.flowStatus !== 'ERROR') {
+            setAvailableActions([]);
+            setInputs([]);
+
+            // Reset redirect URL
+            setRedirectURL(null);
+            setSocialIdpName('');
+        }
+
+        if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
+            setToken(data.assertion);
+            setError(false);
+        } else if (data.flowStatus && data.flowStatus === 'ERROR') {
+            if (data.failureReason && !data.failureReason.includes("OTP")) {
+                init();
+            }
+
+            setError(true);
+            setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
+        } else if (data.type === "VIEW") {
+            // Handle the VIEW response
+            if (data.data?.actions) {
+                // This is a decision screen
+                setNeedsDecision(true);
+                setAvailableActions(data.data.actions);
+            } else if (data.data?.inputs) {
+                // This is an input prompt
+                setNeedsDecision(false);
+                data.data.inputs.forEach((input: AuthInput) => {
+                    setInputs(prev => [...prev, input]);
+                });
+            }
+        } else if (data.type === "REDIRECTION") {
+            // Handle redirection for social logins
+            const url = data.data?.redirectURL;
+            const idpName = data.data?.additionalData?.idpName || 'Social Login';
+
+            if (isCameFromDecision) {
+                // If this is a decision screen, handle the social login click
+                handleSocialLoginClick(url || '');
+                return;
+            }
+            
+            if (url) {
+                // Store the redirect URL instead of redirecting immediately
+                setRedirectURL(url);
+                setSocialIdpName(idpName);
+            }
+        }
+
+        setFlowId(data.flowId || '');
+        setLoading(false);
+    }
+
+    // Handle when user selects an authentication option
     const handleAuthOptionSelection = (actionId: string) => {
         setLoading(true);
         
         submitAuthDecision(flowId, actionId)
             .then((result) => {
-                const data = result.data;
-                
-                // Process the next step based on the response
-                if (data.type === "VIEW") {
-                    // Now we should have inputs for the selected auth method
-                    setNeedsDecision(false);
-                    
-                    // Handle special case for social logins
-                    if (actionId.includes("google") || actionId.includes("github")) {
-                        const idpName = actionId.includes("google") ? "Google" : "GitHub";
-                        const socialOptions = loginOptions.filter(
-                            opt => opt.type === 'SOCIAL' && opt.idpName === idpName
-                        ) as SocialAuthOption[];
-                        
-                        if (socialOptions.length > 0 && socialOptions[0].redirectURL) {
-                            handleSocialLoginClick(socialOptions[0].redirectURL);
-                            return;
-                        }
-                    }
-                    
-                    if (data.data?.inputs) {
-                        setInputs([]);
-                        data.data.inputs.forEach((input: AuthInput) => {
-                            setInputs(prev => [...prev, input]);
-                        });
-                    }
-                } else if (data.type === "REDIRECTION") {
-                    // Handle redirection for social logins
-                    // const idpName = data.data?.additionalData?.idpName || 'Social Login';
-                    const redirectURL = data.data?.redirectURL;
-                    
-                    if (redirectURL) {
-                        handleSocialLoginClick(redirectURL);
-                    }
-                }
-                
-                setLoading(false);
+                processAuthResponse(result.data);
             })
             .catch((error) => {
                 console.error("Error during authentication decision:", error);
@@ -280,140 +299,98 @@ const LoginPage = () => {
     const init = useCallback(() => {
         clearToken();
         setConnectionError(false);
-        setLoginOptions([]);
         setNeedsDecision(false);
         setAvailableActions([]);
+        setFormData({});
+        setInputs([]);
+        // Reset redirect URL
+        setRedirectURL(null);
+        setSocialIdpName('');
 
         initiateNativeAuth()
             .then((result) => {
-                const newLoginOptions: LoginOption[] = [];
-                
-                // Check if we need user to make a decision first
-                if (result.data?.type === "VIEW" && result.data?.data?.actions) {
-                    setNeedsDecision(true);
-                    setAvailableActions(result.data.data.actions);
-                    
-                    // Create login options based on available actions
-                    const actions = result.data.data.actions;
-                    actions.forEach((action: {type: string, id: string}) => {
-                        if (action.id === "basic_auth") {
-                            newLoginOptions.push({ type: 'BASIC' });
-                        } else if (action.id === "google_auth") {
-                            newLoginOptions.push({
-                                type: 'SOCIAL',
-                                idpName: 'Google',
-                                redirectURL: ""
-                            });
-                        } else if (action.id === "github_auth") {
-                            newLoginOptions.push({
-                                type: 'SOCIAL',
-                                idpName: 'GitHub',
-                                redirectURL: ""
-                            });
-                        } else if (action.id === "mobile_prompt_username") {
-                            newLoginOptions.push({ type: 'OTP_USERNAME' });
-                        }
-                    });
-                }
-                // Regular flow with inputs for basic auth
-                else if (result.data?.type === "VIEW" && result.data?.data?.inputs) {
-                    let hasUsername = false
-                    let hasPassword = false
-                    result.data.data.inputs.forEach((input: AuthInput) => {
-                        setInputs(prev => [...prev, input]);
-                        if (input.name === "username") {
-                            hasUsername = true;
-                        } else if (input.name === "password") {
-                            hasPassword = true;
-                        } else if (input.name === "otp") {
-                            newLoginOptions.push({ type: 'OTP' });
-                        }
-                    });
-                    if (hasUsername && hasPassword) {
-                        newLoginOptions.push({ type: 'BASIC' });
-                    } else {
-                        newLoginOptions.push({ type: 'INPUT_PROMPT' });
-                    }
-                }
-                // Direct redirection for social login
-                else if (result.data?.type === "REDIRECTION") {
-                    const idpName = result.data?.data?.additionalData?.idpName || 'Social Login';
-                    const redirectURL = result.data?.data?.redirectURL;
-                    
-                    if (redirectURL) {
-                        newLoginOptions.push({
-                            type: 'SOCIAL',
-                            idpName,
-                            redirectURL
-                        });
-                    }
-                }
-                
-                setLoginOptions(newLoginOptions);
-                setFlowId(result.data.flowId);
-                setLoading(false);
-            }).catch((error) => {
-                console.error("Error during authentication:", error);
-                setConnectionError(true);
-                setLoading(false);
-            });
-    }, [clearToken]);
+                const data = result.data;
 
-    const handleAuthInputSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setLoading(true);
-
-        // Create a payload that includes all necessary input values
-        const inputPayload: Record<string, string> = {};
-        
-        // Add all input values from the form
-        inputs.forEach(input => {
-            const inputName = input.name;
-            if (input.name === "username" || input.name === "password") {
-                inputPayload[inputName] = basicAuthFormData[inputName as keyof typeof basicAuthFormData];
-            } else if (input.name === "otp") {
-                inputPayload[inputName] = otpAuthFormData.otp;
-            } else {
-                // For any other inputs, try to find their values in the form
-                const formElement = event.currentTarget.elements.namedItem(inputName) as HTMLInputElement;
-                if (formElement && formElement.value) {
-                    inputPayload[inputName] = formElement.value;
-                }
-            }
-        });
-
-        submitNativeAuth(flowId, { type: NativeAuthSubmitType.INPUT, ...inputPayload })
-            .then((result) => {
-                const data = result?.data;
-
-                // Handle successful authentication
                 if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
                     setToken(data.assertion);
                     setError(false);
                 } else if (data.flowStatus && data.flowStatus === 'ERROR') {
                     setError(true);
                     setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
-                } else if (data.type === "VIEW" && data.data?.inputs) {
-                    setInputs([]);
-                    data.data.inputs.forEach((input: AuthInput) => {
-                        setInputs(prev => [...prev, input]);
-                    });
+                } else if (data.type === "VIEW") {
+                    // Handle the VIEW response
+                    if (data.data?.actions) {
+                        // This is a decision screen
+                        setNeedsDecision(true);
+                        setAvailableActions(data.data.actions);
+                    } else if (data.data?.inputs) {
+                        // This is an input prompt
+                        setNeedsDecision(false);
+                        data.data.inputs.forEach((input: AuthInput) => {
+                            setInputs(prev => [...prev, input]);
+                        });
+                    }
+                } else if (data.type === "REDIRECTION") {
+                    // Handle redirection for social logins
+                    const url = data.data?.redirectURL;
+                    const idpName = data.data?.additionalData?.idpName || 'Social Login';
+                    
+                    if (url) {
+                        // Store the redirect URL instead of redirecting immediately
+                        setRedirectURL(url);
+                        setSocialIdpName(idpName);
+                    }
                 }
+
                 setFlowId(data.flowId);
                 setLoading(false);
             }).catch((error) => {
-                console.error("Error during authentication:", error);
-
-                // Check if it's a network error or authentication error
-                if (error.message && error.message.includes("Network Error")) {
-                    setConnectionError(true);
-                } else {
-                    setError(true);
-                    init();
-                }
-
+                console.error("Error during auth initialization:", error);
+                setConnectionError(true);
                 setLoading(false);
             });
+    }, [clearToken]);
+
+    // Unified form submission handler that works for both decisions and direct inputs
+    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setLoading(true);
+
+        if (needsDecision) {
+            // This is a decision submission - identify the action from form data
+            const formAction = event.currentTarget.getAttribute('data-action-id');
+            if (formAction) {
+                submitAuthDecision(flowId, formAction, formData)
+                    .then((result) => {
+                        processAuthResponse(result.data);
+                    })
+                    .catch((error) => {
+                        console.error("Error during authentication decision:", error);
+                        handleSubmissionError(error);
+                    });
+            }
+        } else {
+            // This is a direct input submission
+            submitNativeAuth(flowId, formData)
+                .then((result) => {
+                    processAuthResponse(result.data);
+                })
+                .catch((error) => {
+                    console.error("Error during authentication:", error);
+                    handleSubmissionError(error);
+                });
+        }
+    };
+
+    const handleSubmissionError = (error: SubmissionError) => {
+        // Check if it's a network error or authentication error
+        if (error.message && error.message.includes("Network Error")) {
+            setConnectionError(true);
+        } else {
+            setError(true);
+            setErrorMessage(error.message || 'Error during authentication');
+        }
+        setLoading(false);
     };
 
     const handleRetry = () => {
@@ -432,6 +409,21 @@ const LoginPage = () => {
             return <GoogleIcon />;
         } else {
             return <AccountCircleIcon />;
+        }
+    };
+
+    // Get social login button text
+    const getSocialLoginText = (actionId: string) => {
+        if (actionId.includes('google')) {
+            return 'Continue with Google';
+        } else if (actionId.includes('github')) {
+            return 'Continue with GitHub';
+        } else if (actionId.includes('mobile')) {
+            return 'Continue with SMS OTP';
+        } else {
+            return actionId.split('_').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
         }
     };
 
@@ -455,24 +447,10 @@ const LoginPage = () => {
 
                 submitNativeAuth(flowId, { type: NativeAuthSubmitType.SOCIAL, code: code })
                     .then((result) => {
-                        setLoading(false);
-                        const data = result.data;
-
-                        // Handle successful authentication
-                        if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
-                            setToken(data.assertion);
-                            setError(false);
-                        }
+                        processAuthResponse(result.data);
                     }).catch((error) => {
-                        setLoading(false);
                         console.error("Error during social authentication:", error);
-
-                        if (error.message && error.message.includes("Network Error")) {
-                            setConnectionError(true);
-                        }
-                        else {
-                            setError(true);
-                        }
+                        handleSubmissionError(error);
                     });
             } else {
                 setError(true);
@@ -483,335 +461,317 @@ const LoginPage = () => {
         }
     },[startInit, init, flowId, setToken]);
 
-    // Check if we have any basic auth options
-    const hasBasicAuth = loginOptions.some(option => option.type === 'BASIC');
-    // Get all social auth options
-    const socialOptions = loginOptions.filter(option => option.type === 'SOCIAL') as SocialAuthOption[];
-    
-    // Handle basic auth form submission directly from decision screen
-    const handleBasicAuthDecision = (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setLoading(true);
-        
-        // Find the basic_auth action ID
-        const basicAuthAction = availableActions.find(action => action.id === "basic_auth");
-        if (!basicAuthAction) {
-            setError(true);
-            setErrorMessage("Basic authentication not available");
-            setLoading(false);
-            return;
-        }
-        
-        // Submit both the decision and credentials together
-        submitAuthDecision(flowId, basicAuthAction.id, {
-            username: basicAuthFormData.username,
-            password: basicAuthFormData.password
-        })
-            .then((result) => {
-                const data = result.data;
-                
-                // Handle successful authentication
-                if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
-                    setToken(data.assertion);
-                    setError(false);
-                } else if (data.type === "VIEW") {
-                    // Additional steps might be needed
-                    setNeedsDecision(false);
-                    setLoginOptions([{ type: 'BASIC' }]);
-                    setLoading(false);
-                } else if (data.flowStatus && data.flowStatus === 'ERROR') {
-                    setError(true);
-                    setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
-                    setLoading(false);
-                }
-            })
-            .catch((error) => {
-                console.error("Error during authentication:", error);
-                setError(true);
-                setErrorMessage(error.message || 'Error during authentication');
-                setLoading(false);
-            });
-    };
 
-    // Handle OTP authentication decision directly from decision screen
-    const handleOTPAuthDecision = (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setLoading(true);
-        
-        // Find the basic_auth action ID
-        const smsOTPAuthAction = availableActions.find(action => action.id === "mobile_prompt_username");
-        if (!smsOTPAuthAction) {
-            setError(true);
-            setErrorMessage("SMS OTP authentication not available");
-            setLoading(false);
-            return;
-        }
-        
-        // Submit both the decision and username together
-        submitAuthDecision(flowId, smsOTPAuthAction.id, {
-            username: otpAuthUserFormData.username,
-        })
-            .then((result) => {
-                const data = result.data;
-                
-                // Handle successful authentication
-                if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
-                    setToken(data.assertion);
-                    setError(false);
-                } else if (data.type === "VIEW" && data.data?.inputs) {
-                    setNeedsDecision(false);
-                    setLoginOptions([{ type: 'OTP' }]);
-                    setInputs([]);
-                    data.data.inputs.forEach((input: AuthInput) => {
-                        setInputs(prev => [...prev, input]);
-                    });
-                    setLoading(false);
-                } else if (data.flowStatus && data.flowStatus === 'ERROR') {
-                    setError(true);
-                    setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
-                    setLoading(false);
-                }
-            })
-            .catch((error) => {
-                console.error("Error during authentication:", error);
-                setError(true);
-                setErrorMessage(error.message || 'Error during authentication');
-                setLoading(false);
-            });
-    };
-
-    const getInputPromptFields = () => {
-        let isPasswordSubmit = false;
-        let isOTPSubmit = false;
-        
-        const inputBoxes = inputs.map((input, index) => {
+    // Render input fields based on the current inputs array
+    const renderInputFields = () => {
+        return inputs.map((input, index) => {
             const inputId = input.name || `input-${index}`;
             const isPassword = input.type === "password" || input.name === "password";
             const isOTP = input.type === "otp" || input.name === "otp";
             const isRequired = input.required;
-
-            if (isPassword) {
-                isPasswordSubmit = true;
-            }
-            if (isOTP) {
-                isOTPSubmit = true;
-            }
             
-            // Determine appropriate label based on input name
+            // Determine appropriate label
             let label = input.name;
-            // Capitalize first letter and replace underscores with spaces
             if (label) {
                 label = label.charAt(0).toUpperCase() + label.slice(1).replace(/_/g, ' ');
             }
-            // Add spaces between words
             label = label.replace(/([a-z])([A-Z])/g, '$1 $2');
-            // Handle special case for OTP
             if (isOTP) {
                 label = 'OTP Code';
             } else if (isPassword) {
                 label = 'Password';
             }
 
-            // Determine the placeholder text
             const placeholder = `Enter your ${label.toLowerCase()}`;
 
-            return (
-                <>
+            if (isPassword) {
+                return (
                     <Box key={inputId} display="flex" flexDirection="column" gap={0.5}>
                         <InputLabel htmlFor={inputId} sx={{ mb: 1 }}>{label}</InputLabel>
-                        {isPassword ? (
-                            <OutlinedInput
-                                type={showPassword ? 'text' : 'password'}
-                                id={inputId}
-                                name={input.name}
-                                placeholder={placeholder}
-                                size="small"
-                                onChange={handleInputChange}
-                                required={isRequired}
-                                endAdornment={
-                                    <InputAdornment position="end">
-                                        <IconButton
-                                            aria-label="toggle password visibility"
-                                            onClick={handleTogglePasswordVisibility}
-                                            onMouseDown={handleMouseDownPassword}
-                                            edge="end"
-                                        >
-                                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                                        </IconButton>
-                                    </InputAdornment>
-                                }
-                            />
-                        ) : isOTP ? (
-                            <Box 
-                                sx={{ 
-                                    display: 'flex', 
-                                    gap: 1,
-                                    justifyContent: 'space-between'
-                                }}
-                            >
-                                {otpDigits.map((digit, index) => (
-                                    <OutlinedInput
-                                        key={`otp-digit-${index}`}
-                                        inputRef={el => otpInputRefs.current[index] = el}
-                                        value={digit}
-                                        onChange={(e) => handleOTPDigitChange(index, e.target.value)}
-                                        onKeyDown={(e) => handleOTPKeyDown(index, e as React.KeyboardEvent<HTMLInputElement>)}
-                                        onPaste={index === 0 ? handlePaste : undefined}
-                                        inputProps={{
-                                            maxLength: 1,
-                                            style: { textAlign: 'center', padding: '8px 0' }
-                                        }}
-                                        sx={{
-                                            width: '40px',
-                                            height: '48px',
-                                            '& input': { padding: 0 }
-                                        }}
-                                    />
-                                ))}
-                            </Box>
-                        ) : (
-                            <OutlinedInput
-                                type={input.type || "text"}
-                                id={inputId}
-                                name={input.name}
-                                placeholder={placeholder}
-                                size="small"
-                                onChange={handleInputChange}
-                                required={isRequired}
-                            />
-                        )}
+                        <OutlinedInput
+                            type={showPassword ? 'text' : 'password'}
+                            id={inputId}
+                            name={input.name}
+                            placeholder={placeholder}
+                            size="small"
+                            value={formData[input.name] || ''}
+                            onChange={handleInputChange}
+                            required={isRequired}
+                            endAdornment={
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        aria-label="toggle password visibility"
+                                        onClick={handleTogglePasswordVisibility}
+                                        onMouseDown={handleMouseDownPassword}
+                                        edge="end"
+                                    >
+                                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                                    </IconButton>
+                                </InputAdornment>
+                            }
+                        />
                     </Box>
-                </>
-            );
-        });
-
-        return (
-            <>
-                { inputBoxes }
-                { (showRememberMe || showForgotPassword) && (
-                    <Box
-                        sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        }}
-                    >
-                        { showRememberMe && (
-                            <FormControlLabel
-                                control={<Checkbox name="remember-me-checkbox" />} 
-                                label="Remember me" />
-                        )}
-                        { showForgotPassword &&
-                            <Link href="">Forgot your password?</Link>
-                        }
-                    </Box>
-                )}
-
-                {isPasswordSubmit ? (
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        type="submit"
-                        fullWidth
-                        sx={{ mt: 2 }}
-                    >
-                        Sign In
-                    </Button>
-                ) : isOTPSubmit ? (
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        type="submit"
-                        fullWidth
-                        sx={{ mt: 2 }}
-                    >
-                        Verify OTP
-                    </Button>
-                ) : (
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        type="submit"
-                        fullWidth
-                        sx={{ mt: 2 }}
-                    >
-                        Continue
-                    </Button>
-                )}
-            </>
-        )
-    };
-
-    const getRegularLoginForm = () => {
-        return (
-            <>
-                {socialOptions.length > 0 && (
-                    <>
-                        <Box>
-                            {socialOptions.map((option, index) => (
-                                <Button
-                                    key={`social-login-${index}`}
-                                    fullWidth
-                                    variant="contained"
-                                    startIcon={getSocialLoginIcon(option.idpName)}
-                                    color="secondary"
-                                    onClick={() => handleSocialLoginClick(option.redirectURL)}
-                                    sx={{ my: 1 }}
-                                >
-                                    Continue with {option.idpName}
-                                </Button>
+                );
+            } else if (isOTP) {
+                return (
+                    <Box key={inputId} display="flex" flexDirection="column" gap={0.5}>
+                        <InputLabel htmlFor={inputId} sx={{ mb: 1 }}>{label}</InputLabel>
+                        <Box 
+                            sx={{ 
+                                display: 'flex', 
+                                gap: 1,
+                                justifyContent: 'space-between'
+                            }}
+                        >
+                            {otpDigits.map((digit, index) => (
+                                <OutlinedInput
+                                    key={`otp-digit-${index}`}
+                                    inputRef={el => otpInputRefs.current[index] = el}
+                                    value={digit}
+                                    onChange={(e) => handleOTPDigitChange(index, e.target.value)}
+                                    onKeyDown={(e) => handleOTPKeyDown(index, e as React.KeyboardEvent<HTMLInputElement>)}
+                                    onPaste={index === 0 ? handlePaste : undefined}
+                                    inputProps={{
+                                        maxLength: 1,
+                                        style: { textAlign: 'center', padding: '8px 0' }
+                                    }}
+                                    sx={{
+                                        width: '40px',
+                                        height: '48px',
+                                        '& input': { padding: 0 }
+                                    }}
+                                />
                             ))}
                         </Box>
-                        
-                        {hasBasicAuth && <Divider sx={{ my: 3 }}>or</Divider>}
-                    </>
-                )}
-
-                <form onSubmit={handleAuthInputSubmit}>
-                    <Box display="flex" flexDirection="column" gap={2}>
-                        { getInputPromptFields() }
                     </Box>
-                </form>
-            </>
-        )
+                );
+            } else {
+                return (
+                    <Box key={inputId} display="flex" flexDirection="column" gap={0.5}>
+                        <InputLabel htmlFor={inputId} sx={{ mb: 1 }}>{label}</InputLabel>
+                        <OutlinedInput
+                            type={input.type || "text"}
+                            id={inputId}
+                            name={input.name}
+                            placeholder={placeholder}
+                            size="small"
+                            value={formData[input.name] || ''}
+                            onChange={handleInputChange}
+                            required={isRequired}
+                        />
+                    </Box>
+                );
+            }
+        });
+    };
+
+    // Render the login form with side-by-side layout based on the available actions
+    const renderSideBySideLoginForm = () => {
+        const basicAuthAction = availableActions.find(action => action.id === "basic_auth");
+        const mobileAuthActions = availableActions.filter(action => 
+            action.id === "mobile_prompt_username" || action.id === "prompt_mobile"
+        );
+        
+        const hasSocialAuth = availableActions.some(action => 
+            action.id.includes("google") || action.id.includes("github")
+        );
+        const hasMobileAuth = mobileAuthActions.length > 0;
+        
+        const socialAuthActions = availableActions.filter(action => 
+            action.id.includes("google") || action.id.includes("github")
+        );
+        
+        return (
+            <Box sx={{ my: 4 }}>
+                <Box display="flex" gap={4}>
+                    {/* Left: Basic Login */}
+                    <Box sx={{ flex: 1 }}>
+                        <form onSubmit={handleSubmit} data-action-id={basicAuthAction?.id}>
+                            <Box display="flex" flexDirection="column" gap={2}>
+                                <Typography variant="body1" color="textSecondary" sx={{ mb: 2, mt: 1.5 }}>
+                                    Login with Username and Password
+                                </Typography>
+                            </Box>
+                            <Box display="flex" flexDirection="column" gap={2} sx={{ mt: 3 }}>
+                                <Box display="flex" flexDirection="column" gap={0.5}>
+                                    <InputLabel htmlFor="username">Username</InputLabel>
+                                    <OutlinedInput
+                                        type="text"
+                                        id="username"
+                                        name="username"
+                                        placeholder="Enter your username"
+                                        size="small"
+                                        value={formData.username || ''}
+                                        onChange={handleInputChange}
+                                        required
+                                    />
+                                </Box>
+                                <Box display="flex" flexDirection="column" gap={0.5} sx={{ mt: 1 }}>
+                                    <InputLabel htmlFor="password">Password</InputLabel>
+                                    <OutlinedInput
+                                        type={showPassword ? 'text' : 'password'}
+                                        id="password"
+                                        name="password"
+                                        placeholder="Enter your password"
+                                        size="small"
+                                        value={formData.password || ''}
+                                        onChange={handleInputChange}
+                                        required
+                                        endAdornment={
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                aria-label="toggle password visibility"
+                                                onClick={handleTogglePasswordVisibility}
+                                                onMouseDown={handleMouseDownPassword}
+                                                edge="end"
+                                            >
+                                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                        }
+                                    />
+                                </Box>
+
+                                {(showRememberMe || showForgotPassword) && (
+                                <Box display="flex" justifyContent="space-between" alignItems="center">
+                                    {showRememberMe && (
+                                        <FormControlLabel
+                                            control={<Checkbox name="remember-me-checkbox" />}
+                                            label="Remember me"
+                                        />
+                                    )}
+                                    {showForgotPassword && <Link href="#">Forgot your password?</Link>}
+                                </Box>
+                                )}
+
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    type="submit"
+                                    fullWidth
+                                    sx={{ mt: 3 }}
+                                    >
+                                    Sign In
+                                </Button>
+                            </Box>
+                        </form>
+                    </Box>
+
+                    {/* Vertical Divider */}
+                    <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+
+                    {/* Right: Social Auth and SMS Options */}
+                    <Box sx={{ flex: 1 }}>
+                        {/* Social auth options */}
+                        {hasSocialAuth && (
+                            <Box>
+                                {socialAuthActions.map((action, index) => (
+                                    <Button
+                                        key={`social-action-${index}`}
+                                        fullWidth
+                                        variant="contained"
+                                        color="secondary"
+                                        onClick={() => handleAuthOptionSelection(action.id)}
+                                        sx={{ my: 1 }}
+                                        startIcon={getSocialLoginIcon(action.id)}
+                                    >
+                                        {getSocialLoginText(action.id)}
+                                    </Button>
+                                ))}
+                            </Box>
+                        )}
+
+                        {/* Show divider if we have both social and sms auth options */}
+                        {hasMobileAuth && hasSocialAuth && (
+                            <Divider sx={{ my: 3 }}>or</Divider>
+                        )}
+
+                        {/* SMS OTP Auth */}
+                        {hasMobileAuth && (
+                            <form 
+                                onSubmit={handleSubmit} 
+                                data-action-id={mobileAuthActions[0]?.id}
+                            >
+                                <Box display="flex" flexDirection="column" gap={2}>
+                                    <Box display="flex" flexDirection="column" gap={0.5}>
+                                        <InputLabel htmlFor={mobileAuthActions[0]?.id === "prompt_mobile" ? "mobileNumber" : "username"}>
+                                            {mobileAuthActions[0]?.id === "prompt_mobile" ? "Mobile Number" : "Username"}
+                                        </InputLabel>
+                                        <OutlinedInput
+                                            type="text"
+                                            id={mobileAuthActions[0]?.id === "prompt_mobile" ? "mobileNumber" : "username"}
+                                            name={mobileAuthActions[0]?.id === "prompt_mobile" ? "mobileNumber" : "username"}
+                                            placeholder={`Enter your ${mobileAuthActions[0]?.id === "prompt_mobile" ? "mobile number" : "username"}`}
+                                            size="small"
+                                            value={formData[mobileAuthActions[0]?.id === "prompt_mobile" ? "mobileNumber" : "username"] || ''}
+                                            onChange={handleInputChange}
+                                            required
+                                        />
+                                    </Box>
+                                    <Button
+                                        variant="contained"
+                                        color="primary"
+                                        type="submit"
+                                        fullWidth
+                                        sx={{ mt: 2 }}
+                                    >
+                                        Continue with SMS OTP
+                                    </Button>
+                                </Box>
+                            </form>
+                        )}
+                    </Box>
+                </Box>
+            </Box>
+        );
     }
 
-    const getBasicAndSocialLoginForm = () => {
+    // Render the regular login form with options stacked vertically
+    const renderRegularLoginForm = () => {
+        const basicAuthAction = availableActions.find(action => action.id === "basic_auth");
+        const mobileAuthActions = availableActions.filter(action => 
+            action.id === "mobile_prompt_username" || action.id === "prompt_mobile"
+        );
+        
+        const hasBasicAuth = !!basicAuthAction;
+        const hasSocialAuth = availableActions.some(action => 
+            action.id.includes("google") || action.id.includes("github")
+        );
+        const hasMobileAuth = mobileAuthActions.length > 0;
+        
+        const socialAuthActions = availableActions.filter(action => 
+            action.id.includes("google") || action.id.includes("github")
+        );
+
         return (
             <Box sx={{ my: 2 }}>
                 {/* Social auth options */}
-                {hasSocialAuthOptions && (
+                {hasSocialAuth && (
                     <Box>
-                        {availableActions.filter(action => (action.id !== "basic_auth" && action.id !== "mobile_prompt_username")).map((action, index) => (
+                        {socialAuthActions.map((action, index) => (
                             <Button
-                                key={`action-${index}`}
+                                key={`social-action-${index}`}
                                 fullWidth
                                 variant="contained"
                                 color="secondary"
                                 onClick={() => handleAuthOptionSelection(action.id)}
                                 sx={{ my: 1 }}
-                                startIcon={
-                                    action.id === "google_auth" ? <GoogleIcon /> : 
-                                    action.id === "github_auth" ? <GitHubIcon /> : 
-                                    <AccountCircleIcon />
-                                }
+                                startIcon={getSocialLoginIcon(action.id)}
                             >
-                                {action.id === "google_auth" ? "Continue with Google" :
-                                action.id === "github_auth" ? "Continue with GitHub" : 
-                                action.id}
+                                {getSocialLoginText(action.id)}
                             </Button>
                         ))}
                     </Box>
                 )}
                 
-                {/* Show divider if we have both social and basic auth options */}
-                {hasBasicAuthOption && hasSocialAuthOptions && (
+                {/* Show divider if we have multiple auth options */}
+                {((hasSocialAuth && hasBasicAuth) || (hasSocialAuth && hasMobileAuth)) && (
                     <Divider sx={{ my: 3 }}>or</Divider>
                 )}
                 
                 {/* Basic auth form */}
-                {hasBasicAuthOption && (
-                    <form onSubmit={handleBasicAuthDecision}>
+                {hasBasicAuth && (
+                    <form onSubmit={handleSubmit} data-action-id={basicAuthAction?.id}>
                         <Box display="flex" flexDirection="column" gap={2}>
                             <Box display="flex" flexDirection="column" gap={0.5}>
                                 <InputLabel htmlFor="username">Username</InputLabel>
@@ -821,7 +781,7 @@ const LoginPage = () => {
                                     name="username"
                                     placeholder="Enter your username"
                                     size="small"
-                                    value={basicAuthFormData.username}
+                                    value={formData.username || ''}
                                     onChange={handleInputChange}
                                     required
                                 />
@@ -834,7 +794,7 @@ const LoginPage = () => {
                                     name="password"
                                     placeholder="Enter your password"
                                     size="small"
-                                    value={basicAuthFormData.password}
+                                    value={formData.password || ''}
                                     onChange={handleInputChange}
                                     required
                                     endAdornment={
@@ -884,25 +844,30 @@ const LoginPage = () => {
                     </form>
                 )}
 
-                {/* Show divider if we have both social and basic auth options */}
-                {hasSMSOTPAuthOption && hasSocialAuthOptions && (
+                {/* Show divider if we have multiple auth options */}
+                {(hasBasicAuth && hasMobileAuth) && (
                     <Divider sx={{ my: 3 }}>or</Divider>
                 )}
 
                 {/* SMS OTP auth form */}
-                {hasSMSOTPAuthOption && (
-                    <form onSubmit={handleOTPAuthDecision}>
+                {hasMobileAuth && (
+                    <form 
+                        onSubmit={handleSubmit} 
+                        data-action-id={mobileAuthActions[0]?.id}
+                    >
                         <Box display="flex" flexDirection="column" gap={2}>
                             <Box display="flex" flexDirection="column" gap={0.5}>
-                                <InputLabel htmlFor="username">Username</InputLabel>
+                                <InputLabel htmlFor={mobileAuthActions[0]?.id === "prompt_mobile" ? "mobileNumber" : "username"}>
+                                    {mobileAuthActions[0]?.id === "prompt_mobile" ? "Mobile Number" : "Username"}
+                                </InputLabel>
                                 <OutlinedInput
                                     type="text"
-                                    id="username"
-                                    name="username"
-                                    placeholder="Enter your username"
+                                    id={mobileAuthActions[0]?.id === "prompt_mobile" ? "mobileNumber" : "username"}
+                                    name={mobileAuthActions[0]?.id === "prompt_mobile" ? "mobileNumber" : "username"}
+                                    placeholder={`Enter your ${mobileAuthActions[0]?.id === "prompt_mobile" ? "mobile number" : "username"}`}
                                     size="small"
-                                    value={otpAuthUserFormData.username}
-                                    onChange={handleOTPUserInputChange}
+                                    value={formData[mobileAuthActions[0]?.id === "prompt_mobile" ? "mobileNumber" : "username"] || ''}
+                                    onChange={handleInputChange}
                                     required
                                 />
                             </Box>
@@ -919,175 +884,89 @@ const LoginPage = () => {
                     </form>
                 )}
             </Box>
-        )
+        );
     }
 
-    const getBasicAndSMSLoginForm = () => {
+    const renderInputPromptForm = () => {
         return (
-            <Box sx={{ my: 4 }}>
-                <Box display="flex" gap={4}>
-                    {/* Left: Basic Login */}
-                    <Box sx={{ flex: 1 }}>
-                        <form onSubmit={handleBasicAuthDecision}>
-                            <Box display="flex" flexDirection="column" gap={2}>
-                                <Typography variant="body1" color="textSecondary" sx={{ mb: 2, mt: 2.7 }}>
-                                    Login with Username and Password
-                                </Typography>
-                                </Box>
-                            <Box display="flex" flexDirection="column" gap={2} sx={{ mt: 3 }}>
-                                <Box display="flex" flexDirection="column" gap={0.5}>
-                                    <InputLabel htmlFor="username">Username</InputLabel>
-                                    <OutlinedInput
-                                        type="text"
-                                        id="username"
-                                        name="username"
-                                        placeholder="Enter your username"
-                                        size="small"
-                                        value={basicAuthFormData.username}
-                                        onChange={handleInputChange}
-                                        required
-                                    />
-                                </Box>
-                                <Box display="flex" flexDirection="column" gap={0.5} sx={{ mt: 1 }}>
-                                    <InputLabel htmlFor="password">Password</InputLabel>
-                                    <OutlinedInput
-                                        type={showPassword ? 'text' : 'password'}
-                                        id="password"
-                                        name="password"
-                                        placeholder="Enter your password"
-                                        size="small"
-                                        value={basicAuthFormData.password}
-                                        onChange={handleInputChange}
-                                        required
-                                        endAdornment={
-                                        <InputAdornment position="end">
-                                            <IconButton
-                                                aria-label="toggle password visibility"
-                                                onClick={handleTogglePasswordVisibility}
-                                                onMouseDown={handleMouseDownPassword}
-                                                edge="end"
-                                            >
-                                                {showPassword ? <VisibilityOff /> : <Visibility />}
-                                            </IconButton>
-                                        </InputAdornment>
-                                        }
-                                    />
-                                </Box>
+            <form onSubmit={handleSubmit}>
+                <Box display="flex" flexDirection="column" gap={2}>
+                    {renderInputFields()}
+                    
+                    {(showRememberMe || showForgotPassword) && (
+                        <Box
+                            sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            }}
+                        >
+                            { showRememberMe && (
+                                <FormControlLabel
+                                    control={<Checkbox name="remember-me-checkbox" />} 
+                                    label="Remember me" />
+                            )}
+                            { showForgotPassword &&
+                                <Link href="">Forgot your password?</Link>
+                            }
+                        </Box>
+                    )}
 
-                                {(showRememberMe || showForgotPassword) && (
-                                <Box display="flex" justifyContent="space-between" alignItems="center">
-                                    {showRememberMe && (
-                                        <FormControlLabel
-                                            control={<Checkbox name="remember-me-checkbox" />}
-                                            label="Remember me"
-                                        />
-                                    )}
-                                    {showForgotPassword && <Link href="#">Forgot your password?</Link>}
-                                </Box>
-                                )}
-
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    type="submit"
-                                    fullWidth
-                                    sx={{ mt: 3 }}
-                                    >
-                                    Sign In
-                                </Button>
-                            </Box>
-                        </form>
-                    </Box>
-
-                    {/* Vertical Divider */}
-                    <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
-
-                    {/* Right: Social Auth and SMS Options */}
-                    <Box sx={{ flex: 1 }}>
-                        {/* Social auth options */}
-                        {hasSocialAuthOptions && (
-                            <Box>
-                            {availableActions
-                                .filter(
-                                (action) =>
-                                    action.id !== 'basic_auth' &&
-                                    action.id !== 'mobile_prompt_username'
-                                )
-                                .map((action, index) => (
-                                <Button
-                                    key={`action-${index}`}
-                                    fullWidth
-                                    variant="contained"
-                                    color="secondary"
-                                    onClick={() => handleAuthOptionSelection(action.id)}
-                                    sx={{ my: 1 }}
-                                    startIcon={
-                                    action.id === 'google_auth' ? (
-                                        <GoogleIcon />
-                                    ) : action.id === 'github_auth' ? (
-                                        <GitHubIcon />
-                                    ) : (
-                                        <AccountCircleIcon />
-                                    )
-                                    }
-                                >
-                                    {action.id === 'google_auth'
-                                    ? 'Continue with Google'
-                                    : action.id === 'github_auth'
-                                    ? 'Continue with GitHub'
-                                    : action.id}
-                                </Button>
-                                ))}
-                            </Box>
-                        )}
-
-                        {/* Show divider if we have both social and sms auth options */}
-                        {hasSMSOTPAuthOption && hasSocialAuthOptions && (
-                            <Divider sx={{ my: 3 }}>or</Divider>
-                        )}
-
-                        {/* SMS OTP Auth */}
-                        {hasSMSOTPAuthOption && (
-                            <form onSubmit={handleOTPAuthDecision} style={{ marginTop: '2rem' }}>
-                            <Box display="flex" flexDirection="column" gap={2}>
-                                <Box display="flex" flexDirection="column" gap={0.5}>
-                                    <InputLabel htmlFor="username">Username</InputLabel>
-                                    <OutlinedInput
-                                        type="text"
-                                        id="username"
-                                        name="username"
-                                        placeholder="Enter your username"
-                                        size="small"
-                                        value={otpAuthUserFormData.username}
-                                        onChange={handleOTPUserInputChange}
-                                        required
-                                    />
-                                </Box>
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    type="submit"
-                                    fullWidth
-                                    sx={{ mt: 2 }}
-                                    >
-                                    Continue with SMS OTP
-                                </Button>
-                            </Box>
-                            </form>
-                        )}
-                    </Box>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        type="submit"
+                        fullWidth
+                        sx={{ mt: 2 }}
+                    >
+                        {inputs.some(input => input.name === 'password') ? 'Sign In' :
+                            inputs.some(input => input.name === 'otp') ? 'Verify OTP' : 'Continue'}
+                    </Button>
                 </Box>
-            </Box>
-        )
+            </form>
+        );
     }
-    
-    // Check if the current decision screen has basic auth option
-    const hasBasicAuthOption = availableActions.some(action => action.id === "basic_auth");
-    const hasSMSOTPAuthOption = availableActions.some(action => action.id === "mobile_prompt_username");
-    const hasSocialAuthOptions = availableActions.some(action => action.id !== "basic_auth");
 
-    const gridMdSize = needsDecision && hasBasicAuthOption && hasSMSOTPAuthOption ? 10 : 6;
-    const containerBoxMaxWidth = needsDecision && hasBasicAuthOption && hasSMSOTPAuthOption ? 1000 : 500;
+    // Render function for redirection scenarios
+    const renderRedirectLoginButton = () => {
+        if (!redirectURL) return null;
+        
+        const buttonText = socialIdpName ? 
+            `Continue with ${socialIdpName}` :
+            'Continue with Social Login';
+        
+        const icon = getSocialLoginIcon(socialIdpName);
+        
+        return (
+            <Box sx={{ my: 2 }}>
+                <Button
+                    fullWidth
+                    variant="contained"
+                    color="secondary"
+                    onClick={() => handleSocialLoginClick(redirectURL)}
+                    sx={{ my: 1 }}
+                    startIcon={icon}
+                >
+                    {buttonText}
+                </Button>
+            </Box>
+        );
+    };
+
+    // Calculate appropriate grid size based on layout complexity
+    const gridMdSize = needsDecision 
+        && availableActions.some(action => action.id === "basic_auth") 
+        && availableActions.some(action => action.id === "mobile_prompt_username" || action.id === "prompt_mobile") 
+        ? 10 : 6;
+    const containerBoxMaxWidth = gridMdSize === 10 ? 1000 : 500;
+
+    const basicAuthAction = availableActions.find(action => action.id === "basic_auth");
+    const mobileAuthActions = availableActions.filter(action => 
+        action.id === "mobile_prompt_username" || action.id === "prompt_mobile"
+    );
+    
+    const hasBasicAuth = !!basicAuthAction;
+    const hasMobileAuth = mobileAuthActions.length > 0;
 
     return (
         <Layout>
@@ -1142,26 +1021,25 @@ const LoginPage = () => {
 
                                 {!connectionError && (
                                     <>
-                                        {needsDecision ? (
+                                        {/* First check if we have a redirect URL */}
+                                        {redirectURL ? (
+                                            renderRedirectLoginButton()
+                                        ) : needsDecision ? (
+                                            /* If not redirect but needs decision */
                                             <>
-                                                { hasBasicAuthOption && hasSMSOTPAuthOption ? (
-                                                    getBasicAndSMSLoginForm()
+                                                { hasBasicAuth && hasMobileAuth ? (
+                                                    renderSideBySideLoginForm()
                                                 ) : (
-                                                    getBasicAndSocialLoginForm()
-                                                ) }
+                                                    renderRegularLoginForm()
+                                                )}
                                             </>
                                         ) : (
-                                            getRegularLoginForm()
+                                            /* If not redirect and not decision, it's an input prompt */
+                                            renderInputPromptForm()
                                         )}
-                                        <>
-                                            {loginOptions.length === 0 && !connectionError && !loading && (
-                                                <Alert severity="info">
-                                                    No login options available. Please contact your administrator.
-                                                </Alert>
-                                            )}
-                                        </>
                                     </>
                                 )}
+                                
                                 <Box component="footer" sx={{ mt: 6 }}>
                                     <Typography sx={{ textAlign: "center" }}>
                                         © Copyright {new Date().getFullYear()}

@@ -31,7 +31,24 @@
                 "name": "BasicAuthExecutor"
             },
             "next": [
-                "authenticated"
+                "attr_collector"
+            ]
+        },
+        {
+            "id": "attr_collector",
+            "type": "TASK_EXECUTION",
+            "inputData": [
+                {
+                    "name": "mobileNumber",
+                    "type": "string",
+                    "required": true
+                }
+            ],
+            "executor": {
+                "name": "AttributeCollector"
+            },
+            "next": [
+                "sms_otp_auth"
             ]
         },
         {

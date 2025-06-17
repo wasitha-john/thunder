@@ -250,6 +250,10 @@ func (s *SMSOTPAuthExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext,
 		return false
 	}
 
+	// Reset the executor response status and failure reason.
+	execResp.Status = ""
+	execResp.FailureReason = ""
+
 	return s.internal.ValidatePrerequisites(ctx, execResp)
 }
 
