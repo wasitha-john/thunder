@@ -195,6 +195,19 @@ const LoginPage = () => {
         }
     };
 
+    // Effect to focus on the first OTP input when available.
+    useEffect(() => {
+        const hasOTPInput = inputs.some(input => input.type === "otp" || input.name === "otp");
+        
+        if (hasOTPInput && otpInputRefs.current && otpInputRefs.current.length > 0) {
+            setTimeout(() => {
+                if (otpInputRefs.current[0]) {
+                    otpInputRefs.current[0].focus();
+                }
+            }, 100);
+        }
+    }, [inputs]);
+
     // Single handler for all input changes
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = event.target;
@@ -221,30 +234,28 @@ const LoginPage = () => {
     const processAuthResponse = (data: AuthResponse) => {
         const isCameFromDecision = needsDecision;
 
+        setFlowId(data.flowId || '');
+        if (data.flowStatus && data.flowStatus == 'ERROR') {
+            setError(true);
+            setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
+            setLoading(false);
+            return;
+        }
+
+        // Clear previous state
         clearToken();
         setError(false);
         setConnectionError(false);
         setNeedsDecision(false);
         setFormData({});
-        if (data.flowStatus && data.flowStatus !== 'ERROR') {
-            setAvailableActions([]);
-            setInputs([]);
-
-            // Reset redirect URL
-            setRedirectURL(null);
-            setSocialIdpName('');
-        }
+        setAvailableActions([]);
+        setInputs([]);
+        setRedirectURL(null);
+        setSocialIdpName('');
 
         if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
             setToken(data.assertion);
             setError(false);
-        } else if (data.flowStatus && data.flowStatus === 'ERROR') {
-            if (data.failureReason && !data.failureReason.includes("OTP")) {
-                init();
-            }
-
-            setError(true);
-            setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
         } else if (data.type === "VIEW") {
             // Handle the VIEW response
             if (data.data?.actions) {
@@ -276,7 +287,6 @@ const LoginPage = () => {
             }
         }
 
-        setFlowId(data.flowId || '');
         setLoading(false);
     }
 
@@ -460,7 +470,6 @@ const LoginPage = () => {
             sessionStorage.setItem(START_INIT_KEY, "true");
         }
     },[startInit, init, flowId, setToken]);
-
 
     // Render input fields based on the current inputs array
     const renderInputFields = () => {
