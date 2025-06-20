@@ -27,12 +27,14 @@ import (
 
 // HealthCheckService defines the service for handling readiness and liveness checks.
 type HealthCheckService struct {
+	ServerOpsService   server.ServerOperationServiceInterface
 	healthCheckHandler *handler.HealthCheckHandler
 }
 
 // NewHealthCheckService creates a new instance of HealthCheckService.
-func NewHealthCheckService(mux *http.ServeMux) *HealthCheckService {
+func NewHealthCheckService(mux *http.ServeMux) ServiceInterface {
 	instance := &HealthCheckService{
+		ServerOpsService:   server.NewServerOperationService(),
 		healthCheckHandler: handler.NewHealthCheckHandler(),
 	}
 	instance.RegisterRoutes(mux)
@@ -52,13 +54,17 @@ func (h *HealthCheckService) RegisterRoutes(mux *http.ServeMux) {
 		},
 	}
 
-	server.WrapHandleFunction(mux, "OPTIONS /health/liveness", &opts1, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
-	server.WrapHandleFunction(mux, "GET /health/liveness", &opts1, h.healthCheckHandler.HandleLivenessRequest)
+	h.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /health/liveness", &opts1,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
+	h.ServerOpsService.WrapHandleFunction(mux, "GET /health/liveness", &opts1,
+		h.healthCheckHandler.HandleLivenessRequest)
 
-	server.WrapHandleFunction(mux, "OPTIONS /health/readiness", &opts1, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
-	server.WrapHandleFunction(mux, "GET /health/readiness", &opts1, h.healthCheckHandler.HandleReadinessRequest)
+	h.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /health/readiness", &opts1,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
+	h.ServerOpsService.WrapHandleFunction(mux, "GET /health/readiness", &opts1,
+		h.healthCheckHandler.HandleReadinessRequest)
 }

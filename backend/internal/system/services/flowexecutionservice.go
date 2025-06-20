@@ -27,12 +27,14 @@ import (
 
 // FlowExecutionService defines the service for handling flow execution requests.
 type FlowExecutionService struct {
+	ServerOpsService     server.ServerOperationServiceInterface
 	flowExecutionHandler *handler.FlowExecutionHandler
 }
 
 // NewFlowExecutionService creates a new instance of FlowExecutionService.
-func NewFlowExecutionService(mux *http.ServeMux) *FlowExecutionService {
+func NewFlowExecutionService(mux *http.ServeMux) ServiceInterface {
 	instance := &FlowExecutionService{
+		ServerOpsService:     server.NewServerOperationService(),
 		flowExecutionHandler: handler.NewFlowExecutionHandler(),
 	}
 	instance.RegisterRoutes(mux)
@@ -51,8 +53,10 @@ func (s *FlowExecutionService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "POST /flow/execute", &opts, s.flowExecutionHandler.HandleFlowExecutionRequest)
-	server.WrapHandleFunction(mux, "OPTIONS /flow/execute", &opts, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /flow/execute", &opts,
+		s.flowExecutionHandler.HandleFlowExecutionRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /flow/execute", &opts,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 }

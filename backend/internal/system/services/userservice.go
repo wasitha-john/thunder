@@ -30,13 +30,15 @@ import (
 
 // UserService is the service for user management operations.
 type UserService struct {
-	userHandler *handler.UserHandler
+	ServerOpsService server.ServerOperationServiceInterface
+	userHandler      *handler.UserHandler
 }
 
 // NewUserService creates a new instance of UserService.
-func NewUserService(mux *http.ServeMux) *UserService {
+func NewUserService(mux *http.ServeMux) ServiceInterface {
 	instance := &UserService{
-		userHandler: &handler.UserHandler{},
+		ServerOpsService: server.NewServerOperationService(),
+		userHandler:      &handler.UserHandler{},
 	}
 	instance.RegisterRoutes(mux)
 
@@ -52,11 +54,12 @@ func (s *UserService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "POST /users", &opts1, s.userHandler.HandleUserPostRequest)
-	server.WrapHandleFunction(mux, "GET /users", &opts1, s.userHandler.HandleUserListRequest)
-	server.WrapHandleFunction(mux, "OPTIONS /users", &opts1, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /users", &opts1, s.userHandler.HandleUserPostRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /users", &opts1, s.userHandler.HandleUserListRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /users", &opts1,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 
 	opts2 := server.RequestWrapOptions{
 		Cors: &server.Cors{
@@ -65,10 +68,11 @@ func (s *UserService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "GET /users/", &opts2, s.userHandler.HandleUserGetRequest)
-	server.WrapHandleFunction(mux, "PUT /users/", &opts2, s.userHandler.HandleUserPutRequest)
-	server.WrapHandleFunction(mux, "DELETE /users/", &opts2, s.userHandler.HandleUserDeleteRequest)
-	server.WrapHandleFunction(mux, "OPTIONS /users/", &opts2, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /users/", &opts2, s.userHandler.HandleUserGetRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "PUT /users/", &opts2, s.userHandler.HandleUserPutRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /users/", &opts2, s.userHandler.HandleUserDeleteRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /users/", &opts2,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 }

@@ -28,11 +28,43 @@ import (
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
-// getAllowedOrigins retrieves the list of allowed origins from the database.
-func getAllowedOrigins() ([]string, error) {
-	logger := log.GetLogger()
+// ServerOperationServiceInterface defines the interface for server operations.
+type ServerOperationServiceInterface interface {
+	WrapHandleFunction(mux *http.ServeMux, pattern string, options *RequestWrapOptions,
+		handlerFunc http.HandlerFunc)
+}
 
-	dbClient, err := dbprovider.NewDBProvider().GetDBClient("identity")
+// ServerOperationService implements the ServerOperationServiceInterface.
+type ServerOperationService struct {
+	DBProvider dbprovider.DBProviderInterface
+}
+
+// NewServerOperationService creates a new instance of ServerOperationService.
+func NewServerOperationService() ServerOperationServiceInterface {
+	return &ServerOperationService{
+		DBProvider: dbprovider.NewDBProvider(),
+	}
+}
+
+// WrapHandleFunction wraps the provided handler function with pre-request processing and registers it with the mux.
+func (ops *ServerOperationService) WrapHandleFunction(mux *http.ServeMux, pattern string, options *RequestWrapOptions,
+	handlerFunc http.HandlerFunc) {
+	mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+		logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ServerOperationService"))
+		if err := ops.addAllowedOriginHeaders(w, r, options); err != nil {
+			logger.Error("Failed to add allowed origin to the response", log.Error(err))
+		}
+
+		// Return the handler function
+		handlerFunc(w, r)
+	})
+}
+
+// getAllowedOrigins retrieves the list of allowed origins from the database.
+func (ops *ServerOperationService) getAllowedOrigins() ([]string, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ServerOperationService"))
+
+	dbClient, err := ops.DBProvider.GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return nil, err
@@ -65,8 +97,9 @@ func getAllowedOrigins() ([]string, error) {
 }
 
 // addAllowedOriginHeaders sets the CORS headers for the response based on the configured allowed origins.
-func addAllowedOriginHeaders(w http.ResponseWriter, r *http.Request, options *RequestWrapOptions) error {
-	allowedOrigins, err := getAllowedOrigins()
+func (ops *ServerOperationService) addAllowedOriginHeaders(w http.ResponseWriter, r *http.Request,
+	options *RequestWrapOptions) error {
+	allowedOrigins, err := ops.getAllowedOrigins()
 	if err != nil {
 		return errors.New("failed to get allowed origins")
 	}
@@ -93,21 +126,4 @@ func addAllowedOriginHeaders(w http.ResponseWriter, r *http.Request, options *Re
 	}
 
 	return nil
-}
-
-// WrapHandleFunction wraps the provided handler function with pre-request processing and registers it with the mux.
-func WrapHandleFunction(mux *http.ServeMux, pattern string, options *RequestWrapOptions,
-	handlerFunc http.HandlerFunc) {
-	// Register the handler function with the mux
-	mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		logger := log.GetLogger()
-
-		// Add the CORS headers
-		if err := addAllowedOriginHeaders(w, r, options); err != nil {
-			logger.Error("Failed to add allowed origin to the response", log.Error(err))
-		}
-
-		// Return the handler function
-		handlerFunc(w, r)
-	})
 }
