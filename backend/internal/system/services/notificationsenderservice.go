@@ -27,12 +27,14 @@ import (
 
 // NotificationSenderService provides HTTP endpoints for managing message notification senders.
 type NotificationSenderService struct {
+	ServerOpsService    server.ServerOperationServiceInterface
 	notificationHandler *handler.MessageNotificationHandler
 }
 
 // NewNotificationSenderService creates a new instance of NotificationSenderService.
-func NewNotificationSenderService(mux *http.ServeMux) *NotificationSenderService {
+func NewNotificationSenderService(mux *http.ServeMux) ServiceInterface {
 	instance := &NotificationSenderService{
+		ServerOpsService:    server.NewServerOperationService(),
 		notificationHandler: handler.NewMessageNotificationHandler(),
 	}
 	instance.RegisterRoutes(mux)
@@ -49,14 +51,14 @@ func (s *NotificationSenderService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "GET /notification-senders/message", &opts,
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /notification-senders/message", &opts,
 		s.notificationHandler.HandleSenderListRequest)
-	server.WrapHandleFunction(mux, "POST /notification-senders/message", &opts,
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /notification-senders/message", &opts,
 		s.notificationHandler.HandleSenderCreateRequest)
-	server.WrapHandleFunction(mux, "GET /notification-senders/message/{id}", &opts,
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /notification-senders/message/{id}", &opts,
 		s.notificationHandler.HandleSenderGetRequest)
-	server.WrapHandleFunction(mux, "PUT /notification-senders/message/{id}", &opts,
+	s.ServerOpsService.WrapHandleFunction(mux, "PUT /notification-senders/message/{id}", &opts,
 		s.notificationHandler.HandleSenderUpdateRequest)
-	server.WrapHandleFunction(mux, "DELETE /notification-senders/message/{id}", &opts,
+	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /notification-senders/message/{id}", &opts,
 		s.notificationHandler.HandleSenderDeleteRequest)
 }

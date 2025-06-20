@@ -27,13 +27,15 @@ import (
 
 // AuthorizationService defines the service for handling OAuth2 authorization requests.
 type AuthorizationService struct {
-	authHandler authz.AuthorizeHandlerInterface
+	ServerOpsService server.ServerOperationServiceInterface
+	authHandler      authz.AuthorizeHandlerInterface
 }
 
 // NewAuthorizationService creates a new instance of AuthorizationService.
-func NewAuthorizationService(mux *http.ServeMux) *AuthorizationService {
+func NewAuthorizationService(mux *http.ServeMux) ServiceInterface {
 	instance := &AuthorizationService{
-		authHandler: authz.NewAuthorizeHandler(),
+		ServerOpsService: server.NewServerOperationService(),
+		authHandler:      authz.NewAuthorizeHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -42,5 +44,5 @@ func NewAuthorizationService(mux *http.ServeMux) *AuthorizationService {
 
 // RegisterRoutes registers the routes for the AuthorizationService.
 func (s *AuthorizationService) RegisterRoutes(mux *http.ServeMux) {
-	server.WrapHandleFunction(mux, "GET /oauth2/authorize", nil, s.authHandler.HandleAuthorizeRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /oauth2/authorize", nil, s.authHandler.HandleAuthorizeRequest)
 }

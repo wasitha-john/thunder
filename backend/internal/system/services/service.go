@@ -32,20 +32,3 @@ type Route struct {
 type ServiceInterface interface {
 	RegisterRoutes(mux *http.ServeMux)
 }
-
-// The AbstractService struct is an empty struct that can be embedded in other services.
-type AbstractService struct{}
-
-// RegisterRoutes is a method that can be overridden by concrete services to register their routes.
-func (s *AbstractService) RegisterRoutes(mux *http.ServeMux) {
-	// This method can be overridden by concrete services to register their routes.
-	// For example:
-	// opts := server.RequestWrapOptions{
-	// 	Cors: &server.Cors{
-	// 		AllowedMethods:   "GET, POST",
-	// 		AllowedHeaders:   "Content-Type, Authorization",
-	// 		AllowCredentials: true,
-	// 	},
-	// }
-	// server.WrapHandleFunction(mux, "GET /example", &opts, s.ExampleHandler)
-}
