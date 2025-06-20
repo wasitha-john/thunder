@@ -971,13 +971,13 @@ make run
 - Populate the `thunderdb` database with the required tables and data.
 
   ```bash
-  docker exec -i postgres psql -U asgthunder -d thunderdb < backend/dbscripts/thunderdb/postgress.sql
+  docker exec -i postgres psql -U asgthunder -d thunderdb < backend/dbscripts/thunderdb/postgres.sql
   ```
 
 - Populate the `runtimedb` database with the required tables and data.
 
   ```bash
-  docker exec -i postgres psql -U asgthunder -d thunderdb < backend/dbscripts/runtimedb/postgress.sql
+  docker exec -i postgres psql -U asgthunder -d thunderdb < backend/dbscripts/runtimedb/postgres.sql
   ```
 
 #### 🛠 Step 3: Configure Thunder to Use PostgreSQL
