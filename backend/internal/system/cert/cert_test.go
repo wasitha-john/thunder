@@ -24,13 +24,16 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/asgardeo/thunder/internal/system/config"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -57,7 +60,9 @@ func (suite *CertTestSuite) SetupTest() {
 
 func (suite *CertTestSuite) TearDownTest() {
 	// Clean up temp directory after tests
-	os.RemoveAll(suite.testDir)
+	if err := os.RemoveAll(suite.testDir); err != nil {
+		suite.T().Errorf("Failed to remove test directory: %v", err)
+	}
 }
 
 // generateTestCertificate generates a self-signed certificate and private key for testing
@@ -97,26 +102,50 @@ func (suite *CertTestSuite) generateTestCertificate() (certPath, keyPath string,
 		return "", "", err
 	}
 
-	// Create certificate file
+	// Create certificate file - validate path is within test directory
 	certFile := filepath.Join(suite.testDir, "test-cert.pem")
-	certOut, err := os.Create(certFile)
+	// Ensure the file path is within the test directory to prevent path traversal
+	if !strings.HasPrefix(certFile, suite.testDir) {
+		return "", "", fmt.Errorf("invalid certificate file path")
+	}
+
+	certOut, err := os.Create(certFile) // #nosec G304
 	if err != nil {
 		return "", "", err
 	}
-	defer certOut.Close()
+	defer func() {
+		if closeErr := certOut.Close(); closeErr != nil {
+			// If we already have an error, don't overwrite it
+			if err == nil {
+				err = closeErr
+			}
+		}
+	}()
 
 	err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	if err != nil {
 		return "", "", err
 	}
 
-	// Create key file
+	// Create key file - validate path is within test directory
 	keyFile := filepath.Join(suite.testDir, "test-key.pem")
-	keyOut, err := os.Create(keyFile)
+	// Ensure the file path is within the test directory to prevent path traversal
+	if !strings.HasPrefix(keyFile, suite.testDir) {
+		return "", "", fmt.Errorf("invalid key file path")
+	}
+
+	keyOut, err := os.Create(keyFile) // #nosec G304
 	if err != nil {
 		return "", "", err
 	}
-	defer keyOut.Close()
+	defer func() {
+		if closeErr := keyOut.Close(); closeErr != nil {
+			// If we already have an error, don't overwrite it
+			if err == nil {
+				err = closeErr
+			}
+		}
+	}()
 
 	privBytes := x509.MarshalPKCS1PrivateKey(privateKey)
 	err = pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes})
@@ -130,7 +159,14 @@ func (suite *CertTestSuite) generateTestCertificate() (certPath, keyPath string,
 // createInvalidCertFile creates an invalid certificate file
 func (suite *CertTestSuite) createInvalidCertFile() string {
 	invalidCertPath := filepath.Join(suite.testDir, "invalid-cert.pem")
-	err := os.WriteFile(invalidCertPath, []byte("This is not a valid certificate"), 0644)
+	// Ensure the file path is within the test directory to prevent path traversal
+	if !strings.HasPrefix(invalidCertPath, suite.testDir) {
+		suite.T().Fatalf("Invalid certificate path detected")
+		return ""
+	}
+
+	// Use 0600 permissions instead of 0644 for better security
+	err := os.WriteFile(invalidCertPath, []byte("This is not a valid certificate"), 0600)
 	if err != nil {
 		suite.T().Fatalf("Failed to create invalid certificate file: %v", err)
 	}

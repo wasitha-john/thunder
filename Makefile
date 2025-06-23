@@ -32,7 +32,7 @@ $(TOOL_BIN):
 	mkdir -p $(TOOL_BIN)
 
 # Default target
-all: prepare clean build test
+all: prepare clean test_unit build test_integration
 
 prepare:
 	chmod +x build.sh
@@ -57,6 +57,12 @@ build_samples:
 test:
 	./build.sh test $(OS) $(ARCH)
 
+test_unit:
+	./build.sh test_unit $(OS) $(ARCH)
+
+test_integration:
+	./build.sh test_integration $(OS) $(ARCH)
+
 run:
 	./build.sh run $(OS) $(ARCH)
 
@@ -65,19 +71,23 @@ lint: golangci-lint
 
 help:
 	@echo "Makefile targets:"
-	@echo "  all    		 - Clean, build, and test the project."
-	@echo "  clean  		 - Remove build artifacts."
-	@echo "  clean_all 		 - Remove all build artifacts including distribution files."
-	@echo "  build  		 - Build the Go project and frontend, then package."
-	@echo "  build_backend 	 - Build the backend Go application."
-	@echo "  package_samples - Package sample applications."
-	@echo "  build_samples 	 - Build sample applications."
-	@echo "  test   		 - Run integration tests."
-	@echo "  run    		 - Build and run the application locally."
-	@echo "  lint   		 - Run golangci-lint on the project."
-	@echo "  help   		 - Show this help message."
+	@echo "  all    		  - Clean, build, and test the project."
+	@echo "  clean  		  - Remove build artifacts."
+	@echo "  clean_all 		  - Remove all build artifacts including distribution files."
+	@echo "  build  		  - Build the Go project and frontend, then package."
+	@echo "  build_backend 	  - Build the backend Go application."
+	@echo "  package_samples  - Package sample applications."
+	@echo "  build_samples 	  - Build sample applications."
+	@echo "  test_unit 	      - Run unit tests."
+	@echo "  test_integration - Run integration tests."
+	@echo "  test   		  - Run all tests (unit and integration)."
+	@echo "  run    		  - Build and run the application locally."
+	@echo "  lint   		  - Run golangci-lint on the project."
+	@echo "  help   		  - Show this help message."
 
-.PHONY: all prepare clean clean_all build build_samples package_samples test run lint help
+.PHONY: all prepare clean clean_all build build_samples package_samples run lint help
+
+.PHONY: test_unit test_integration test
 
 .PHONY: go_install_tool golangci-lint
 

@@ -81,8 +81,8 @@ func (m *MockTx) Exec(query string, args ...any) (sql.Result, error) {
 
 // MockSQLResult is a mock implementation of sql.Result.
 type MockSQLResult struct {
-	// MockLastInsertId defines the behavior for the LastInsertId method.
-	MockLastInsertId func() (int64, error)
+	// MockLastInsertID defines the behavior for the LastInsertId method.
+	MockLastInsertID func() (int64, error)
 
 	// MockRowsAffected defines the behavior for the RowsAffected method.
 	MockRowsAffected func() (int64, error)
@@ -90,8 +90,8 @@ type MockSQLResult struct {
 
 // LastInsertId mocks the LastInsertId method of sql.Result.
 func (m *MockSQLResult) LastInsertId() (int64, error) {
-	if m.MockLastInsertId != nil {
-		return m.MockLastInsertId()
+	if m.MockLastInsertID != nil {
+		return m.MockLastInsertID()
 	}
 	return 0, nil
 }

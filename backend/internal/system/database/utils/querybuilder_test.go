@@ -22,8 +22,14 @@ import (
 	"testing"
 
 	"github.com/asgardeo/thunder/internal/system/database/model"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+)
+
+const (
+	testBaseQuery  = "SELECT * FROM users"
+	testColumnName = "attributes"
 )
 
 type QueryBuilderTestSuite struct {
@@ -36,8 +42,8 @@ func TestQueryBuilderSuite(t *testing.T) {
 
 func (suite *QueryBuilderTestSuite) TestBuildFilterQuery() {
 	queryID := "test_query"
-	baseQuery := "SELECT * FROM users"
-	columnName := "attributes"
+	baseQuery := testBaseQuery
+	columnName := testColumnName
 	filters := map[string]interface{}{
 		"role": "admin",
 		"age":  30,
@@ -59,8 +65,8 @@ func (suite *QueryBuilderTestSuite) TestBuildFilterQuery() {
 
 func (suite *QueryBuilderTestSuite) TestBuildFilterQueryWithEmptyFilters() {
 	queryID := "empty_filters"
-	baseQuery := "SELECT * FROM users"
-	columnName := "attributes"
+	baseQuery := testBaseQuery
+	columnName := testColumnName
 	filters := map[string]interface{}{}
 
 	query, args, err := BuildFilterQuery(queryID, baseQuery, columnName, filters)
@@ -73,7 +79,7 @@ func (suite *QueryBuilderTestSuite) TestBuildFilterQueryWithEmptyFilters() {
 
 func (suite *QueryBuilderTestSuite) TestBuildFilterQueryWithInvalidColumnName() {
 	queryID := "invalid_column"
-	baseQuery := "SELECT * FROM users"
+	baseQuery := testBaseQuery
 	columnName := "attributes;DROP TABLE users"
 	filters := map[string]interface{}{
 		"role": "admin",
@@ -89,8 +95,8 @@ func (suite *QueryBuilderTestSuite) TestBuildFilterQueryWithInvalidColumnName() 
 
 func (suite *QueryBuilderTestSuite) TestBuildFilterQueryWithInvalidFilterKey() {
 	queryID := "invalid_filter_key"
-	baseQuery := "SELECT * FROM users"
-	columnName := "attributes"
+	baseQuery := testBaseQuery
+	columnName := testColumnName
 	filters := map[string]interface{}{
 		"valid":              "value",
 		"invalid-filter-key": "value", // Contains invalid character '-'

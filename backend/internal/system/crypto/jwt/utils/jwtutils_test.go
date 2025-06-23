@@ -345,7 +345,9 @@ func (suite *JWTUtilsTestSuite) mockJWKSServer() *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, jwksData)
+		if _, err := fmt.Fprintln(w, jwksData); err != nil {
+			suite.T().Errorf("Failed to write JWKS response: %v", err)
+		}
 	}))
 
 	return server

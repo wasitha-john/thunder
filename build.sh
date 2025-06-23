@@ -111,6 +111,7 @@ SAMPLE_APP_DIR=$SAMPLE_BASE_DIR/apps/oauth
 SAMPLE_APP_SERVER_DIR=$SAMPLE_APP_DIR/server
 
 function clean_all() {
+    echo "================================================================"
     echo "Cleaning all build artifacts..."
     rm -rf "$TARGET_DIR"
 
@@ -122,9 +123,11 @@ function clean_all() {
     rm -f "$SAMPLE_APP_DIR/server.key"
     rm -f "$SAMPLE_APP_SERVER_DIR/server.cert"
     rm -f "$SAMPLE_APP_SERVER_DIR/server.key"
+    echo "================================================================"
 }
 
 function clean() {
+    echo "================================================================"
     echo "Cleaning build artifacts..."
     rm -rf "$OUTPUT_DIR"
 
@@ -134,9 +137,11 @@ function clean() {
     echo "Removing certificates in the $SAMPLE_APP_DIR"
     rm -f "$SAMPLE_APP_DIR/server.cert"
     rm -f "$SAMPLE_APP_DIR/server.key"
+    echo "================================================================"
 }
 
 function build_backend() {
+    echo "================================================================"
     echo "Building Go backend..."
     mkdir -p "$BUILD_DIR"
 
@@ -153,9 +158,11 @@ function build_backend() {
 
     echo "Initializing databases..."
     initialize_databases true
+    echo "================================================================"
 }
 
 function initialize_databases() {
+    echo "================================================================"
     local override=$1
     if [[ -z "$override" ]]; then
         override=false
@@ -193,9 +200,11 @@ function initialize_databases() {
     done
 
     echo "SQLite database initialization complete."
+    echo "================================================================"
 }
 
 function prepare_backend_for_packaging() {
+    echo "================================================================"
     echo "Copying backend artifacts..."
 
     # Use appropriate binary name based on OS
@@ -213,9 +222,11 @@ function prepare_backend_for_packaging() {
 
     echo "=== Ensuring server certificates exist in the distribution ==="
     ensure_certificates "$DIST_DIR/$PRODUCT_FOLDER/$SECURITY_DIR"
+    echo "================================================================"
 }
 
 function package_backend() {
+    echo "================================================================"
     echo "Packaging backend artifacts..."
 
     mkdir -p "$DIST_DIR/$PRODUCT_FOLDER"
@@ -234,9 +245,11 @@ function package_backend() {
     echo "Creating zip file..."
     (cd "$DIST_DIR" && zip -r "$PRODUCT_FOLDER.zip" "$PRODUCT_FOLDER")
     rm -rf "${DIST_DIR:?}/$PRODUCT_FOLDER" "$BUILD_DIR"
+    echo "================================================================"
 }
 
 function build_sample_app() {
+    echo "================================================================"
     echo "Building sample app..."
 
     # Ensure certificate exists for the sample app
@@ -254,9 +267,11 @@ function build_sample_app() {
     cd - || exit 1
     
     echo "Sample app built successfully."
+    echo "================================================================"
 }
 
 function package_sample_app() {
+    echo "================================================================"
     echo "Copying sample artifacts..."
 
     # Use appropriate binary name based on OS
@@ -302,11 +317,23 @@ function package_sample_app() {
     rm -rf "${DIST_DIR:?}/$SAMPLE_APP_FOLDER"
     
     echo "Sample app packaged successfully as $DIST_DIR/$SAMPLE_APP_FOLDER.zip"
+    echo "================================================================"
+}
+
+function test_unit() {
+    echo "================================================================"
+    echo "Running unit tests..."
+    cd "$BACKEND_BASE_DIR" || exit 1
+    go test -v -cover ./... || { echo "There are unit test failures."; exit 1; }
+    echo "================================================================"
 }
 
 function test_integration() {
+    echo "================================================================"
     echo "Running integration tests..."
+    cd "$SCRIPT_DIR" || exit 1
     go run -C ./tests/integration ./main.go
+    echo "================================================================"
 }
 
 function ensure_certificates() {
@@ -407,7 +434,14 @@ case "$1" in
         build_sample_app
         package_sample_app
         ;;
+    test_unit)
+        test_unit
+        ;;
+    test_integration)
+        test_integration
+        ;;
     test)
+        test_unit
         test_integration
         ;;
     run)
@@ -416,13 +450,15 @@ case "$1" in
     *)
         echo "Usage: ./build.sh {clean|build|test|run} [OS] [ARCH]"
         echo ""
-        echo "  clean         - Clean build artifacts"
-        echo "  clean_all     - Clean all build artifacts including distributions"
-        echo "  build         - Build the Thunder server only"
-        echo "  build_backend - Build the Thunder backend server"
-        echo "  build_samples - Build the sample applications"
-        echo "  test          - Run integration tests"
-        echo "  run           - Run the Thunder server for development"
+        echo "  clean            - Clean build artifacts"
+        echo "  clean_all        - Clean all build artifacts including distributions"
+        echo "  build            - Build the Thunder server only"
+        echo "  build_backend    - Build the Thunder backend server"
+        echo "  build_samples    - Build the sample applications"
+        echo "  test_unit        - Run unit tests"
+        echo "  test_integration - Run integration tests"
+        echo "  test             - Run all tests (unit and integration)"
+        echo "  run              - Run the Thunder server for development"
         exit 1
         ;;
 esac
