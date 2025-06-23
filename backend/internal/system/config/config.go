@@ -37,8 +37,11 @@ type ServerConfig struct {
 
 // GateClientConfig holds the client configuration details.
 type GateClientConfig struct {
-	Hostname string `yaml:"hostname"`
-	Port     int    `yaml:"port"`
+	Hostname  string `yaml:"hostname"`
+	Port      int    `yaml:"port"`
+	Scheme    string `yaml:"scheme"`
+	LoginPath string `yaml:"login_path"`
+	ErrorPath string `yaml:"error_path"`
 }
 
 // SecurityConfig holds the security configuration details.

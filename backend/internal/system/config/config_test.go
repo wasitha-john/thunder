@@ -51,6 +51,13 @@ func (suite *ConfigTestSuite) TestLoadConfigValid() {
 	assert.Equal(suite.T(), "localhost", config.Server.Hostname)
 	assert.Equal(suite.T(), 8080, config.Server.Port)
 
+	// Verify gate client config
+	assert.Equal(suite.T(), "localhost", config.GateClient.Hostname)
+	assert.Equal(suite.T(), 9090, config.GateClient.Port)
+	assert.Equal(suite.T(), "https", config.GateClient.Scheme)
+	assert.Equal(suite.T(), "/login", config.GateClient.LoginPath)
+	assert.Equal(suite.T(), "/error", config.GateClient.ErrorPath)
+
 	// Verify security config
 	assert.Equal(suite.T(), "/path/to/cert.pem", config.Security.CertFile)
 	assert.Equal(suite.T(), "/path/to/key.pem", config.Security.KeyFile)

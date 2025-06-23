@@ -14,9 +14,19 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 ## 🚀 Features
 
 - ✅ **Standards-Based**
-  - OAuth 2/ OpenID Connect (OIDC): Client Credentials
-- 🔗 **Login Options:** Basic Authentication, Login with GitHub, Login with Google, Login with SMS OTP
-- 🌐 **RESTful APIs:** App Native Login, User Management, Application Management, Identity Provider Management, Notification Message Provider Management
+  - OAuth 2/ OpenID Connect (OIDC): Client Credentials, Authorization Code
+- 🔗 **Login Options:**
+  - Basic Authentication (Username and Password)
+  - Social Logins
+    - Login with GitHub
+    - Login with Google
+  - Login with SMS OTP
+- 🌐 **RESTful APIs:**
+  - App Native Login
+  - User Management
+  - Application Management
+  - Identity Provider Management
+  - Message Notification Sender Management
 
 ---
 
@@ -130,11 +140,51 @@ curl -k -X POST https://localhost:8090/oauth2/token \
   -u 'client123:secret123'
 ```
 
-#### 3️⃣ Try Username and Password Login
+#### 3️⃣ Try Out Authorization Code Flow
+
+Authorization code flow requires you to setup a gate client to handle the login and error redirection. Add the following configurations to the `deployment.yaml` file to configure your own gate client.
+
+  ```yaml
+  gate_client:
+    hostname: "localhost"
+    port: 9090
+    scheme: "https"
+    login_path: "/login"
+    error_path: "/error"
+  ```
+
+- Open the following URL in your browser:
+
+  ```bash
+  https://localhost:8090/oauth2/authorize?response_type=code&client_id=client123&redirect_uri=https://localhost:3000&scope=openid&state=state_1
+  ```
+
+- Enter the credentials of the user you created in the first step.
+
+- After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
+
+  ```bash
+  https://localhost:3000/?code=<code>&state=state_1
+  ```
+
+- Copy the authorization code and exchange it for an access token using the following cURL command:
+
+  ```bash
+  curl -k -X POST 'https://localhost:8090/oauth2/token' \
+  -u 'client123:secret123' \
+  -d 'grant_type=authorization_code' \
+  -d 'redirect_uri=https://localhost:3000' \
+  -d 'code=<code>'
+  ```
+
+  - **Client ID:** `client123`
+  - **Client Secret:** `secret123`
+
+#### 4️⃣ Try Username and Password Login
 
 Open the sample app in your browser and enter the username and password you created in the first step. If the login is successful, you will be redirected to the home page of the sample app with the access token.
 
-#### 4️⃣ Try Google Login
+#### 5️⃣ Try Google Login
 
 - Create an OAuth application in your Google account following the instructions given in the [Google documentation](https://developers.google.com/identity/protocols/oauth2/web-server#creatingcred).
   - Configure the Authorized origin and Redirect URI as per your application.
@@ -200,7 +250,7 @@ Open the sample app in your browser and enter the username and password you crea
 
 - If the login is successful, you will be redirected to the home page of the sample app with the access token.
 
-#### 5️⃣ Try GitHub Login
+#### 6️⃣ Try GitHub Login
 
 - Create an OAuth application in your Github account following the instructions given in the [Github documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app).
   - Configure home page and callback URLs as per your application.
@@ -266,7 +316,7 @@ Open the sample app in your browser and enter the username and password you crea
 
 - If the login is successful, you will be redirected to the home page of the sample app with the access token.
 
-#### 6️⃣ Try SMS OTP Login
+#### 7️⃣ Try SMS OTP Login
 
 SMS One-Time Password (OTP) authentication allows users to authenticate using a one-time code sent to their mobile number. Prior to using SMS OTP, you need to configure a message provider to send SMS messages. Follow the steps below to set up SMS OTP authentication.
 

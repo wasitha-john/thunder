@@ -5,6 +5,9 @@ server:
 gate_client:
   hostname: "localhost"
   port: 9090
+  scheme: "https"
+  login_path: "/login"
+  error_path: "/error"
 
 security:
   cert_file: "repository/resources/security/server.cert"

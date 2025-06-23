@@ -41,11 +41,7 @@ const (
 const (
 	SessionDataKey        = "sessionDataKey"
 	SessionDataKeyConsent = "sessionDataKeyConsent"
-
-	OAuthErrorCode    = "oauthErrorCode"
-	OAuthErrorMessage = "oauthErrorMsg"
-
-	ShowInsecureWarning = "showInsecureWarning"
+	ShowInsecureWarning   = "showInsecureWarning"
 )
 
 // Oauth message types.
