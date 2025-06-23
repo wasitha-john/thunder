@@ -54,7 +54,12 @@ func main() {
 
 	initFlowService(logger)
 
-	startServer(logger, cfg, mux, thunderHome)
+	if cfg.Server.HTTPOnly {
+		logger.Info("TLS is not enabled, starting server without TLS")
+		startHTTPServer(logger, cfg, mux)
+	} else {
+		startTLSServer(logger, cfg, mux, thunderHome)
+	}
 }
 
 // getThunderHome retrieves and return the Thunder home directory.
@@ -123,10 +128,9 @@ func initFlowService(logger *log.Logger) {
 	}
 }
 
-// startServer starts the HTTP server with the given configurations and multiplexer.
-func startServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thunderHome string) {
-	// Wrap the multiplexer with AccessLogHandler.
-	wrappedMux := log.AccessLogHandler(logger, mux)
+// startTLSServer starts the HTTPS server with TLS configuration.
+func startTLSServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thunderHome string) {
+	server, serverAddr := createHTTPServer(logger, cfg, mux)
 
 	// Get TLS configuration from the certificate and key files.
 	tlsConfig, err := cert.GetTLSConfig(cfg, thunderHome)
@@ -134,22 +138,44 @@ func startServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thu
 		logger.Fatal("Failed to load TLS configuration", log.Error(err))
 	}
 
-	// Build the server address using hostname and port from the configurations.
-	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Hostname, cfg.Server.Port)
-
-	ln, err := tls.Listen("tcp", serverAddr, tlsConfig) // listener bound to port
+	ln, err := tls.Listen("tcp", serverAddr, tlsConfig)
 	if err != nil {
 		logger.Fatal("Failed to start TLS listener", log.Error(err))
 	}
 
-	logger.Info("WSO2 Thunder server started...", log.String("address", serverAddr))
-
-	server := &http.Server{
-		Handler:           wrappedMux,
-		ReadHeaderTimeout: 10 * time.Second, // Mitigate Slowloris attacks
-	}
+	logger.Info("WSO2 Thunder server started (HTTPS)...", log.String("address", serverAddr))
 
 	if err := server.Serve(ln); err != nil {
 		logger.Fatal("Failed to serve requests", log.Error(err))
 	}
+}
+
+// startHTTPServer starts the HTTP server without TLS.
+func startHTTPServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux) {
+	server, serverAddr := createHTTPServer(logger, cfg, mux)
+
+	logger.Info("WSO2 Thunder server started (HTTP)...", log.String("address", serverAddr))
+
+	if err := server.ListenAndServe(); err != nil {
+		logger.Fatal("Failed to serve HTTP requests", log.Error(err))
+	}
+}
+
+// createHTTPServer creates and configures an HTTP server with common settings.
+func createHTTPServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux) (*http.Server, string) {
+	// Wrap the multiplexer with AccessLogHandler.
+	wrappedMux := log.AccessLogHandler(logger, mux)
+
+	// Build the server address using hostname and port from the configurations.
+	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Hostname, cfg.Server.Port)
+
+	server := &http.Server{
+		Addr:              serverAddr,
+		Handler:           wrappedMux,
+		ReadHeaderTimeout: 10 * time.Second, // Mitigate Slowloris attacks
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
+	return server, serverAddr
 }

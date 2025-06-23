@@ -32,6 +32,7 @@ import (
 type ServerConfig struct {
 	Hostname string `yaml:"hostname"`
 	Port     int    `yaml:"port"`
+	HTTPOnly bool   `yaml:"http_only"`
 }
 
 // GateClientConfig holds the client configuration details.
