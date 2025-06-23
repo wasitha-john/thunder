@@ -20,7 +20,6 @@
 package client
 
 import (
-	"database/sql"
 	"strings"
 
 	"github.com/asgardeo/thunder/internal/system/database/model"
@@ -44,11 +43,11 @@ type DBClientInterface interface {
 
 // DBClient is the implementation of DBClientInterface.
 type DBClient struct {
-	db *sql.DB
+	db model.DBInterface
 }
 
 // NewDBClient creates a new instance of DBClient with the provided database connection.
-func NewDBClient(db *sql.DB) DBClientInterface {
+func NewDBClient(db model.DBInterface) DBClientInterface {
 	return &DBClient{
 		db: db,
 	}

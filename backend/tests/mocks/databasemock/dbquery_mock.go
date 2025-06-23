@@ -16,30 +16,23 @@
  * under the License.
  */
 
-package model
+package databasemock
 
-// DBQueryInterface defines the interface for database queries.
-type DBQueryInterface interface {
-	GetID() string
-	GetQuery() string
+// MockDBQuery is a mock implementation of the DBQueryInterface.
+type MockDBQuery struct {
+	// ID to return from the GetID method.
+	ID string
+
+	// Query to return from the GetQuery method.
+	Query string
 }
 
-var _ DBQueryInterface = (*DBQuery)(nil)
-
-// DBQuery represents database queries with an identifier and the SQL query string.
-type DBQuery struct {
-	// ID is the unique identifier for the query.
-	ID string `json:"id"`
-	// Query is the SQL query string.
-	Query string `json:"query"`
+// GetID returns the mocked ID.
+func (m *MockDBQuery) GetID() string {
+	return m.ID
 }
 
-// GetID returns the unique identifier for the query.
-func (d *DBQuery) GetID() string {
-	return d.ID
-}
-
-// GetQuery returns the SQL query string.
-func (d *DBQuery) GetQuery() string {
-	return d.Query
+// GetQuery returns the mocked query string.
+func (m *MockDBQuery) GetQuery() string {
+	return m.Query
 }
