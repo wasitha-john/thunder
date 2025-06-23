@@ -1,6 +1,8 @@
 # WSO2 Thunder ⚡
 ### The Lighting Fast Identity Management Suite
 
+![Login Flow Demo](resources/images/thunder-login-demo.gif)
+
 **Project Thunder** is a modern, identity management service by WSO2. It empowers you to design tailored login, registration, and recovery flows using a flexible identity flow designer.
 
 Thunder secures users, applications, services, and AI agents by managing their identities and offering a complete suite of supporting capabilities.
@@ -13,8 +15,8 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 
 - ✅ **Standards-Based**
   - OAuth 2/ OpenID Connect (OIDC): Client Credentials
-- 🔗 **Login Options:** Basic Authentication, Login with GitHub, Login with Google
-- 🌐 **RESTful APIs:** App Native Login, User Management, Application Management, Identity Provider Management
+- 🔗 **Login Options:** Basic Authentication, Login with GitHub, Login with Google, Login with SMS OTP
+- 🌐 **RESTful APIs:** App Native Login, User Management, Application Management, Identity Provider Management, Notification Message Provider Management
 
 ---
 
