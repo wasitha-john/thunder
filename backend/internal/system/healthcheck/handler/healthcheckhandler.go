@@ -31,11 +31,14 @@ import (
 
 // HealthCheckHandler defines the handler for managing health check API requests.
 type HealthCheckHandler struct {
+	Provider provider.HealthCheckProviderInterface
 }
 
 // NewHealthCheckHandler creates a new instance of HealthCheckHandler.
 func NewHealthCheckHandler() *HealthCheckHandler {
-	return &HealthCheckHandler{}
+	return &HealthCheckHandler{
+		Provider: provider.NewHealthCheckProvider(),
+	}
 }
 
 // HandleLivenessRequest handles the health check livenss request.
@@ -49,9 +52,7 @@ func (hch *HealthCheckHandler) HandleLivenessRequest(w http.ResponseWriter, r *h
 func (hch *HealthCheckHandler) HandleReadinessRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "HealthCheckHandler"))
 
-	healthcheckProvider := provider.NewHealthCheckProvider()
-	healthcheckService := healthcheckProvider.GetHealthCheckService()
-
+	healthcheckService := hch.Provider.GetHealthCheckService()
 	serverstatus := healthcheckService.CheckReadiness()
 
 	if serverstatus.Status != model.StatusUp {

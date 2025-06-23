@@ -39,12 +39,16 @@ type HealthCheckServiceInterface interface {
 }
 
 // HealthCheckService is the default implementation of the HealthCheckServiceInterface.
-type HealthCheckService struct{}
+type HealthCheckService struct {
+	DBProvider provider.DBProviderInterface
+}
 
 // GetHealthCheckService returns a singleton instance of HealthCheckService.
 func GetHealthCheckService() HealthCheckServiceInterface {
 	once.Do(func() {
-		instance = &HealthCheckService{}
+		instance = &HealthCheckService{
+			DBProvider: provider.NewDBProvider(),
+		}
 	})
 	return instance
 }
@@ -53,12 +57,12 @@ func GetHealthCheckService() HealthCheckServiceInterface {
 func (hcs *HealthCheckService) CheckReadiness() model.ServerStatus {
 	configDBStatus := model.ServiceStatus{
 		ServiceName: "IdentityDB",
-		Status:      checkDatabaseStatus("identity", queryConfigDBTable),
+		Status:      hcs.checkDatabaseStatus("identity", queryConfigDBTable),
 	}
 
 	runtimeDBStatus := model.ServiceStatus{
 		ServiceName: "RuntimeDB",
-		Status:      checkDatabaseStatus("runtime", queryRuntimeDBTable),
+		Status:      hcs.checkDatabaseStatus("runtime", queryRuntimeDBTable),
 	}
 
 	status := model.StatusUp
@@ -75,17 +79,19 @@ func (hcs *HealthCheckService) CheckReadiness() model.ServerStatus {
 }
 
 // checkDatabaseStatus checks the status of the specified database with the specified query.
-func checkDatabaseStatus(dbname string, query dbmodel.DBQuery) model.Status {
+func (hcs *HealthCheckService) checkDatabaseStatus(dbname string, query dbmodel.DBQuery) model.Status {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "HealthCheckService"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient(dbname)
+	dbClient, err := hcs.DBProvider.GetDBClient(dbname)
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return model.StatusDown
 	}
 	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Error closing database client", log.Error(closeErr))
+		if dbClient != nil {
+			if closeErr := dbClient.Close(); closeErr != nil {
+				logger.Error("Error closing database client", log.Error(closeErr))
+			}
 		}
 	}()
 
