@@ -41,9 +41,8 @@ const (
 )
 
 func UnzipProduct(zipFilePattern string) error {
-
 	// Find the zip file.
-	files, err := filepath.Glob(filepath.Join(TargetDir, zipFilePattern))
+	files, err := findMatchingZipFile(zipFilePattern)
 	if err != nil || len(files) == 0 {
 		return fmt.Errorf("zip file not found in target directory")
 	}
@@ -104,15 +103,38 @@ func extractFile(f *zip.File, dest string) error {
 
 // getExtractedProductHome constructs the path to the unzipped folder.
 func getExtractedProductHome(zipFilePattern string) (string, error) {
-
-	path := filepath.Join(TargetDir, zipFilePattern)
-	files, err := filepath.Glob(path)
+	files, err := findMatchingZipFile(zipFilePattern)
 	if err != nil || len(files) == 0 {
-		return "", fmt.Errorf("zip file not found in target directory: %s", path)
+		return "", fmt.Errorf("zip file not found in target directory")
 	}
 	zipFile := files[0]
 
 	return filepath.Join(ExtractedDir, filepath.Base(zipFile[:len(zipFile)-4])), nil
+}
+
+// findMatchingZipFile finds zip files that match our specific version pattern criteria
+func findMatchingZipFile(zipFilePattern string) ([]string, error) {
+	path := filepath.Join(TargetDir, zipFilePattern)
+	files, err := filepath.Glob(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter the files to only include those that have a version number or 'v' after 'thunder-'
+	var matchingFiles []string
+	for _, file := range files {
+		baseName := filepath.Base(file)
+		parts := strings.Split(baseName, "-")
+		if len(parts) >= 3 {
+			// Check if the second part starts with a number or 'v'
+			secondPart := parts[1]
+			if len(secondPart) > 0 && (secondPart[0] == 'v' || (secondPart[0] >= '0' && secondPart[0] <= '9')) {
+				matchingFiles = append(matchingFiles, file)
+			}
+		}
+	}
+
+	return matchingFiles, nil
 }
 
 func ReplaceResources(zipFilePattern string) error {
@@ -279,6 +301,7 @@ func StopServer(cmd *exec.Cmd) {
 
 func GetZipFilePattern() string {
 	goos, goarch := detectOSAndArchitecture()
+	// Use a more general pattern, the filtering will happen in findMatchingZipFile
 	return fmt.Sprintf("thunder-*-%s-%s.zip", goos, goarch)
 }
 
