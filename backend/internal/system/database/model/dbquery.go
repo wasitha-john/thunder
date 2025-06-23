@@ -20,9 +20,11 @@ package model
 
 // DBQueryInterface defines the interface for database queries.
 type DBQueryInterface interface {
-	GetId() string
+	GetID() string
 	GetQuery() string
 }
+
+var _ DBQueryInterface = (*DBQuery)(nil)
 
 // DBQuery represents database queries with an identifier and the SQL query string.
 type DBQuery struct {
