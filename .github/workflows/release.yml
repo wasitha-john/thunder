@@ -9,11 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Thunder product version (e.g., v1.0.0)'
-        required: true
-        type: string
-      sample_version:
-        description: 'Sample apps version (e.g., 0.2.0)'
+        description: 'Release version (e.g., v1.0.0)'
         required: true
         type: string
 
@@ -34,37 +30,30 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for tagging
 
-      - name: ✅ Validate Product Release Version
+      - name: ✅ Validate Release Version
         run: |
           if ! [[ ${{ github.event.inputs.version }} =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then
             echo "❌ Error: Version '${{ github.event.inputs.version }}' does not follow format vX.Y[.Z][-PRERELEASE][+BUILD]"
             echo "❌ Version must start with 'v'"
             exit 1
           fi
-          echo "✅ Product Version '${{ github.event.inputs.version }}' is valid"
+          echo "✅ Version '${{ github.event.inputs.version }}' is valid"
           
           # Store original version with v prefix in environment variable
           VERSION="${{ github.event.inputs.version }}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: ✅ Validate Sample Apps Version
+      - name: ✅ Set Sample Apps Version
         run: |
-          # Get the sample version input
-          SAMPLE_VERSION="${{ github.event.inputs.sample_version }}"
+          # Get the product version input
+          SAMPLE_VERSION="${{ github.event.inputs.version }}"
           
           # Remove 'v' prefix if present
           if [[ $SAMPLE_VERSION == v* ]]; then
             SAMPLE_VERSION="${SAMPLE_VERSION#v}"
-            echo "⚠️ Removing 'v' prefix from sample version"
           fi
           
-          # Validate semver format
-          if ! [[ $SAMPLE_VERSION =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then
-            echo "❌ Error: Sample version '$SAMPLE_VERSION' does not follow semantic versioning format X.Y[.Z][-PRERELEASE][+BUILD]"
-            exit 1
-          fi
-          
-          echo "✅ Sample version '$SAMPLE_VERSION' is valid"
+          echo "✅ Sample version set to '$SAMPLE_VERSION'"
           echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
 
       - name: 📝 Update Product Version
