@@ -30,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for tagging
 
-      - name: ✅ Validate Version
+      - name: ✅ Validate Release Version
         run: |
           if ! [[ ${{ github.event.inputs.version }} =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then
             echo "❌ Error: Version '${{ github.event.inputs.version }}' does not follow format vX.Y[.Z][-PRERELEASE][+BUILD]"
@@ -43,7 +43,20 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: 📝 Update Version File
+      - name: ✅ Set Sample Apps Version
+        run: |
+          # Get the product version input
+          SAMPLE_VERSION="${{ github.event.inputs.version }}"
+          
+          # Remove 'v' prefix if present
+          if [[ $SAMPLE_VERSION == v* ]]; then
+            SAMPLE_VERSION="${SAMPLE_VERSION#v}"
+          fi
+          
+          echo "✅ Sample version set to '$SAMPLE_VERSION'"
+          echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
+
+      - name: 📝 Update Product Version
         run: |
           # Store version with v prefix in version.txt
           VERSION="${{ env.VERSION }}"
@@ -105,6 +118,23 @@ jobs:
           done
           
           echo "✅ Thunder built for all platforms successfully!"
+
+      - name: 📝 Update Sample Apps Version
+        run: |
+          # Get the clean sample version without v prefix
+          SAMPLE_VERSION="${{ env.SAMPLE_VERSION }}"
+          echo "📝 Setting sample apps version to $SAMPLE_VERSION"
+          
+          # Update the main sample app package.json
+          cd samples/apps/oauth
+          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+          
+          # Update the server package.json
+          cd server
+          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+          
+          cd ../../../..
+          echo "✅ Updated sample apps version to $SAMPLE_VERSION"
 
       - name: 🔨 Build Sample Release Artifacts
         run: |
