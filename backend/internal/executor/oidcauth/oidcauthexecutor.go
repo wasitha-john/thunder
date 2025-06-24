@@ -210,30 +210,37 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 			return nil
 		}
 
-		// Resolve user with the sub claim.
-		// TODO: For now assume `sub` is the unique identifier for the user always.
-		sub, ok := idTokenClaims["sub"]
-		if !ok || sub == "" {
-			execResp.Status = flowconst.ExecFailure
-			execResp.FailureReason = "sub claim not found in the response."
-			return nil
+		// Validate nonce if configured.
+		if nonce, ok := ctx.UserInputData["nonce"]; ok && nonce != "" {
+			if idTokenClaims["nonce"] != nonce {
+				execResp.Status = flowconst.ExecFailure
+				execResp.FailureReason = "Nonce mismatch in ID token claims."
+				return nil
+			}
 		}
 
-		filters := map[string]interface{}{"sub": sub}
-		userID, err := o.IdentifyUser(filters, execResp)
-		if err != nil {
-			return fmt.Errorf("failed to identify user with sub claim: %w", err)
-		}
-		if execResp.Status == flowconst.ExecFailure {
-			return nil
+		// Resolve user with the sub claim.
+		// TODO: For now assume `sub` is the unique identifier for the user always.
+		userID := ""
+		sub, ok := idTokenClaims["sub"]
+		if ok && sub != "" {
+			if subStr, ok := sub.(string); ok && subStr != "" {
+				userID, err = o.resolveUser(subStr, execResp)
+				if err != nil {
+					return err
+				}
+				if execResp.Status == flowconst.ExecFailure {
+					return nil
+				}
+			}
 		}
 
 		authenticatedUser, err := o.getAuthenticatedUserWithAttributes(ctx, execResp,
-			tokenResp.AccessToken, idTokenClaims, *userID)
+			tokenResp.AccessToken, idTokenClaims, userID)
 		if err != nil {
 			return err
 		}
-		if authenticatedUser == nil {
+		if execResp.Status == flowconst.ExecFailure || authenticatedUser == nil {
 			return nil
 		}
 		execResp.AuthenticatedUser = *authenticatedUser
@@ -360,9 +367,8 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 				userClaims[attr] = systemutils.ConvertInterfaceValueToString(val)
 			}
 		}
-		logger.Debug("Extracted ID token claims", log.Any("claims", userClaims))
+		logger.Debug("Extracted ID token claims", log.Int("noOfClaims", len(idTokenClaims)))
 	}
-	userClaims["user_id"] = userID
 
 	if len(o.GetOAuthProperties().Scopes) == 1 && slices.Contains(o.GetOAuthProperties().Scopes, "openid") {
 		logger.Debug("No additional scopes configured.")
@@ -375,10 +381,38 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 		if execResp.Status == flowconst.ExecFailure {
 			return nil, nil
 		}
+
+		// If userID is still empty, try to resolve it using the sub claim from userInfo.
+		// TODO: For now assume `sub` is the unique identifier for the user always.
+		if userID == "" {
+			sub, ok := userInfo["sub"]
+			if !ok || sub == "" {
+				execResp.Status = flowconst.ExecFailure
+				execResp.FailureReason = "sub claim not found in the response."
+				return nil, nil
+			}
+			userID, err = o.resolveUser(sub, execResp)
+			if err != nil {
+				return nil, err
+			}
+			if execResp.Status == flowconst.ExecFailure {
+				return nil, nil
+			}
+		}
+
 		for key, value := range userInfo {
-			userClaims[key] = value
+			if key != "username" && key != "sub" && key != "id" {
+				userClaims[key] = value
+			}
 		}
 	}
+
+	if userID == "" {
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "User not found"
+		return nil, nil
+	}
+	userClaims["user_id"] = userID
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
@@ -387,4 +421,17 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 	}
 
 	return &authenticatedUser, nil
+}
+
+// resolveUser resolves the user based on the sub claim from user info.
+func (o *OIDCAuthExecutor) resolveUser(sub string, execResp *flowmodel.ExecutorResponse) (string, error) {
+	filters := map[string]interface{}{"sub": sub}
+	userID, err := o.IdentifyUser(filters, execResp)
+	if err != nil {
+		return "", fmt.Errorf("failed to identify user with sub claim: %w", err)
+	}
+	if execResp.Status == flowconst.ExecFailure {
+		return "", nil
+	}
+	return *userID, nil
 }
