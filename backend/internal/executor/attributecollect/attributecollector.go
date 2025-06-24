@@ -46,7 +46,7 @@ type AttributeCollector struct {
 }
 
 // NewAttributeCollector creates a new instance of AttributeCollector.
-func NewAttributeCollector(id, name string) flowmodel.ExecutorInterface {
+func NewAttributeCollector(id, name string, properties map[string]string) *AttributeCollector {
 	prerequisites := []flowmodel.InputData{
 		{
 			Name:     "userID",
@@ -56,7 +56,7 @@ func NewAttributeCollector(id, name string) flowmodel.ExecutorInterface {
 	}
 
 	return &AttributeCollector{
-		internal: *flowmodel.NewExecutor(id, name, []flowmodel.InputData{}, prerequisites),
+		internal: *flowmodel.NewExecutor(id, name, []flowmodel.InputData{}, prerequisites, properties),
 	}
 }
 

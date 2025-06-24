@@ -67,7 +67,7 @@ type OAuthExecutor struct {
 }
 
 // NewOAuthExecutor creates a new instance of OAuthExecutor.
-func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData,
+func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, properties map[string]string,
 	oAuthProps *model.OAuthExecProperties) OAuthExecutorInterface {
 	if len(defaultInputs) == 0 {
 		defaultInputs = []flowmodel.InputData{
@@ -79,7 +79,7 @@ func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData,
 		}
 	}
 	return &OAuthExecutor{
-		internal:        *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}),
+		internal:        *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
 		oAuthProperties: *oAuthProps,
 	}
 }

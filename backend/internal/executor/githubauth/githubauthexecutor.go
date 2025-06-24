@@ -60,7 +60,8 @@ func NewGithubOAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 		AdditionalParams:      oAuthProps.AdditionalParams,
 	}
 
-	base := oauth.NewOAuthExecutor("github_oauth_executor", execProps.Name, []flowmodel.InputData{}, compOAuthProps)
+	base := oauth.NewOAuthExecutor("github_oauth_executor", execProps.Name, []flowmodel.InputData{},
+		execProps.Properties, compOAuthProps)
 	exec, ok := base.(*oauth.OAuthExecutor)
 	if !ok {
 		panic("failed to cast GithubOAuthExecutor to OAuthExecutor")
@@ -71,8 +72,9 @@ func NewGithubOAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 }
 
 // NewGithubOAuthExecutor creates a new instance of GithubOAuthExecutor with the provided details.
-func NewGithubOAuthExecutor(id, name, clientID, clientSecret, redirectURI string,
-	scopes []string, additionalParams map[string]string) oauth.OAuthExecutorInterface {
+func NewGithubOAuthExecutor(id, name string, properties map[string]string,
+	clientID, clientSecret, redirectURI string, scopes []string,
+	additionalParams map[string]string) oauth.OAuthExecutorInterface {
 	// Prepare the OAuth properties for GitHub
 	oAuthProps := &model.OAuthExecProperties{
 		AuthorizationEndpoint: githubAuthorizeEndpoint,
@@ -85,7 +87,7 @@ func NewGithubOAuthExecutor(id, name, clientID, clientSecret, redirectURI string
 		AdditionalParams:      additionalParams,
 	}
 
-	base := oauth.NewOAuthExecutor(id, name, []flowmodel.InputData{}, oAuthProps)
+	base := oauth.NewOAuthExecutor(id, name, []flowmodel.InputData{}, properties, oAuthProps)
 	exec, ok := base.(*oauth.OAuthExecutor)
 	if !ok {
 		panic("failed to cast GithubOAuthExecutor to OAuthExecutor")
