@@ -27,4 +27,4 @@ const (
 )
 
 // idTokenNonUserAttributes contains the list of non-user attributes that are expected in the ID token.
-var idTokenNonUserAttributes = []string{"aud", "exp", "iat", "iss", "at_hash", "azp", "nonce"}
+var idTokenNonUserAttributes = []string{"aud", "exp", "iat", "iss", "at_hash", "azp", "nonce", "sub"}

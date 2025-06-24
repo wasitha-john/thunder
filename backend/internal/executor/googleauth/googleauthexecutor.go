@@ -42,6 +42,8 @@ type GoogleOIDCAuthExecutor struct {
 	*oidcauth.OIDCAuthExecutor
 }
 
+var _ flowmodel.ExecutorInterface = (*GoogleOIDCAuthExecutor)(nil)
+
 // NewGoogleOIDCAuthExecutorFromProps creates a new instance of GoogleOIDCAuthExecutor with the provided properties.
 func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 	oAuthProps *model.BasicOAuthExecProperties) oidcauth.OIDCAuthExecutorInterface {
@@ -156,10 +158,9 @@ func (g *GoogleOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeCont
 		}
 
 		if tokenResp.Scope == "" {
-			logger.Debug("Scopes are empty in the token response")
+			logger.Error("Scopes are empty in the token response")
 			execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
-				IsAuthenticated: true,
-				UserID:          "550e8400-e29b-41d4-a716-446655440000",
+				IsAuthenticated: false,
 			}
 		} else {
 			authenticatedUser, err := g.getAuthenticatedUserWithAttributes(ctx, execResp, tokenResp)
@@ -294,6 +295,7 @@ func (g *GoogleOIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmod
 	}
 
 	userClaims := make(map[string]string)
+	userID := ""
 	if tokenResp.IDToken != "" {
 		if err := g.ValidateIDToken(execResp, tokenResp.IDToken); err != nil {
 			return nil, fmt.Errorf("failed to validate ID token: %w", err)
@@ -319,6 +321,21 @@ func (g *GoogleOIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmod
 				}
 			}
 
+			// Resolve user with the sub claim if available.
+			// TODO: For now assume `sub` is the unique identifier for the user always.
+			sub, ok := idTokenClaims["sub"]
+			if ok {
+				if subStr, ok := sub.(string); ok && subStr != "" {
+					userID, err = g.resolveUser(subStr, execResp)
+					if err != nil {
+						return nil, err
+					}
+					if execResp.Status == flowconst.ExecFailure {
+						return nil, nil
+					}
+				}
+			}
+
 			// Filter non-user claims from the ID token claims.
 			for attr, val := range idTokenClaims {
 				if !slices.Contains(idTokenNonUserAttributes, attr) {
@@ -340,16 +357,51 @@ func (g *GoogleOIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmod
 		if execResp.Status == flowconst.ExecFailure {
 			return nil, nil
 		}
-		for key, value := range userInfo {
-			userClaims[key] = value
+
+		// If userID is still empty, try to resolve it using the sub claim from userInfo.
+		// TODO: For now assume `sub` is the unique identifier for the user always.
+		if userID == "" {
+			sub, ok := userInfo["sub"]
+			if !ok || sub == "" {
+				execResp.Status = flowconst.ExecFailure
+				execResp.FailureReason = "sub claim not found in the response."
+				return nil, nil
+			}
+			userID, err = g.resolveUser(sub, execResp)
+			if err != nil {
+				return nil, err
+			}
+			if execResp.Status == flowconst.ExecFailure {
+				return nil, nil
+			}
 		}
+
+		for key, value := range userInfo {
+			if key != "username" && key != "sub" && key != "id" {
+				userClaims[key] = value
+			}
+		}
+		userClaims["user_id"] = userID
 	}
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          "550e8400-e29b-41d4-a716-446655440000",
+		UserID:          userID,
 		Attributes:      userClaims,
 	}
 
 	return &authenticatedUser, nil
+}
+
+// resolveUser resolves the user based on the sub claim from user info.
+func (g *GoogleOIDCAuthExecutor) resolveUser(sub string, execResp *flowmodel.ExecutorResponse) (string, error) {
+	filters := map[string]interface{}{"sub": sub}
+	userID, err := g.IdentifyUser(filters, execResp)
+	if err != nil {
+		return "", fmt.Errorf("failed to identify user with sub claim: %w", err)
+	}
+	if execResp.Status == flowconst.ExecFailure {
+		return "", nil
+	}
+	return *userID, nil
 }

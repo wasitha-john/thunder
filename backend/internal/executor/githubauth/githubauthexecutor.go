@@ -45,6 +45,8 @@ type GithubOAuthExecutor struct {
 	*oauth.OAuthExecutor
 }
 
+var _ flowmodel.ExecutorInterface = (*GithubOAuthExecutor)(nil)
+
 // NewGithubOAuthExecutorFromProps creates a new instance of GithubOAuthExecutor with the provided properties.
 func NewGithubOAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 	oAuthProps *model.BasicOAuthExecProperties) oauth.OAuthExecutorInterface {
@@ -160,10 +162,9 @@ func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext
 		}
 
 		if tokenResp.Scope == "" {
-			logger.Debug("Scope is empty in the token response")
+			logger.Error("Scopes are empty in the token response")
 			execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
-				IsAuthenticated: true,
-				UserID:          "550e8400-e29b-41d4-a716-446655440000",
+				IsAuthenticated: false,
 			}
 		} else {
 			authenticatedUser, err := o.getAuthenticatedUserWithAttributes(ctx, execResp, tokenResp.AccessToken)
@@ -331,17 +332,36 @@ func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.
 		return nil, nil
 	}
 
+	// Resolve user with the id claim.
+	// TODO: For now assume `id` is the unique identifier for the user always.
+	sub, ok := userInfo["id"]
+	if !ok || sub == "" {
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "id claim not found in the response."
+		return nil, nil
+	}
+
+	filters := map[string]interface{}{"sub": sub}
+	userID, err := o.IdentifyUser(filters, execResp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to identify user with id claim: %w", err)
+	}
+	if execResp.Status == flowconst.ExecFailure {
+		return nil, nil
+	}
+
 	// Populate authenticated user from user info
 	attributes := make(map[string]string)
 	for key, value := range userInfo {
-		if key != "username" && key != "sub" {
+		if key != "username" && key != "sub" && key != "id" {
 			attributes[key] = value
 		}
 	}
+	attributes["user_id"] = *userID
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          "550e8400-e29b-41d4-a716-446655440000",
+		UserID:          *userID,
 		Attributes:      attributes,
 	}
 

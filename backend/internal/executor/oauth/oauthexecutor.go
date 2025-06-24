@@ -30,6 +30,7 @@ import (
 
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
 	authnutils "github.com/asgardeo/thunder/internal/authn/utils"
+	"github.com/asgardeo/thunder/internal/executor/identify"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	"github.com/asgardeo/thunder/internal/executor/oauth/utils"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
@@ -62,9 +63,12 @@ type OAuthExecutorInterface interface {
 
 // OAuthExecutor implements the OAuthExecutorInterface for handling generic OAuth authentication flows.
 type OAuthExecutor struct {
+	*identify.IdentifyingExecutor
 	internal        flowmodel.Executor
 	oAuthProperties model.OAuthExecProperties
 }
+
+var _ flowmodel.ExecutorInterface = (*OAuthExecutor)(nil)
 
 // NewOAuthExecutor creates a new instance of OAuthExecutor.
 func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, properties map[string]string,
@@ -225,10 +229,9 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 		}
 
 		if tokenResp.Scope == "" {
-			logger.Debug("Scope is empty in the token response")
+			logger.Error("Scopes are empty in the token response")
 			execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
-				IsAuthenticated: true,
-				UserID:          "550e8400-e29b-41d4-a716-446655440000",
+				IsAuthenticated: false,
 			}
 		} else {
 			authenticatedUser, err := o.getAuthenticatedUserWithAttributes(ctx, execResp, tokenResp.AccessToken)
@@ -461,6 +464,24 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 		return nil, nil
 	}
 
+	// Resolve user with the sub claim.
+	// TODO: For now assume `sub` is the unique identifier for the user always.
+	sub, ok := userInfo["sub"]
+	if !ok || sub == "" {
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "sub claim not found in the response."
+		return nil, nil
+	}
+
+	filters := map[string]interface{}{"sub": sub}
+	userID, err := o.IdentifyUser(filters, execResp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to identify user with sub claim: %w", err)
+	}
+	if execResp.Status == flowconst.ExecFailure {
+		return nil, nil
+	}
+
 	// Populate authenticated user from user info
 	attributes := make(map[string]string)
 	for key, value := range userInfo {
@@ -468,10 +489,11 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 			attributes[key] = value
 		}
 	}
+	attributes["user_id"] = *userID
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          "550e8400-e29b-41d4-a716-446655440000",
+		UserID:          *userID,
 		Attributes:      attributes,
 	}
 

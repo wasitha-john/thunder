@@ -25,6 +25,7 @@ import (
 	"slices"
 
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
+	"github.com/asgardeo/thunder/internal/executor/identify"
 	"github.com/asgardeo/thunder/internal/executor/oauth"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	oauthmodel "github.com/asgardeo/thunder/internal/executor/oauth/model"
@@ -47,7 +48,10 @@ type OIDCAuthExecutorInterface interface {
 // OIDCAuthExecutor implements the OIDCAuthExecutorInterface for handling generic OIDC authentication flows.
 type OIDCAuthExecutor struct {
 	internal oauth.OAuthExecutorInterface
+	*identify.IdentifyingExecutor
 }
+
+var _ flowmodel.ExecutorInterface = (*OIDCAuthExecutor)(nil)
 
 // NewOIDCAuthExecutor creates a new instance of OIDCAuthExecutor.
 func NewOIDCAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, properties map[string]string,
@@ -206,8 +210,26 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 			return nil
 		}
 
+		// Resolve user with the sub claim.
+		// TODO: For now assume `sub` is the unique identifier for the user always.
+		sub, ok := idTokenClaims["sub"]
+		if !ok || sub == "" {
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "sub claim not found in the response."
+			return nil
+		}
+
+		filters := map[string]interface{}{"sub": sub}
+		userID, err := o.IdentifyUser(filters, execResp)
+		if err != nil {
+			return fmt.Errorf("failed to identify user with sub claim: %w", err)
+		}
+		if execResp.Status == flowconst.ExecFailure {
+			return nil
+		}
+
 		authenticatedUser, err := o.getAuthenticatedUserWithAttributes(ctx, execResp,
-			tokenResp.AccessToken, idTokenClaims)
+			tokenResp.AccessToken, idTokenClaims, *userID)
 		if err != nil {
 			return err
 		}
@@ -324,8 +346,8 @@ func (o *OIDCAuthExecutor) validateTokenResponse(tokenResp *model.TokenResponse)
 // getAuthenticatedUserWithAttributes constructs the authenticated user object with attributes from the
 // ID token and user info.
 func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse, accessToken string,
-	idTokenClaims map[string]interface{}) (*authnmodel.AuthenticatedUser, error) {
+	execResp *flowmodel.ExecutorResponse, accessToken string, idTokenClaims map[string]interface{},
+	userID string) (*authnmodel.AuthenticatedUser, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -340,6 +362,7 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 		}
 		logger.Debug("Extracted ID token claims", log.Any("claims", userClaims))
 	}
+	userClaims["user_id"] = userID
 
 	if len(o.GetOAuthProperties().Scopes) == 1 && slices.Contains(o.GetOAuthProperties().Scopes, "openid") {
 		logger.Debug("No additional scopes configured.")
@@ -359,7 +382,7 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 
 	authenticatedUser := authnmodel.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          "550e8400-e29b-41d4-a716-446655440000",
+		UserID:          userID,
 		Attributes:      userClaims,
 	}
 
