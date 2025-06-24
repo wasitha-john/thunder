@@ -47,8 +47,8 @@ type OIDCAuthExecutorInterface interface {
 
 // OIDCAuthExecutor implements the OIDCAuthExecutorInterface for handling generic OIDC authentication flows.
 type OIDCAuthExecutor struct {
-	internal oauth.OAuthExecutorInterface
 	*identify.IdentifyingExecutor
+	internal oauth.OAuthExecutorInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*OIDCAuthExecutor)(nil)
@@ -76,7 +76,8 @@ func NewOIDCAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, p
 	base := oauth.NewOAuthExecutor(id, name, defaultInputs, properties, &compOAuthProps)
 
 	return &OIDCAuthExecutor{
-		internal: base,
+		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
+		internal:            base,
 	}
 }
 

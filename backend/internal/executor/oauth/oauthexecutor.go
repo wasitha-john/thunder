@@ -83,8 +83,9 @@ func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, prop
 		}
 	}
 	return &OAuthExecutor{
-		internal:        *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
-		oAuthProperties: *oAuthProps,
+		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
+		internal:            *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
+		oAuthProperties:     *oAuthProps,
 	}
 }
 

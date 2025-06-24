@@ -55,7 +55,8 @@ func NewBasicAuthExecutor(id, name string, properties map[string]string) *BasicA
 		},
 	}
 	return &BasicAuthExecutor{
-		internal: *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
+		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
+		internal:            *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
 	}
 }
 
