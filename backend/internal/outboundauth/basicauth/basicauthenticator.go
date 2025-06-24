@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
 	authnutils "github.com/asgardeo/thunder/internal/authn/utils"
@@ -96,6 +97,7 @@ func (b *BasicAuthenticator) ProcessAuthenticationResponse(w http.ResponseWriter
 	}
 
 	ctx.AuthenticatedUser = *authenticatedUser
+	ctx.AuthTime = time.Now()
 	return nil
 }
 

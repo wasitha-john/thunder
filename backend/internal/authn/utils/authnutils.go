@@ -24,7 +24,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
+	"github.com/asgardeo/thunder/internal/authn/constants"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
@@ -32,11 +32,11 @@ import (
 
 // GetLoginPageRedirectURI returns the login page URL with the given query parameters.
 func GetLoginPageRedirectURI(queryParams map[string]string) (string, error) {
-	GateClient := config.GetThunderRuntime().Config.GateClient
+	gateClientConfig := config.GetThunderRuntime().Config.GateClient
 	loginPageURL := (&url.URL{
-		Scheme: "https",
-		Host:   fmt.Sprintf("%s:%d", GateClient.Hostname, GateClient.Port),
-		Path:   "login",
+		Scheme: gateClientConfig.Scheme,
+		Host:   fmt.Sprintf("%s:%d", gateClientConfig.Hostname, gateClientConfig.Port),
+		Path:   gateClientConfig.LoginPath,
 	}).String()
 
 	return utils.GetURIWithQueryParams(loginPageURL, queryParams)
@@ -46,9 +46,9 @@ func GetLoginPageRedirectURI(queryParams map[string]string) (string, error) {
 func GetErrorPageURL(queryParams map[string]string) (string, error) {
 	gateClientConfig := config.GetThunderRuntime().Config.GateClient
 	errorPageURL := (&url.URL{
-		Scheme: "https",
+		Scheme: gateClientConfig.Scheme,
 		Host:   fmt.Sprintf("%s:%d", gateClientConfig.Hostname, gateClientConfig.Port),
-		Path:   "error",
+		Path:   gateClientConfig.ErrorPath,
 	}).String()
 
 	return utils.GetURIWithQueryParams(errorPageURL, queryParams)
@@ -62,8 +62,8 @@ func RedirectToErrorPage(w http.ResponseWriter, r *http.Request, code, msg strin
 	}
 
 	queryParams := map[string]string{
-		constants.OAuthErrorCode:    code,
-		constants.OAuthErrorMessage: msg,
+		constants.QueryParamErrorCode:    code,
+		constants.QueryParamErrorMessage: msg,
 	}
 	redirectURL, err := GetErrorPageURL(queryParams)
 	if err != nil {
