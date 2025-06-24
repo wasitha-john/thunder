@@ -59,7 +59,7 @@ func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 	}
 
 	base := oidcauth.NewOIDCAuthExecutor("google_oidc_auth_executor", execProps.Name,
-		[]flowmodel.InputData{}, compOAuthProps)
+		[]flowmodel.InputData{}, execProps.Properties, compOAuthProps)
 	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
 	if !ok {
 		panic("failed to cast GoogleOIDCAuthExecutor to OIDCAuthExecutor")
@@ -70,8 +70,9 @@ func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 }
 
 // NewGoogleOIDCAuthExecutor creates a new instance of GoogleOIDCAuthExecutor with the provided details.
-func NewGoogleOIDCAuthExecutor(id, name, clientID, clientSecret, redirectURI string,
-	scopes []string, additionalParams map[string]string) oidcauth.OIDCAuthExecutorInterface {
+func NewGoogleOIDCAuthExecutor(id, name string, properties map[string]string,
+	clientID, clientSecret, redirectURI string, scopes []string,
+	additionalParams map[string]string) oidcauth.OIDCAuthExecutorInterface {
 	// Prepare the OAuth properties for Google
 	oAuthProps := &model.OAuthExecProperties{
 		AuthorizationEndpoint: googleAuthorizeEndpoint,
@@ -85,7 +86,7 @@ func NewGoogleOIDCAuthExecutor(id, name, clientID, clientSecret, redirectURI str
 		AdditionalParams:      additionalParams,
 	}
 
-	base := oidcauth.NewOIDCAuthExecutor(id, name, []flowmodel.InputData{}, oAuthProps)
+	base := oidcauth.NewOIDCAuthExecutor(id, name, []flowmodel.InputData{}, properties, oAuthProps)
 	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
 	if !ok {
 		panic("failed to cast GoogleOIDCAuthExecutor to OIDCAuthExecutor")

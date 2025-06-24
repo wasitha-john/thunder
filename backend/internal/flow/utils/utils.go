@@ -220,7 +220,7 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 		if err != nil {
 			return nil, fmt.Errorf("error while getting IDP for BasicAuthExecutor: %w", err)
 		}
-		executor = basicauth.NewBasicAuthExecutor(idp.ID, idp.Name)
+		executor = basicauth.NewBasicAuthExecutor(idp.ID, idp.Name, execConfig.Properties)
 	case "SMSOTPAuthExecutor":
 		idp, err := getIDP("Local")
 		if err != nil {
@@ -232,9 +232,9 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 		}
 		senderName, exists := execConfig.Properties["senderName"]
 		if !exists || senderName == "" {
-			return nil, fmt.Errorf("sender_name property is required for SMSOTPAuthExecutor")
+			return nil, fmt.Errorf("senderName property is required for SMSOTPAuthExecutor")
 		}
-		executor = smsauth.NewSMSOTPAuthExecutor(idp.ID, idp.Name, senderName)
+		executor = smsauth.NewSMSOTPAuthExecutor(idp.ID, idp.Name, execConfig.Properties)
 	case "GithubOAuthExecutor":
 		idp, err := getIDP(execConfig.IdpName)
 		if err != nil {
@@ -247,8 +247,8 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 			return nil, err
 		}
 
-		executor = githubauth.NewGithubOAuthExecutor(idp.ID, idp.Name, clientID, clientSecret,
-			redirectURI, scopes, additionalParams)
+		executor = githubauth.NewGithubOAuthExecutor(idp.ID, idp.Name, execConfig.Properties,
+			clientID, clientSecret, redirectURI, scopes, additionalParams)
 	case "GoogleOIDCAuthExecutor":
 		idp, err := getIDP(execConfig.IdpName)
 		if err != nil {
@@ -261,12 +261,14 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 			return nil, err
 		}
 
-		executor = googleauth.NewGoogleOIDCAuthExecutor(idp.ID, idp.Name, clientID, clientSecret,
-			redirectURI, scopes, additionalParams)
+		executor = googleauth.NewGoogleOIDCAuthExecutor(idp.ID, idp.Name, execConfig.Properties,
+			clientID, clientSecret, redirectURI, scopes, additionalParams)
 	case "AttributeCollector":
-		executor = attributecollect.NewAttributeCollector("attribute-collector", "AttributeCollector")
+		executor = attributecollect.NewAttributeCollector("attribute-collector", "AttributeCollector",
+			execConfig.Properties)
 	case "AuthAssertExecutor":
-		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor")
+		executor = authassert.NewAuthAssertExecutor("auth-assert-executor", "AuthAssertExecutor",
+			execConfig.Properties)
 	default:
 		return nil, fmt.Errorf("executor with name %s not found", execConfig.Name)
 	}

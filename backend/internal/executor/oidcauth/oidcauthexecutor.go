@@ -50,7 +50,7 @@ type OIDCAuthExecutor struct {
 }
 
 // NewOIDCAuthExecutor creates a new instance of OIDCAuthExecutor.
-func NewOIDCAuthExecutor(id, name string, defaultInputs []flowmodel.InputData,
+func NewOIDCAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, properties map[string]string,
 	oAuthProps *oauthmodel.OAuthExecProperties) OIDCAuthExecutorInterface {
 	scopes := oAuthProps.Scopes
 	if !slices.Contains(scopes, "openid") {
@@ -69,7 +69,7 @@ func NewOIDCAuthExecutor(id, name string, defaultInputs []flowmodel.InputData,
 		AdditionalParams:      oAuthProps.AdditionalParams,
 		Properties:            oAuthProps.Properties,
 	}
-	base := oauth.NewOAuthExecutor(id, name, defaultInputs, &compOAuthProps)
+	base := oauth.NewOAuthExecutor(id, name, defaultInputs, properties, &compOAuthProps)
 
 	return &OIDCAuthExecutor{
 		internal: base,

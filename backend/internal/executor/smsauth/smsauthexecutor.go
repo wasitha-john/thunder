@@ -51,12 +51,11 @@ const (
 
 // SMSOTPAuthExecutor implements the ExecutorInterface for SMS OTP authentication.
 type SMSOTPAuthExecutor struct {
-	internal   flowmodel.Executor
-	senderName string
+	internal flowmodel.Executor
 }
 
 // NewSMSOTPAuthExecutor creates a new instance of SMSOTPAuthExecutor.
-func NewSMSOTPAuthExecutor(id, name, senderName string) flowmodel.ExecutorInterface {
+func NewSMSOTPAuthExecutor(id, name string, properties map[string]string) *SMSOTPAuthExecutor {
 	defaultInputs := []flowmodel.InputData{
 		{
 			Name:     userInputOTP,
@@ -74,8 +73,7 @@ func NewSMSOTPAuthExecutor(id, name, senderName string) flowmodel.ExecutorInterf
 	}
 
 	return &SMSOTPAuthExecutor{
-		internal:   *flowmodel.NewExecutor(id, name, defaultInputs, prerequisites),
-		senderName: senderName,
+		internal: *flowmodel.NewExecutor(id, name, defaultInputs, prerequisites, properties),
 	}
 }
 
@@ -420,17 +418,27 @@ func (s *SMSOTPAuthExecutor) generateAndSendOTP(userID, mobileNumber string, ctx
 			otp.Value, otp.ValidityPeriodInMillis/60000),
 	}
 
+	// Get the message sender name from executor properties.
+	execProps := s.GetProperties().Properties
+	if len(execProps) == 0 {
+		return errors.New("message sender name is not configured in executor properties")
+	}
+	senderName, ok := execProps["senderName"]
+	if !ok || senderName == "" {
+		return errors.New("message sender name is not configured in executor properties")
+	}
+
 	// Send the SMS OTP.
 	provider := msgsenderprovider.NewNotificationServiceProvider()
 	service := provider.GetMessageClientService()
-	msgClient, svcErr := service.GetMessageClientByName(s.senderName)
+	msgClient, svcErr := service.GetMessageClientByName(senderName)
 	if svcErr != nil {
-		logger.Error("Failed to get message client", log.String("senderName", s.senderName),
+		logger.Error("Failed to get message client", log.String("senderName", senderName),
 			log.Any("serviceError", svcErr))
 		return fmt.Errorf("failed to get message client: %s", svcErr.ErrorDescription)
 	}
 	if msgClient == nil {
-		return fmt.Errorf("message client %s not found", s.senderName)
+		return fmt.Errorf("message client %s not found", senderName)
 	}
 
 	if err := msgClient.SendSMS(smsData); err != nil {

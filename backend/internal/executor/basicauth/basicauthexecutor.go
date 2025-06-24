@@ -37,7 +37,7 @@ type BasicAuthExecutor struct {
 }
 
 // NewBasicAuthExecutor creates a new instance of BasicAuthExecutor.
-func NewBasicAuthExecutor(id, name string) flowmodel.ExecutorInterface {
+func NewBasicAuthExecutor(id, name string, properties map[string]string) *BasicAuthExecutor {
 	defaultInputs := []flowmodel.InputData{
 		{
 			Name:     "username",
@@ -51,7 +51,7 @@ func NewBasicAuthExecutor(id, name string) flowmodel.ExecutorInterface {
 		},
 	}
 	return &BasicAuthExecutor{
-		internal: *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}),
+		internal: *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
 	}
 }
 

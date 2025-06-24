@@ -80,11 +80,13 @@ type Executor struct {
 }
 
 // NewExecutor creates a new instance of Executor with the given properties.
-func NewExecutor(id, name string, defaultInputs []InputData, prerequisites []InputData) *Executor {
+func NewExecutor(id, name string, defaultInputs []InputData, prerequisites []InputData,
+	properties map[string]string) *Executor {
 	return &Executor{
 		Properties: ExecutorProperties{
-			ID:   id,
-			Name: name,
+			ID:         id,
+			Name:       name,
+			Properties: properties,
 		},
 		DefaultExecutorInputs: defaultInputs,
 		Prerequisites:         prerequisites,
