@@ -54,6 +54,8 @@ type SMSOTPAuthExecutor struct {
 	internal flowmodel.Executor
 }
 
+var _ flowmodel.ExecutorInterface = (*SMSOTPAuthExecutor)(nil)
+
 // NewSMSOTPAuthExecutor creates a new instance of SMSOTPAuthExecutor.
 func NewSMSOTPAuthExecutor(id, name string, properties map[string]string) *SMSOTPAuthExecutor {
 	defaultInputs := []flowmodel.InputData{

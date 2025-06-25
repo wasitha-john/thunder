@@ -35,6 +35,8 @@ type AuthAssertExecutor struct {
 	internal flowmodel.Executor
 }
 
+var _ flowmodel.ExecutorInterface = (*AuthAssertExecutor)(nil)
+
 // NewAuthAssertExecutor creates a new instance of AuthAssertExecutor.
 func NewAuthAssertExecutor(id, name string, properties map[string]string) *AuthAssertExecutor {
 	return &AuthAssertExecutor{

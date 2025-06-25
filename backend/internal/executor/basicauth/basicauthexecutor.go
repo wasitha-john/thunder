@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
+	"github.com/asgardeo/thunder/internal/executor/identify"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -33,8 +34,11 @@ const loggerComponentName = "BasicAuthExecutor"
 
 // BasicAuthExecutor implements the ExecutorInterface for basic authentication.
 type BasicAuthExecutor struct {
+	*identify.IdentifyingExecutor
 	internal flowmodel.Executor
 }
+
+var _ flowmodel.ExecutorInterface = (*BasicAuthExecutor)(nil)
 
 // NewBasicAuthExecutor creates a new instance of BasicAuthExecutor.
 func NewBasicAuthExecutor(id, name string, properties map[string]string) *BasicAuthExecutor {
@@ -51,7 +55,8 @@ func NewBasicAuthExecutor(id, name string, properties map[string]string) *BasicA
 		},
 	}
 	return &BasicAuthExecutor{
-		internal: *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
+		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
+		internal:            *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
 	}
 }
 
@@ -94,10 +99,13 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exec
 	// TODO: Should handle client errors here. Service should return a ServiceError and
 	//  client errors should be appended as a failure.
 	//  For the moment handling returned error as a authentication failure.
-	authenticatedUser, err := getAuthenticatedUser(username, ctx.UserInputData["password"], logger)
+	authenticatedUser, err := b.getAuthenticatedUser(username, ctx.UserInputData["password"], execResp)
 	if err != nil {
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "Failed to authenticate user: " + err.Error()
+		return execResp, nil
+	}
+	if execResp.Status == flowconst.ExecFailure {
 		return execResp, nil
 	}
 	if authenticatedUser == nil {
@@ -154,23 +162,22 @@ func (b *BasicAuthExecutor) GetRequiredData(ctx *flowmodel.NodeContext) []flowmo
 
 // getAuthenticatedUser perform authentication based on the provided username and password and return
 // authenticated user details.
-func getAuthenticatedUser(username, password string, logger *log.Logger) (*authnmodel.AuthenticatedUser, error) {
-	userProvider := userprovider.NewUserProvider()
-	userService := userProvider.GetUserService()
+func (b *BasicAuthExecutor) getAuthenticatedUser(username, password string,
+	execResp *flowmodel.ExecutorResponse) (*authnmodel.AuthenticatedUser, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, b.GetID()))
 
 	filters := map[string]interface{}{"username": username}
-	userID, err := userService.IdentifyUser(filters)
+	userID, err := b.IdentifyUser(filters, execResp)
 	if err != nil {
-		logger.Error("Failed to identify user by username",
-			log.String("username", log.MaskString(username)),
-			log.Error(err))
 		return nil, err
 	}
-	if *userID == "" {
-		logger.Error("User not found for the provided username",
-			log.String("username", log.MaskString(username)))
-		return nil, err
+	if execResp.Status == flowconst.ExecFailure {
+		return nil, nil
 	}
+
+	userProvider := userprovider.NewUserProvider()
+	userService := userProvider.GetUserService()
 
 	user, err := userService.VerifyUser(*userID, "password", password)
 	if err != nil {

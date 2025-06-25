@@ -20,19 +20,15 @@
 package googleauth
 
 import (
-	"errors"
 	"fmt"
-	"slices"
 	"time"
 
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	"github.com/asgardeo/thunder/internal/executor/oidcauth"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 	jwtutils "github.com/asgardeo/thunder/internal/system/crypto/jwt/utils"
 	"github.com/asgardeo/thunder/internal/system/log"
-	systemutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 const loggerComponentName = "GoogleOIDCAuthExecutor"
@@ -41,6 +37,8 @@ const loggerComponentName = "GoogleOIDCAuthExecutor"
 type GoogleOIDCAuthExecutor struct {
 	*oidcauth.OIDCAuthExecutor
 }
+
+var _ flowmodel.ExecutorInterface = (*GoogleOIDCAuthExecutor)(nil)
 
 // NewGoogleOIDCAuthExecutorFromProps creates a new instance of GoogleOIDCAuthExecutor with the provided properties.
 func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
@@ -130,63 +128,6 @@ func (g *GoogleOIDCAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel
 	return execResp, nil
 }
 
-// ProcessAuthFlowResponse processes the response from the Google OIDC authentication flow.
-func (g *GoogleOIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
-		log.String("executorID", g.GetID()), log.String("flowID", ctx.FlowID))
-	logger.Debug("Processing Google OIDC auth flow response")
-
-	code, okCode := ctx.UserInputData["code"]
-	if okCode && code != "" {
-		tokenResp, err := g.ExchangeCodeForToken(ctx, execResp, code)
-		if err != nil {
-			logger.Error("Failed to exchange authorization code for token", log.Error(err))
-			return fmt.Errorf("failed to exchange code for token: %w", err)
-		}
-		if execResp.Status == flowconst.ExecFailure {
-			return nil
-		}
-
-		err = g.validateTokenResponse(tokenResp)
-		if err != nil {
-			execResp.Status = flowconst.ExecFailure
-			execResp.FailureReason = err.Error()
-			return nil
-		}
-
-		if tokenResp.Scope == "" {
-			logger.Debug("Scopes are empty in the token response")
-			execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
-				IsAuthenticated: true,
-				UserID:          "550e8400-e29b-41d4-a716-446655440000",
-			}
-		} else {
-			authenticatedUser, err := g.getAuthenticatedUserWithAttributes(ctx, execResp, tokenResp)
-			if err != nil {
-				return err
-			}
-			if authenticatedUser == nil {
-				return nil
-			}
-			execResp.AuthenticatedUser = *authenticatedUser
-		}
-	} else {
-		execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
-			IsAuthenticated: false,
-		}
-	}
-
-	if execResp.AuthenticatedUser.IsAuthenticated {
-		execResp.Status = flowconst.ExecComplete
-	} else {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "Authentication failed. Authorization code not provided or invalid."
-	}
-
-	return nil
-}
-
 // ValidateIDToken validates the ID token received from Google.
 func (g *GoogleOIDCAuthExecutor) ValidateIDToken(execResp *flowmodel.ExecutorResponse, idToken string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
@@ -266,90 +207,4 @@ func (g *GoogleOIDCAuthExecutor) ValidateIDToken(execResp *flowmodel.ExecutorRes
 	}
 
 	return nil
-}
-
-// validateTokenResponse validates the token response received from Google.
-func (g *GoogleOIDCAuthExecutor) validateTokenResponse(tokenResp *model.TokenResponse) error {
-	if tokenResp == nil {
-		return errors.New("token response is nil")
-	}
-	if tokenResp.AccessToken == "" {
-		return errors.New("access token is empty in the token response")
-	}
-	return nil
-}
-
-// getAuthenticatedUserWithAttributes retrieves the authenticated user with attributes from the token response.
-func (g *GoogleOIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse, tokenResp *model.TokenResponse) (*authnmodel.AuthenticatedUser, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
-		log.String(log.LoggerKeyExecutorID, g.GetID()),
-		log.String(log.LoggerKeyFlowID, ctx.FlowID))
-
-	// If scopes contains openid, check if the id token is present.
-	if slices.Contains(g.GetOAuthProperties().Scopes, "openid") && tokenResp.IDToken == "" {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "ID token is empty in the token response."
-		return nil, nil
-	}
-
-	userClaims := make(map[string]string)
-	if tokenResp.IDToken != "" {
-		if err := g.ValidateIDToken(execResp, tokenResp.IDToken); err != nil {
-			return nil, fmt.Errorf("failed to validate ID token: %w", err)
-		}
-		if execResp.Status == flowconst.ExecFailure {
-			return nil, nil
-		}
-
-		idTokenClaims, err := g.GetIDTokenClaims(execResp, tokenResp.IDToken)
-		if err != nil {
-			return nil, fmt.Errorf("failed to extract ID token claims: %w", err)
-		}
-		if execResp.Status == flowconst.ExecFailure {
-			return nil, nil
-		}
-		if len(idTokenClaims) != 0 {
-			// Validate nonce if configured.
-			if nonce, ok := ctx.UserInputData["nonce"]; ok && nonce != "" {
-				if idTokenClaims["nonce"] != nonce {
-					execResp.Status = flowconst.ExecFailure
-					execResp.FailureReason = "Nonce mismatch in ID token claims."
-					return nil, nil
-				}
-			}
-
-			// Filter non-user claims from the ID token claims.
-			for attr, val := range idTokenClaims {
-				if !slices.Contains(idTokenNonUserAttributes, attr) {
-					userClaims[attr] = systemutils.ConvertInterfaceValueToString(val)
-				}
-			}
-			logger.Debug("Extracted ID token claims", log.Any("claims", userClaims))
-		}
-	}
-
-	if len(g.GetOAuthProperties().Scopes) == 0 ||
-		(len(g.GetOAuthProperties().Scopes) == 1 && slices.Contains(g.GetOAuthProperties().Scopes, "openid")) {
-		logger.Debug("No additional scopes configured.")
-	} else {
-		userInfo, err := g.GetUserInfo(ctx, execResp, tokenResp.AccessToken)
-		if err != nil {
-			return nil, errors.New("failed to get user info: " + err.Error())
-		}
-		if execResp.Status == flowconst.ExecFailure {
-			return nil, nil
-		}
-		for key, value := range userInfo {
-			userClaims[key] = value
-		}
-	}
-
-	authenticatedUser := authnmodel.AuthenticatedUser{
-		IsAuthenticated: true,
-		UserID:          "550e8400-e29b-41d4-a716-446655440000",
-		Attributes:      userClaims,
-	}
-
-	return &authenticatedUser, nil
 }
