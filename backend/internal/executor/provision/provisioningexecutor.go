@@ -91,15 +91,6 @@ func (p *ProvisioningExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.E
 		return execResp, nil
 	}
 
-	// TODO: Note:
-	// May be we should check user existence at this point with what ever data available in the context.
-	// Then prompt for additional data if the user doesn't exist.
-	// Otherwise all data will be collected from the user before validating and will fail at the end.
-	// Also unique user may not exists for the entire set of attributes, but a user could be there
-	// with the same username and/or email and/or mobile.
-	// So we should be able to define which inputs should be used to identify the unique user. Currently
-	// we are using inputs defined for the ProvisioningExecutor node.
-
 	if p.CheckInputData(ctx, execResp) {
 		if execResp.Status == flowconst.ExecFailure {
 			return execResp, nil
