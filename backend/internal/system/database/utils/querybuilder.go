@@ -20,7 +20,6 @@ func BuildFilterQuery(
 		return model.DBQuery{}, nil, fmt.Errorf("invalid column name: %w", err)
 	}
 
-	query := baseQuery
 	args := make([]interface{}, 0, len(filters))
 
 	keys := make([]string, 0, len(filters))
@@ -31,14 +30,20 @@ func BuildFilterQuery(
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	for _, key := range keys {
-		query += fmt.Sprintf(" AND json_extract(%s, '$.%s') = ?", columnName, key)
+
+	postgresQuery := baseQuery
+	sqliteQuery := baseQuery
+	for i, key := range keys {
+		postgresQuery += fmt.Sprintf(" AND %s->>'%s' = $%d", columnName, key, i+1)
+		sqliteQuery += fmt.Sprintf(" AND json_extract(%s, '$.%s') = ?", columnName, key)
 		args = append(args, filters[key])
 	}
 
 	resultQuery := model.DBQuery{
-		ID:    queryID,
-		Query: query,
+		ID:            queryID,
+		Query:         postgresQuery,
+		PostgresQuery: postgresQuery,
+		SQLiteQuery:   sqliteQuery,
 	}
 
 	return resultQuery, args, nil

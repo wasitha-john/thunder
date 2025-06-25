@@ -53,14 +53,27 @@ func (suite *QueryBuilderTestSuite) TestBuildFilterQuery() {
 
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), queryID, query.ID)
-	assert.Contains(suite.T(), query.Query, baseQuery)
-	assert.Contains(suite.T(), query.Query, "json_extract(attributes, '$.age') = ?")
-	assert.Contains(suite.T(), query.Query, "json_extract(attributes, '$.role') = ?")
 	assert.Len(suite.T(), args, 2)
 
 	// Verify args order due to sorting of keys
 	assert.Equal(suite.T(), int(30), args[0])
 	assert.Equal(suite.T(), "admin", args[1])
+
+	// Test Postgres query
+	postgresQuery := query.GetQuery("postgres")
+	assert.Contains(suite.T(), postgresQuery, baseQuery)
+	assert.Contains(suite.T(), postgresQuery, "attributes->>'age' = $1")
+	assert.Contains(suite.T(), postgresQuery, "attributes->>'role' = $2")
+
+	// Test SQLite query
+	sqliteQuery := query.GetQuery("sqlite")
+	assert.Contains(suite.T(), sqliteQuery, baseQuery)
+	assert.Contains(suite.T(), sqliteQuery, "json_extract(attributes, '$.age') = ?")
+	assert.Contains(suite.T(), sqliteQuery, "json_extract(attributes, '$.role') = ?")
+
+	// Test default query (should return PostgreSQL query)
+	defaultQuery := query.GetQuery("unknown")
+	assert.Equal(suite.T(), postgresQuery, defaultQuery)
 }
 
 func (suite *QueryBuilderTestSuite) TestBuildFilterQueryWithEmptyFilters() {
@@ -73,8 +86,14 @@ func (suite *QueryBuilderTestSuite) TestBuildFilterQueryWithEmptyFilters() {
 
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), queryID, query.ID)
-	assert.Equal(suite.T(), baseQuery, query.Query)
 	assert.Empty(suite.T(), args)
+
+	// Both Postgres and SQLite queries should be the same as base query when no filters
+	postgresQuery := query.GetQuery("postgres")
+	sqliteQuery := query.GetQuery("sqlite")
+	assert.Equal(suite.T(), baseQuery, postgresQuery)
+	assert.Equal(suite.T(), baseQuery, sqliteQuery)
+	assert.Equal(suite.T(), baseQuery, query.Query)
 }
 
 func (suite *QueryBuilderTestSuite) TestBuildFilterQueryWithInvalidColumnName() {
@@ -143,4 +162,70 @@ func (suite *QueryBuilderTestSuite) TestValidateKeyInvalid() {
 		assert.Error(suite.T(), err, "Key should be invalid: %s", key)
 		assert.Contains(suite.T(), err.Error(), "invalid characters")
 	}
+}
+
+func (suite *QueryBuilderTestSuite) TestBuildFilterQueryDatabaseSpecificQueries() {
+	queryID := "db_specific_test"
+	baseQuery := "SELECT USER_ID FROM \"USER\" WHERE 1=1"
+	columnName := "ATTRIBUTES"
+	filters := map[string]interface{}{
+		"email": "test@example.com",
+		"name":  "John Doe",
+	}
+
+	query, args, err := BuildFilterQuery(queryID, baseQuery, columnName, filters)
+
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), queryID, query.ID)
+	assert.Len(suite.T(), args, 2)
+
+	// Verify arguments are in sorted order (email, name)
+	assert.Equal(suite.T(), "test@example.com", args[0])
+	assert.Equal(suite.T(), "John Doe", args[1])
+
+	// Test PostgreSQL-specific query
+	postgresQuery := query.GetQuery("postgres")
+	expectedPostgres := "SELECT USER_ID FROM \"USER\" WHERE 1=1" +
+		" AND ATTRIBUTES->>'email' = $1" +
+		" AND ATTRIBUTES->>'name' = $2"
+	assert.Equal(suite.T(), expectedPostgres, postgresQuery)
+
+	// Test SQLite-specific query
+	sqliteQuery := query.GetQuery("sqlite")
+	expectedSQLite := "SELECT USER_ID FROM \"USER\" WHERE 1=1" +
+		" AND json_extract(ATTRIBUTES, '$.email') = ?" +
+		" AND json_extract(ATTRIBUTES, '$.name') = ?"
+	assert.Equal(suite.T(), expectedSQLite, sqliteQuery)
+
+	// Test that both queries are stored in the struct
+	assert.Equal(suite.T(), expectedPostgres, query.PostgresQuery)
+	assert.Equal(suite.T(), expectedSQLite, query.SQLiteQuery)
+	assert.Equal(suite.T(), expectedPostgres, query.Query) // Default should be PostgreSQL
+}
+
+func (suite *QueryBuilderTestSuite) TestBuildFilterQuerySingleFilter() {
+	queryID := "single_filter"
+	baseQuery := "SELECT * FROM users WHERE active = true"
+	columnName := "metadata"
+	filters := map[string]interface{}{
+		"department": "engineering",
+	}
+
+	query, args, err := BuildFilterQuery(queryID, baseQuery, columnName, filters)
+
+	assert.NoError(suite.T(), err)
+	assert.Len(suite.T(), args, 1)
+	assert.Equal(suite.T(), "engineering", args[0])
+
+	// PostgreSQL query
+	postgresQuery := query.GetQuery("postgres")
+	expectedPostgres := "SELECT * FROM users WHERE active = true" +
+		" AND metadata->>'department' = $1"
+	assert.Equal(suite.T(), expectedPostgres, postgresQuery)
+
+	// SQLite query
+	sqliteQuery := query.GetQuery("sqlite")
+	expectedSQLite := "SELECT * FROM users WHERE active = true" +
+		" AND json_extract(metadata, '$.department') = ?"
+	assert.Equal(suite.T(), expectedSQLite, sqliteQuery)
 }

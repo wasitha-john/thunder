@@ -320,9 +320,14 @@ func VerifyUser(id string) (model.User, model.Credentials, error) {
 	}
 
 	// build the UserDTO with credentials.
-	credentialsJSON, ok := row["credentials"].(string)
-	if !ok {
-		logger.Error("failed to parse credentials as string")
+	var credentialsJSON string
+	switch v := row["credentials"].(type) {
+	case string:
+		credentialsJSON = v
+	case []byte:
+		credentialsJSON = string(v)
+	default:
+		logger.Error("failed to parse credentials", log.String("type", fmt.Sprintf("%T", row["credentials"])))
 		return model.User{}, model.Credentials{}, fmt.Errorf("failed to parse credentials as string")
 	}
 
