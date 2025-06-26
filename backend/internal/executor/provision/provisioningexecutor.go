@@ -173,7 +173,55 @@ func (p *ProvisioningExecutor) GetPrerequisites() []flowmodel.InputData {
 // CheckInputData checks if the required input data is provided in the context.
 // If the attributes are not found, it adds the required data to the executor response.
 func (p *ProvisioningExecutor) CheckInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
-	return p.internal.CheckInputData(ctx, execResp)
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, p.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+	logger.Debug("Checking input data for the provisioning executor")
+
+	inputRequired := p.internal.CheckInputData(ctx, execResp)
+	if !inputRequired {
+		return false
+	}
+	if len(execResp.RequiredData) == 0 {
+		return false
+	}
+
+	// Update the executor response with the required data retrieved from authenticated user attributes.
+	authnUserAttrs := ctx.AuthenticatedUser.Attributes
+	if len(authnUserAttrs) > 0 {
+		logger.Debug("Authenticated user attributes found, updating executor response required data")
+
+		// Clear the required data in the executor response to avoid duplicates.
+		missingAttributes := execResp.RequiredData
+		execResp.RequiredData = make([]flowmodel.InputData, 0)
+		if execResp.RuntimeData == nil {
+			execResp.RuntimeData = make(map[string]string)
+		}
+
+		for _, inputData := range missingAttributes {
+			attribute, exists := authnUserAttrs[inputData.Name]
+			if exists {
+				logger.Debug("Attribute exists in authenticated user attributes, adding to runtime data",
+					log.String("attributeName", inputData.Name))
+
+				// TODO: This should be modified according to the storage mechanism of the
+				//  user store implementation.
+				execResp.RuntimeData[inputData.Name] = attribute
+			} else {
+				logger.Debug("Attribute does not exist in authenticated user attributes, adding to required data",
+					log.String("attributeName", inputData.Name))
+				execResp.RequiredData = append(execResp.RequiredData, inputData)
+			}
+		}
+
+		if len(execResp.RequiredData) == 0 {
+			logger.Debug("All required attributes are available in authenticated user attributes, " +
+				"no further action needed")
+			return false
+		}
+	}
+
+	return true
 }
 
 // ValidatePrerequisites validates the prerequisites for the ProvisioningExecutor.
