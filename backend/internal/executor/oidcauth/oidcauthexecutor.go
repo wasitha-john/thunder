@@ -226,7 +226,7 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 		sub, ok := idTokenClaims["sub"]
 		if ok && sub != "" {
 			if subStr, ok := sub.(string); ok && subStr != "" {
-				userID, err = o.resolveUser(subStr, execResp)
+				userID, err = o.resolveUser(subStr, ctx, execResp)
 				if err != nil {
 					return err
 				}
@@ -253,7 +253,7 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 
 	if execResp.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
-	} else {
+	} else if ctx.FlowType != flowconst.GraphTypeRegistration {
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "Authentication failed. Authorization code not provided or invalid."
 	}
@@ -392,7 +392,7 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 				execResp.FailureReason = "sub claim not found in the response."
 				return nil, nil
 			}
-			userID, err = o.resolveUser(sub, execResp)
+			userID, err = o.resolveUser(sub, ctx, execResp)
 			if err != nil {
 				return nil, err
 			}
@@ -408,29 +408,64 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 		}
 	}
 
-	if userID == "" {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "User not found"
-		return nil, nil
+	authenticatedUser := authnmodel.AuthenticatedUser{}
+	if ctx.FlowType == flowconst.GraphTypeRegistration {
+		authenticatedUser.IsAuthenticated = false
+	} else {
+		if userID == "" {
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "User not found"
+			return nil, nil
+		}
+		userClaims["user_id"] = userID
+		authenticatedUser.IsAuthenticated = true
+		authenticatedUser.UserID = userID
 	}
-	userClaims["user_id"] = userID
 
-	authenticatedUser := authnmodel.AuthenticatedUser{
-		IsAuthenticated: true,
-		UserID:          userID,
-		Attributes:      userClaims,
-	}
+	// TODO: Need to convert attributes as per the IDP to local attribute mapping
+	//  when the support is implemented.
+	authenticatedUser.Attributes = userClaims
 
 	return &authenticatedUser, nil
 }
 
 // resolveUser resolves the user based on the sub claim from user info.
-func (o *OIDCAuthExecutor) resolveUser(sub string, execResp *flowmodel.ExecutorResponse) (string, error) {
+func (o *OIDCAuthExecutor) resolveUser(sub string, ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse) (string, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, o.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+
 	filters := map[string]interface{}{"sub": sub}
 	userID, err := o.IdentifyUser(filters, execResp)
 	if err != nil {
 		return "", fmt.Errorf("failed to identify user with sub claim: %w", err)
 	}
+
+	// Handle registration flows.
+	if ctx.FlowType == flowconst.GraphTypeRegistration {
+		if execResp.Status == flowconst.ExecFailure {
+			if execResp.FailureReason == "User not found" {
+				logger.Debug("User not found for the provided sub claim. Proceeding with registration flow.")
+				execResp.Status = flowconst.ExecComplete
+				execResp.FailureReason = ""
+
+				if execResp.RuntimeData == nil {
+					execResp.RuntimeData = make(map[string]string)
+				}
+				execResp.RuntimeData["sub"] = sub
+
+				return "", nil
+			}
+			return "", err
+		}
+
+		// At this point, a unique user is found in the system. Hence fail the execution.
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "User already exists with the provided sub claim."
+		return "", nil
+	}
+
 	if execResp.Status == flowconst.ExecFailure {
 		return "", nil
 	}
