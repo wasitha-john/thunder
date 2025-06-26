@@ -71,7 +71,7 @@ func (d *DBProvider) GetDBClient(dbName string) (client.DBClientInterface, error
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return client.NewDBClient(db), nil
+	return client.NewDBClient(db, dbConfig.driverName), nil
 }
 
 // getDBConfig returns the database configuration based on the provided data source.

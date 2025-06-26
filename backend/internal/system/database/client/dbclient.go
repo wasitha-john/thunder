@@ -43,13 +43,15 @@ type DBClientInterface interface {
 
 // DBClient is the implementation of DBClientInterface.
 type DBClient struct {
-	db model.DBInterface
+	db     model.DBInterface
+	dbType string
 }
 
 // NewDBClient creates a new instance of DBClient with the provided database connection.
-func NewDBClient(db model.DBInterface) DBClientInterface {
+func NewDBClient(db model.DBInterface, dbType string) DBClientInterface {
 	return &DBClient{
-		db: db,
+		db:     db,
+		dbType: dbType,
 	}
 }
 
@@ -58,7 +60,8 @@ func (client *DBClient) Query(query model.DBQuery, args ...interface{}) ([]map[s
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "DBClient"))
 	logger.Info("Executing query", log.String("queryID", query.GetID()))
 
-	rows, err := client.db.Query(query.GetQuery(), args...)
+	sqlQuery := query.GetQuery(client.dbType)
+	rows, err := client.db.Query(sqlQuery, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +104,8 @@ func (client *DBClient) Execute(query model.DBQuery, args ...interface{}) (int64
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "DBClient"))
 	logger.Info("Executing query", log.String("queryID", query.GetID()))
 
-	res, err := client.db.Exec(query.GetQuery(), args...)
+	sqlQuery := query.GetQuery(client.dbType)
+	res, err := client.db.Exec(sqlQuery, args...)
 	if err != nil {
 		return 0, err
 	}

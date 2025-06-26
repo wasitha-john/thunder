@@ -51,7 +51,7 @@ func (suite *DBClientTestSuite) SetupTest() {
 	}
 
 	db := model.NewDB(suite.mockDB)
-	suite.dbClient = NewDBClient(db)
+	suite.dbClient = NewDBClient(db, "mock")
 }
 
 func (suite *DBClientTestSuite) TearDownTest() {
