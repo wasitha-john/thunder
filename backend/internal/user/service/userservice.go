@@ -38,6 +38,7 @@ type UserServiceInterface interface {
 	DeleteUser(userID string) error
 	IdentifyUser(filters map[string]interface{}) (*string, error)
 	VerifyUser(userID, credType, credValue string) (*model.User, error)
+	ValidateUserIDs(userIDs []string) ([]string, error)
 }
 
 // UserService is the default implementation of the UserServiceInterface.
@@ -215,4 +216,13 @@ func (as *UserService) VerifyUser(userID, credType, credValue string) (*model.Us
 	}
 
 	return &user, nil
+}
+
+// ValidateUserIDs validates that all provided user IDs exist.
+func (as *UserService) ValidateUserIDs(userIDs []string) ([]string, error) {
+	if len(userIDs) == 0 {
+		return []string{}, nil
+	}
+
+	return store.ValidateUserIDs(userIDs)
 }

@@ -20,6 +20,9 @@
 package store
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/utils"
 )
@@ -52,7 +55,7 @@ var (
 	}
 	// QueryValidateUserWithCredentials is the query to validate the user with the give credentials.
 	QueryValidateUserWithCredentials = model.DBQuery{
-		ID:    "ASQ-USER_MGT-06",
+		ID:    "ASQ-USER_MGT-07",
 		Query: "SELECT USER_ID, OU_ID, TYPE, ATTRIBUTES, CREDENTIALS FROM \"USER\" WHERE USER_ID = $1",
 	}
 )
@@ -60,7 +63,38 @@ var (
 // buildIdentifyQuery constructs a query to identify a user based on the provided filters.
 func buildIdentifyQuery(filters map[string]interface{}) (model.DBQuery, []interface{}, error) {
 	baseQuery := "SELECT USER_ID FROM \"USER\" WHERE 1=1"
-	queryID := "ASQ-USER_MGT-07"
+	queryID := "ASQ-USER_MGT-06"
 	columnName := "ATTRIBUTES"
 	return utils.BuildFilterQuery(queryID, baseQuery, columnName, filters)
+}
+
+// buildBulkUserExistsQuery constructs a query to check which user IDs exist from a list.
+func buildBulkUserExistsQuery(userIDs []string) (model.DBQuery, []interface{}, error) {
+	if len(userIDs) == 0 {
+		return model.DBQuery{}, nil, fmt.Errorf("userIDs list cannot be empty")
+	}
+	// Build placeholders for IN clause
+	args := make([]interface{}, len(userIDs))
+
+	postgresPlaceholders := make([]string, len(userIDs))
+	sqlitePlaceholders := make([]string, len(userIDs))
+
+	for i, userID := range userIDs {
+		postgresPlaceholders[i] = fmt.Sprintf("$%d", i+1)
+		sqlitePlaceholders[i] = "?"
+		args[i] = userID
+	}
+
+	baseQuery := "SELECT USER_ID FROM \"USER\" WHERE USER_ID IN (%s)"
+	postgresQuery := fmt.Sprintf(baseQuery, strings.Join(postgresPlaceholders, ","))
+	sqliteQuery := fmt.Sprintf(baseQuery, strings.Join(sqlitePlaceholders, ","))
+
+	query := model.DBQuery{
+		ID:            "ASQ-USER_MGT-08",
+		Query:         postgresQuery,
+		PostgresQuery: postgresQuery,
+		SQLiteQuery:   sqliteQuery,
+	}
+
+	return query, args, nil
 }

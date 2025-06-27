@@ -72,6 +72,13 @@ var (
 		Error:            "Cannot delete group",
 		ErrorDescription: "Cannot delete group with child groups",
 	}
+	// ErrorInvalidUserID is the error returned when user ID is invalid.
+	ErrorInvalidUserID = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "GRP-60008",
+		Error:            "Invalid user ID",
+		ErrorDescription: "One or more user IDs in the request do not exist",
+	}
 )
 
 // Server errors for group management operations.

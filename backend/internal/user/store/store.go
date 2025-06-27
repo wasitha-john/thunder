@@ -340,6 +340,54 @@ func VerifyUser(id string) (model.User, model.Credentials, error) {
 	return user, credentials, nil
 }
 
+// ValidateUserIDs checks if all provided user IDs exist.
+func ValidateUserIDs(userIDs []string) ([]string, error) {
+	if len(userIDs) == 0 {
+		return []string{}, nil
+	}
+
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return nil, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	query, args, err := buildBulkUserExistsQuery(userIDs)
+	if err != nil {
+		logger.Error("Failed to build bulk user exists query", log.Error(err))
+		return nil, fmt.Errorf("failed to build bulk user exists query: %w", err)
+	}
+
+	results, err := dbClient.Query(query, args...)
+	if err != nil {
+		logger.Error("Failed to execute bulk user exists query", log.Error(err))
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	existingUserIDs := make(map[string]bool)
+	for _, row := range results {
+		if userID, ok := row["user_id"].(string); ok {
+			existingUserIDs[userID] = true
+		}
+	}
+
+	var invalidUserIDs []string
+	for _, userID := range userIDs {
+		if !existingUserIDs[userID] {
+			invalidUserIDs = append(invalidUserIDs, userID)
+		}
+	}
+
+	return invalidUserIDs, nil
+}
+
 func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
