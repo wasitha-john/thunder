@@ -1,13 +1,13 @@
 {
-    "id": "auth_flow_config_sms",
+    "id": "auth_flow_config_sms_with_username",
     "type": "AUTHENTICATION",
     "nodes": [
         {
-            "id": "prompt_mobile",
+            "id": "mobile_prompt_username",
             "type": "PROMPT_ONLY",
             "inputData": [
                 {
-                    "name": "mobileNumber",
+                    "name": "username",
                     "type": "string",
                     "required": true
                 }
