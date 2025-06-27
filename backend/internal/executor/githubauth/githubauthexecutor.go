@@ -184,7 +184,7 @@ func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext
 
 	if execResp.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
-	} else if ctx.FlowType != flowconst.GraphTypeRegistration {
+	} else if ctx.FlowType != flowconst.FlowTypeRegistration {
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "Authentication failed. Authorization code not provided or invalid."
 	}
@@ -348,7 +348,7 @@ func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.
 	}
 
 	// Handle registration flows.
-	if ctx.FlowType == flowconst.GraphTypeRegistration {
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		if execResp.Status == flowconst.ExecFailure {
 			if execResp.FailureReason == "User not found" {
 				logger.Debug("User not found for the provided sub claim. Proceeding with registration flow.")

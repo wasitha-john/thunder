@@ -112,7 +112,7 @@ func (b *BasicAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exec
 		execResp.FailureReason = "Authenticated user not found."
 		return execResp, nil
 	}
-	if !authenticatedUser.IsAuthenticated && ctx.FlowType != flowconst.GraphTypeRegistration {
+	if !authenticatedUser.IsAuthenticated && ctx.FlowType != flowconst.FlowTypeRegistration {
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "User authentication failed."
 		return execResp, nil
@@ -174,7 +174,7 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 	}
 
 	// Handle registration flows.
-	if ctx.FlowType == flowconst.GraphTypeRegistration {
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		if execResp.Status == flowconst.ExecFailure {
 			if execResp.FailureReason == "User not found" {
 				logger.Debug("User not found for the provided username. Proceeding with registration flow.")

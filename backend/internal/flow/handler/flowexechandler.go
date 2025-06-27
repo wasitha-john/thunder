@@ -64,8 +64,15 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 	actionID := sysutils.SanitizeString(flowR.ActionID)
 	inputs := sysutils.SanitizeStringMap(flowR.Inputs)
 
+	flowTypeStr := sysutils.SanitizeString(flowR.FlowType)
+	flowType, flowTypeErr := validateFlowType(flowTypeStr)
+	if flowTypeErr != nil {
+		handleFlowError(w, logger, flowTypeErr)
+		return
+	}
+
 	svc := flow.GetFlowService()
-	flowStep, flowErr := svc.Execute(appID, flowID, actionID, inputs)
+	flowStep, flowErr := svc.Execute(appID, flowID, actionID, flowType, inputs)
 
 	if flowErr != nil {
 		handleFlowError(w, logger, flowErr)
@@ -114,5 +121,19 @@ func handleFlowError(w http.ResponseWriter, logger *log.Logger, flowErr *service
 	if err := json.NewEncoder(w).Encode(errResp); err != nil {
 		logger.Error("Error encoding error response", log.Error(err))
 		http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+	}
+}
+
+// validateFlowType validates the provided flow type and returns the corresponding FlowType.
+func validateFlowType(flowTypeStr string) (constants.FlowType, *serviceerror.ServiceError) {
+	if flowTypeStr == "" {
+		return constants.FlowTypeAuthentication, nil
+	}
+
+	switch constants.FlowType(flowTypeStr) {
+	case constants.FlowTypeAuthentication, constants.FlowTypeRegistration:
+		return constants.FlowType(flowTypeStr), nil
+	default:
+		return "", &constants.ErrorInvalidFlowType
 	}
 }

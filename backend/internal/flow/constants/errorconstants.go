@@ -56,6 +56,14 @@ var ErrorInvalidFlowID = serviceerror.ServiceError{
 	ErrorDescription: "Invalid flow ID provided in the request",
 }
 
+// ErrorInvalidFlowType defines the error response for invalid flow type errors.
+var ErrorInvalidFlowType = serviceerror.ServiceError{
+	Code:             "FES-60005",
+	Type:             serviceerror.ClientErrorType,
+	Error:            "Invalid request",
+	ErrorDescription: "Invalid flow type provided in the request",
+}
+
 // Server error structs
 
 // ErrorFlowGraphNotInitialized defines the error response for uninitialized flow graph errors.
@@ -194,4 +202,13 @@ var ErrorNoActionsDefinedForNode = serviceerror.ServiceError{
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Invalid configuration",
 	ErrorDescription: "No actions defined for the node",
+}
+
+// ErrorRegisFlowNotConfiguredForApplication defines the error response for applications without
+// a registration flow graph configured.
+var ErrorRegisFlowNotConfiguredForApplication = serviceerror.ServiceError{
+	Code:             "FES-65018",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Invalid configuration",
+	ErrorDescription: "No registration flow graph is configured for the application",
 }

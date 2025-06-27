@@ -22,7 +22,9 @@ package service
 import (
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/application/store"
 	"github.com/asgardeo/thunder/internal/flow/graphservice"
@@ -135,6 +137,9 @@ func (as *ApplicationService) CreateApplication(app *model.Application) (*model.
 	if err := validateAuthFlowGraphID(app); err != nil {
 		return nil, err
 	}
+	if err := validateRegistrationFlowGraphID(app); err != nil {
+		return nil, err
+	}
 
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 	app.ID = utils.GenerateUUID()
@@ -195,6 +200,9 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 	if err := validateAuthFlowGraphID(app); err != nil {
 		return nil, err
 	}
+	if err := validateRegistrationFlowGraphID(app); err != nil {
+		return nil, err
+	}
 
 	err := store.UpdateApplication(app)
 	if err != nil {
@@ -228,6 +236,27 @@ func validateAuthFlowGraphID(app *model.Application) error {
 		}
 	} else {
 		app.AuthFlowGraphID = getDefaultAuthFlowGraphID()
+	}
+
+	return nil
+}
+
+// validateRegistrationFlowGraphID validates the registration flow graph ID for the application.
+// If the graph ID is not provided, it attempts to infer it from the auth flow graph ID.
+func validateRegistrationFlowGraphID(app *model.Application) error {
+	if app.RegistrationFlowGraphID != "" {
+		isValidFlowGraphID := graphservice.GetGraphService().IsValidGraphID(app.RegistrationFlowGraphID)
+		if !isValidFlowGraphID {
+			return fmt.Errorf("invalid registration flow graph ID: %s", app.RegistrationFlowGraphID)
+		}
+	} else {
+		if strings.HasPrefix(app.AuthFlowGraphID, constants.AuthFlowGraphPrefix) {
+			suffix := strings.TrimPrefix(app.AuthFlowGraphID, constants.AuthFlowGraphPrefix)
+			app.RegistrationFlowGraphID = constants.RegistrationFlowGraphPrefix + suffix
+		} else {
+			return fmt.Errorf("cannot infer registration flow graph ID from auth flow graph ID: %s",
+				app.AuthFlowGraphID)
+		}
 	}
 
 	return nil
