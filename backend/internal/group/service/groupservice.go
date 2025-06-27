@@ -28,6 +28,7 @@ import (
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
+	userservice "github.com/asgardeo/thunder/internal/user/service"
 )
 
 const loggerComponentName = "GroupMgtService"
@@ -75,6 +76,10 @@ func (gs *GroupService) CreateGroup(request model.CreateGroupRequest) (*model.Gr
 
 	// Validate parent exists
 	if err := gs.validateParentExists(request.Parent); err != nil {
+		return nil, err
+	}
+
+	if err := gs.validateUserIDs(request.Users); err != nil {
 		return nil, err
 	}
 
@@ -165,6 +170,10 @@ func (gs *GroupService) UpdateGroup(
 		if err := gs.validateParentExists(request.Parent); err != nil {
 			return nil, err
 		}
+	}
+
+	if err := gs.validateUserIDs(request.Users); err != nil {
+		return nil, err
 	}
 
 	// Check for duplicate name under the same parent (only if name or parent changed)
@@ -313,6 +322,25 @@ func (gs *GroupService) validateForDeleteGroup(groupID string) *serviceerror.Ser
 		logger.Debug("Cannot delete group with child groups", log.String("groupID", groupID),
 			log.Int("childCount", len(*childGroups)))
 		return &constants.ErrorCannotDeleteGroup
+	}
+
+	return nil
+}
+
+// validateUserIDs validates that all provided user IDs exist.
+func (gs *GroupService) validateUserIDs(userIDs []string) *serviceerror.ServiceError {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	userService := userservice.GetUserService()
+	invalidUserIDs, err := userService.ValidateUserIDs(userIDs)
+	if err != nil {
+		logger.Error("Failed to validate user IDs", log.Error(err))
+		return &constants.ErrorInternalServerError
+	}
+
+	if len(invalidUserIDs) > 0 {
+		logger.Debug("Invalid user IDs found", log.Any("invalidUserIDs", invalidUserIDs))
+		return &constants.ErrorInvalidUserID
 	}
 
 	return nil

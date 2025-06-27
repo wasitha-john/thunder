@@ -312,6 +312,279 @@ func (suite *GroupAPITestSuite) TestCreateGroupWithInvalidData() {
 	suite.Equal(http.StatusBadRequest, resp.StatusCode)
 }
 
+func (suite *GroupAPITestSuite) TestCreateGroupWithInvalidUserID() {
+	// Try to create a group with an invalid user ID
+	invalidGroup := CreateGroupRequest{
+		Name: "Group with Invalid User",
+		Parent: Parent{
+			Type: ParentTypeOrganizationUnit,
+			Id:   testOU,
+		},
+		Users: []string{"invalid-user-id-12345"},
+	}
+
+	jsonData, err := json.Marshal(invalidGroup)
+	suite.Require().NoError(err)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("POST", testServerURL+"/groups", bytes.NewBuffer(jsonData))
+	suite.Require().NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	// Verify the error response
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp map[string]interface{}
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("GRP-60008", errorResp["code"])
+	suite.Equal("Invalid user ID", errorResp["message"])
+	suite.Contains(errorResp["description"], "One or more user IDs in the request do not exist")
+}
+
+func (suite *GroupAPITestSuite) TestCreateGroupWithMixedValidInvalidUserIDs() {
+	// Try to create a group with a mix of valid and invalid user IDs
+	invalidGroup := CreateGroupRequest{
+		Name: "Group with Mixed User IDs",
+		Parent: Parent{
+			Type: ParentTypeOrganizationUnit,
+			Id:   testOU,
+		},
+		Users: []string{
+			"550e8400-e29b-41d4-a716-446655440000", // This might be valid from setup
+			"invalid-user-id-12345",                // This is invalid
+			"another-invalid-user-67890",           // This is also invalid
+		},
+	}
+
+	jsonData, err := json.Marshal(invalidGroup)
+	suite.Require().NoError(err)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("POST", testServerURL+"/groups", bytes.NewBuffer(jsonData))
+	suite.Require().NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	// Verify the error response
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp map[string]interface{}
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("GRP-60008", errorResp["code"])
+	suite.Equal("Invalid user ID", errorResp["message"])
+}
+
+func (suite *GroupAPITestSuite) TestCreateGroupWithEmptyUserList() {
+	// Create a group with empty user list (should succeed)
+	validGroup := CreateGroupRequest{
+		Name: "Group with Empty Users",
+		Parent: Parent{
+			Type: ParentTypeOrganizationUnit,
+			Id:   testOU,
+		},
+		Users: []string{}, // Empty user list
+	}
+
+	jsonData, err := json.Marshal(validGroup)
+	suite.Require().NoError(err)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("POST", testServerURL+"/groups", bytes.NewBuffer(jsonData))
+	suite.Require().NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusCreated, resp.StatusCode)
+
+	// Clean up: get the created group ID and delete it
+	var createdGroup Group
+	err = json.NewDecoder(resp.Body).Decode(&createdGroup)
+	suite.Require().NoError(err)
+
+	// Delete the temporary group
+	deleteErr := deleteGroup(createdGroup.Id)
+	suite.Require().NoError(deleteErr)
+}
+
+func (suite *GroupAPITestSuite) TestUpdateGroupWithInvalidUserID() {
+	if createdGroupID == "" {
+		suite.T().Fatal("Group ID is not available for update test")
+	}
+
+	// Try to update the group with an invalid user ID
+	updateRequest := UpdateGroupRequest{
+		Name: "Updated Group with Invalid User",
+		Parent: Parent{
+			Type: ParentTypeOrganizationUnit,
+			Id:   testOU,
+		},
+		Users:  []string{"invalid-user-id-update"},
+		Groups: []string{},
+	}
+
+	jsonData, err := json.Marshal(updateRequest)
+	suite.Require().NoError(err)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("PUT", testServerURL+"/groups/"+createdGroupID, bytes.NewBuffer(jsonData))
+	suite.Require().NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	// Verify the error response
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp map[string]interface{}
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("GRP-60008", errorResp["code"])
+	suite.Equal("Invalid user ID", errorResp["message"])
+	suite.Contains(errorResp["description"], "One or more user IDs in the request do not exist")
+}
+
+func (suite *GroupAPITestSuite) TestUpdateGroupWithValidEmptyUserList() {
+	if createdGroupID == "" {
+		suite.T().Fatal("Group ID is not available for update test")
+	}
+
+	// Update the group with empty user list (should succeed)
+	updateRequest := UpdateGroupRequest{
+		Name: "Updated Group with Empty Users",
+		Parent: Parent{
+			Type: ParentTypeOrganizationUnit,
+			Id:   testOU,
+		},
+		Users:  []string{}, // Empty user list
+		Groups: []string{},
+	}
+
+	jsonData, err := json.Marshal(updateRequest)
+	suite.Require().NoError(err)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("PUT", testServerURL+"/groups/"+createdGroupID, bytes.NewBuffer(jsonData))
+	suite.Require().NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	// Verify the update
+	var updatedGroup Group
+	err = json.NewDecoder(resp.Body).Decode(&updatedGroup)
+	suite.Require().NoError(err)
+
+	suite.Equal(createdGroupID, updatedGroup.Id)
+	suite.Equal("Updated Group with Empty Users", updatedGroup.Name)
+	suite.Equal(0, len(updatedGroup.Users))
+}
+
+func (suite *GroupAPITestSuite) TestUpdateGroupWithMultipleInvalidUserIDs() {
+	if createdGroupID == "" {
+		suite.T().Fatal("Group ID is not available for update test")
+	}
+
+	// Try to update the group with multiple invalid user IDs
+	updateRequest := UpdateGroupRequest{
+		Name: "Updated Group with Multiple Invalid Users",
+		Parent: Parent{
+			Type: ParentTypeOrganizationUnit,
+			Id:   testOU,
+		},
+		Users: []string{
+			"invalid-user-1",
+			"invalid-user-2",
+			"invalid-user-3",
+		},
+		Groups: []string{},
+	}
+
+	jsonData, err := json.Marshal(updateRequest)
+	suite.Require().NoError(err)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("PUT", testServerURL+"/groups/"+createdGroupID, bytes.NewBuffer(jsonData))
+	suite.Require().NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	// Verify the error response
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp map[string]interface{}
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("GRP-60008", errorResp["code"])
+	suite.Equal("Invalid user ID", errorResp["message"])
+}
+
 func createGroup(ts *GroupAPITestSuite) (string, error) {
 	jsonData, err := json.Marshal(groupToCreate)
 	if err != nil {
@@ -360,6 +633,86 @@ func deleteGroup(groupID string) error {
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("expected status 204, got %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// createTestUser creates a test user and returns the user ID
+func createTestUser() (string, error) {
+	testUser := map[string]interface{}{
+		"organizationUnit": "456e8400-e29b-41d4-a716-446655440001",
+		"type":             "user",
+		"attributes": map[string]interface{}{
+			"email":     "testuser@example.com",
+			"firstName": "Test",
+			"lastName":  "User",
+			"password":  "TestPassword123!",
+		},
+	}
+
+	jsonData, err := json.Marshal(testUser)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal test user: %w", err)
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("POST", testServerURL+"/users", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("expected status 201, got %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var createdUser map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&createdUser)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse response body: %w", err)
+	}
+
+	userID, ok := createdUser["id"].(string)
+	if !ok {
+		return "", fmt.Errorf("failed to extract user ID from response")
+	}
+
+	return userID, nil
+}
+
+// deleteTestUser deletes a test user
+func deleteTestUser(userID string) error {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("DELETE", testServerURL+"/users/"+userID, nil)
+	if err != nil {
+		return err
 	}
 
 	resp, err := client.Do(req)
