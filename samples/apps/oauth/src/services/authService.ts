@@ -46,17 +46,23 @@ export const initiateRedirectAuth = () => {
 };
 
 /**
- * Initiates the native authentication flow by sending a POST request to the flow endpoint.
+ * Initiates the native authentication or registration flow by sending a POST request to the flow endpoint.
  * 
+ * @param {string} flowType - The type of flow to initiate. Defaults to 'LOGIN'.
  * @returns {Promise<object>} - A promise that resolves to the response data from the server.
  */
-export const initiateNativeAuth = async () => {
+export const initiateNativeAuthFlow = async (flowType: 'LOGIN' | 'REGISTRATION' = 'LOGIN') => {
     const headers = {
         'Content-Type': 'application/json'
     };
 
-    const data = {
+    const data: Record<string, string> = {
         "applicationId": applicationID
+    };
+
+    // Only add flowType if it's REGISTRATION (LOGIN is the default)
+    if (flowType === 'REGISTRATION') {
+        data.flowType = 'REGISTRATION';
     }
 
     try {
@@ -67,8 +73,9 @@ export const initiateNativeAuth = async () => {
         return { data: response.data };
     } catch (error) {
         if (axios.isAxiosError(error)) {
+            const flowTypeName = flowType === 'REGISTRATION' ? 'registration' : 'authentication';
             const message = error.response?.status === 400
-              ? 'Error initiating native authentication request.'
+              ? `Error initiating native ${flowTypeName} request.`
               : error.response?.data?.message || 'Server error occurred.';
             throw new Error(message);
         } else {
