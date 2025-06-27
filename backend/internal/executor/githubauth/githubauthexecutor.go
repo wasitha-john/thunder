@@ -184,7 +184,7 @@ func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext
 
 	if execResp.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
-	} else {
+	} else if ctx.FlowType != flowconst.GraphTypeRegistration {
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "Authentication failed. Authorization code not provided or invalid."
 	}
@@ -346,24 +346,62 @@ func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.
 	if err != nil {
 		return nil, fmt.Errorf("failed to identify user with id claim: %w", err)
 	}
+
+	// Handle registration flows.
+	if ctx.FlowType == flowconst.GraphTypeRegistration {
+		if execResp.Status == flowconst.ExecFailure {
+			if execResp.FailureReason == "User not found" {
+				logger.Debug("User not found for the provided sub claim. Proceeding with registration flow.")
+				execResp.Status = flowconst.ExecComplete
+				execResp.FailureReason = ""
+
+				if execResp.RuntimeData == nil {
+					execResp.RuntimeData = make(map[string]string)
+				}
+				execResp.RuntimeData["sub"] = sub
+
+				// TODO: Need to convert attributes as per the IDP to local attribute mapping
+				//  when the support is implemented.
+				return &authnmodel.AuthenticatedUser{
+					IsAuthenticated: false,
+					Attributes:      getUserAttributes(userInfo, ""),
+				}, nil
+			}
+			return nil, err
+		}
+
+		// At this point, a unique user is found in the system. Hence fail the execution.
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "User already exists with the provided id claim."
+		return nil, nil
+	}
+
 	if execResp.Status == flowconst.ExecFailure {
 		return nil, nil
 	}
 
-	// Populate authenticated user from user info
+	// TODO: Need to convert attributes as per the IDP to local attribute mapping
+	//  when the support is implemented.
+	authenticatedUser := authnmodel.AuthenticatedUser{
+		IsAuthenticated: true,
+		UserID:          *userID,
+		Attributes:      getUserAttributes(userInfo, *userID),
+	}
+
+	return &authenticatedUser, nil
+}
+
+// getUserAttributes extracts user attributes from the user info map, excluding certain keys.
+func getUserAttributes(userInfo map[string]string, userID string) map[string]string {
 	attributes := make(map[string]string)
 	for key, value := range userInfo {
 		if key != "username" && key != "sub" && key != "id" {
 			attributes[key] = value
 		}
 	}
-	attributes["user_id"] = *userID
-
-	authenticatedUser := authnmodel.AuthenticatedUser{
-		IsAuthenticated: true,
-		UserID:          *userID,
-		Attributes:      attributes,
+	if userID != "" {
+		attributes["user_id"] = userID
 	}
 
-	return &authenticatedUser, nil
+	return attributes
 }

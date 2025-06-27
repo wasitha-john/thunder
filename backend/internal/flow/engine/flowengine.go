@@ -178,7 +178,7 @@ func updateContextWithNodeResponse(engineCtx *model.EngineContext, nodeResp *mod
 	}
 
 	// Handle authenticated user from the node response
-	if nodeResp.AuthenticatedUser.IsAuthenticated {
+	if nodeResp.AuthenticatedUser.IsAuthenticated || engineCtx.FlowType == constants.GraphTypeRegistration {
 		prevAuthnUserAttrs := engineCtx.AuthenticatedUser.Attributes
 		engineCtx.AuthenticatedUser = nodeResp.AuthenticatedUser
 
