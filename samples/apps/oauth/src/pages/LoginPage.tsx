@@ -41,7 +41,7 @@ import Layout from '../components/Layout';
 import ConnectionErrorModal from '../components/ConnectionErrorModal';
 import { 
     NativeAuthSubmitType, 
-    initiateNativeAuth, 
+    initiateNativeAuthFlow,
     submitNativeAuth, 
     submitAuthDecision 
 } from '../services/authService';
@@ -94,11 +94,10 @@ const LoginPage = () => {
     const isComponentReMount = useRef(false);
     const { setToken, clearToken } = useAuth();
 
-    const [showSignUp] = useState<boolean>(false);
     const [showRememberMe] = useState<boolean>(false);
     const [showForgotPassword] = useState<boolean>(false);
     const [error, setError] = useState<boolean>(false);
-    const [errorMessage, setErrorMessage] = useState<string>('Login failed');
+    const [errorMessage, setErrorMessage] = useState<string>('');
     const [connectionError, setConnectionError] = useState<boolean>(false);
 
     const [loading, setLoading] = useState<boolean>(true);
@@ -118,6 +117,9 @@ const LoginPage = () => {
     // Add new state variables to track auth flow
     const [needsDecision, setNeedsDecision] = useState<boolean>(false);
     const [availableActions, setAvailableActions] = useState<ActionPrompt[]>([]);
+    
+    // Add state to track signup mode
+    const [isSignupMode, setIsSignupMode] = useState<boolean>(false);
     
     const GradientCircularProgress = () => {
         return (
@@ -223,21 +225,24 @@ const LoginPage = () => {
         event.preventDefault(); // Prevent focus loss
     };
 
-    const handleSocialLoginClick = (redirectURL: string) => {
+    const handleSocialLoginClick = useCallback((redirectURL: string) => {
         setLoading(true);
         sessionStorage.setItem(FLOW_ID_KEY, flowId);
         sessionStorage.setItem(START_INIT_KEY, "false");
         window.location.href = redirectURL;
-    };
+    }, [flowId]);
 
     // Process authentication response
-    const processAuthResponse = (data: AuthResponse) => {
+    const processAuthResponse = useCallback((data: AuthResponse) => {
         const isCameFromDecision = needsDecision;
 
         setFlowId(data.flowId || '');
         if (data.flowStatus && data.flowStatus == 'ERROR') {
+            const defaultMessage = isSignupMode 
+                ? 'Registration failed. Please check your information.' 
+                : 'Login failed. Please check your credentials.';
             setError(true);
-            setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
+            setErrorMessage(data.failureReason || defaultMessage);
             setLoading(false);
             return;
         }
@@ -288,7 +293,7 @@ const LoginPage = () => {
         }
 
         setLoading(false);
-    }
+    }, [needsDecision, isSignupMode, clearToken, setToken, handleSocialLoginClick]);
 
     // Handle when user selects an authentication option
     const handleAuthOptionSelection = (actionId: string) => {
@@ -306,7 +311,7 @@ const LoginPage = () => {
             });
     };
 
-    const init = useCallback(() => {
+    const init = useCallback((isSignupMode: boolean = false) => {
         clearToken();
         setConnectionError(false);
         setNeedsDecision(false);
@@ -317,7 +322,7 @@ const LoginPage = () => {
         setRedirectURL(null);
         setSocialIdpName('');
 
-        initiateNativeAuth()
+        initiateNativeAuthFlow(isSignupMode ? 'REGISTRATION' : 'LOGIN')
             .then((result) => {
                 const data = result.data;
 
@@ -325,8 +330,11 @@ const LoginPage = () => {
                     setToken(data.assertion);
                     setError(false);
                 } else if (data.flowStatus && data.flowStatus === 'ERROR') {
+                    const defaultMessage = isSignupMode 
+                        ? 'Registration failed. Please check your information.' 
+                        : 'Login failed. Please check your credentials.';
                     setError(true);
-                    setErrorMessage(data.failureReason || 'Login failed. Please check your credentials.');
+                    setErrorMessage(data.failureReason || defaultMessage);
                 } else if (data.type === "VIEW") {
                     // Handle the VIEW response
                     if (data.data?.actions) {
@@ -355,11 +363,12 @@ const LoginPage = () => {
                 setFlowId(data.flowId);
                 setLoading(false);
             }).catch((error) => {
-                console.error("Error during auth initialization:", error);
+                const errorType = isSignupMode ? "registration" : "auth";
+                console.error(`Error during ${errorType} initialization:`, error);
                 setConnectionError(true);
                 setLoading(false);
             });
-    }, [clearToken]);
+    }, [clearToken, isSignupMode, setToken]);
 
     // Unified form submission handler that works for both decisions and direct inputs
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -424,16 +433,19 @@ const LoginPage = () => {
 
     // Get social login button text
     const getSocialLoginText = (actionId: string) => {
+        const prefix = isSignupMode ? 'Sign up' : 'Continue';
+        
         if (actionId.includes('google')) {
-            return 'Continue with Google';
+            return `${prefix} with Google`;
         } else if (actionId.includes('github')) {
-            return 'Continue with GitHub';
+            return `${prefix} with GitHub`;
         } else if (actionId.includes('mobile')) {
-            return 'Continue with SMS OTP';
+            return `${prefix} with SMS OTP`;
         } else {
-            return actionId.split('_').map(word => 
+            const idpText = actionId.split('_').map(word => 
                 word.charAt(0).toUpperCase() + word.slice(1)
             ).join(' ');
+            return `${prefix} with ${idpText}`;
         }
     };
 
@@ -469,7 +481,7 @@ const LoginPage = () => {
 
             sessionStorage.setItem(START_INIT_KEY, "true");
         }
-    },[startInit, init, flowId, setToken]);
+    },[startInit, init, flowId, setToken, processAuthResponse]);
 
     // Render input fields based on the current inputs array
     const renderInputFields = () => {
@@ -660,7 +672,7 @@ const LoginPage = () => {
                                     fullWidth
                                     sx={{ mt: 3 }}
                                     >
-                                    Sign In
+                                    {isSignupMode ? 'Create Account' : 'Sign In'}
                                 </Button>
                             </Box>
                         </form>
@@ -847,7 +859,7 @@ const LoginPage = () => {
                                 fullWidth
                                 sx={{ mt: 2 }}
                             >
-                                Sign In
+                                {isSignupMode ? 'Create Account' : 'Sign In'}
                             </Button>
                         </Box>
                     </form>
@@ -921,16 +933,42 @@ const LoginPage = () => {
                         </Box>
                     )}
 
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        type="submit"
-                        fullWidth
-                        sx={{ mt: 2 }}
-                    >
-                        {inputs.some(input => input.name === 'password') ? 'Sign In' :
-                            inputs.some(input => input.name === 'otp') ? 'Verify OTP' : 'Continue'}
-                    </Button>
+                    { error ? (
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            type="submit"
+                            fullWidth
+                            sx={{ mt: 2 }}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setError(false);
+                                setErrorMessage('');
+                                handleRetry();
+                            }}
+                         >
+                            Retry
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            type="submit"
+                            fullWidth
+                            sx={{ mt: 2 }}
+                        >
+                            {
+                                inputs.some(input => input.name === 'password') ? 
+                                    (isSignupMode ? 
+                                        'Create Account' 
+                                        : 'Sign In'
+                                    ) 
+                                    : inputs.some(input => input.name === 'otp') ? 
+                                        'Verify OTP' 
+                                        : 'Continue'
+                            }
+                        </Button>
+                    )}
                 </Box>
             </form>
         );
@@ -1004,14 +1042,46 @@ const LoginPage = () => {
                             <Box>
                                 <Box sx={{ mb: 4 }}>
                                     <Typography variant="h5" gutterBottom>
-                                    Login to Account
+                                        {isSignupMode ? 'Create Account' : 'Login to Account'}
                                     </Typography>
 
-                                    {showSignUp && (
                                     <Typography>
-                                        Don&apos;t have an account <Link href="">Sign up!</Link>
+                                        {isSignupMode ? (
+                                            <>
+                                                Already have an account?{' '}
+                                                <Link 
+                                                    href="#" 
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        setIsSignupMode(false);
+                                                        setError(false);
+                                                        setErrorMessage('');
+                                                        init(false);
+                                                    }}
+                                                    underline="hover"
+                                                >
+                                                    Sign in!
+                                                </Link>
+                                            </>
+                                        ) : (
+                                            <>
+                                                Don&apos;t have an account?{' '}
+                                                <Link 
+                                                    href="#" 
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        setIsSignupMode(true);
+                                                        setError(false);
+                                                        setErrorMessage('');
+                                                        init(true);
+                                                    }}
+                                                    underline="hover"
+                                                >
+                                                    Sign up!
+                                                </Link>
+                                            </>
+                                        )}
                                     </Typography>
-                                    )}
                                 </Box>
                                 
                                 {connectionError && (
