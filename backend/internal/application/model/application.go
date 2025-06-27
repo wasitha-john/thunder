@@ -21,12 +21,13 @@ package model
 
 // Application represents an application with its details.
 type Application struct {
-	ID                  string   `json:"id,omitempty"`
-	Name                string   `json:"name"`
-	Description         string   `json:"description"`
-	ClientID            string   `json:"client_id"`
-	ClientSecret        string   `json:"client_secret"`
-	CallbackURLs        []string `json:"callback_url"`
-	SupportedGrantTypes []string `json:"supported_grant_types"`
-	AuthFlowGraphID     string   `json:"auth_flow_graph_id,omitempty"`
+	ID                      string   `json:"id,omitempty"`
+	Name                    string   `json:"name"`
+	Description             string   `json:"description"`
+	ClientID                string   `json:"client_id"`
+	ClientSecret            string   `json:"client_secret"`
+	CallbackURLs            []string `json:"callback_url"`
+	SupportedGrantTypes     []string `json:"supported_grant_types"`
+	AuthFlowGraphID         string   `json:"auth_flow_graph_id,omitempty"`
+	RegistrationFlowGraphID string   `json:"registration_flow_graph_id,omitempty"`
 }

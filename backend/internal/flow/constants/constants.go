@@ -19,14 +19,14 @@
 // Package constants defines the constants used in the flow execution service and engine.
 package constants
 
-// GraphType defines the type of graph used in the flow execution.
-type GraphType string
+// FlowType defines the type of flow execution.
+type FlowType string
 
 const (
-	// GraphTypeAuthentication represents a graph type for authentication flows.
-	GraphTypeAuthentication GraphType = "AUTHENTICATION"
-	// GraphTypeRegistration represents a graph type for registration flows.
-	GraphTypeRegistration GraphType = "REGISTRATION"
+	// FlowTypeAuthentication represents a flow execution for user authentication.
+	FlowTypeAuthentication FlowType = "AUTHENTICATION"
+	// FlowTypeRegistration represents a flow execution for user registration.
+	FlowTypeRegistration FlowType = "REGISTRATION"
 )
 
 // FlowStatus defines the status of a flow execution.

@@ -146,12 +146,12 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 }
 
 // getGraphType retrieves the graph type from a string representation.
-func getGraphType(graphType string) (constants.GraphType, error) {
+func getGraphType(graphType string) (constants.FlowType, error) {
 	switch graphType {
-	case string(constants.GraphTypeAuthentication):
-		return constants.GraphTypeAuthentication, nil
-	case string(constants.GraphTypeRegistration):
-		return constants.GraphTypeRegistration, nil
+	case string(constants.FlowTypeAuthentication):
+		return constants.FlowTypeAuthentication, nil
+	case string(constants.FlowTypeRegistration):
+		return constants.FlowTypeRegistration, nil
 	default:
 		return "", fmt.Errorf("unsupported graph type: %s", graphType)
 	}

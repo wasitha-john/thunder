@@ -36,7 +36,8 @@ import (
 func CreateApplication(app model.Application) error {
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryCreateApplication.Query, app.ID, app.Name, app.Description, app.AuthFlowGraphID)
+			_, err := tx.Exec(QueryCreateApplication.Query, app.ID, app.Name, app.Description, app.AuthFlowGraphID,
+				app.RegistrationFlowGraphID)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
@@ -132,7 +133,7 @@ func UpdateApplication(app *model.Application) error {
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
 			_, err := tx.Exec(QueryUpdateApplicationByAppID.Query, app.ID, app.Name, app.Description,
-				app.AuthFlowGraphID)
+				app.AuthFlowGraphID, app.RegistrationFlowGraphID)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
@@ -198,6 +199,12 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		return model.Application{}, fmt.Errorf("failed to parse auth_flow_graph_id as string")
 	}
 
+	regisFlowGraphID, ok := row["registration_flow_graph_id"].(string)
+	if !ok {
+		logger.Error("failed to parse registration_flow_graph_id as string")
+		return model.Application{}, fmt.Errorf("failed to parse registration_flow_graph_id as string")
+	}
+
 	clientID, ok := row["consumer_key"].(string)
 	if !ok {
 		logger.Error("failed to parse consumer_key as string")
@@ -225,14 +232,15 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 	}
 
 	application := model.Application{
-		ID:                  appID,
-		Name:                appName,
-		Description:         description,
-		AuthFlowGraphID:     authFlowGraphID,
-		ClientID:            clientID,
-		ClientSecret:        "***",
-		CallbackURLs:        redirectURIs,
-		SupportedGrantTypes: allowedGrantTypes,
+		ID:                      appID,
+		Name:                    appName,
+		Description:             description,
+		AuthFlowGraphID:         authFlowGraphID,
+		RegistrationFlowGraphID: regisFlowGraphID,
+		ClientID:                clientID,
+		ClientSecret:            "***",
+		CallbackURLs:            redirectURIs,
+		SupportedGrantTypes:     allowedGrantTypes,
 	}
 	return application, nil
 }

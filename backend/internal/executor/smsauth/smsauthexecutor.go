@@ -153,7 +153,7 @@ func (s *SMSOTPAuthExecutor) InitiateOTP(ctx *flowmodel.NodeContext,
 	}
 
 	// Handle registration flows.
-	if ctx.FlowType == flowconst.GraphTypeRegistration {
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		if execResp.Status == flowconst.ExecFailure && execResp.FailureReason != "User not found" {
 			logger.Error("Failed to identify user during registration flow", log.Error(err))
 			return fmt.Errorf("failed to identify user during registration flow: %w", err)
@@ -244,7 +244,7 @@ func (s *SMSOTPAuthExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext,
 	logger.Debug("Trying to satisfy prerequisites for SMS OTP authentication executor")
 
 	// If the flow type is registration, skip the prerequisite validation.
-	if ctx.FlowType == flowconst.GraphTypeRegistration {
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		logger.Debug("Mobile number not provided in registration flow, prompting user for input")
 		execResp.Status = flowconst.ExecUserInputRequired
 		execResp.RequiredData = []flowmodel.InputData{
@@ -696,7 +696,7 @@ func (s *SMSOTPAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 	}
 
 	// Handle registration flows.
-	if ctx.FlowType == flowconst.GraphTypeRegistration {
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		execResp.Status = flowconst.ExecComplete
 		execResp.FailureReason = ""
 		return &authnmodel.AuthenticatedUser{

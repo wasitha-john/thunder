@@ -60,6 +60,13 @@ components:
           type: string
           description: Identifier of the application initiating the flow (required only to initiate a flow execution)
           example: "550e8400-e29b-41d4-a716-446655440000"
+        flowType:
+          type: string
+          description: Type of the flow to execute. Default is "AUTHENTICATION" (required only to initiate a flow execution)
+          enum:
+            - AUTHENTICATION
+            - REGISTRATION
+          example: "AUTHENTICATION"
         flowId:
           type: string
           description: Identifier of an existing flow execution (required for continuing a flow)

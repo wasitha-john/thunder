@@ -85,7 +85,7 @@ func (p *ProvisioningExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.E
 		RuntimeData:    make(map[string]string),
 	}
 
-	if ctx.FlowType != flowconst.GraphTypeRegistration {
+	if ctx.FlowType != flowconst.FlowTypeRegistration {
 		logger.Warn("ProvisioningExecutor is only applicable for registration flows, skipping execution")
 		execResp.Status = flowconst.ExecComplete
 		return execResp, nil

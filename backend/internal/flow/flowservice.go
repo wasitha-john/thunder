@@ -42,7 +42,8 @@ var (
 // FlowServiceInterface defines the interface for flow orchestration and acts as the entry point for flow execution
 type FlowServiceInterface interface {
 	Init() error
-	Execute(appID, flowID, actionID string, inputData map[string]string) (*model.FlowStep, *serviceerror.ServiceError)
+	Execute(appID, flowID, actionID string, flowType constants.FlowType,
+		inputData map[string]string) (*model.FlowStep, *serviceerror.ServiceError)
 }
 
 // FlowService is the implementation of FlowServiceInterface
@@ -71,7 +72,7 @@ func (s *FlowService) Init() error {
 }
 
 // Execute executes a flow with the given data
-func (s *FlowService) Execute(appID, flowID, actionID string,
+func (s *FlowService) Execute(appID, flowID, actionID string, flowType constants.FlowType,
 	inputData map[string]string) (*model.FlowStep, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowService"))
 
@@ -79,7 +80,7 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 	var loadErr *serviceerror.ServiceError
 
 	if isNewFlow(flowID, actionID) {
-		context, loadErr = s.loadNewContext(appID, actionID, inputData, logger)
+		context, loadErr = s.loadNewContext(appID, actionID, flowType, inputData, logger)
 	} else {
 		context, loadErr = s.loadPrevContext(flowID, actionID, inputData, logger)
 	}
@@ -104,9 +105,9 @@ func (s *FlowService) Execute(appID, flowID, actionID string,
 }
 
 // initContext initializes a new flow context with the given details.
-func (s *FlowService) loadNewContext(appID, actionID string,
+func (s *FlowService) loadNewContext(appID, actionID string, flowType constants.FlowType,
 	inputData map[string]string, logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
-	ctx, err := s.initContext(appID, logger)
+	ctx, err := s.initContext(appID, flowType, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -116,9 +117,9 @@ func (s *FlowService) loadNewContext(appID, actionID string,
 }
 
 // initContext initializes a new flow context with the given details.
-func (s *FlowService) initContext(appID string, logger *log.Logger) (*model.EngineContext,
-	*serviceerror.ServiceError) {
-	graphID, svcErr := validateApplication(appID)
+func (s *FlowService) initContext(appID string, flowType constants.FlowType,
+	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
+	graphID, svcErr := getFlowGraph(appID, flowType)
 	if svcErr != nil {
 		return nil, svcErr
 	}
@@ -242,8 +243,8 @@ func prepareContext(ctx *model.EngineContext, actionID string, inputData map[str
 	}
 }
 
-// validateApplication checks if the provided application ID is valid and returns the associated auth flow graph ID.
-func validateApplication(appID string) (string, *serviceerror.ServiceError) {
+// getFlowGraph checks if the provided application ID is valid and returns the associated flow graph.
+func getFlowGraph(appID string, flowType constants.FlowType) (string, *serviceerror.ServiceError) {
 	if appID == "" {
 		return "", &constants.ErrorInvalidAppID
 	}
@@ -257,7 +258,14 @@ func validateApplication(appID string) (string, *serviceerror.ServiceError) {
 		return "", &constants.ErrorInvalidAppID
 	}
 
-	// At this point, we assume auth flow graph is configured for the application.
+	if flowType == constants.FlowTypeRegistration {
+		if app.RegistrationFlowGraphID == "" {
+			return "", &constants.ErrorRegisFlowNotConfiguredForApplication
+		}
+		return app.RegistrationFlowGraphID, nil
+	}
+
+	// Default to authentication flow graph ID
 	if app.AuthFlowGraphID == "" {
 		return "", &constants.ErrorAuthFlowNotConfiguredForApplication
 	}

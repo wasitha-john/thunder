@@ -253,7 +253,7 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 
 	if execResp.AuthenticatedUser.IsAuthenticated {
 		execResp.Status = flowconst.ExecComplete
-	} else if ctx.FlowType != flowconst.GraphTypeRegistration {
+	} else if ctx.FlowType != flowconst.FlowTypeRegistration {
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "Authentication failed. Authorization code not provided or invalid."
 	}
@@ -409,7 +409,7 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 	}
 
 	authenticatedUser := authnmodel.AuthenticatedUser{}
-	if ctx.FlowType == flowconst.GraphTypeRegistration {
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		authenticatedUser.IsAuthenticated = false
 	} else {
 		if userID == "" {
@@ -443,7 +443,7 @@ func (o *OIDCAuthExecutor) resolveUser(sub string, ctx *flowmodel.NodeContext,
 	}
 
 	// Handle registration flows.
-	if ctx.FlowType == flowconst.GraphTypeRegistration {
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		if execResp.Status == flowconst.ExecFailure {
 			if execResp.FailureReason == "User not found" {
 				logger.Debug("User not found for the provided sub claim. Proceeding with registration flow.")

@@ -29,7 +29,7 @@ import (
 // GraphInterface defines the graph structure
 type GraphInterface interface {
 	GetID() string
-	GetType() constants.GraphType
+	GetType() constants.FlowType
 	AddNode(node NodeInterface) error
 	GetNode(nodeID string) (NodeInterface, bool)
 	AddEdge(fromNodeID, toNodeID string) error
@@ -44,19 +44,19 @@ type GraphInterface interface {
 // Graph implements the GraphInterface for the flow execution
 type Graph struct {
 	id          string
-	_type       constants.GraphType
+	_type       constants.FlowType
 	nodes       map[string]NodeInterface
 	edges       map[string][]string
 	startNodeID string
 }
 
 // NewGraph creates a new Graph with a unique ID
-func NewGraph(id string, _type constants.GraphType) GraphInterface {
+func NewGraph(id string, _type constants.FlowType) GraphInterface {
 	if id == "" {
 		id = sysutils.GenerateUUID()
 	}
 	if _type == "" {
-		_type = constants.GraphTypeAuthentication
+		_type = constants.FlowTypeAuthentication
 	}
 
 	return &Graph{
@@ -73,7 +73,7 @@ func (g *Graph) GetID() string {
 }
 
 // GetType returns the type of the graph
-func (g *Graph) GetType() constants.GraphType {
+func (g *Graph) GetType() constants.FlowType {
 	return g._type
 }
 

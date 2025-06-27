@@ -27,7 +27,7 @@ import (
 // EngineContext holds the overall context used by the flow engine during execution.
 type EngineContext struct {
 	FlowID        string
-	FlowType      constants.GraphType
+	FlowType      constants.FlowType
 	AppID         string
 	UserInputData map[string]string
 	RuntimeData   map[string]string
@@ -44,7 +44,7 @@ type EngineContext struct {
 // NodeContext holds the context for a specific node in the flow execution.
 type NodeContext struct {
 	FlowID          string
-	FlowType        constants.GraphType
+	FlowType        constants.FlowType
 	AppID           string
 	CurrentActionID string
 
@@ -96,6 +96,7 @@ type ExecutorModel struct {
 // FlowRequest represents the flow execution API request body
 type FlowRequest struct {
 	ApplicationID string            `json:"applicationId"`
+	FlowType      string            `json:"flowType"`
 	FlowID        string            `json:"flowId"`
 	ActionID      string            `json:"actionId"`
 	Inputs        map[string]string `json:"inputs"`
