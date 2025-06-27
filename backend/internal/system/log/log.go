@@ -20,6 +20,7 @@
 package log
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -133,6 +134,11 @@ func (l *Logger) With(fields ...Field) *Logger {
 	return &Logger{
 		internal: l.internal.With(convertFields(fields)...),
 	}
+}
+
+// IsDebugEnabled checks if the logger is set to debug level.
+func (l *Logger) IsDebugEnabled() bool {
+	return l.internal.Handler().Enabled(context.Background(), slog.LevelDebug)
 }
 
 // Info logs an informational message with custom fields.

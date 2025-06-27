@@ -53,9 +53,11 @@ type NodeInterface interface {
 	GetNextNodeList() []string
 	SetNextNodeList(nextNodeIDList []string)
 	AddNextNodeID(nextNodeID string)
+	RemoveNextNodeID(nextNodeID string)
 	GetPreviousNodeList() []string
 	SetPreviousNodeList(previousNodeIDList []string)
 	AddPreviousNodeID(previousNodeID string)
+	RemovePreviousNodeID(previousNodeID string)
 	GetInputData() []InputData
 	SetInputData(inputData []InputData)
 	GetExecutorConfig() *ExecutorConfig
@@ -170,6 +172,20 @@ func (n *Node) AddNextNodeID(nextNodeID string) {
 	n.nextNodeList = append(n.nextNodeList, nextNodeID)
 }
 
+// RemoveNextNodeID removes a next node ID from the list
+func (n *Node) RemoveNextNodeID(nextNodeID string) {
+	if nextNodeID == "" || n.nextNodeList == nil {
+		return
+	}
+
+	for i, id := range n.nextNodeList {
+		if id == nextNodeID {
+			n.nextNodeList = append(n.nextNodeList[:i], n.nextNodeList[i+1:]...)
+			return
+		}
+	}
+}
+
 // GetPreviousNodeList returns the list of previous node IDs
 func (n *Node) GetPreviousNodeList() []string {
 	if n.previousNodeList == nil {
@@ -202,6 +218,20 @@ func (n *Node) AddPreviousNodeID(previousNodeID string) {
 		}
 	}
 	n.previousNodeList = append(n.previousNodeList, previousNodeID)
+}
+
+// RemovePreviousNodeID removes a previous node ID from the list
+func (n *Node) RemovePreviousNodeID(previousNodeID string) {
+	if previousNodeID == "" || n.previousNodeList == nil {
+		return
+	}
+
+	for i, id := range n.previousNodeList {
+		if id == previousNodeID {
+			n.previousNodeList = append(n.previousNodeList[:i], n.previousNodeList[i+1:]...)
+			return
+		}
+	}
 }
 
 // GetInputData returns the input data for the node
