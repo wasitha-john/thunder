@@ -77,18 +77,6 @@
         {
             "id": "provisioning",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "sub",
-                    "type": "string",
-                    "required": true
-                },
-                {
-                    "name": "email",
-                    "type": "string",
-                    "required": true
-                }
-            ],
             "executor": {
                 "name": "ProvisioningExecutor"
             },

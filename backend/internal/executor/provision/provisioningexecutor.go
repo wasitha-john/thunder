@@ -128,6 +128,7 @@ func (p *ProvisioningExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.E
 	}
 
 	// Create the user in the store.
+	p.appendNonIdentifyingAttributes(ctx, &userAttributes)
 	createdUser, err := p.createUserInStore(ctx.FlowID, userAttributes)
 	if err != nil {
 		logger.Error("Failed to create user in the store", log.Error(err))
@@ -276,6 +277,16 @@ func (p *ProvisioningExecutor) getInputAttributes(ctx *flowmodel.NodeContext) ma
 	}
 
 	return attributesMap
+}
+
+// appendNonIdentifyingAttributes appends non-identifying attributes to the provided attributes map.
+func (p *ProvisioningExecutor) appendNonIdentifyingAttributes(ctx *flowmodel.NodeContext,
+	attributes *map[string]interface{}) {
+	if value, exists := ctx.UserInputData[passwordAttributeName]; exists {
+		(*attributes)[passwordAttributeName] = value
+	} else if runtimeValue, exists := ctx.RuntimeData[passwordAttributeName]; exists {
+		(*attributes)[passwordAttributeName] = runtimeValue
+	}
 }
 
 // createUserInStore creates a new user in the user store with the provided attributes.
