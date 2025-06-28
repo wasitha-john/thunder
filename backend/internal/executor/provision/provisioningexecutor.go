@@ -39,7 +39,8 @@ const (
 	passwordAttributeName = "password"
 )
 
-var nonUserAttributes = []string{"userID", "code", "nonce", "otp", "state", "flowID"}
+var nonUserAttributes = []string{"userID", "code", "nonce", "state", "flowID",
+	"otp", "attemptCount", "expiryTimeInMillis", "value"}
 
 // ProvisioningExecutor implements the ExecutorInterface for user provisioning in a flow.
 type ProvisioningExecutor struct {

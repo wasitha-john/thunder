@@ -114,14 +114,6 @@ func BuildGraphFromDefinition(definition *jsonmodel.GraphDefinition) (model.Grap
 			if err != nil {
 				return nil, fmt.Errorf("failed to add edge from %s to %s: %w", sourceID, targetID, err)
 			}
-
-			if sourceNode, exists := g.GetNode(sourceID); exists {
-				sourceNode.AddNextNodeID(targetID)
-			}
-
-			if targetNode, exists := g.GetNode(targetID); exists {
-				targetNode.AddPreviousNodeID(sourceID)
-			}
 		}
 	}
 

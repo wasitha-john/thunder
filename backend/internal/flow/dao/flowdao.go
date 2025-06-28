@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/flow/utils"
@@ -102,6 +103,7 @@ func (c *FlowDAO) Init() error {
 	logger.Debug("Found graph definition files in the graph directory", log.Int("fileCount", len(files)))
 
 	// Process each JSON file in the directory
+	flowGraphs := make(map[string]model.GraphInterface)
 	for _, file := range files {
 		// Skip directories and non-JSON files
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".json") {
@@ -135,18 +137,41 @@ func (c *FlowDAO) Init() error {
 		}
 
 		// Log the graph model as JSON for debugging
-		jsonString, err := graphModel.ToJSON()
-		if err != nil {
-			logger.Warn("Failed to convert graph model to JSON", log.String("filePath", filePath), log.Error(err))
-		} else {
-			logger.Debug("Graph model loaded successfully", log.String("graphID", graphModel.GetID()),
-				log.String("json", jsonString))
+		if logger.IsDebugEnabled() {
+			jsonString, err := graphModel.ToJSON()
+			if err != nil {
+				logger.Warn("Failed to convert graph model to JSON", log.String("filePath", filePath), log.Error(err))
+			} else {
+				logger.Debug("Graph model loaded successfully", log.String("graphID", graphModel.GetID()),
+					log.String("json", jsonString))
+			}
 		}
 
-		// Register the graph with the flow DAO
-		logger.Debug("Registering a graph", log.String("graphID", graphModel.GetID()))
-		c.RegisterGraph(graphModel.GetID(), graphModel)
+		// Append graph to the flowGraphs map
+		flowGraphs[graphModel.GetID()] = graphModel
 	}
+
+	// Register all loaded graphs
+	inferredGraphCount := 0
+	for graphID, graph := range flowGraphs {
+		// Create and register the equivalent registration graph if not found already.
+		registrationGraphID := c.getRegistrationGraphID(graphID)
+		_, exists := c.graphs[registrationGraphID]
+		if !exists && graph.GetType() == constants.FlowTypeAuthentication {
+			if err := c.createAndRegisterRegistrationGraph(registrationGraphID, graph, logger); err != nil {
+				logger.Error("Failed creating registration graph", log.String("graphID", graphID), log.Error(err))
+				continue
+			}
+			inferredGraphCount++
+		}
+
+		logger.Debug("Registering graph", log.String("graphType", string(graph.GetType())),
+			log.String("graphID", graphID))
+		c.RegisterGraph(graphID, graph)
+	}
+
+	logger.Info("Flow DAO initialized successfully", log.Int("configuredGraphCount", len(flowGraphs)),
+		log.Int("inferredGraphCount", inferredGraphCount))
 
 	return nil
 }
@@ -210,4 +235,116 @@ func (c *FlowDAO) RemoveContextFromStore(flowID string) error {
 	}
 	delete(c.ctxStore, flowID)
 	return nil
+}
+
+// getRegistrationGraphID constructs the registration graph ID from the auth graph ID.
+func (c *FlowDAO) getRegistrationGraphID(authGraphID string) string {
+	return constants.RegistrationFlowGraphPrefix + strings.TrimPrefix(authGraphID, constants.AuthFlowGraphPrefix)
+}
+
+// createAndRegisterRegistrationGraph creates a registration graph from an authentication graph and registers it.
+func (c *FlowDAO) createAndRegisterRegistrationGraph(registrationGraphID string, authGraph model.GraphInterface,
+	logger *log.Logger) error {
+	registrationGraph, err := c.createRegistrationGraph(registrationGraphID, authGraph)
+	if err != nil {
+		return fmt.Errorf("failed to infer registration graph: %w", err)
+	}
+
+	if logger.IsDebugEnabled() {
+		registrationGraphJSON, err := registrationGraph.ToJSON()
+		if err != nil {
+			logger.Warn("Failed to convert graph model to JSON", log.String("graphID", registrationGraphID),
+				log.Error(err))
+		} else {
+			logger.Debug("Graph model loaded successfully", log.String("graphID", registrationGraph.GetID()),
+				log.String("json", registrationGraphJSON))
+		}
+	}
+
+	logger.Debug("Registering inferred registration graph", log.String("graphID", registrationGraph.GetID()))
+	c.RegisterGraph(registrationGraph.GetID(), registrationGraph)
+	return nil
+}
+
+// createRegistrationGraph creates a registration graph from an authentication graph.
+func (c *FlowDAO) createRegistrationGraph(registrationGraphID string,
+	authGraph model.GraphInterface) (model.GraphInterface, error) {
+	// Create a new graph from the authentication graph
+	registrationGraph := model.NewGraph(registrationGraphID, constants.FlowTypeRegistration)
+	registrationGraph.SetNodes(authGraph.GetNodes())
+	registrationGraph.SetEdges(authGraph.GetEdges())
+
+	err := registrationGraph.SetStartNode(authGraph.GetStartNodeID())
+	if err != nil {
+		return nil, fmt.Errorf("failed to set start node for registration graph: %w", err)
+	}
+
+	// Find authentication success nodes to insert provisioning before them
+	authSuccessNodeID := ""
+	nodes := registrationGraph.GetNodes()
+	for nodeID, node := range nodes {
+		if node.IsFinalNode() {
+			authSuccessNodeID = nodeID
+			break
+		}
+	}
+	if authSuccessNodeID == "" {
+		return nil, fmt.Errorf("no authentication success node found in the authentication graph")
+	}
+
+	// Create and add provisioning node
+	provisioningNode, err := c.createProvisioningNode()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create provisioning node: %w", err)
+	}
+	err = registrationGraph.AddNode(provisioningNode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add provisioning node to registration graph: %w", err)
+	}
+
+	// Modify the edges that lead to the auth success node to point to the provisioning node
+	for fromNodeID, toNodeIDs := range registrationGraph.GetEdges() {
+		for _, toNodeID := range toNodeIDs {
+			if toNodeID == authSuccessNodeID {
+				err := registrationGraph.RemoveEdge(fromNodeID, toNodeID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to remove edge from %s to %s: %w", fromNodeID, toNodeID, err)
+				}
+
+				err = registrationGraph.AddEdge(fromNodeID, provisioningNode.GetID())
+				if err != nil {
+					return nil, fmt.Errorf("failed to add edge from %s to provisioning node: %w", fromNodeID, err)
+				}
+			}
+		}
+	}
+
+	// Add an edge from the provisioning node to the auth success node
+	err = registrationGraph.AddEdge(provisioningNode.GetID(), authSuccessNodeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add edge from provisioning node to auth success node: %w", err)
+	}
+
+	return registrationGraph, nil
+}
+
+// createProvisioningNode creates a provisioning node that leads to the specified auth success node
+func (c *FlowDAO) createProvisioningNode() (model.NodeInterface, error) {
+	provisioningNode, err := model.NewNode(
+		"provisioning",
+		string(constants.NodeTypeTaskExecution),
+		false,
+		false,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create provisioning node: %w", err)
+	}
+
+	execConfig := &model.ExecutorConfig{
+		Name:       "ProvisioningExecutor",
+		Properties: make(map[string]string),
+	}
+	provisioningNode.SetExecutorConfig(execConfig)
+
+	return provisioningNode, nil
 }

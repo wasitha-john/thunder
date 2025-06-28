@@ -119,3 +119,10 @@ const (
 	// ActionTypeUserInput indicates that the action requires user input to proceed.
 	ActionTypeUserInput ActionType = "USER_INPUT"
 )
+
+const (
+	// AuthFlowGraphPrefix defines the prefix for authentication flow graph IDs.
+	AuthFlowGraphPrefix = "auth_flow_config_"
+	// RegistrationFlowGraphPrefix defines the prefix for registration flow graph IDs.
+	RegistrationFlowGraphPrefix = "registration_flow_config_"
+)

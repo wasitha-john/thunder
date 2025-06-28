@@ -33,8 +33,11 @@ type GraphInterface interface {
 	AddNode(node NodeInterface) error
 	GetNode(nodeID string) (NodeInterface, bool)
 	AddEdge(fromNodeID, toNodeID string) error
+	RemoveEdge(fromNodeID, toNodeID string) error
 	GetNodes() map[string]NodeInterface
+	SetNodes(nodes map[string]NodeInterface)
 	GetEdges() map[string][]string
+	SetEdges(edges map[string][]string)
 	GetStartNodeID() string
 	GetStartNode() (NodeInterface, error)
 	SetStartNode(startNodeID string) error
@@ -100,12 +103,17 @@ func (g *Graph) AddEdge(fromNodeID, toNodeID string) error {
 	if fromNodeID == "" || toNodeID == "" {
 		return errors.New("fromNodeID and toNodeID cannot be empty")
 	}
-	if _, exists := g.nodes[fromNodeID]; !exists {
+	fromNode, exists := g.nodes[fromNodeID]
+	if !exists {
 		return errors.New("node with fromNodeID does not exist")
 	}
-	if _, exists := g.nodes[toNodeID]; !exists {
+	toNode, exists := g.nodes[toNodeID]
+	if !exists {
 		return errors.New("node with toNodeID does not exist")
 	}
+
+	fromNode.AddNextNodeID(toNodeID)
+	toNode.AddPreviousNodeID(fromNodeID)
 
 	if _, exists := g.edges[fromNodeID]; !exists {
 		g.edges[fromNodeID] = []string{}
@@ -114,14 +122,61 @@ func (g *Graph) AddEdge(fromNodeID, toNodeID string) error {
 	return nil
 }
 
+// RemoveEdge removes an edge from one node to another
+func (g *Graph) RemoveEdge(fromNodeID, toNodeID string) error {
+	if fromNodeID == "" || toNodeID == "" {
+		return errors.New("fromNodeID and toNodeID cannot be empty")
+	}
+	fromNode, exists := g.nodes[fromNodeID]
+	if !exists {
+		return errors.New("node with fromNodeID does not exist")
+	}
+	toNode, exists := g.nodes[toNodeID]
+	if !exists {
+		return errors.New("node with toNodeID does not exist")
+	}
+
+	fromNode.RemoveNextNodeID(toNodeID)
+	toNode.RemovePreviousNodeID(fromNodeID)
+
+	if edges, exists := g.edges[fromNodeID]; exists {
+		for i, edge := range edges {
+			if edge == toNodeID {
+				g.edges[fromNodeID] = append(edges[:i], edges[i+1:]...)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // GetNodes returns all nodes in the graph
 func (g *Graph) GetNodes() map[string]NodeInterface {
 	return g.nodes
 }
 
+// SetNodes sets the nodes for the graph
+func (g *Graph) SetNodes(nodes map[string]NodeInterface) {
+	if nodes == nil {
+		g.nodes = make(map[string]NodeInterface)
+	} else {
+		g.nodes = nodes
+	}
+}
+
 // GetEdges returns all edges in the graph
 func (g *Graph) GetEdges() map[string][]string {
 	return g.edges
+}
+
+// SetEdges sets the edges for the graph
+func (g *Graph) SetEdges(edges map[string][]string) {
+	if edges == nil {
+		g.edges = make(map[string][]string)
+	} else {
+		g.edges = edges
+	}
 }
 
 // GetStartNodeID returns the start node ID of the graph
