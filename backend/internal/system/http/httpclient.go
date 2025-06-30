@@ -17,10 +17,9 @@
  */
 
 // Package http provides a centralized HTTP client service for making outbound HTTP requests.
-// This package offers a simplified API similar to the standard http.Client library:
+// This package offers an abstraction over the standard http.Client to centralize HTTP operations:
 //
 //   - NewHTTPClient() - creates a client with default 30s timeout
-//   - NewHTTPClient(customClient) - wraps a custom http.Client
 //   - NewHTTPClientWithTimeout(duration) - creates a client with custom timeout
 //
 // Usage examples:
@@ -30,14 +29,12 @@
 //
 //	// Custom timeout
 //	client := httpservice.NewHTTPClientWithTimeout(10 * time.Second)
-//
-//	// Custom configuration
-//	customHTTPClient := &http.Client{/* custom config */}
-//	client := httpservice.NewHTTPClient(customHTTPClient)
 package http
 
 import (
+	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -47,6 +44,12 @@ type HTTPClientInterface interface {
 	Do(req *http.Request) (*http.Response, error)
 	// Get issues a GET to the specified URL.
 	Get(url string) (*http.Response, error)
+	// Head issues a HEAD to the specified URL.
+	Head(url string) (*http.Response, error)
+	// Post issues a POST to the specified URL.
+	Post(url, contentType string, body io.Reader) (*http.Response, error)
+	// PostForm issues a POST to the specified URL, with data's keys and values URL-encoded as the request body.
+	PostForm(url string, data url.Values) (*http.Response, error)
 }
 
 // HTTPClient implements HTTPClientInterface and provides a centralized HTTP client.
@@ -54,15 +57,9 @@ type HTTPClient struct {
 	client *http.Client
 }
 
-// NewHTTPClient creates a new HTTPClient. If no http.Client is provided, it creates
-// one with a default 30-second timeout. This method provides a generic interface
-// similar to the standard http.Client library.
-func NewHTTPClient(client ...*http.Client) HTTPClientInterface {
-	if len(client) > 0 && client[0] != nil {
-		return &HTTPClient{
-			client: client[0],
-		}
-	}
+// NewHTTPClient creates a new HTTPClient with default 30-second timeout.
+// This method provides complete abstraction over http.Client references.
+func NewHTTPClient() HTTPClientInterface {
 	return &HTTPClient{
 		client: &http.Client{
 			Timeout: 30 * time.Second,
@@ -88,4 +85,19 @@ func (c *HTTPClient) Do(req *http.Request) (*http.Response, error) {
 // Get issues a GET to the specified URL.
 func (c *HTTPClient) Get(url string) (*http.Response, error) {
 	return c.client.Get(url)
+}
+
+// Head issues a HEAD to the specified URL.
+func (c *HTTPClient) Head(url string) (*http.Response, error) {
+	return c.client.Head(url)
+}
+
+// Post issues a POST to the specified URL.
+func (c *HTTPClient) Post(url, contentType string, body io.Reader) (*http.Response, error) {
+	return c.client.Post(url, contentType, body)
+}
+
+// PostForm issues a POST to the specified URL, with data's keys and values URL-encoded as the request body.
+func (c *HTTPClient) PostForm(url string, data url.Values) (*http.Response, error) {
+	return c.client.PostForm(url, data)
 }

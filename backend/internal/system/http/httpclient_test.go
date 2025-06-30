@@ -19,8 +19,10 @@
 package http
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -54,19 +56,6 @@ func (suite *HTTPClientTestSuite) TestNewHTTPClientWithTimeout() {
 	// Verify timeout is set correctly
 	httpClient := client.(*HTTPClient)
 	assert.Equal(suite.T(), timeout, httpClient.client.Timeout)
-}
-
-func (suite *HTTPClientTestSuite) TestNewHTTPClientWithCustomClient() {
-	customClient := &http.Client{
-		Timeout: 15 * time.Second,
-	}
-	client := NewHTTPClient(customClient)
-	assert.NotNil(suite.T(), client)
-	assert.Implements(suite.T(), (*HTTPClientInterface)(nil), client)
-
-	// Verify custom client is used
-	httpClient := client.(*HTTPClient)
-	assert.Equal(suite.T(), customClient, httpClient.client)
 }
 
 func (suite *HTTPClientTestSuite) TestNewHTTPClientWithDefaultSettings() {
@@ -182,4 +171,81 @@ func (suite *HTTPClientTestSuite) TestDoWithError() {
 	resp, err := client.Do(req)
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), resp)
+}
+
+func (suite *HTTPClientTestSuite) TestHead() {
+	// Create a test server
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(suite.T(), "HEAD", r.Method)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer testServer.Close()
+
+	client := NewHTTPClient()
+
+	// Execute the HEAD request
+	resp, err := client.Head(testServer.URL)
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), resp)
+	assert.Equal(suite.T(), http.StatusOK, resp.StatusCode)
+
+	_ = resp.Body.Close()
+}
+
+func (suite *HTTPClientTestSuite) TestPost() {
+	// Create a test server
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(suite.T(), "POST", r.Method)
+		assert.Equal(suite.T(), "application/json", r.Header.Get("Content-Type"))
+
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(suite.T(), err)
+		assert.Equal(suite.T(), `{"test": "data"}`, string(body))
+
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte("created"))
+	}))
+	defer testServer.Close()
+
+	client := NewHTTPClient()
+
+	// Execute the POST request
+	resp, err := client.Post(testServer.URL, "application/json", strings.NewReader(`{"test": "data"}`))
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), resp)
+	assert.Equal(suite.T(), http.StatusCreated, resp.StatusCode)
+
+	_ = resp.Body.Close()
+}
+
+func (suite *HTTPClientTestSuite) TestPostForm() {
+	// Create a test server
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(suite.T(), "POST", r.Method)
+		assert.Equal(suite.T(), "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
+
+		err := r.ParseForm()
+		assert.NoError(suite.T(), err)
+		assert.Equal(suite.T(), "value1", r.FormValue("key1"))
+		assert.Equal(suite.T(), "value2", r.FormValue("key2"))
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("form received"))
+	}))
+	defer testServer.Close()
+
+	client := NewHTTPClient()
+
+	// Prepare form data
+	formData := url.Values{}
+	formData.Set("key1", "value1")
+	formData.Set("key2", "value2")
+
+	// Execute the PostForm request
+	resp, err := client.PostForm(testServer.URL, formData)
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), resp)
+	assert.Equal(suite.T(), http.StatusOK, resp.StatusCode)
+
+	_ = resp.Body.Close()
 }
