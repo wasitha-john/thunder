@@ -82,7 +82,7 @@ func (suite *HTTPClientTestSuite) TestDo() {
 	// Create a test server
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test response"))
+		_, _ = w.Write([]byte("test response"))
 	}))
 	defer testServer.Close()
 
@@ -98,7 +98,7 @@ func (suite *HTTPClientTestSuite) TestDo() {
 	assert.NotNil(suite.T(), resp)
 	assert.Equal(suite.T(), http.StatusOK, resp.StatusCode)
 
-	defer resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func (suite *HTTPClientTestSuite) TestDoWithPost() {
@@ -107,7 +107,7 @@ func (suite *HTTPClientTestSuite) TestDoWithPost() {
 		assert.Equal(suite.T(), "POST", r.Method)
 		assert.Equal(suite.T(), "application/json", r.Header.Get("Content-Type"))
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("created"))
+		_, _ = w.Write([]byte("created"))
 	}))
 	defer testServer.Close()
 
@@ -124,7 +124,7 @@ func (suite *HTTPClientTestSuite) TestDoWithPost() {
 	assert.NotNil(suite.T(), resp)
 	assert.Equal(suite.T(), http.StatusCreated, resp.StatusCode)
 
-	defer resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func (suite *HTTPClientTestSuite) TestDoWithTimeout() {
@@ -154,7 +154,7 @@ func (suite *HTTPClientTestSuite) TestGet() {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(suite.T(), "GET", r.Method)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("get response"))
+		_, _ = w.Write([]byte("get response"))
 	}))
 	defer testServer.Close()
 
@@ -166,7 +166,7 @@ func (suite *HTTPClientTestSuite) TestGet() {
 	assert.NotNil(suite.T(), resp)
 	assert.Equal(suite.T(), http.StatusOK, resp.StatusCode)
 
-	defer resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func (suite *HTTPClientTestSuite) TestDoWithError() {

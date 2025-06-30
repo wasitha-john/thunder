@@ -29,8 +29,8 @@ import (
 	"github.com/asgardeo/thunder/internal/notification/message/constants"
 	"github.com/asgardeo/thunder/internal/notification/message/model"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
-	"github.com/asgardeo/thunder/internal/system/log"
 	httpservice "github.com/asgardeo/thunder/internal/system/http"
+	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 const (
