@@ -69,8 +69,16 @@ paths:
                     - id: "4d4cb83a-9bb8-4fd7-970e-36b65f9c8ea4"
         "400":
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "404":
           description: Parent organization unit not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -121,8 +129,16 @@ paths:
                     parent: "afc77cfd-620b-4cf0-a31c-7377b0ea8902"
         "400":
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "409":
           description: An organization unit with the same name exists under the same parent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -161,6 +177,10 @@ paths:
                   - "6b59f277-fd79-40b1-afca-dce75d3709f7"
         "404":
           description: Organization unit not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -208,10 +228,22 @@ paths:
                   - "6b59f277-fd79-40b1-afca-dce75d3709f7"
         "400":
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "404":
           description: Organization unit not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "409":
           description: An organization unit with the same name exists under the same parent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -231,6 +263,10 @@ paths:
           description: Organization unit deleted
         "400":
           description: Cannot delete organization unit with children
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -288,3 +324,15 @@ components:
     UpdateOrganizationUnitRequest:
       allOf:
         - $ref: '#/components/schemas/CreateOrganizationUnitRequest'
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          format: int64
+        message:
+          type: string
+        description:
+          type: string
