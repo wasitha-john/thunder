@@ -45,7 +45,7 @@ var (
 
 type BasicAuthFlowTestSuite struct {
 	suite.Suite
-	createdUserID string
+	config *TestSuiteConfig
 }
 
 func TestBasicAuthFlowTestSuite(t *testing.T) {
@@ -53,20 +53,21 @@ func TestBasicAuthFlowTestSuite(t *testing.T) {
 }
 
 func (ts *BasicAuthFlowTestSuite) SetupSuite() {
-	id, err := createUser(testUser)
+	// Initialize config
+	ts.config = &TestSuiteConfig{}
+
+	// Create test user
+	userIDs, err := CreateMultipleUsers(testUser)
 	if err != nil {
 		ts.T().Fatalf("Failed to create test user during setup: %v", err)
-	} else {
-		ts.createdUserID = id
 	}
+	ts.config.CreatedUserIDs = userIDs
 }
 
 func (ts *BasicAuthFlowTestSuite) TearDownSuite() {
-	if ts.createdUserID != "" {
-		err := deleteUser(ts.createdUserID)
-		if err != nil {
-			ts.T().Fatalf("Failed to delete test user during teardown: %v", err)
-		}
+	// Delete all created users
+	if err := CleanupUsers(ts.config.CreatedUserIDs); err != nil {
+		ts.T().Logf("Failed to cleanup users during teardown: %v", err)
 	}
 }
 
@@ -85,18 +86,11 @@ func (ts *BasicAuthFlowTestSuite) TestBasicAuthFlowSuccess() {
 	ts.Require().NotEmpty(flowStep.Data, "Flow data should not be empty")
 	ts.Require().NotEmpty(flowStep.Data.Inputs, "Flow should require inputs")
 
-	// Verify username and password are required inputs
-	var hasUsername, hasPassword bool
-	for _, input := range flowStep.Data.Inputs {
-		if input.Name == "username" {
-			hasUsername = true
-		}
-		if input.Name == "password" {
-			hasPassword = true
-		}
-	}
-	ts.Require().True(hasUsername, "Username input should be required")
-	ts.Require().True(hasPassword, "Password input should be required")
+	// Verify username and password are required inputs using utility function
+	ts.Require().True(ValidateRequiredInputs(flowStep.Data.Inputs, []string{"username", "password"}),
+		"Username and password inputs should be required")
+	ts.Require().True(HasInput(flowStep.Data.Inputs, "username"), "Username input should be present")
+	ts.Require().True(HasInput(flowStep.Data.Inputs, "password"), "Password input should be present")
 
 	// Step 2: Continue the flow with valid credentials
 	var userAttrs map[string]interface{}
@@ -108,7 +102,7 @@ func (ts *BasicAuthFlowTestSuite) TestBasicAuthFlowSuccess() {
 		"password": userAttrs["password"].(string),
 	}
 
-	completeFlowStep, err := completeAuthFlow(flowStep.FlowID, inputs)
+	completeFlowStep, err := completeAuthFlow(flowStep.FlowID, "", inputs)
 	if err != nil {
 		ts.T().Fatalf("Failed to complete authentication flow: %v", err)
 	}
@@ -162,7 +156,7 @@ func (ts *BasicAuthFlowTestSuite) TestBasicAuthFlowWithTwoStepInput() {
 		"username": userAttrs["username"].(string),
 	}
 
-	intermediateFlowStep, err := completeAuthFlow(flowStep.FlowID, inputs)
+	intermediateFlowStep, err := completeAuthFlow(flowStep.FlowID, "", inputs)
 	if err != nil {
 		ts.T().Fatalf("Failed to complete authentication flow with missing credentials: %v", err)
 	}
@@ -175,21 +169,15 @@ func (ts *BasicAuthFlowTestSuite) TestBasicAuthFlowWithTwoStepInput() {
 	ts.Require().NotEmpty(intermediateFlowStep.Data, "Flow data should not be empty")
 	ts.Require().NotEmpty(intermediateFlowStep.Data.Inputs, "Flow should require inputs")
 
-	// Verify password is required input
-	var hasPassword bool
-	for _, input := range flowStep.Data.Inputs {
-		if input.Name == "password" {
-			hasPassword = true
-		}
-	}
-	ts.Require().True(hasPassword, "Password input should be required")
+	// Verify password is required input using utility function
+	ts.Require().True(HasInput(flowStep.Data.Inputs, "password"), "Password input should be required")
 
 	// Step 3: Continue the flow with the password
 	inputs = map[string]string{
 		"password": userAttrs["password"].(string),
 	}
 
-	completeFlowStep, err := completeAuthFlow(flowStep.FlowID, inputs)
+	completeFlowStep, err := completeAuthFlow(flowStep.FlowID, "", inputs)
 	if err != nil {
 		ts.T().Fatalf("Failed to complete authentication flow: %v", err)
 	}
@@ -216,7 +204,7 @@ func (ts *BasicAuthFlowTestSuite) TestBasicAuthFlowInvalidCredentials() {
 		"password": "wrong_password",
 	}
 
-	completeFlowStep, err := completeAuthFlow(flowStep.FlowID, inputs)
+	completeFlowStep, err := completeAuthFlow(flowStep.FlowID, "", inputs)
 	if err != nil {
 		ts.T().Fatalf("Failed to complete authentication flow with invalid credentials: %v", err)
 	}

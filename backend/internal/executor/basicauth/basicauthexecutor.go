@@ -30,7 +30,15 @@ import (
 	userprovider "github.com/asgardeo/thunder/internal/user/provider"
 )
 
-const loggerComponentName = "BasicAuthExecutor"
+const (
+	loggerComponentName    = "BasicAuthExecutor"
+	userAttributeUserID    = "userID"
+	userAttributeUsername  = "username"
+	userAttributePassword  = "password"
+	userAttributeEmail     = "email"
+	userAttributeFirstName = "firstName"
+	userAttributeLastName  = "lastName"
+)
 
 // BasicAuthExecutor implements the ExecutorInterface for basic authentication.
 type BasicAuthExecutor struct {
@@ -44,12 +52,12 @@ var _ flowmodel.ExecutorInterface = (*BasicAuthExecutor)(nil)
 func NewBasicAuthExecutor(id, name string, properties map[string]string) *BasicAuthExecutor {
 	defaultInputs := []flowmodel.InputData{
 		{
-			Name:     "username",
+			Name:     userAttributeUsername,
 			Type:     "string",
 			Required: true,
 		},
 		{
-			Name:     "password",
+			Name:     userAttributePassword,
 			Type:     "string",
 			Required: true,
 		},
@@ -166,8 +174,8 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, b.GetID()))
 
-	username := ctx.UserInputData["username"]
-	filters := map[string]interface{}{"username": username}
+	username := ctx.UserInputData[userAttributeUsername]
+	filters := map[string]interface{}{userAttributeUsername: username}
 	userID, err := b.IdentifyUser(filters, execResp)
 	if err != nil {
 		return nil, err
@@ -183,7 +191,7 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 				return &authnmodel.AuthenticatedUser{
 					IsAuthenticated: false,
 					Attributes: map[string]string{
-						"username": username,
+						userAttributeUsername: username,
 					},
 				}, nil
 			}
@@ -203,7 +211,7 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
 
-	user, err := userService.VerifyUser(*userID, "password", ctx.UserInputData["password"])
+	user, err := userService.VerifyUser(*userID, userAttributePassword, ctx.UserInputData[userAttributePassword])
 	if err != nil {
 		logger.Error("Failed to verify user credentials", log.String("userID", *userID), log.Error(err))
 		return nil, err
@@ -222,19 +230,19 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 		}
 
 		email := ""
-		emailAttr := attrs["email"]
+		emailAttr := attrs[userAttributeEmail]
 		if emailAttr != nil {
 			email = emailAttr.(string)
 		}
 
 		firstName := ""
-		firstNameAttr := attrs["firstName"]
+		firstNameAttr := attrs[userAttributeFirstName]
 		if firstNameAttr != nil {
 			firstName = firstNameAttr.(string)
 		}
 
 		lastName := ""
-		lastNameAttr := attrs["lastName"]
+		lastNameAttr := attrs[userAttributeLastName]
 		if lastNameAttr != nil {
 			lastName = lastNameAttr.(string)
 		}
@@ -242,11 +250,16 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 		authenticatedUser = authnmodel.AuthenticatedUser{
 			IsAuthenticated: true,
 			UserID:          user.ID,
-			Attributes: map[string]string{
-				"email":     email,
-				"firstName": firstName,
-				"lastName":  lastName,
-			},
+			Attributes:      map[string]string{},
+		}
+		if firstName != "" {
+			authenticatedUser.Attributes[userAttributeFirstName] = firstName
+		}
+		if lastName != "" {
+			authenticatedUser.Attributes[userAttributeLastName] = lastName
+		}
+		if email != "" {
+			authenticatedUser.Attributes[userAttributeEmail] = email
 		}
 	}
 	return &authenticatedUser, nil

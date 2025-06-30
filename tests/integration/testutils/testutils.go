@@ -35,6 +35,7 @@ const (
 	ServerBinary                = "thunder"
 	TestDeploymentYamlPath      = "./resources/deployment.yaml"
 	TestDatabaseSchemaDirectory = "resources/dbscripts"
+	TestGraphsDirectory         = "resources/graphs"
 	InitScriptPath              = "./scripts/init_script.sh"
 	DBScriptPath                = "./scripts/setup_db.sh"
 	DatabaseFileBasePath        = "repository/database/"
@@ -77,7 +78,6 @@ func UnzipProduct(zipFilePattern string) error {
 }
 
 func extractFile(f *zip.File, dest string) error {
-
 	rc, err := f.Open()
 	if err != nil {
 		return err
@@ -138,7 +138,6 @@ func findMatchingZipFile(zipFilePattern string) ([]string, error) {
 }
 
 func ReplaceResources(zipFilePattern string) error {
-
 	log.Println("Replacing resources...")
 
 	cwd, err := os.Getwd()
@@ -165,11 +164,17 @@ func ReplaceResources(zipFilePattern string) error {
 		return fmt.Errorf("failed to replace database schema files: %v", err)
 	}
 
+	// copy graphs from the target directory to the product home
+	graphsDestPath := filepath.Join(productHome, "repository", "resources", "graphs")
+	err = copyDirectory(TestGraphsDirectory, graphsDestPath)
+	if err != nil {
+		return fmt.Errorf("failed to replace graph files: %v", err)
+	}
+
 	return nil
 }
 
 func copyFile(src, dest string) error {
-
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
@@ -188,7 +193,6 @@ func copyFile(src, dest string) error {
 }
 
 func copyDirectory(src, dest string) error {
-
 	srcDir, err := os.Open(src)
 	if err != nil {
 		return err
@@ -225,7 +229,6 @@ func copyDirectory(src, dest string) error {
 }
 
 func RunInitScript(zipFilePattern string) error {
-
 	log.Println("Running init script...")
 
 	cwd, err := os.Getwd()
@@ -271,7 +274,6 @@ func RunInitScript(zipFilePattern string) error {
 }
 
 func StartServer(port string, zipFilePattern string) (*exec.Cmd, error) {
-
 	log.Println("Starting server...")
 	productHome, err := getExtractedProductHome(zipFilePattern)
 	if err != nil {
@@ -291,7 +293,6 @@ func StartServer(port string, zipFilePattern string) (*exec.Cmd, error) {
 }
 
 func StopServer(cmd *exec.Cmd) {
-
 	log.Println("Stopping server...")
 	if cmd != nil {
 		cmd.Process.Kill()

@@ -293,6 +293,9 @@ func (s *SMSOTPAuthExecutor) satisfyPrerequisites(ctx *flowmodel.NodeContext,
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, s.GetID()), log.String(log.LoggerKeyFlowID, ctx.FlowID))
 
+	execResp.Status = ""
+	execResp.FailureReason = ""
+
 	logger.Debug("Trying to resolve user ID from context data")
 	userIDResolved, err := s.resolveUserID(ctx)
 	if err != nil {
