@@ -246,14 +246,6 @@ func (gh *GroupHandler) HandleGroupDeleteRequest(w http.ResponseWriter, r *http.
 // handleError handles service errors and returns appropriate HTTP responses.
 func (gh *GroupHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 	svcErr *serviceerror.ServiceError) {
-	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-
-	errResp := apierror.ErrorResponse{
-		Code:        svcErr.Code,
-		Message:     svcErr.Error,
-		Description: svcErr.ErrorDescription,
-	}
-
 	statusCode := http.StatusInternalServerError
 	if svcErr.Type == serviceerror.ClientErrorType {
 		switch svcErr.Code {
@@ -267,6 +259,20 @@ func (gh *GroupHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 		default:
 			statusCode = http.StatusBadRequest
 		}
+	}
+
+	if statusCode == http.StatusInternalServerError {
+		logger.Error("Internal server error occurred", log.String("error", svcErr.Error),
+			log.String("description", svcErr.ErrorDescription))
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	errResp := apierror.ErrorResponse{
+		Code:        svcErr.Code,
+		Message:     svcErr.Error,
+		Description: svcErr.ErrorDescription,
 	}
 	w.WriteHeader(statusCode)
 
