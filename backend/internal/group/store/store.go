@@ -118,9 +118,6 @@ func CreateGroup(group model.Group) error {
 		ouID = group.Parent.ID
 	}
 
-	// Generate path
-	path := generateGroupPath(group.Name, group.Parent)
-
 	// Begin transaction
 	tx, err := dbClient.BeginTx()
 	if err != nil {
@@ -136,7 +133,6 @@ func CreateGroup(group model.Group) error {
 		ouID,
 		group.Name,
 		group.Description,
-		path,
 	)
 	if err != nil {
 		logger.Error("Failed to execute create group query", log.Error(err))
@@ -259,9 +255,6 @@ func UpdateGroup(group model.Group) error {
 		ouID = group.Parent.ID
 	}
 
-	// Generate path
-	path := generateGroupPath(group.Name, group.Parent)
-
 	// Begin transaction
 	tx, err := dbClient.BeginTx()
 	if err != nil {
@@ -277,7 +270,6 @@ func UpdateGroup(group model.Group) error {
 		ouID,
 		group.Name,
 		group.Description,
-		path,
 	)
 	if err != nil {
 		logger.Error("Failed to execute update group query", log.Error(err))
@@ -620,16 +612,6 @@ func checkGroupNameConflictForUpdate(
 	}
 
 	return nil
-}
-
-// generateGroupPath generates the path for a group based on its name and parent.
-func generateGroupPath(name string, parent model.Parent) string {
-	// Simplified path generation - in a real implementation, you'd build the full path
-	// from the root to this group
-	if parent.Type == "group" {
-		return fmt.Sprintf("/%s/%s", parent.ID, name)
-	}
-	return fmt.Sprintf("/%s", name)
 }
 
 // getOUFromPath extracts the OU ID from a group's path.

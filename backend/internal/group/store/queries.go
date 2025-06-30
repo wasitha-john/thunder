@@ -27,25 +27,25 @@ var (
 	// QueryGetGroupList is the query to get all root groups.
 	QueryGetGroupList = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-01",
-		Query: `SELECT GROUP_ID, OU_ID, NAME, DESCRIPTION, PATH FROM "GROUP" WHERE OU_ID IS NOT NULL AND PARENT_ID IS NULL`,
+		Query: `SELECT GROUP_ID, OU_ID, NAME, DESCRIPTION FROM "GROUP" WHERE OU_ID IS NOT NULL AND PARENT_ID IS NULL`,
 	}
 
 	// QueryCreateGroup is the query to create a new group.
 	QueryCreateGroup = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-02",
-		Query: `INSERT INTO "GROUP" (GROUP_ID, PARENT_ID, OU_ID, NAME, DESCRIPTION, PATH) VALUES ($1, $2, $3, $4, $5, $6)`,
+		Query: `INSERT INTO "GROUP" (GROUP_ID, PARENT_ID, OU_ID, NAME, DESCRIPTION) VALUES ($1, $2, $3, $4, $5)`,
 	}
 
 	// QueryGetGroupByID is the query to get a group by id.
 	QueryGetGroupByID = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-03",
-		Query: `SELECT GROUP_ID, PARENT_ID, OU_ID, NAME, DESCRIPTION, PATH FROM "GROUP" WHERE GROUP_ID = $1`,
+		Query: `SELECT GROUP_ID, PARENT_ID, OU_ID, NAME, DESCRIPTION FROM "GROUP" WHERE GROUP_ID = $1`,
 	}
 
 	// QueryUpdateGroup is the query to update a group.
 	QueryUpdateGroup = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-04",
-		Query: `UPDATE "GROUP" SET PARENT_ID = $2, OU_ID = $3, NAME = $4, DESCRIPTION = $5, PATH = $6 WHERE GROUP_ID = $1`,
+		Query: `UPDATE "GROUP" SET PARENT_ID = $2, OU_ID = $3, NAME = $4, DESCRIPTION = $5 WHERE GROUP_ID = $1`,
 	}
 
 	// QueryDeleteGroup is the query to delete a group.
