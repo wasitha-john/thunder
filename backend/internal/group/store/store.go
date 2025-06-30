@@ -32,11 +32,8 @@ import (
 
 const loggerComponentName = "GroupStore"
 
-// GroupType represents the type group entity.
-const GroupType = "group"
-
 // GetGroupList retrieves all root groups.
-func GetGroupList() ([]model.GroupBasic, error) {
+func GetGroupList() ([]model.GroupBasicDAO, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -58,7 +55,7 @@ func GetGroupList() ([]model.GroupBasic, error) {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	groups := make([]model.GroupBasic, 0)
+	groups := make([]model.GroupBasicDAO, 0)
 	for _, row := range results {
 		group, err := buildGroupFromResultRow(row, logger)
 		if err != nil {
@@ -66,11 +63,12 @@ func GetGroupList() ([]model.GroupBasic, error) {
 			return nil, fmt.Errorf("failed to build group from result row: %w", err)
 		}
 
-		groupBasic := model.GroupBasic{
+		groupBasic := model.GroupBasicDAO{
 			ID:          group.ID,
 			Name:        group.Name,
 			Description: group.Description,
 			Parent:      group.Parent,
+			OU:          group.OU,
 		}
 
 		groups = append(groups, groupBasic)
@@ -80,7 +78,7 @@ func GetGroupList() ([]model.GroupBasic, error) {
 }
 
 // CreateGroup creates a new group in the database.
-func CreateGroup(group model.Group) error {
+func CreateGroup(group model.GroupDAO) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -94,30 +92,6 @@ func CreateGroup(group model.Group) error {
 		}
 	}()
 
-	// Determine the parent group id and OU id
-	var parentGroupID *string
-	var ouID string
-
-	if group.Parent.Type == GroupType {
-		parentGroupID = &group.Parent.ID
-		// Get the OU id from the parent group
-		parentGroup, err := GetGroup(group.Parent.ID)
-		if err != nil {
-			logger.Error("Failed to get parent group", log.Error(err))
-			return model.ErrParentNotFound
-		}
-		// Convert Group to GroupBasic for getOUFromPath function
-		parentGroupBasic := model.GroupBasic{
-			ID:          parentGroup.ID,
-			Name:        parentGroup.Name,
-			Description: parentGroup.Description,
-			Parent:      parentGroup.Parent,
-		}
-		ouID = getOUFromPath(parentGroupBasic)
-	} else {
-		ouID = group.Parent.ID
-	}
-
 	// Begin transaction
 	tx, err := dbClient.BeginTx()
 	if err != nil {
@@ -129,8 +103,8 @@ func CreateGroup(group model.Group) error {
 	_, err = tx.Exec(
 		QueryCreateGroup.Query,
 		group.ID,
-		parentGroupID,
-		ouID,
+		group.Parent,
+		group.OU,
 		group.Name,
 		group.Description,
 	)
@@ -163,13 +137,13 @@ func CreateGroup(group model.Group) error {
 }
 
 // GetGroup retrieves a group by its id.
-func GetGroup(id string) (model.Group, error) {
+func GetGroup(id string) (model.GroupDAO, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
-		return model.Group{}, fmt.Errorf("failed to get database client: %w", err)
+		return model.GroupDAO{}, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
 		if closeErr := dbClient.Close(); closeErr != nil {
@@ -180,36 +154,36 @@ func GetGroup(id string) (model.Group, error) {
 	results, err := dbClient.Query(QueryGetGroupByID, id)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
-		return model.Group{}, fmt.Errorf("failed to execute query: %w", err)
+		return model.GroupDAO{}, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
 		logger.Error("Group not found with id: " + id)
-		return model.Group{}, model.ErrGroupNotFound
+		return model.GroupDAO{}, model.ErrGroupNotFound
 	}
 
 	if len(results) != 1 {
 		logger.Error("Unexpected number of results")
-		return model.Group{}, fmt.Errorf("unexpected number of results: %d", len(results))
+		return model.GroupDAO{}, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
 	row := results[0]
 	group, err := buildGroupFromResultRow(row, logger)
 	if err != nil {
-		return model.Group{}, err
+		return model.GroupDAO{}, err
 	}
 
 	// Get child groups
 	childGroups, err := GetChildGroups(id)
 	if err != nil {
-		return model.Group{}, err
+		return model.GroupDAO{}, err
 	}
 	group.Groups = *childGroups
 
 	// Get users
 	users, err := getGroupUsers(dbClient, id, logger)
 	if err != nil {
-		return model.Group{}, err
+		return model.GroupDAO{}, err
 	}
 	group.Users = users
 
@@ -217,7 +191,7 @@ func GetGroup(id string) (model.Group, error) {
 }
 
 // UpdateGroup updates an existing group.
-func UpdateGroup(group model.Group) error {
+func UpdateGroup(group model.GroupDAO) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -231,30 +205,6 @@ func UpdateGroup(group model.Group) error {
 		}
 	}()
 
-	// Determine the parent group ID and OU ID
-	var parentGroupID *string
-	var ouID string
-
-	if group.Parent.Type == GroupType {
-		parentGroupID = &group.Parent.ID
-		// Get the OU id from the parent group
-		parentGroup, err := GetGroup(group.Parent.ID)
-		if err != nil {
-			logger.Error("Failed to get parent group", log.Error(err))
-			return model.ErrParentNotFound
-		}
-		// Convert Group to GroupBasic for getOUFromPath function
-		parentGroupBasic := model.GroupBasic{
-			ID:          parentGroup.ID,
-			Name:        parentGroup.Name,
-			Description: parentGroup.Description,
-			Parent:      parentGroup.Parent,
-		}
-		ouID = getOUFromPath(parentGroupBasic)
-	} else {
-		ouID = group.Parent.ID
-	}
-
 	// Begin transaction
 	tx, err := dbClient.BeginTx()
 	if err != nil {
@@ -266,8 +216,8 @@ func UpdateGroup(group model.Group) error {
 	result, err := tx.Exec(
 		QueryUpdateGroup.Query,
 		group.ID,
-		parentGroupID,
-		ouID,
+		group.Parent,
+		group.OU,
 		group.Name,
 		group.Description,
 	)
@@ -381,57 +331,44 @@ func DeleteGroup(id string) error {
 }
 
 // buildGroupFromResultRow constructs a model.Group from a database result row.
-func buildGroupFromResultRow(row map[string]interface{}, logger *log.Logger) (model.Group, error) {
+func buildGroupFromResultRow(row map[string]interface{}, logger *log.Logger) (model.GroupDAO, error) {
 	groupID, ok := row["group_id"].(string)
 	if !ok {
 		logger.Error("Failed to parse group_id as string")
-		return model.Group{}, fmt.Errorf("failed to parse group_id as string")
+		return model.GroupDAO{}, fmt.Errorf("failed to parse group_id as string")
 	}
 
 	name, ok := row["name"].(string)
 	if !ok {
 		logger.Error("Failed to parse name as string")
-		return model.Group{}, fmt.Errorf("failed to parse name as string")
+		return model.GroupDAO{}, fmt.Errorf("failed to parse name as string")
 	}
 
 	description, ok := row["description"].(string)
 	if !ok {
 		logger.Error("Failed to parse description as string")
-		return model.Group{}, fmt.Errorf("failed to parse description as string")
+		return model.GroupDAO{}, fmt.Errorf("failed to parse description as string")
 	}
 
 	ouID, ok := row["ou_id"].(string)
 	if !ok {
 		logger.Error("Failed to parse ou_id as string")
-		return model.Group{}, fmt.Errorf("failed to parse ou_id as string")
+		return model.GroupDAO{}, fmt.Errorf("failed to parse ou_id as string")
 	}
 
-	var parentGroupID *string
+	var parentID *string
 	if row["parent_id"] != nil {
 		if pgid, ok := row["parent_id"].(string); ok {
-			parentGroupID = &pgid
+			parentID = &pgid
 		}
 	}
 
-	// Determine parent
-	var parent model.Parent
-	if parentGroupID != nil {
-		parent = model.Parent{
-			Type: model.ParentTypeGroup,
-			ID:   *parentGroupID,
-		}
-	} else {
-		parent = model.Parent{
-			Type: model.ParentTypeOrganizationUnit,
-			ID:   ouID,
-		}
-	}
-
-	group := model.Group{
+	group := model.GroupDAO{
 		ID:          groupID,
 		Name:        name,
 		Description: description,
-		Parent:      parent,
+		Parent:      parentID,
+		OU:          ouID,
 	}
 
 	return group, nil
@@ -612,15 +549,4 @@ func checkGroupNameConflictForUpdate(
 	}
 
 	return nil
-}
-
-// getOUFromPath extracts the OU ID from a group's path.
-func getOUFromPath(group model.GroupBasic) string {
-	// Simplified - in a real implementation, you'd extract the OU from the group's path
-	// For now, return the parent OU ID
-	if group.Parent.Type == "organizationUnit" {
-		return group.Parent.ID
-	}
-	// Would need to traverse up the hierarchy to find the root OU
-	return group.Parent.ID
 }
