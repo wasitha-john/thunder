@@ -350,7 +350,7 @@ func (suite *GroupAPITestSuite) TestCreateGroupWithInvalidUserID() {
 	err = json.Unmarshal(body, &errorResp)
 	suite.Require().NoError(err)
 
-	suite.Equal("GRP-60008", errorResp["code"])
+	suite.Equal("GRP-1007", errorResp["code"])
 	suite.Equal("Invalid user ID", errorResp["message"])
 	suite.Contains(errorResp["description"], "One or more user IDs in the request do not exist")
 }
@@ -397,7 +397,7 @@ func (suite *GroupAPITestSuite) TestCreateGroupWithMixedValidInvalidUserIDs() {
 	err = json.Unmarshal(body, &errorResp)
 	suite.Require().NoError(err)
 
-	suite.Equal("GRP-60008", errorResp["code"])
+	suite.Equal("GRP-1007", errorResp["code"])
 	suite.Equal("Invalid user ID", errorResp["message"])
 }
 
@@ -484,7 +484,7 @@ func (suite *GroupAPITestSuite) TestUpdateGroupWithInvalidUserID() {
 	err = json.Unmarshal(body, &errorResp)
 	suite.Require().NoError(err)
 
-	suite.Equal("GRP-60008", errorResp["code"])
+	suite.Equal("GRP-1007", errorResp["code"])
 	suite.Equal("Invalid user ID", errorResp["message"])
 	suite.Contains(errorResp["description"], "One or more user IDs in the request do not exist")
 }
@@ -581,7 +581,7 @@ func (suite *GroupAPITestSuite) TestUpdateGroupWithMultipleInvalidUserIDs() {
 	err = json.Unmarshal(body, &errorResp)
 	suite.Require().NoError(err)
 
-	suite.Equal("GRP-60008", errorResp["code"])
+	suite.Equal("GRP-1007", errorResp["code"])
 	suite.Equal("Invalid user ID", errorResp["message"])
 }
 

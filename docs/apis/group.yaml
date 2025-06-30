@@ -53,14 +53,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "404":
-          description: Parent group not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+              examples:
+                invalid-request-format:
+                  summary: Invalid request format
+                  value:
+                    code: "GRP-1001"
+                    message: "Invalid request format"
+                    description: "The request body is malformed or contains invalid data"
         "500":
           description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Internal server error"
 
     post:
       tags:
@@ -131,14 +137,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                invalid-request-format:
+                  summary: Invalid request format
+                  value:
+                    code: "GRP-1001"
+                    message: "Invalid request format"
+                    description: "The request body is malformed or contains invalid data"
+                invalid-user-id:
+                  summary: Invalid user ID
+                  value:
+                    code: "GRP-1007"
+                    message: "Invalid user ID"
+                    description: "One or more user IDs in the request do not exist"
+                parent-not-found:
+                  summary: Parent not found
+                  value:
+                    code: "GRP-1005"
+                    message: "Parent not found"
+                    description: "Parent group or organization unit not found"
         "409":
-          description: A group with the same name exists under the same parent
+          description: Conflict
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                code: "GRP-1004"
+                message: "Group name conflict"
+                description: "A group with the same name exists under the same parent"
         "500":
           description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Internal server error"
 
   /groups/{id}:
     get:
@@ -171,14 +205,33 @@ paths:
                   - "9f1e47d3-0347-4464-9f02-e0bfae02e896"
                 groups:
                   - "6b1e7b8d-7e19-41eb-8fa2-c0ee5bb67a94"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "GRP-1002"
+                message: "Invalid request format"
+                description: "Group ID is required"
         "404":
           description: Group not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                code: "GRP-1003"
+                message: "Group not found"
+                description: "The group with the specified id does not exist"
         "500":
           description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Internal server error"
 
     put:
       tags:
@@ -235,20 +288,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                missing-group-id:
+                  summary: Missing group ID
+                  value:
+                    code: "GRP-1002"
+                    message: "Invalid request format"
+                    description: "Group ID is required"
+                invalid-request-format:
+                  summary: Invalid request format
+                  value:
+                    code: "GRP-1001"
+                    message: "Invalid request format"
+                    description: "The request body is malformed or contains invalid data"
+                invalid-user-id:
+                  summary: Invalid user ID
+                  value:
+                    code: "GRP-1007"
+                    message: "Invalid user ID"
+                    description: "One or more user IDs in the request do not exist"
+                parent-not-found:
+                  summary: Parent not found
+                  value:
+                    code: "GRP-1005"
+                    message: "Parent not found"
+                    description: "Parent group or organization unit not found"
         "404":
           description: Group not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                code: "GRP-1003"
+                message: "Group not found"
+                description: "The group with the specified id does not exist"
         "409":
-          description: A group with the same name exists under the same parent
+          description: Conflict
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                code: "GRP-1004"
+                message: "Group name conflict"
+                description: "A group with the same name exists under the same parent"
         "500":
           description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Internal server error"
 
     delete:
       tags:
@@ -265,13 +356,41 @@ paths:
         "204":
           description: Group deleted
         "400":
-          description: Cannot delete group with child groups
+          description: Bad request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                missing-group-id:
+                  summary: Missing group ID
+                  value:
+                    code: "GRP-1002"
+                    message: "Invalid request format"
+                    description: "Group ID is required"
+                cannot-delete-group:
+                  summary: Cannot delete group
+                  value:
+                    code: "GRP-1006"
+                    message: "Cannot delete group"
+                    description: "Cannot delete group with child groups"
+        "404":
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "GRP-1003"
+                message: "Group not found"
+                description: "The group with the specified id does not exist"
         "500":
           description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Internal server error"
 
 components:
   schemas:
@@ -345,9 +464,14 @@ components:
       required: [code, message]
       properties:
         code:
-          type: integer
-          format: int64
+          type: string
+          description: Error code
+          example: "GRP-1001"
         message:
           type: string
+          description: Error message
+          example: "Invalid request format"
         description:
           type: string
+          description: Detailed error description
+          example: "The request body is malformed or contains invalid data"

@@ -26,49 +26,49 @@ var (
 	// ErrorInvalidRequestFormat is the error returned when the request format is invalid.
 	ErrorInvalidRequestFormat = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "GRP-60001",
+		Code:             "GRP-1001",
 		Error:            "Invalid request format",
 		ErrorDescription: "The request body is malformed or contains invalid data",
 	}
 	// ErrorMissingGroupID is the error returned when group ID is missing.
 	ErrorMissingGroupID = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "GRP-60002",
+		Code:             "GRP-1002",
 		Error:            "Invalid request format",
 		ErrorDescription: "Group ID is required",
 	}
 	// ErrorGroupNotFound is the error returned when a group is not found.
 	ErrorGroupNotFound = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "GRP-60003",
+		Code:             "GRP-1003",
 		Error:            "Group not found",
 		ErrorDescription: "The group with the specified id does not exist",
 	}
 	// ErrorGroupNameConflict is the error returned when a group name conflicts.
 	ErrorGroupNameConflict = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "GRP-60004",
+		Code:             "GRP-1004",
 		Error:            "Group name conflict",
 		ErrorDescription: "A group with the same name exists under the same parent",
 	}
 	// ErrorParentNotFound is the error returned when parent is not found.
 	ErrorParentNotFound = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "GRP-60005",
+		Code:             "GRP-1005",
 		Error:            "Parent not found",
 		ErrorDescription: "Parent group or organization unit not found",
 	}
 	// ErrorCannotDeleteGroup is the error returned when group cannot be deleted.
 	ErrorCannotDeleteGroup = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "GRP-60007",
+		Code:             "GRP-1006",
 		Error:            "Cannot delete group",
 		ErrorDescription: "Cannot delete group with child groups",
 	}
 	// ErrorInvalidUserID is the error returned when user ID is invalid.
 	ErrorInvalidUserID = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "GRP-60008",
+		Code:             "GRP-1007",
 		Error:            "Invalid user ID",
 		ErrorDescription: "One or more user IDs in the request do not exist",
 	}
@@ -79,7 +79,7 @@ var (
 	// ErrorInternalServerError is the error returned when an internal server error occurs.
 	ErrorInternalServerError = serviceerror.ServiceError{
 		Type:             serviceerror.ServerErrorType,
-		Code:             "GRP-65001",
+		Code:             "GRP-5000",
 		Error:            "Internal server error",
 		ErrorDescription: "An unexpected error occurred while processing the request",
 	}
