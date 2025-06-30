@@ -84,7 +84,7 @@ func (gs *GroupService) CreateGroup(request model.CreateGroupRequest) (*model.Gr
 		return nil, err
 	}
 
-	logger.Debug("Resolved OU for new group", log.String("ouID", ouID))
+	logger.Debug("Resolved OU for new group", log.String("ouID", *ouID))
 
 	if err := gs.validateUserIDs(request.Users); err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (gs *GroupService) CreateGroup(request model.CreateGroupRequest) (*model.Gr
 		Name:        request.Name,
 		Description: request.Description,
 		Parent:      parentGroupID,
-		OU:          ouID,
+		OU:          *ouID,
 		Users:       request.Users,
 		Groups:      []string{},
 	}
@@ -183,8 +183,8 @@ func (gs *GroupService) UpdateGroup(
 		if err != nil {
 			return nil, err
 		}
-		logger.Debug("Resolved OU for group update", log.String("ouID", ouID))
-		updateOU = ouID
+		logger.Debug("Resolved OU for group update", log.String("ouID", *ouID))
+		updateOU = *ouID
 	}
 
 	if err := gs.validateUserIDs(request.Users); err != nil {
@@ -312,27 +312,28 @@ func (gs *GroupService) isParentChanged(existingGroup model.Group, request model
 }
 
 // resolveOU resolves the organization unit ID from the parent and validates its existence.
-func (gs *GroupService) resolveOU(parent model.Parent) (string, *serviceerror.ServiceError) {
+func (gs *GroupService) resolveOU(parent model.Parent) (*string, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	if parent.Type == model.ParentTypeGroup {
+	switch parent.Type {
+	case model.ParentTypeGroup:
 		parentGroup, err := store.GetGroup(parent.ID)
 		if err != nil {
 			if errors.Is(err, model.ErrGroupNotFound) {
 				logger.Debug("Parent group not found", log.String("parentID", parent.ID))
-				return "", &constants.ErrorParentNotFound
+				return nil, &constants.ErrorParentNotFound
 			}
 			logger.Error("Failed to check parent group existence", log.String("parentID", parent.ID), log.Error(err))
-			return "", &constants.ErrorInternalServerError
+			return nil, &constants.ErrorInternalServerError
 		}
-		return parentGroup.OU, nil
-	} else if parent.Type == model.ParentTypeOrganizationUnit {
+		return &parentGroup.OU, nil
+	case model.ParentTypeOrganizationUnit:
 		// TODO: Add validation for organization unit existence
 		logger.Debug("Organization unit validation not implemented", log.String("parentID", parent.ID))
-		return parent.ID, nil
+		return &parent.ID, nil
+	default:
+		return nil, &constants.ErrorInvalidRequestFormat
 	}
-
-	return "", &constants.ErrorInvalidRequestFormat
 }
 
 // validateForDeleteGroup checks if the group can be deleted.
