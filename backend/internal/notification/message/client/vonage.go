@@ -108,7 +108,7 @@ func (v *VonageClient) SendSMS(sms model.SMSData) error {
 	req.SetBasicAuth(v.apiKey, v.apiSecret)
 
 	// Send the HTTP request
-	client := httpservice.GetHTTPClient()
+	client := httpservice.NewHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send HTTP request: %w", err)

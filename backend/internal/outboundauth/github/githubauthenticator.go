@@ -113,7 +113,7 @@ func (ga *GithubAuthenticator) ProcessAuthenticationResponse(w http.ResponseWrit
 	req.Header.Set(constants.AcceptHeaderName, "application/json")
 
 	logger.Debug("Sending token request to Github.")
-	client := httpservice.GetHTTPClient()
+	client := httpservice.NewHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.Error("Failed to send token request: ", log.Error(err))

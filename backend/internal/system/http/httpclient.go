@@ -17,17 +17,28 @@
  */
 
 // Package http provides a centralized HTTP client service for making outbound HTTP requests.
+// This package offers a simplified API similar to the standard http.Client library:
+//
+//   - NewHTTPClient() - creates a client with default 30s timeout
+//   - NewHTTPClient(customClient) - wraps a custom http.Client
+//   - NewHTTPClientWithTimeout(duration) - creates a client with custom timeout
+//
+// Usage examples:
+//
+//	// Default client
+//	client := httpservice.NewHTTPClient()
+//
+//	// Custom timeout
+//	client := httpservice.NewHTTPClientWithTimeout(10 * time.Second)
+//
+//	// Custom configuration
+//	customHTTPClient := &http.Client{/* custom config */}
+//	client := httpservice.NewHTTPClient(customHTTPClient)
 package http
 
 import (
 	"net/http"
-	"sync"
 	"time"
-)
-
-var (
-	defaultClient HTTPClientInterface
-	once          sync.Once
 )
 
 // HTTPClientInterface defines the interface for HTTP client operations.
@@ -43,8 +54,15 @@ type HTTPClient struct {
 	client *http.Client
 }
 
-// NewHTTPClient creates a new HTTPClient with default settings.
-func NewHTTPClient() HTTPClientInterface {
+// NewHTTPClient creates a new HTTPClient. If no http.Client is provided, it creates
+// one with a default 30-second timeout. This method provides a generic interface
+// similar to the standard http.Client library.
+func NewHTTPClient(client ...*http.Client) HTTPClientInterface {
+	if len(client) > 0 && client[0] != nil {
+		return &HTTPClient{
+			client: client[0],
+		}
+	}
 	return &HTTPClient{
 		client: &http.Client{
 			Timeout: 30 * time.Second,
@@ -53,27 +71,13 @@ func NewHTTPClient() HTTPClientInterface {
 }
 
 // NewHTTPClientWithTimeout creates a new HTTPClient with a custom timeout.
+// This is a convenience method for creating clients with specific timeouts.
 func NewHTTPClientWithTimeout(timeout time.Duration) HTTPClientInterface {
 	return &HTTPClient{
 		client: &http.Client{
 			Timeout: timeout,
 		},
 	}
-}
-
-// NewHTTPClientWithConfig creates a new HTTPClient with custom configuration.
-func NewHTTPClientWithConfig(client *http.Client) HTTPClientInterface {
-	return &HTTPClient{
-		client: client,
-	}
-}
-
-// GetHTTPClient returns the default singleton HTTPClient instance.
-func GetHTTPClient() HTTPClientInterface {
-	once.Do(func() {
-		defaultClient = NewHTTPClient()
-	})
-	return defaultClient
 }
 
 // Do executes an HTTP request and returns an HTTP response.

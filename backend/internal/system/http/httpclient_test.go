@@ -56,11 +56,11 @@ func (suite *HTTPClientTestSuite) TestNewHTTPClientWithTimeout() {
 	assert.Equal(suite.T(), timeout, httpClient.client.Timeout)
 }
 
-func (suite *HTTPClientTestSuite) TestNewHTTPClientWithConfig() {
+func (suite *HTTPClientTestSuite) TestNewHTTPClientWithCustomClient() {
 	customClient := &http.Client{
 		Timeout: 15 * time.Second,
 	}
-	client := NewHTTPClientWithConfig(customClient)
+	client := NewHTTPClient(customClient)
 	assert.NotNil(suite.T(), client)
 	assert.Implements(suite.T(), (*HTTPClientInterface)(nil), client)
 
@@ -69,13 +69,15 @@ func (suite *HTTPClientTestSuite) TestNewHTTPClientWithConfig() {
 	assert.Equal(suite.T(), customClient, httpClient.client)
 }
 
-func (suite *HTTPClientTestSuite) TestGetHTTPClient() {
-	// Test singleton behavior
-	client1 := GetHTTPClient()
-	client2 := GetHTTPClient()
-	assert.NotNil(suite.T(), client1)
-	assert.NotNil(suite.T(), client2)
-	assert.Same(suite.T(), client1, client2, "GetHTTPClient should return the same instance")
+func (suite *HTTPClientTestSuite) TestNewHTTPClientWithDefaultSettings() {
+	// Test default behavior when no client is provided
+	client := NewHTTPClient()
+	assert.NotNil(suite.T(), client)
+	assert.Implements(suite.T(), (*HTTPClientInterface)(nil), client)
+
+	// Verify default timeout is set
+	httpClient := client.(*HTTPClient)
+	assert.Equal(suite.T(), 30*time.Second, httpClient.client.Timeout)
 }
 
 func (suite *HTTPClientTestSuite) TestDo() {
