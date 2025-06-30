@@ -68,4 +68,5 @@ jobs:
       - name: 🔨 Build and Run Tests
         run: |
           set -e
+          export LOG_LEVEL=debug
           make all OS=$(go env GOOS) ARCH=$(go env GOARCH)

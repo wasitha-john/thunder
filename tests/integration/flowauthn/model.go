@@ -31,6 +31,7 @@ type FlowStep struct {
 
 type FlowData struct {
 	Inputs         []InputData       `json:"inputs,omitempty"`
+	Actions        []FlowAction      `json:"actions,omitempty"`
 	RedirectURL    string            `json:"redirectURL,omitempty"`
 	AdditionalData map[string]string `json:"additionalData,omitempty"`
 }
@@ -39,6 +40,11 @@ type InputData struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Required bool   `json:"required"`
+}
+
+type FlowAction struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
 }
 
 type User struct {

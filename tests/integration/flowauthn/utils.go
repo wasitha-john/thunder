@@ -34,7 +34,7 @@ func initiateAuthFlow(appID string, inputs map[string]string) (*FlowStep, error)
 	flowReqBody := map[string]interface{}{
 		"applicationId": appID,
 	}
-	if inputs != nil && len(inputs) > 0 {
+	if len(inputs) > 0 {
 		flowReqBody["inputs"] = inputs
 	}
 
@@ -81,7 +81,7 @@ func initiateAuthFlowWithError(appID string, inputs map[string]string) (*ErrorRe
 	flowReqBody := map[string]interface{}{
 		"applicationId": appID,
 	}
-	if inputs != nil && len(inputs) > 0 {
+	if len(inputs) > 0 {
 		flowReqBody["inputs"] = inputs
 	}
 
@@ -125,10 +125,13 @@ func initiateAuthFlowWithError(appID string, inputs map[string]string) (*ErrorRe
 }
 
 // Helper function to complete the authentication flow
-func completeAuthFlow(flowID string, inputs map[string]string) (*FlowStep, error) {
+func completeAuthFlow(flowID string, actionID string, inputs map[string]string) (*FlowStep, error) {
 	flowReqBody := map[string]interface{}{
 		"flowId": flowID,
 		"inputs": inputs,
+	}
+	if actionID != "" {
+		flowReqBody["actionId"] = actionID
 	}
 
 	reqBody, err := json.Marshal(flowReqBody)
@@ -365,4 +368,263 @@ func updateAppConfig(appID string, authFlowGraphID string) error {
 	}
 
 	return nil
+}
+
+// TestSuiteConfig holds common configuration for test suites
+type TestSuiteConfig struct {
+	CreatedUserIDs    []string
+	CreatedSenderID   string
+	OriginalAppConfig map[string]interface{}
+	MockServer        interface{} // Can be cast to specific mock server type
+}
+
+// CreateNotificationSender creates a custom notification sender for testing
+func CreateNotificationSender(serverPort int, senderName string) (string, error) {
+	return CreateNotificationSenderWithURL(fmt.Sprintf("http://localhost:%d/send-sms", serverPort), senderName)
+}
+
+// CreateNotificationSenderWithURL creates a custom notification sender with a specific URL
+func CreateNotificationSenderWithURL(senderURL, senderName string) (string, error) {
+	senderRequest := map[string]interface{}{
+		"name":        senderName,
+		"description": "Custom SMS sender for integration tests",
+		"provider":    "custom",
+		"properties": []map[string]interface{}{
+			{
+				"name":      "url",
+				"value":     senderURL,
+				"is_secret": false,
+			},
+			{
+				"name":      "http_method",
+				"value":     "POST",
+				"is_secret": false,
+			},
+			{
+				"name":      "content_type",
+				"value":     "JSON",
+				"is_secret": false,
+			},
+		},
+	}
+
+	jsonPayload, err := json.Marshal(senderRequest)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal sender request: %w", err)
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	req, err := http.NewRequest("POST", testServerURL+"/notification-senders/message", bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return "", fmt.Errorf("failed to create sender request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("sender request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("sender creation failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var sender map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&sender); err != nil {
+		return "", fmt.Errorf("failed to parse sender response: %w", err)
+	}
+
+	senderID, ok := sender["id"].(string)
+	if !ok {
+		return "", fmt.Errorf("sender ID not found in response")
+	}
+
+	return senderID, nil
+}
+
+// DeleteNotificationSender deletes a notification sender
+func DeleteNotificationSender(senderID string) error {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	req, err := http.NewRequest("DELETE", testServerURL+"/notification-senders/message/"+senderID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create delete request: %w", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("delete request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("delete failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// CreateMultipleUsers creates multiple test users and returns their IDs
+func CreateMultipleUsers(users ...User) ([]string, error) {
+	var userIDs []string
+
+	for i, user := range users {
+		id, err := createUser(user)
+		if err != nil {
+			// Cleanup already created users on failure
+			for _, createdID := range userIDs {
+				deleteUser(createdID)
+			}
+			return nil, fmt.Errorf("failed to create user %d: %w", i, err)
+		}
+		userIDs = append(userIDs, id)
+	}
+
+	return userIDs, nil
+}
+
+// CleanupUsers deletes multiple users
+func CleanupUsers(userIDs []string) error {
+	var errs []error
+
+	for _, userID := range userIDs {
+		if userID != "" {
+			if err := deleteUser(userID); err != nil {
+				errs = append(errs, fmt.Errorf("failed to delete user %s: %w", userID, err))
+			}
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("cleanup errors: %v", errs)
+	}
+
+	return nil
+}
+
+// RestoreAppConfig restores the original application configuration
+func RestoreAppConfig(appID string, originalConfig map[string]interface{}) error {
+	if originalConfig == nil {
+		return fmt.Errorf("no original config to restore")
+	}
+
+	// Add client secret to original config for restoration
+	originalConfig["client_secret"] = "secret123"
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	jsonPayload, err := json.Marshal(originalConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal original config: %w", err)
+	}
+
+	req, err := http.NewRequest(
+		"PUT",
+		fmt.Sprintf("%s/applications/%s", testServerURL, appID),
+		bytes.NewBuffer(jsonPayload),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create restore request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("restore request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("restore failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// ValidateRequiredInputs validates that the expected input names are present in the flow data
+func ValidateRequiredInputs(actualInputs []InputData, expectedInputNames []string) bool {
+	inputMap := make(map[string]bool)
+	for _, input := range actualInputs {
+		inputMap[input.Name] = true
+	}
+
+	for _, expectedName := range expectedInputNames {
+		if !inputMap[expectedName] {
+			return false
+		}
+	}
+
+	return true
+}
+
+// ValidateRequiredActions validates that the expected action IDs are present in the flow data
+func ValidateRequiredActions(actualActions []FlowAction, expectedActionIDs []string) bool {
+	actionMap := make(map[string]bool)
+	for _, action := range actualActions {
+		actionMap[action.ID] = true
+	}
+
+	for _, expectedID := range expectedActionIDs {
+		if !actionMap[expectedID] {
+			return false
+		}
+	}
+
+	return true
+}
+
+// HasInput checks if a specific input is present in the flow data
+func HasInput(inputs []InputData, inputName string) bool {
+	for _, input := range inputs {
+		if input.Name == inputName {
+			return true
+		}
+	}
+	return false
+}
+
+// HasAction checks if a specific action is present in the flow data
+func HasAction(actions []FlowAction, actionID string) bool {
+	for _, action := range actions {
+		if action.ID == actionID {
+			return true
+		}
+	}
+	return false
+}
+
+// GetUserAttributes extracts user attributes from JSON into a map
+func GetUserAttributes(user User) (map[string]interface{}, error) {
+	var userAttrs map[string]interface{}
+	err := json.Unmarshal(user.Attributes, &userAttrs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal user attributes: %w", err)
+	}
+	return userAttrs, nil
+}
+
+// WaitAndValidateNotification waits for a notification to be sent and validates it
+// This is a generic helper that can be used with different mock server types
+func WaitAndValidateNotification(mockServer interface{}, expectedCount int, timeoutSeconds int) error {
+	// This would need to be implemented based on the specific mock server interface
+	// For now, we'll return a placeholder
+	return fmt.Errorf("notification validation not implemented - should be customized per mock server type")
 }
