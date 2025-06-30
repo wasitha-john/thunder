@@ -58,13 +58,6 @@ var (
 		Error:            "Parent not found",
 		ErrorDescription: "Parent group or organization unit not found",
 	}
-	// ErrorInvalidRequest is the error returned when the request is invalid.
-	ErrorInvalidRequest = serviceerror.ServiceError{
-		Type:             serviceerror.ClientErrorType,
-		Code:             "GRP-60006",
-		Error:            "Invalid request",
-		ErrorDescription: "The request body is malformed or contains invalid data",
-	}
 	// ErrorCannotDeleteGroup is the error returned when group cannot be deleted.
 	ErrorCannotDeleteGroup = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,

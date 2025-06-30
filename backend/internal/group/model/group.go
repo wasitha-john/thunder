@@ -102,12 +102,6 @@ var (
 	// ErrGroupNameConflict is returned when a group with the same name exists under the same parent.
 	ErrGroupNameConflict = errors.New("a group with the same name exists under the same parent")
 
-	// ErrCannotDeleteGroupWithChildren is returned when trying to delete a group that has child groups.
-	ErrCannotDeleteGroupWithChildren = errors.New("cannot delete group with child groups")
-
 	// ErrParentNotFound is returned when the parent group or organization unit is not found.
 	ErrParentNotFound = errors.New("parent not found")
-
-	// ErrInvalidRequest is returned when the request data is invalid.
-	ErrInvalidRequest = errors.New("invalid request data")
 )

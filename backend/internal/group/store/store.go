@@ -358,8 +358,8 @@ func buildGroupFromResultRow(row map[string]interface{}, logger *log.Logger) (mo
 
 	var parentID *string
 	if row["parent_id"] != nil {
-		if pgid, ok := row["parent_id"].(string); ok {
-			parentID = &pgid
+		if parentGroupID, ok := row["parent_id"].(string); ok {
+			parentID = &parentGroupID
 		}
 	}
 
