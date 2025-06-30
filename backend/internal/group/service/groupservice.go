@@ -61,7 +61,12 @@ func (gs *GroupService) GetGroupList() ([]model.GroupBasic, *serviceerror.Servic
 		return nil, &constants.ErrorInternalServerError
 	}
 
-	return groups, nil
+	groupBasics := make([]model.GroupBasic, 0, len(groups))
+	for _, groupDAO := range groups {
+		groupBasics = append(groupBasics, buildGroupBasic(groupDAO))
+	}
+
+	return groupBasics, nil
 }
 
 // CreateGroup creates a new group.
@@ -74,10 +79,12 @@ func (gs *GroupService) CreateGroup(request model.CreateGroupRequest) (*model.Gr
 		return nil, err
 	}
 
-	// Validate parent exists
-	if err := gs.validateParentExists(request.Parent); err != nil {
+	ouID, err := gs.resolveOU(request.Parent)
+	if err != nil {
 		return nil, err
 	}
+
+	logger.Debug("Resolved OU for new group", log.String("ouID", ouID))
 
 	if err := gs.validateUserIDs(request.Users); err != nil {
 		return nil, err
@@ -93,27 +100,28 @@ func (gs *GroupService) CreateGroup(request model.CreateGroupRequest) (*model.Gr
 		return nil, &constants.ErrorInternalServerError
 	}
 
-	// Create group object
-	group := model.Group{
+	var parentGroupID *string
+	if request.Parent.Type == model.ParentTypeGroup {
+		parentGroupID = &request.Parent.ID
+	}
+
+	groupDAO := model.GroupDAO{
 		ID:          utils.GenerateUUID(),
 		Name:        request.Name,
 		Description: request.Description,
-		Parent:      request.Parent,
+		Parent:      parentGroupID,
+		OU:          ouID,
 		Users:       request.Users,
 		Groups:      []string{},
 	}
 
-	// Create group in the database
-	if err := store.CreateGroup(group); err != nil {
-		if errors.Is(err, model.ErrParentNotFound) {
-			logger.Debug("Parent not found during group creation", log.String("parentID", request.Parent.ID))
-			return nil, &constants.ErrorParentNotFound
-		}
+	if err := store.CreateGroup(groupDAO); err != nil {
 		logger.Error("Failed to create group", log.Error(err))
 		return nil, &constants.ErrorInternalServerError
 	}
 
-	logger.Debug("Successfully created group", log.String("id", group.ID), log.String("name", group.Name))
+	group := convertGroupDAOToGroup(groupDAO)
+	logger.Debug("Successfully created group", log.String("id", groupDAO.ID), log.String("name", groupDAO.Name))
 	return &group, nil
 }
 
@@ -126,7 +134,7 @@ func (gs *GroupService) GetGroup(groupID string) (*model.Group, *serviceerror.Se
 		return nil, &constants.ErrorMissingGroupID
 	}
 
-	group, err := store.GetGroup(groupID)
+	groupDAO, err := store.GetGroup(groupID)
 	if err != nil {
 		if errors.Is(err, model.ErrGroupNotFound) {
 			logger.Debug("Group not found", log.String("id", groupID))
@@ -136,6 +144,8 @@ func (gs *GroupService) GetGroup(groupID string) (*model.Group, *serviceerror.Se
 		return nil, &constants.ErrorInternalServerError
 	}
 
+	group := convertGroupDAOToGroup(groupDAO)
+	logger.Debug("Successfully retrieved group", log.String("id", group.ID), log.String("name", group.Name))
 	return &group, nil
 }
 
@@ -155,7 +165,7 @@ func (gs *GroupService) UpdateGroup(
 	}
 
 	// Get existing group to ensure it exists
-	existingGroup, err := store.GetGroup(groupID)
+	existingGroupDAO, err := store.GetGroup(groupID)
 	if err != nil {
 		if errors.Is(err, model.ErrGroupNotFound) {
 			logger.Debug("Group not found", log.String("id", groupID))
@@ -165,11 +175,16 @@ func (gs *GroupService) UpdateGroup(
 		return nil, &constants.ErrorInternalServerError
 	}
 
-	// Validate parent exists if parent is changed
-	if existingGroup.Parent.ID != request.Parent.ID || existingGroup.Parent.Type != request.Parent.Type {
-		if err := gs.validateParentExists(request.Parent); err != nil {
+	existingGroup := convertGroupDAOToGroup(existingGroupDAO)
+	updateOU := existingGroupDAO.OU
+
+	if gs.isParentChanged(existingGroup, request) {
+		ouID, err := gs.resolveOU(request.Parent)
+		if err != nil {
 			return nil, err
 		}
+		logger.Debug("Resolved OU for group update", log.String("ouID", ouID))
+		updateOU = ouID
 	}
 
 	if err := gs.validateUserIDs(request.Users); err != nil {
@@ -189,18 +204,24 @@ func (gs *GroupService) UpdateGroup(
 		}
 	}
 
+	var parentGroupID *string
+	if request.Parent.Type == model.ParentTypeGroup {
+		parentGroupID = &request.Parent.ID
+	}
+
 	// Create updated group object
-	updatedGroup := model.Group{
+	updatedGroupDAO := model.GroupDAO{
 		ID:          existingGroup.ID,
 		Name:        request.Name,
 		Description: request.Description,
-		Parent:      request.Parent,
+		Parent:      parentGroupID,
+		OU:          updateOU,
 		Users:       request.Users,
 		Groups:      request.Groups,
 	}
 
 	// Update group in the database
-	if err := store.UpdateGroup(updatedGroup); err != nil {
+	if err := store.UpdateGroup(updatedGroupDAO); err != nil {
 		if errors.Is(err, model.ErrParentNotFound) {
 			logger.Debug("Parent not found during group update", log.String("parentID", request.Parent.ID))
 			return nil, &constants.ErrorParentNotFound
@@ -209,6 +230,7 @@ func (gs *GroupService) UpdateGroup(
 		return nil, &constants.ErrorInternalServerError
 	}
 
+	updatedGroup := convertGroupDAOToGroup(updatedGroupDAO)
 	logger.Debug("Successfully updated group", log.String("id", groupID), log.String("name", request.Name))
 	return &updatedGroup, nil
 }
@@ -284,28 +306,33 @@ func (gs *GroupService) validateUpdateGroupRequest(request model.UpdateGroupRequ
 	return nil
 }
 
-// validateParentExists validates that the parent group or organization unit exists.
-func (gs *GroupService) validateParentExists(parent model.Parent) *serviceerror.ServiceError {
+// isParentChanged checks if the parent of the group has changed during an update.
+func (gs *GroupService) isParentChanged(existingGroup model.Group, request model.UpdateGroupRequest) bool {
+	return existingGroup.Parent.ID != request.Parent.ID || existingGroup.Parent.Type != request.Parent.Type
+}
+
+// resolveOU resolves the organization unit ID from the parent and validates its existence.
+func (gs *GroupService) resolveOU(parent model.Parent) (string, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	if parent.Type == model.ParentTypeGroup {
-		// Check if parent group exists
-		_, err := store.GetGroup(parent.ID)
+		parentGroup, err := store.GetGroup(parent.ID)
 		if err != nil {
 			if errors.Is(err, model.ErrGroupNotFound) {
 				logger.Debug("Parent group not found", log.String("parentID", parent.ID))
-				return &constants.ErrorParentNotFound
+				return "", &constants.ErrorParentNotFound
 			}
 			logger.Error("Failed to check parent group existence", log.String("parentID", parent.ID), log.Error(err))
-			return &constants.ErrorInternalServerError
+			return "", &constants.ErrorInternalServerError
 		}
+		return parentGroup.OU, nil
 	} else if parent.Type == model.ParentTypeOrganizationUnit {
 		// TODO: Add validation for organization unit existence
-		// For now, we'll assume it exists
 		logger.Debug("Organization unit validation not implemented", log.String("parentID", parent.ID))
+		return parent.ID, nil
 	}
 
-	return nil
+	return "", &constants.ErrorInvalidRequestFormat
 }
 
 // validateForDeleteGroup checks if the group can be deleted.
@@ -344,4 +371,45 @@ func (gs *GroupService) validateUserIDs(userIDs []string) *serviceerror.ServiceE
 	}
 
 	return nil
+}
+
+// convertGroupDAOToGroup constructs a model.Group from a model.GroupDAO.
+func convertGroupDAOToGroup(groupDAO model.GroupDAO) model.Group {
+	parent := buildParent(groupDAO.Parent, groupDAO.OU)
+	group := model.Group{
+		ID:          groupDAO.ID,
+		Name:        groupDAO.Name,
+		Description: groupDAO.Description,
+		Parent:      parent,
+		Users:       groupDAO.Users,
+		Groups:      groupDAO.Groups,
+	}
+	return group
+}
+
+// buildGroupBasic constructs a model.GroupBasic from a model.GroupDAO.
+func buildGroupBasic(groupDAO model.GroupBasicDAO) model.GroupBasic {
+	parent := buildParent(groupDAO.Parent, groupDAO.OU)
+	return model.GroupBasic{
+		ID:          groupDAO.ID,
+		Name:        groupDAO.Name,
+		Description: groupDAO.Description,
+		Parent:      parent,
+	}
+}
+
+func buildParent(parentID *string, ouID string) model.Parent {
+	var parent model.Parent
+	if parentID == nil {
+		parent = model.Parent{
+			Type: model.ParentTypeOrganizationUnit,
+			ID:   ouID,
+		}
+	} else {
+		parent = model.Parent{
+			Type: model.ParentTypeGroup,
+			ID:   *parentID,
+		}
+	}
+	return parent
 }

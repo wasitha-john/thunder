@@ -47,6 +47,15 @@ type GroupBasic struct {
 	Parent      Parent `json:"parent"`
 }
 
+// GroupBasicDAO represents a data access object for basic group information,
+type GroupBasicDAO struct {
+	ID          string
+	Name        string
+	Description string
+	Parent      *string
+	OU          string
+}
+
 // Group represents a complete group with users and child groups.
 type Group struct {
 	ID          string   `json:"id"`
@@ -55,6 +64,17 @@ type Group struct {
 	Parent      Parent   `json:"parent"`
 	Users       []string `json:"users,omitempty"`
 	Groups      []string `json:"groups"`
+}
+
+// GroupDAO represents a data access object for a group, used for database operations.
+type GroupDAO struct {
+	ID          string
+	Name        string
+	Description string
+	Parent      *string
+	OU          string
+	Users       []string
+	Groups      []string
 }
 
 // CreateGroupRequest represents the request body for creating a group.
