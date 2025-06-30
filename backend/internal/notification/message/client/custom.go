@@ -30,6 +30,7 @@ import (
 	"github.com/asgardeo/thunder/internal/notification/message/model"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/log"
+	httpservice "github.com/asgardeo/thunder/internal/system/http"
 )
 
 const (
@@ -118,7 +119,7 @@ func (c *CustomClient) SendSMS(sms model.SMSData) error {
 	}
 
 	// Send the HTTP request
-	client := &http.Client{}
+	client := httpservice.GetHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send HTTP request: %w", err)

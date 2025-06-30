@@ -34,6 +34,7 @@ import (
 	"github.com/asgardeo/thunder/internal/outboundauth/oidc"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/constants"
+	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
@@ -112,7 +113,7 @@ func (ga *GithubAuthenticator) ProcessAuthenticationResponse(w http.ResponseWrit
 	req.Header.Set(constants.AcceptHeaderName, "application/json")
 
 	logger.Debug("Sending token request to Github.")
-	client := &http.Client{}
+	client := httpservice.GetHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.Error("Failed to send token request: ", log.Error(err))
@@ -184,7 +185,7 @@ func (ga *GithubAuthenticator) IsInitialRequest(r *http.Request, ctx *authnmodel
 }
 
 // getUserInfo fetches the user information from the user info endpoint using the access token.
-func (ga *GithubAuthenticator) getUserInfo(logger *log.Logger, client *http.Client,
+func (ga *GithubAuthenticator) getUserInfo(logger *log.Logger, client httpservice.HTTPClientInterface,
 	accessToken string) (map[string]string, error) {
 	req, err := http.NewRequest("GET", ga.GetUserInfoEndpoint(), nil)
 	if err != nil {

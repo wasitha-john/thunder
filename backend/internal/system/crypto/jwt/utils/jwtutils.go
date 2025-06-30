@@ -32,6 +32,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	httpservice "github.com/asgardeo/thunder/internal/system/http"
 )
 
 // ParseJWTClaims parses a JWT token and extracts its claims.
@@ -154,7 +156,7 @@ func VerifyJWTSignatureWithJWKS(jwtToken string, jwksURL string) error {
 	}
 
 	// Fetch the JWK Set from the JWKS endpoint
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := httpservice.NewHTTPClientWithTimeout(10 * time.Second)
 	resp, err := client.Get(jwksURL)
 	if err != nil {
 		return fmt.Errorf("failed to fetch JWKS: %w", err)

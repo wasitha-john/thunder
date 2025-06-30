@@ -34,6 +34,7 @@ import (
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/system/constants"
+	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
 )
@@ -211,7 +212,7 @@ func (o *GithubOAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *
 	// Execute the request
 	logger.Debug("Sending userinfo request to GitHub OAuth provider")
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := httpservice.NewHTTPClientWithTimeout(10 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.Error("Failed to send userinfo request", log.Error(err))
