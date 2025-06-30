@@ -49,8 +49,16 @@ paths:
                     id: "a839f4bd-39dc-4eaa-b5cc-210d8ecaee87"
         "400":
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "404":
           description: Parent group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -119,8 +127,16 @@ paths:
                       - "2cbb94c7-81f1-44e3-8e9e-75e0c3dd36da"
         "400":
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "409":
           description: A group with the same name exists under the same parent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -157,6 +173,10 @@ paths:
                   - "6b1e7b8d-7e19-41eb-8fa2-c0ee5bb67a94"
         "404":
           description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -211,10 +231,22 @@ paths:
                   - "6b1e7b8d-7e19-41eb-8fa2-c0ee5bb67a94"
         "400":
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "404":
           description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "409":
           description: A group with the same name exists under the same parent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -234,6 +266,10 @@ paths:
           description: Group deleted
         "400":
           description: Cannot delete group with child groups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -303,3 +339,15 @@ components:
           items:
             type: string
             format: uuid
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          format: int64
+        message:
+          type: string
+        description:
+          type: string
