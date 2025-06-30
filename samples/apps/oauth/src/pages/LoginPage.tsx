@@ -120,6 +120,7 @@ const LoginPage = () => {
     
     // Add state to track signup mode
     const [isSignupMode, setIsSignupMode] = useState<boolean>(false);
+    const [regOnlySuccess, setRegOnlySuccess] = useState<boolean>(false);
     
     const GradientCircularProgress = () => {
         return (
@@ -257,10 +258,15 @@ const LoginPage = () => {
         setInputs([]);
         setRedirectURL(null);
         setSocialIdpName('');
+        setRegOnlySuccess(false);
 
-        if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
-            setToken(data.assertion);
+        if (data.flowStatus && data.flowStatus === 'COMPLETE') {
             setError(false);
+            if (data.assertion) {
+                setToken(data.assertion);
+            } else {
+                setRegOnlySuccess(true);
+            }
         } else if (data.type === "VIEW") {
             // Handle the VIEW response
             if (data.data?.actions) {
@@ -321,6 +327,7 @@ const LoginPage = () => {
         // Reset redirect URL
         setRedirectURL(null);
         setSocialIdpName('');
+        setRegOnlySuccess(false);
 
         initiateNativeAuthFlow(isSignupMode ? 'REGISTRATION' : 'LOGIN')
             .then((result) => {
@@ -1040,7 +1047,8 @@ const LoginPage = () => {
                             }}
                         >
                             <Box>
-                                <Box sx={{ mb: 4 }}>
+                                {!regOnlySuccess ? (
+                                    <Box sx={{ mb: 4 }}>
                                     <Typography variant="h5" gutterBottom>
                                         {isSignupMode ? 'Create Account' : 'Login to Account'}
                                     </Typography>
@@ -1083,6 +1091,16 @@ const LoginPage = () => {
                                         )}
                                     </Typography>
                                 </Box>
+                                ) : (
+                                    <Box sx={{ mb: 4 }}>
+                                        <Typography variant="h5" gutterBottom>
+                                            Registration Successful
+                                        </Typography>
+                                        <Typography>
+                                            You can now log in to your account.
+                                        </Typography>
+                                    </Box>
+                                )}
                                 
                                 {connectionError && (
                                     <ConnectionErrorModal 
@@ -1099,6 +1117,7 @@ const LoginPage = () => {
                                 )}
 
                                 {!connectionError && (
+                                    !regOnlySuccess ? (
                                     <>
                                         {/* First check if we have a redirect URL */}
                                         {redirectURL ? (
@@ -1117,6 +1136,21 @@ const LoginPage = () => {
                                             renderInputPromptForm()
                                         )}
                                     </>
+                                    ) : (
+                                        <Button
+                                            variant="contained"
+                                            color="primary"
+                                            onClick={() => {
+                                                setIsSignupMode(false);
+                                                setError(false);
+                                                setErrorMessage('');
+                                                init(false);
+                                            }}
+                                            fullWidth
+                                        >
+                                            Go to Login
+                                        </Button>
+                                    )
                                 )}
                                 
                                 <Box component="footer" sx={{ mt: 6 }}>

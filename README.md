@@ -21,8 +21,14 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
     - Login with GitHub
     - Login with Google
   - Login with SMS OTP
+- 📝 **Registration Options:**
+  - Username and Password Registration
+  - Social Registration
+    - Register with GitHub
+    - Register with Google
+  - SMS OTP Registration
 - 🌐 **RESTful APIs:**
-  - App Native Login
+  - App Native Login/ Registration
   - User Management
   - Application Management
   - Identity Provider Management
@@ -246,6 +252,8 @@ Open the sample app in your browser and enter the username and password you crea
   }'
   ```
 
+  > Note: Refer [Authentication Flow Customization Guide](/docs/content/customize-auth-flow.md) for more details on customizing authentication flows.
+
 - Open the sample app in your browser and click on the "Continue with Google" button. You will be redirected to the Google login page. Enter your Google credentials and authorize the application.
 
 - If the login is successful, you will be redirected to the home page of the sample app with the access token.
@@ -312,6 +320,8 @@ Open the sample app in your browser and enter the username and password you crea
   }'
   ```
 
+  > Note: Refer [Authentication Flow Customization Guide](/docs/content/customize-auth-flow.md) for more details on customizing authentication flows.
+
 - Open the sample app in your browser and click on the "Continue with GitHub" button. You will be redirected to the GitHub login page. Enter your GitHub credentials and authorize the application.
 
 - If the login is successful, you will be redirected to the home page of the sample app with the access token.
@@ -375,6 +385,8 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
     "auth_flow_graph_id": "auth_flow_config_sms"
 }'
 ```
+
+  > Note: Refer [Authentication Flow Customization Guide](/docs/content/customize-auth-flow.md) for more details on customizing authentication flows.
 
 ##### Step 4: Create a User with Mobile Number
 
@@ -447,6 +459,14 @@ curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
 
 - If the OTP is valid, you will receive a response with the auth assertion.
 
+#### 8️⃣ Try Self Registration
+
+Self-registration allows users to create their own accounts. Open the sample app in your browser and click on the "Sign up" button. You will be presented with the registration options based on the configured registration flow for the application.
+
+When you configure an authentication flow for an application, Thunder automatically assigns the equivalent registration flow. For example, if you set `auth_flow_graph_id` to `auth_flow_config_basic`, the system will automatically use `registration_flow_config_basic` for registration.
+
+> Note: Refer [Registration Flow Customization Guide](/docs/content/customize-registration-flow.md) for more details on configuring registration flows.
+
 ---
 
 <details>
@@ -458,6 +478,8 @@ curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
 <summary><h3>🔐 App Native Authentication</h3></summary>
 
 </br><p>WSO2 Thunder supports app native authentication flows, allowing users to execute login flows via REST APIs. This is particularly useful for mobile and desktop applications that require a native login experience.</p>
+
+  > Note: Refer [Authentication Flow Customization Guide](/docs/content/customize-auth-flow.md) for more details on customizing authentication flows.
 
 <details>
 <summary><h4>1️⃣ Login with Username and Password</h4></summary>

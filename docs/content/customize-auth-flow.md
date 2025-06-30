@@ -17,11 +17,12 @@ Flows are defined in JSON files and stored in the graph directory configured in 
 Thunder comes with several preconfigured authentication flows:
 
 | Flow ID | Description |
-|---------|-------------|------------------------|
+|---------|-------------|
 | `auth_flow_config_basic` | Username and password authentication |
 | `auth_flow_config_google` | Authentication with Google |
 | `auth_flow_config_github` | Authentication with GitHub |
-| `auth_flow_config_sms` | SMS OTP authentication |
+| `auth_flow_config_sms` | SMS OTP authentication with mobile number |
+| `auth_flow_config_sms_with_username` | SMS OTP authentication with username |
 | `auth_flow_config_basic_with_prompt` | Username and password authentication where the username is prompted first and then the password as a two-step process |
 | `auth_flow_config_basic_google` | Authentication with username/password or Google |
 | `auth_flow_config_basic_google_github` | Authentication with username/password, Google, or GitHub |
@@ -52,7 +53,7 @@ Thunder provides several executor implementations:
 | `GoogleOAuthExecutor` | Authenticates users with Google | `code` (authorization code) |
 | `GithubOAuthExecutor` | Authenticates users with GitHub | `code` (authorization code) |
 | `SMSOTPAuthExecutor` | Authenticates users with SMS OTP | `username`, `otp` |
-| `AttributeCollector` | Collects additional user attributes | Configurable attributes |
+| `AttributeCollector` | Collects additional user attributes. Can only be used when there's a authenticated user | `email`, `mobileNumber`, etc |
 | `AuthAssertExecutor` | Creates the auth assertion | None |
 
 ## Creating a Custom Authentication Flow
@@ -61,7 +62,7 @@ To create a custom authentication flow:
 
 1. Create a new JSON file in your graphs directory with the flow definition
 2. Define the flow nodes, their executors, and connections
-3. Register the flow in Thunder
+3. Restart the server to register the flow in Thunder
 
 ### Flow Definition Structure
 
@@ -92,6 +93,8 @@ To create a custom authentication flow:
   ]
 }
 ```
+
+> Make sure to use type `AUTHENTICATION` for the top-level flow object. Each node must have a unique `id`, and the `next` field specifies the next node(s) to transition to after execution.
 
 ### Example 1: Multi-factor Authentication Flow
 
