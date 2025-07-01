@@ -54,6 +54,11 @@
                     "name": "email",
                     "type": "string",
                     "required": true
+                },
+                {
+                    "name": "mobileNumber",
+                    "type": "string",
+                    "required": true
                 }
             ],
             "executor": {
