@@ -27,6 +27,8 @@ oauth:
   jwt:
     issuer: "thunder"
     validity_period: 3600
+  refresh_token:
+    renew_on_grant: false
 
 authenticator:
   default: "BasicAuthenticator"

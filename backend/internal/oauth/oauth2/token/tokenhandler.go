@@ -79,6 +79,8 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		grantHandler = &granthandlers.ClientCredentialsGrantHandler{}
 	case constants.GrantTypeAuthorizationCode:
 		grantHandler = &granthandlers.AuthorizationCodeGrantHandler{}
+	case constants.GrantTypeRefreshToken:
+		grantHandler = &granthandlers.RefreshTokenGrantHandler{}
 	default:
 		utils.WriteJSONError(w, constants.ErrorUnsupportedGrantType,
 			"Unsupported grant type", http.StatusBadRequest, nil)
@@ -187,6 +189,22 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Generate and add refresh token if applicable.
+	if tokenRequest.GrantType == constants.GrantTypeAuthorizationCode &&
+		oauthApp.IsAllowedGrantType(constants.GrantTypeRefreshToken) {
+		logger.Debug("Issuing refresh token for the token request", log.String("client_id", clientID),
+			log.String("grant_type", grantType))
+
+		refreshGrantHandler := &granthandlers.RefreshTokenGrantHandler{}
+		refreshTokenError := refreshGrantHandler.IssueRefreshToken(tokenRespDTO, oauthApp.ClientID, grantType,
+			tokenRespDTO.AccessToken.Scopes)
+		if refreshTokenError != nil && refreshTokenError.Error != "" {
+			utils.WriteJSONError(w, refreshTokenError.Error, refreshTokenError.ErrorDescription,
+				http.StatusInternalServerError, nil)
+			return
+		}
+	}
+
 	scopes := strings.Join(tokenRespDTO.AccessToken.Scopes, " ")
 	tokenResponse := &model.TokenResponse{
 		AccessToken:  tokenRespDTO.AccessToken.Token,
@@ -197,7 +215,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Log successful token generation.
-	logger.Info("Token generated successfully", log.String("client_id", clientID))
+	logger.Info("Token generated successfully", log.String("client_id", clientID), log.String("grant_type", grantType))
 
 	// Set the response headers.
 	w.Header().Set("Content-Type", "application/json")
@@ -213,5 +231,5 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	// Log the token response.
-	logger.Info("Token response sent", log.String("client_id", clientID))
+	logger.Info("Token response sent", log.String("client_id", clientID), log.String("grant_type", grantType))
 }
