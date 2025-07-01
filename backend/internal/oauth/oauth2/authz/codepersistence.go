@@ -104,7 +104,10 @@ func GetAuthorizationCode(clientID, authCode string) (model.AuthorizationCode, e
 
 	results, err := dbClient.Query(constants.QueryGetAuthorizationCode, clientID, authCode)
 	if err != nil {
-		return model.AuthorizationCode{}, errors.New("error while retrieving authorization code: " + err.Error())
+		return model.AuthorizationCode{}, fmt.Errorf("error while retrieving authorization code: %w", err)
+	}
+	if len(results) == 0 {
+		return model.AuthorizationCode{}, constants.ErrAuthorizationCodeNotFound
 	}
 	row := results[0]
 

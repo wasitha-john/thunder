@@ -28,14 +28,14 @@ import (
 // TokenService defines the service for handling OAuth2 token requests.
 type TokenService struct {
 	ServerOpsService server.ServerOperationServiceInterface
-	tokenHandler     *token.TokenHandler
+	tokenHandler     token.TokenHandlerInterface
 }
 
 // NewTokenService creates a new instance of TokenService.
 func NewTokenService(mux *http.ServeMux) ServiceInterface {
 	instance := &TokenService{
 		ServerOpsService: server.NewServerOperationService(),
-		tokenHandler:     &token.TokenHandler{},
+		tokenHandler:     token.NewTokenHandler(),
 	}
 	instance.RegisterRoutes(mux)
 

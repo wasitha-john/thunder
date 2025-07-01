@@ -33,8 +33,24 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
-// TokenHandler handles OAuth 2.0 token requests.
-type TokenHandler struct{}
+// TokenHandlerInterface defines the interface for handling OAuth 2.0 token requests.
+type TokenHandlerInterface interface {
+	HandleTokenRequest(w http.ResponseWriter, r *http.Request)
+}
+
+// TokenHandler implements the TokenHandlerInterface.
+type TokenHandler struct {
+	ApplicationProvider    appprovider.ApplicationProviderInterface
+	ScopeValidatorProvider scopeprovider.ScopeValidatorProviderInterface
+}
+
+// NewTokenHandler creates a new instance of TokenHandler.
+func NewTokenHandler() TokenHandlerInterface {
+	return &TokenHandler{
+		ApplicationProvider:    appprovider.NewApplicationProvider(),
+		ScopeValidatorProvider: scopeprovider.NewScopeValidatorProvider(),
+	}
+}
 
 // HandleTokenRequest handles the token request for OAuth 2.0.
 // It validates the client credentials and delegates to the appropriate grant handler.
@@ -111,6 +127,28 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
+	if clientID == "" {
+		utils.WriteJSONError(w, constants.ErrorInvalidRequest, "Missing client_id parameter",
+			http.StatusBadRequest, nil)
+		return
+	}
+
+	// Retrieve the OAuth application based on the client id.
+	appService := th.ApplicationProvider.GetApplicationService()
+	oauthApp, err := appService.GetOAuthApplication(clientID)
+	if err != nil || oauthApp == nil {
+		utils.WriteJSONError(w, constants.ErrorInvalidClient,
+			"Invalid client credentials", http.StatusUnauthorized, nil)
+		return
+	}
+
+	// Validate grant type against the application.
+	if !oauthApp.IsAllowedGrantType(grantType) {
+		utils.WriteJSONError(w, constants.ErrorUnauthorizedClient,
+			"The client is not authorized to use this grant type", http.StatusUnauthorized, nil)
+		return
+	}
+
 	// Construct the token request.
 	tokenRequest := &model.TokenRequest{
 		GrantType:    grantType,
@@ -126,34 +164,14 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Validate the token request.
-	tokenError := grantHandler.ValidateGrant(tokenRequest)
+	tokenError := grantHandler.ValidateGrant(tokenRequest, oauthApp)
 	if tokenError != nil && tokenError.Error != "" {
 		utils.WriteJSONError(w, tokenError.Error, tokenError.ErrorDescription, http.StatusBadRequest, nil)
 		return
 	}
 
-	// Retrieve the OAuth application based on the client id.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-
-	oauthApp, err := appService.GetOAuthApplication(clientID)
-	if err != nil || oauthApp == nil {
-		utils.WriteJSONError(w, constants.ErrorInvalidClient,
-			"Invalid client credentials", http.StatusUnauthorized, nil)
-		return
-	}
-
-	// Validate grant type against the application.
-	if !oauthApp.IsAllowedGrantType(tokenRequest.GrantType) {
-		utils.WriteJSONError(w, constants.ErrorUnauthorizedClient,
-			"The authenticated client is not authorized to use this grant type", http.StatusUnauthorized, nil)
-		return
-	}
-
 	// Validate and filter scopes.
-	scopeValidatorProvider := scopeprovider.NewScopeValidatorProvider()
-	scopeValidator := scopeValidatorProvider.GetScopeValidator()
-
+	scopeValidator := th.ScopeValidatorProvider.GetScopeValidator()
 	validScopes, scopeError := scopeValidator.ValidateScopes(tokenRequest.Scope, oauthApp.ClientID)
 	if scopeError != nil {
 		utils.WriteJSONError(w, scopeError.Error, scopeError.ErrorDescription, http.StatusBadRequest, nil)
