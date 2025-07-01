@@ -22,6 +22,7 @@ package token
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/asgardeo/thunder/internal/system/utils"
 
@@ -180,10 +181,19 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	tokenRequest.Scope = validScopes
 
 	// Delegate to the grant handler.
-	tokenResponse, tokenError := grantHandler.HandleGrant(tokenRequest, oauthApp)
+	tokenRespDTO, tokenError := grantHandler.HandleGrant(tokenRequest, oauthApp)
 	if tokenError != nil && tokenError.Error != "" {
 		utils.WriteJSONError(w, tokenError.Error, tokenError.ErrorDescription, http.StatusBadRequest, nil)
 		return
+	}
+
+	scopes := strings.Join(tokenRespDTO.AccessToken.Scopes, " ")
+	tokenResponse := &model.TokenResponse{
+		AccessToken:  tokenRespDTO.AccessToken.Token,
+		TokenType:    tokenRespDTO.AccessToken.TokenType,
+		ExpiresIn:    tokenRespDTO.AccessToken.ExpiresIn,
+		RefreshToken: tokenRespDTO.RefreshToken.Token,
+		Scope:        scopes,
 	}
 
 	// Log successful token generation.

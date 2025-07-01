@@ -37,7 +37,23 @@ type TokenRequest struct {
 type TokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
+	ExpiresIn    int64  `json:"expires_in"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 	Scope        string `json:"scope,omitempty"`
+}
+
+// TokenDTO represents the data transfer object for tokens.
+type TokenDTO struct {
+	Token     string   `json:"token"`
+	TokenType string   `json:"token_type"`
+	IssuedAt  int64    `json:"issued_at"`
+	ExpiresIn int64    `json:"expires_in"`
+	Scopes    []string `json:"scopes,omitempty"`
+	ClientID  string   `json:"client_id"`
+}
+
+// TokenResponseDTO represents the data transfer object for token responses.
+type TokenResponseDTO struct {
+	AccessToken  TokenDTO `json:"access_token"`
+	RefreshToken TokenDTO `json:"refresh_token,omitempty"`
 }

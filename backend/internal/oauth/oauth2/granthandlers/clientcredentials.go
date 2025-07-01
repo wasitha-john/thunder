@@ -19,6 +19,9 @@
 package granthandlers
 
 import (
+	"strings"
+	"time"
+
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
@@ -62,7 +65,7 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 
 // HandleGrant handles the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthApplication) (*model.TokenResponse, *model.ErrorResponse) {
+	oauthApp *appmodel.OAuthApplication) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	// Generate a JWT token for the client.
 	token, err := jwt.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID, nil)
 	if err != nil {
@@ -73,10 +76,17 @@ func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	}
 
 	// Return the token response.
-	return &model.TokenResponse{
-		AccessToken: token,
-		TokenType:   constants.TokenTypeBearer,
-		Scope:       tokenRequest.Scope,
-		ExpiresIn:   3600,
+	scopes := strings.Split(tokenRequest.Scope, " ")
+	accessToken := &model.TokenDTO{
+		Token:     token,
+		TokenType: constants.TokenTypeBearer,
+		IssuedAt:  time.Now().Unix(),
+		ExpiresIn: 3600,
+		Scopes:    scopes,
+		ClientID:  tokenRequest.ClientID,
+	}
+
+	return &model.TokenResponseDTO{
+		AccessToken: *accessToken,
 	}, nil
 }
