@@ -19,6 +19,7 @@
 package granthandlers
 
 import (
+	"strings"
 	"time"
 
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
@@ -94,7 +95,7 @@ func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 
 // HandleGrant processes the authorization code grant request and generates a token response.
 func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthApplication) (*model.TokenResponse, *model.ErrorResponse) {
+	oauthApp *appmodel.OAuthApplication) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	authCode, err := authz.GetAuthorizationCode(tokenRequest.ClientID, tokenRequest.Code)
 	if err != nil || authCode.Code == "" {
 		return nil, &model.ErrorResponse{
@@ -129,11 +130,18 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 
 	// Return the token response.
 	// TODO: Optionally issue a refresh token.
-	return &model.TokenResponse{
-		AccessToken: token,
-		TokenType:   constants.TokenTypeBearer,
-		Scope:       tokenRequest.Scope,
-		ExpiresIn:   3600,
+	scopes := strings.Split(tokenRequest.Scope, " ")
+	accessToken := &model.TokenDTO{
+		Token:     token,
+		TokenType: constants.TokenTypeBearer,
+		IssuedAt:  time.Now().Unix(),
+		ExpiresIn: 3600,
+		Scopes:    scopes,
+		ClientID:  tokenRequest.ClientID,
+	}
+
+	return &model.TokenResponseDTO{
+		AccessToken: *accessToken,
 	}, nil
 }
 
