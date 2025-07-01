@@ -28,8 +28,11 @@ import (
 // ClientCredentialsGrantHandler handles the client credentials grant type.
 type ClientCredentialsGrantHandler struct{}
 
+var _ GrantHandler = (*ClientCredentialsGrantHandler)(nil)
+
 // ValidateGrant validates the client credentials grant type.
-func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest) *model.ErrorResponse {
+func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
+	oauthApp *appmodel.OAuthApplication) *model.ErrorResponse {
 	// Validate the grant type.
 	if tokenRequest.GrantType != constants.GrantTypeClientCredentials {
 		return &model.ErrorResponse{
@@ -46,20 +49,20 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 		}
 	}
 
+	// Validate the client credentials.
+	if tokenRequest.ClientID != oauthApp.ClientID || tokenRequest.ClientSecret != oauthApp.ClientSecret {
+		return &model.ErrorResponse{
+			Error:            constants.ErrorInvalidClient,
+			ErrorDescription: "Invalid client credentials",
+		}
+	}
+
 	return nil
 }
 
 // HandleGrant handles the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthApplication) (*model.TokenResponse, *model.ErrorResponse) {
-	// Validate the client credentials.
-	if tokenRequest.ClientID != oauthApp.ClientID || tokenRequest.ClientSecret != oauthApp.ClientSecret {
-		return nil, &model.ErrorResponse{
-			Error:            constants.ErrorInvalidClient,
-			ErrorDescription: "Invalid client credentials",
-		}
-	}
-
 	// Generate a JWT token for the client.
 	token, err := jwt.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID, nil)
 	if err != nil {

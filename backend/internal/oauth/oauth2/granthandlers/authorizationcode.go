@@ -33,8 +33,11 @@ import (
 // AuthorizationCodeGrantHandler handles the authorization code grant type.
 type AuthorizationCodeGrantHandler struct{}
 
+var _ GrantHandler = (*AuthorizationCodeGrantHandler)(nil)
+
 // ValidateGrant validates the authorization code grant request.
-func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest) *model.ErrorResponse {
+func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
+	oauthApp *appmodel.OAuthApplication) *model.ErrorResponse {
 	if tokenRequest.GrantType == "" {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorInvalidRequest,
@@ -69,16 +72,10 @@ func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 		}
 	}
 
-	return nil
-}
-
-// HandleGrant processes the authorization code grant request and generates a token response.
-func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthApplication) (*model.TokenResponse, *model.ErrorResponse) {
 	// Validate the client credentials.
 	// TODO: Authentication may not be required for public clients if not specified in the request.
 	if tokenRequest.ClientID != oauthApp.ClientID || tokenRequest.ClientSecret != oauthApp.ClientSecret {
-		return nil, &model.ErrorResponse{
+		return &model.ErrorResponse{
 			Error:            constants.ErrorInvalidClient,
 			ErrorDescription: "Invalid client credentials",
 		}
@@ -86,12 +83,18 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 
 	// Validate the authorization code.
 	if tokenRequest.Code == "" {
-		return nil, &model.ErrorResponse{
-			Error:            constants.ErrorInvalidClient,
+		return &model.ErrorResponse{
+			Error:            constants.ErrorInvalidRequest,
 			ErrorDescription: "Authorization code is required",
 		}
 	}
 
+	return nil
+}
+
+// HandleGrant processes the authorization code grant request and generates a token response.
+func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
+	oauthApp *appmodel.OAuthApplication) (*model.TokenResponse, *model.ErrorResponse) {
 	authCode, err := authz.GetAuthorizationCode(tokenRequest.ClientID, tokenRequest.Code)
 	if err != nil || authCode.Code == "" {
 		return nil, &model.ErrorResponse{
