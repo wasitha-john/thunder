@@ -73,7 +73,7 @@ func GetFlowDAO() FlowDAOInterface {
 // Init initializes the FlowDAO by loading graph configurations into runtime.
 func (c *FlowDAO) Init() error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowDAO"))
-	logger.Info("Initializing the flow DAO layer")
+	logger.Debug("Initializing the flow DAO layer")
 
 	configDir := config.GetThunderRuntime().Config.Flow.GraphDirectory
 	if configDir == "" {
@@ -170,7 +170,7 @@ func (c *FlowDAO) Init() error {
 		c.RegisterGraph(graphID, graph)
 	}
 
-	logger.Info("Flow DAO initialized successfully", log.Int("configuredGraphCount", len(flowGraphs)),
+	logger.Debug("Flow DAO initialized successfully", log.Int("configuredGraphCount", len(flowGraphs)),
 		log.Int("inferredGraphCount", inferredGraphCount))
 
 	return nil
