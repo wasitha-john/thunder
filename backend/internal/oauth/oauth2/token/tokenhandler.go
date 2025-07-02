@@ -79,6 +79,8 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		grantHandler = &granthandlers.ClientCredentialsGrantHandler{}
 	case constants.GrantTypeAuthorizationCode:
 		grantHandler = &granthandlers.AuthorizationCodeGrantHandler{}
+	case constants.GrantTypeRefreshToken:
+		grantHandler = &granthandlers.RefreshTokenGrantHandler{}
 	default:
 		utils.WriteJSONError(w, constants.ErrorUnsupportedGrantType,
 			"Unsupported grant type", http.StatusBadRequest, nil)
@@ -181,10 +183,29 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	tokenRequest.Scope = validScopes
 
 	// Delegate to the grant handler.
-	tokenRespDTO, tokenError := grantHandler.HandleGrant(tokenRequest, oauthApp)
+	ctx := &model.TokenContext{
+		TokenAttributes: make(map[string]interface{}),
+	}
+	tokenRespDTO, tokenError := grantHandler.HandleGrant(tokenRequest, oauthApp, ctx)
 	if tokenError != nil && tokenError.Error != "" {
 		utils.WriteJSONError(w, tokenError.Error, tokenError.ErrorDescription, http.StatusBadRequest, nil)
 		return
+	}
+
+	// Generate and add refresh token if applicable.
+	if tokenRequest.GrantType == constants.GrantTypeAuthorizationCode &&
+		oauthApp.IsAllowedGrantType(constants.GrantTypeRefreshToken) {
+		logger.Debug("Issuing refresh token for the token request", log.String("client_id", clientID),
+			log.String("grant_type", grantType))
+
+		refreshGrantHandler := &granthandlers.RefreshTokenGrantHandler{}
+		refreshTokenError := refreshGrantHandler.IssueRefreshToken(tokenRespDTO, ctx, oauthApp.ClientID,
+			grantType, tokenRespDTO.AccessToken.Scopes)
+		if refreshTokenError != nil && refreshTokenError.Error != "" {
+			utils.WriteJSONError(w, refreshTokenError.Error, refreshTokenError.ErrorDescription,
+				http.StatusInternalServerError, nil)
+			return
+		}
 	}
 
 	scopes := strings.Join(tokenRespDTO.AccessToken.Scopes, " ")
@@ -196,8 +217,8 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		Scope:        scopes,
 	}
 
-	// Log successful token generation.
-	logger.Info("Token generated successfully", log.String("client_id", clientID))
+	logger.Debug("Token generated successfully", log.String("client_id", clientID),
+		log.String("grant_type", grantType))
 
 	// Set the response headers.
 	w.Header().Set("Content-Type", "application/json")
@@ -212,6 +233,5 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Failed to write token response", http.StatusInternalServerError)
 		return
 	}
-	// Log the token response.
-	logger.Info("Token response sent", log.String("client_id", clientID))
+	logger.Debug("Token response sent", log.String("client_id", clientID), log.String("grant_type", grantType))
 }

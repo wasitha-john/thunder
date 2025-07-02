@@ -84,6 +84,14 @@ func LoadPrivateKey(cfg *config.Config, currentDirectory string) error {
 	return nil
 }
 
+// GetPublicKey returns the RSA public key corresponding to the loaded private key.
+func GetPublicKey() *rsa.PublicKey {
+	if privateKey == nil {
+		return nil
+	}
+	return &privateKey.PublicKey
+}
+
 // GenerateJWT generates a standard JWT signed with the server's private key.
 func GenerateJWT(sub, aud string, claims map[string]string) (string, error) {
 	if privateKey == nil {
@@ -115,6 +123,10 @@ func GenerateJWT(sub, aud string, claims map[string]string) (string, error) {
 		"iss": config.OAuth.JWT.Issuer,
 		"aud": aud,
 		"exp": expirationTime,
+
+		// TODO: Get time related params also as method arguments. Otherwise, will be having two
+		// different times in the token and DTO.
+
 		"iat": time.Now().Unix(),
 		"nbf": time.Now().Unix(),
 		"jti": utils.GenerateUUID(),

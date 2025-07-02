@@ -65,7 +65,7 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 
 // HandleGrant handles the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthApplication) (*model.TokenResponseDTO, *model.ErrorResponse) {
+	oauthApp *appmodel.OAuthApplication, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	// Generate a JWT token for the client.
 	token, err := jwt.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID, nil)
 	if err != nil {
@@ -75,7 +75,14 @@ func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 		}
 	}
 
-	// Return the token response.
+	// Add context attributes.
+	if ctx.TokenAttributes == nil {
+		ctx.TokenAttributes = make(map[string]interface{})
+	}
+	ctx.TokenAttributes["sub"] = tokenRequest.ClientID
+	ctx.TokenAttributes["aud"] = tokenRequest.ClientID
+
+	// Prepare the token response.
 	scopes := strings.Split(tokenRequest.Scope, " ")
 	accessToken := &model.TokenDTO{
 		Token:     token,

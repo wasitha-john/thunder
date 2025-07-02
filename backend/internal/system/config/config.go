@@ -75,9 +75,15 @@ type JWTConfig struct {
 	ValidityPeriod int64  `yaml:"validity_period"`
 }
 
+// RefreshTokenConfig holds the refresh token configuration details.
+type RefreshTokenConfig struct {
+	RenewOnGrant bool `yaml:"renew_on_grant"`
+}
+
 // OAuthConfig holds the OAuth configuration details.
 type OAuthConfig struct {
-	JWT JWTConfig `yaml:"jwt"`
+	JWT          JWTConfig          `yaml:"jwt"`
+	RefreshToken RefreshTokenConfig `yaml:"refresh_token"`
 }
 
 // Authenticator holds the configuration details for an individual authenticator.
