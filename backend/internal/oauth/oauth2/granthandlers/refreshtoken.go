@@ -74,7 +74,7 @@ func (h *RefreshTokenGrantHandler) ValidateGrant(tokenRequest *model.TokenReques
 
 // HandleGrant processes the refresh token grant request and generates a new token response.
 func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthApplication) (*model.TokenResponseDTO, *model.ErrorResponse) {
+	oauthApp *appmodel.OAuthApplication, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "RefreshTokenGrantHandler"))
 
 	if errResp := h.verifyRefreshTokenSignature(tokenRequest.RefreshToken, logger); errResp != nil {
@@ -95,9 +95,22 @@ func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 		return nil, errResp
 	}
 
+	// Extract sub and aud from the refresh token claims if available
+	sub := ""
+	aud := ""
+	if val, ok := refreshTokenClaims["access_token_sub"]; ok && val != "" {
+		if subVal, ok := val.(string); ok {
+			sub = subVal
+		}
+	}
+	if val, ok := refreshTokenClaims["access_token_aud"]; ok && val != "" {
+		if audVal, ok := val.(string); ok {
+			aud = audVal
+		}
+	}
+
 	// Issue new access token
-	// TODO: Need to use the same `sub` as in the previous access token.
-	accessToken, err := jwt.GenerateJWT("", tokenRequest.ClientID, nil)
+	accessToken, err := jwt.GenerateJWT(sub, aud, nil)
 	if err != nil {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
@@ -120,8 +133,18 @@ func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	// Issue a new refresh token if renew_on_grant is enabled.
 	config := config.GetThunderRuntime().Config
 	if config.OAuth.RefreshToken.RenewOnGrant {
+		refreshTokenCtx := &model.TokenContext{
+			TokenAttributes: make(map[string]interface{}),
+		}
+		if sub != "" {
+			refreshTokenCtx.TokenAttributes["sub"] = sub
+		}
+		if aud != "" {
+			refreshTokenCtx.TokenAttributes["aud"] = aud
+		}
+
 		logger.Debug("Renewing refresh token", log.String("client_id", tokenRequest.ClientID))
-		h.IssueRefreshToken(tokenResponse, tokenRequest.ClientID, tokenGrantType, refreshTokenScopes)
+		h.IssueRefreshToken(tokenResponse, refreshTokenCtx, tokenRequest.ClientID, tokenGrantType, refreshTokenScopes)
 	} else {
 		tokenResponse.RefreshToken = model.TokenDTO{
 			Token:     tokenRequest.RefreshToken,
@@ -144,13 +167,32 @@ func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 
 // IssueRefreshToken generates a new refresh token for the given OAuth application and scopes.
 func (h *RefreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenResponseDTO,
-	clientID, grantType string, scopes []string) *model.ErrorResponse {
+	ctx *model.TokenContext, clientID, grantType string, scopes []string) *model.ErrorResponse {
+	// Extract sub and aud from the context attributes if available
+	sub := ""
+	aud := ""
+	if len(ctx.TokenAttributes) > 0 {
+		if val, ok := ctx.TokenAttributes["sub"]; ok && val != "" {
+			sub = val.(string)
+		}
+		if val, ok := ctx.TokenAttributes["aud"]; ok && val != "" {
+			aud = val.(string)
+		}
+	}
+
 	// Generate a JWT token for the refresh token.
 	claims := map[string]string{
 		"client_id":  clientID,
 		"grant_type": grantType,
 		"scopes":     strings.Join(scopes, " "),
 	}
+	if sub != "" {
+		claims["access_token_sub"] = sub
+	}
+	if aud != "" {
+		claims["access_token_aud"] = aud
+	}
+
 	token, err := jwt.GenerateJWT(clientID, clientID, claims)
 	if err != nil {
 		return &model.ErrorResponse{

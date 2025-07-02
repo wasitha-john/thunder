@@ -95,7 +95,7 @@ func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 
 // HandleGrant processes the authorization code grant request and generates a token response.
 func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthApplication) (*model.TokenResponseDTO, *model.ErrorResponse) {
+	oauthApp *appmodel.OAuthApplication, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	authCode, err := authz.GetAuthorizationCode(tokenRequest.ClientID, tokenRequest.Code)
 	if err != nil || authCode.Code == "" {
 		return nil, &model.ErrorResponse{
@@ -128,7 +128,14 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 		}
 	}
 
-	// Return the token response.
+	// Add context attributes.
+	if ctx.TokenAttributes == nil {
+		ctx.TokenAttributes = make(map[string]interface{})
+	}
+	ctx.TokenAttributes["sub"] = authCode.AuthorizedUserID
+	ctx.TokenAttributes["aud"] = authCode.ClientID
+
+	// Prepare the token response.
 	scopes := strings.Split(tokenRequest.Scope, " ")
 	accessToken := &model.TokenDTO{
 		Token:     token,

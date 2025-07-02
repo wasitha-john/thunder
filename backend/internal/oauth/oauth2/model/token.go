@@ -42,6 +42,11 @@ type TokenResponse struct {
 	Scope        string `json:"scope,omitempty"`
 }
 
+// TokenContext holds context data for the token issuance.
+type TokenContext struct {
+	TokenAttributes map[string]interface{} `json:"token_attributes,omitempty"`
+}
+
 // TokenDTO represents the data transfer object for tokens.
 type TokenDTO struct {
 	Token     string   `json:"token"`

@@ -183,7 +183,10 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	tokenRequest.Scope = validScopes
 
 	// Delegate to the grant handler.
-	tokenRespDTO, tokenError := grantHandler.HandleGrant(tokenRequest, oauthApp)
+	ctx := &model.TokenContext{
+		TokenAttributes: make(map[string]interface{}),
+	}
+	tokenRespDTO, tokenError := grantHandler.HandleGrant(tokenRequest, oauthApp, ctx)
 	if tokenError != nil && tokenError.Error != "" {
 		utils.WriteJSONError(w, tokenError.Error, tokenError.ErrorDescription, http.StatusBadRequest, nil)
 		return
@@ -196,8 +199,8 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 			log.String("grant_type", grantType))
 
 		refreshGrantHandler := &granthandlers.RefreshTokenGrantHandler{}
-		refreshTokenError := refreshGrantHandler.IssueRefreshToken(tokenRespDTO, oauthApp.ClientID, grantType,
-			tokenRespDTO.AccessToken.Scopes)
+		refreshTokenError := refreshGrantHandler.IssueRefreshToken(tokenRespDTO, ctx, oauthApp.ClientID,
+			grantType, tokenRespDTO.AccessToken.Scopes)
 		if refreshTokenError != nil && refreshTokenError.Error != "" {
 			utils.WriteJSONError(w, refreshTokenError.Error, refreshTokenError.ErrorDescription,
 				http.StatusInternalServerError, nil)
