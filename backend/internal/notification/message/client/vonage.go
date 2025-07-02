@@ -27,6 +27,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/notification/message/constants"
 	"github.com/asgardeo/thunder/internal/notification/message/model"
+	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
@@ -107,7 +108,7 @@ func (v *VonageClient) SendSMS(sms model.SMSData) error {
 	req.SetBasicAuth(v.apiKey, v.apiSecret)
 
 	// Send the HTTP request
-	client := &http.Client{}
+	client := httpservice.NewHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send HTTP request: %w", err)
