@@ -144,7 +144,13 @@ func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 		}
 
 		logger.Debug("Renewing refresh token", log.String("client_id", tokenRequest.ClientID))
-		h.IssueRefreshToken(tokenResponse, refreshTokenCtx, tokenRequest.ClientID, tokenGrantType, refreshTokenScopes)
+		errResp := h.IssueRefreshToken(tokenResponse, refreshTokenCtx, tokenRequest.ClientID,
+			tokenGrantType, refreshTokenScopes)
+		if errResp != nil && errResp.Error != "" {
+			errResp.ErrorDescription = "Error while issuing refresh token: " + errResp.ErrorDescription
+			logger.Error("Failed to issue refresh token", log.String("error", errResp.Error))
+			return nil, errResp
+		}
 	} else {
 		tokenResponse.RefreshToken = model.TokenDTO{
 			Token:     tokenRequest.RefreshToken,

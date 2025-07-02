@@ -217,8 +217,8 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		Scope:        scopes,
 	}
 
-	// Log successful token generation.
-	logger.Info("Token generated successfully", log.String("client_id", clientID), log.String("grant_type", grantType))
+	logger.Debug("Token generated successfully", log.String("client_id", clientID),
+		log.String("grant_type", grantType))
 
 	// Set the response headers.
 	w.Header().Set("Content-Type", "application/json")
@@ -233,6 +233,5 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Failed to write token response", http.StatusInternalServerError)
 		return
 	}
-	// Log the token response.
-	logger.Info("Token response sent", log.String("client_id", clientID), log.String("grant_type", grantType))
+	logger.Debug("Token response sent", log.String("client_id", clientID), log.String("grant_type", grantType))
 }
