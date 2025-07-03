@@ -79,7 +79,7 @@ func (s *FlowService) Execute(appID, flowID, actionID string, flowType constants
 	var context *model.EngineContext
 	var loadErr *serviceerror.ServiceError
 
-	if isNewFlow(flowID, actionID) {
+	if isNewFlow(flowID) {
 		context, loadErr = s.loadNewContext(appID, actionID, flowType, inputData, logger)
 	} else {
 		context, loadErr = s.loadPrevContext(flowID, actionID, inputData, logger)
@@ -213,9 +213,9 @@ func validateDefaultFlowConfigs(flowDAO dao.FlowDAOInterface) error {
 	return nil
 }
 
-// isNewFlow checks if the flow is a new flow based on the provided flowID and actionID.
-func isNewFlow(flowID string, actionID string) bool {
-	return flowID == "" && actionID == ""
+// isNewFlow checks if the flow is a new flow based on the provided input.
+func isNewFlow(flowID string) bool {
+	return flowID == ""
 }
 
 // isComplete checks if the flow step status indicates completion.

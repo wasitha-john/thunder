@@ -42,6 +42,7 @@ import ConnectionErrorModal from '../components/ConnectionErrorModal';
 import { 
     NativeAuthSubmitType, 
     initiateNativeAuthFlow,
+    initiateNativeAuthFlowWithData,
     submitNativeAuth, 
     submitAuthDecision 
 } from '../services/authService';
@@ -117,10 +118,12 @@ const LoginPage = () => {
     // Add new state variables to track auth flow
     const [needsDecision, setNeedsDecision] = useState<boolean>(false);
     const [availableActions, setAvailableActions] = useState<ActionPrompt[]>([]);
+    const [selectedAction, setSelectedAction] = useState<string | null>(null);
     
     // Add state to track signup mode
     const [isSignupMode, setIsSignupMode] = useState<boolean>(false);
     const [regOnlySuccess, setRegOnlySuccess] = useState<boolean>(false);
+    const [promptRegistration, setPromptRegistration] = useState<boolean>(false);
     
     const GradientCircularProgress = () => {
         return (
@@ -234,11 +237,21 @@ const LoginPage = () => {
     }, [flowId]);
 
     // Process authentication response
-    const processAuthResponse = useCallback((data: AuthResponse) => {
+    const processAuthResponse = useCallback((data: AuthResponse, selectedAction?: string) => {
         const isCameFromDecision = needsDecision;
+        const isMobileLogin = selectedAction && selectedAction.includes('mobile');
 
         setFlowId(data.flowId || '');
         if (data.flowStatus && data.flowStatus == 'ERROR') {
+            if (isMobileLogin && data?.failureReason && data.failureReason.includes("User not found")) {
+                console.log("User not found, prompting registration");
+                setPromptRegistration(true);
+                setError(false);
+                setErrorMessage('');
+                setLoading(false);
+                return;
+            }
+
             const defaultMessage = isSignupMode 
                 ? 'Registration failed. Please check your information.' 
                 : 'Login failed. Please check your credentials.';
@@ -304,6 +317,7 @@ const LoginPage = () => {
     // Handle when user selects an authentication option
     const handleAuthOptionSelection = (actionId: string) => {
         setLoading(true);
+        setSelectedAction(actionId);
         
         submitAuthDecision(flowId, actionId)
             .then((result) => {
@@ -322,6 +336,7 @@ const LoginPage = () => {
         setConnectionError(false);
         setNeedsDecision(false);
         setAvailableActions([]);
+        setSelectedAction(null);
         setFormData({});
         setInputs([]);
         // Reset redirect URL
@@ -377,6 +392,70 @@ const LoginPage = () => {
             });
     }, [clearToken, isSignupMode, setToken]);
 
+    // Initialize the prompt signup decision action
+    const initPromptSignupDecision = () => {
+        clearToken();
+        setConnectionError(false);
+        setNeedsDecision(false);
+        setAvailableActions([]);
+        // Reset redirect URL
+        setRedirectURL(null);
+        setSocialIdpName('');
+        setRegOnlySuccess(false);
+        setPromptRegistration(false);
+
+        // Ensure all input fields are present in formData, even if empty
+        const completeFormData = { ...formData };
+        inputs.forEach(input => {
+            if (!(input.name in completeFormData)) {
+                completeFormData[input.name] = '';
+            }
+        });
+
+        initiateNativeAuthFlowWithData('REGISTRATION', selectedAction, completeFormData)
+            .then((result) => {
+                const data = result.data;
+
+                if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
+                    setToken(data.assertion);
+                    setError(false);
+                } else if (data.flowStatus && data.flowStatus === 'ERROR') {
+                    setError(true);
+                    setErrorMessage(data.failureReason || 'Registration failed. Please check your information.');
+                } else if (data.type === "VIEW") {
+                    // Handle the VIEW response
+                    if (data.data?.actions) {
+                        // This is a decision screen
+                        setNeedsDecision(true);
+                        setAvailableActions(data.data.actions);
+                    } else if (data.data?.inputs) {
+                        // This is an input prompt
+                        setNeedsDecision(false);
+                        data.data.inputs.forEach((input: AuthInput) => {
+                            setInputs(prev => [...prev, input]);
+                        });
+                    }
+                } else if (data.type === "REDIRECTION") {
+                    // Handle redirection for social logins
+                    const url = data.data?.redirectURL;
+                    const idpName = data.data?.additionalData?.idpName || 'Social Login';
+                    
+                    if (url) {
+                        // Store the redirect URL instead of redirecting immediately
+                        setRedirectURL(url);
+                        setSocialIdpName(idpName);
+                    }
+                }
+
+                setFlowId(data.flowId);
+                setLoading(false);
+            }).catch((error) => {
+                console.error(`Error during user registration:`, error);
+                setConnectionError(true);
+                setLoading(false);
+            });
+    };
+
     // Unified form submission handler that works for both decisions and direct inputs
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -394,9 +473,10 @@ const LoginPage = () => {
             // This is a decision submission - identify the action from form data
             const formAction = event.currentTarget.getAttribute('data-action-id');
             if (formAction) {
+                setSelectedAction(formAction);
                 submitAuthDecision(flowId, formAction, completeFormData)
                     .then((result) => {
-                        processAuthResponse(result.data);
+                        processAuthResponse(result.data, formAction);
                     })
                     .catch((error) => {
                         console.error("Error during authentication decision:", error);
@@ -722,7 +802,7 @@ const LoginPage = () => {
                         {/* SMS OTP Auth */}
                         {hasMobileAuth && (
                             <form 
-                                onSubmit={handleSubmit} 
+                                onSubmit={handleSubmit}
                                 data-action-id={mobileAuthActions[0]?.id}
                             >
                                 <Box display="flex" flexDirection="column" gap={2}>
@@ -945,7 +1025,7 @@ const LoginPage = () => {
                         </Box>
                     )}
 
-                    { error ? (
+                    { error && !errorMessage.includes("invalid OTP") ? (
                         <Button
                             variant="contained"
                             color="primary"
@@ -1014,6 +1094,7 @@ const LoginPage = () => {
 
     // Calculate appropriate grid size based on layout complexity
     const gridMdSize = needsDecision 
+        && !promptRegistration
         && availableActions.some(action => action.id === "basic_auth") 
         && availableActions.some(action => action.id === "mobile_prompt_username" || action.id === "prompt_mobile") 
         ? 10 : 6;
@@ -1052,57 +1133,66 @@ const LoginPage = () => {
                             }}
                         >
                             <Box>
-                                {!regOnlySuccess ? (
+                                {promptRegistration ? (
                                     <Box sx={{ mb: 4 }}>
-                                    <Typography variant="h5" gutterBottom>
-                                        {isSignupMode ? 'Create Account' : 'Login to Account'}
-                                    </Typography>
-
-                                    <Typography>
-                                        {isSignupMode ? (
-                                            <>
-                                                Already have an account?{' '}
-                                                <Link 
-                                                    href="#" 
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        setIsSignupMode(false);
-                                                        setError(false);
-                                                        setErrorMessage('');
-                                                        init(false);
-                                                    }}
-                                                    underline="hover"
-                                                >
-                                                    Sign in!
-                                                </Link>
-                                            </>
-                                        ) : (
-                                            <>
-                                                Don&apos;t have an account?{' '}
-                                                <Link 
-                                                    href="#" 
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        setIsSignupMode(true);
-                                                        setError(false);
-                                                        setErrorMessage('');
-                                                        init(true);
-                                                    }}
-                                                    underline="hover"
-                                                >
-                                                    Sign up!
-                                                </Link>
-                                            </>
-                                        )}
-                                    </Typography>
-                                </Box>
-                                ) : (
+                                        <Typography variant="h5" gutterBottom>
+                                            We couldn&apos;t find your account
+                                        </Typography>
+                                        <Typography>
+                                            No account matched your details. You can try again or sign up below.
+                                        </Typography>
+                                    </Box>
+                                ) : regOnlySuccess ? (
                                     <Box sx={{ mb: 4 }}>
                                         <Typography variant="h5" gutterBottom>
                                             Registration Successful
                                         </Typography>
                                         <Typography>
                                             You can now log in to your account.
+                                        </Typography>
+                                    </Box>
+                                ) : (
+                                    <Box sx={{ mb: 4 }}>
+                                        <Typography variant="h5" gutterBottom>
+                                            {isSignupMode ? 'Create Account' : 'Login to Account'}
+                                        </Typography>
+
+                                        <Typography>
+                                            {isSignupMode ? (
+                                                <>
+                                                    Already have an account?{' '}
+                                                    <Link 
+                                                        href="#" 
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setIsSignupMode(false);
+                                                            setError(false);
+                                                            setErrorMessage('');
+                                                            init(false);
+                                                        }}
+                                                        underline="hover"
+                                                    >
+                                                        Sign in!
+                                                    </Link>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Don&apos;t have an account?{' '}
+                                                    <Link 
+                                                        href="#" 
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setIsSignupMode(true);
+                                                            setError(false);
+                                                            setErrorMessage('');
+                                                            init(true);
+                                                        }}
+                                                        underline="hover"
+                                                    >
+                                                        Sign up!
+                                                    </Link>
+                                                </>
+                                            )}
                                         </Typography>
                                     </Box>
                                 )}
@@ -1122,7 +1212,42 @@ const LoginPage = () => {
                                 )}
 
                                 {!connectionError && (
-                                    !regOnlySuccess ? (
+                                    promptRegistration ? (
+                                        <Box sx={{ mb: 4 }}>
+                                            <Button
+                                                variant="contained"
+                                                color="primary"
+                                                type="submit"
+                                                fullWidth
+                                                sx={{ mt: 2 }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setIsSignupMode(true);
+                                                    setError(false);
+                                                    setErrorMessage('');
+                                                    initPromptSignupDecision();
+                                                }}
+                                            >
+                                                Sign Up
+                                            </Button>
+                                            <Button
+                                                variant="contained"
+                                                color="secondary"
+                                                type="submit"
+                                                fullWidth
+                                                sx={{ mt: 2 }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setPromptRegistration(false);
+                                                    setError(false);
+                                                    setErrorMessage('');
+                                                    handleRetry();
+                                                }}
+                                            >
+                                                Retry
+                                            </Button>
+                                        </Box>
+                                    ) : !regOnlySuccess ? (
                                     <>
                                         {/* First check if we have a redirect URL */}
                                         {redirectURL ? (
