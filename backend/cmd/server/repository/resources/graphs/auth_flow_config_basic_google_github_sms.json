@@ -31,23 +31,6 @@
                 "name": "BasicAuthExecutor"
             },
             "next": [
-                "attr_collector"
-            ]
-        },
-        {
-            "id": "attr_collector",
-            "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "mobileNumber",
-                    "type": "string",
-                    "required": true
-                }
-            ],
-            "executor": {
-                "name": "AttributeCollector"
-            },
-            "next": [
                 "sms_otp_auth"
             ]
         },
@@ -121,6 +104,33 @@
                 "properties": {
                     "senderName": "Custom SMS Sender"
                 }
+            },
+            "next": [
+                "attr_collector"
+            ]
+        },
+        {
+            "id": "attr_collector",
+            "type": "TASK_EXECUTION",
+            "inputData": [
+                {
+                    "name": "username",
+                    "type": "string",
+                    "required": false
+                },
+                {
+                    "name": "firstName",
+                    "type": "string",
+                    "required": false
+                },
+                {
+                    "name": "lastName",
+                    "type": "string",
+                    "required": false
+                }
+            ],
+            "executor": {
+                "name": "AttributeCollector"
             },
             "next": [
                 "authenticated"

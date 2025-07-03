@@ -751,11 +751,17 @@ func (s *SMSOTPAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 		IsAuthenticated: true,
 		UserID:          user.ID,
 		Attributes: map[string]string{
-			userAttributeEmail:        email,
-			userAttributeFirstName:    firstName,
-			userAttributeLastName:     lastName,
 			userAttributeMobileNumber: mobileNumber,
 		},
+	}
+	if email != "" {
+		authenticatedUser.Attributes[userAttributeEmail] = email
+	}
+	if firstName != "" {
+		authenticatedUser.Attributes[userAttributeFirstName] = firstName
+	}
+	if lastName != "" {
+		authenticatedUser.Attributes[userAttributeLastName] = lastName
 	}
 
 	return authenticatedUser, nil

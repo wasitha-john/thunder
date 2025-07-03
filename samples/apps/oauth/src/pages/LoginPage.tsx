@@ -382,11 +382,19 @@ const LoginPage = () => {
         event.preventDefault();
         setLoading(true);
 
+        // Ensure all input fields are present in formData, even if empty
+        const completeFormData = { ...formData };
+        inputs.forEach(input => {
+            if (!(input.name in completeFormData)) {
+                completeFormData[input.name] = '';
+            }
+        });
+
         if (needsDecision) {
             // This is a decision submission - identify the action from form data
             const formAction = event.currentTarget.getAttribute('data-action-id');
             if (formAction) {
-                submitAuthDecision(flowId, formAction, formData)
+                submitAuthDecision(flowId, formAction, completeFormData)
                     .then((result) => {
                         processAuthResponse(result.data);
                     })
@@ -397,7 +405,7 @@ const LoginPage = () => {
             }
         } else {
             // This is a direct input submission
-            submitNativeAuth(flowId, formData)
+            submitNativeAuth(flowId, completeFormData)
                 .then((result) => {
                     processAuthResponse(result.data);
                 })
@@ -615,10 +623,7 @@ const LoginPage = () => {
                     {/* Left: Basic Login */}
                     <Box sx={{ flex: 1 }}>
                         <form onSubmit={handleSubmit} data-action-id={basicAuthAction?.id}>
-                            <Box display="flex" flexDirection="column" gap={2}>
-                                <Typography variant="body1" color="textSecondary" sx={{ mb: 2, mt: 1.5 }}>
-                                    Login with Username and Password
-                                </Typography>
+                            <Box display="flex" flexDirection="column" gap={2}  sx={{ mb: 2, mt: 6.8 }}>
                             </Box>
                             <Box display="flex" flexDirection="column" gap={2} sx={{ mt: 3 }}>
                                 <Box display="flex" flexDirection="column" gap={0.5}>
