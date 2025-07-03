@@ -37,6 +37,8 @@ import (
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
+const defaultTokenValidity = 3600 // default validity period of 1 hour
+
 var privateKey *rsa.PrivateKey
 
 // LoadPrivateKey loads the private key from the specified file path in the configuration.
@@ -93,9 +95,9 @@ func GetPublicKey() *rsa.PublicKey {
 }
 
 // GenerateJWT generates a standard JWT signed with the server's private key.
-func GenerateJWT(sub, aud string, claims map[string]string) (string, error) {
+func GenerateJWT(sub, aud string, validityPeriod int64, claims map[string]string) (string, int64, error) {
 	if privateKey == nil {
-		return "", errors.New("private key not loaded")
+		return "", 0, errors.New("private key not loaded")
 	}
 
 	config := config.GetThunderRuntime().Config
@@ -107,15 +109,15 @@ func GenerateJWT(sub, aud string, claims map[string]string) (string, error) {
 	}
 	headerJSON, err := json.Marshal(header)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	// Calculate the expiration time based on the validity period.
-	validityPeriod := config.OAuth.JWT.ValidityPeriod
 	if validityPeriod == 0 {
-		validityPeriod = 3600 // Default to 1 hour if not set.
+		validityPeriod = defaultTokenValidity
 	}
-	expirationTime := time.Now().Add(time.Duration(validityPeriod) * time.Second).Unix()
+	iat := time.Now()
+	expirationTime := iat.Add(time.Duration(validityPeriod) * time.Second).Unix()
 
 	// Create the JWT payload.
 	payload := map[string]interface{}{
@@ -123,12 +125,8 @@ func GenerateJWT(sub, aud string, claims map[string]string) (string, error) {
 		"iss": config.OAuth.JWT.Issuer,
 		"aud": aud,
 		"exp": expirationTime,
-
-		// TODO: Get time related params also as method arguments. Otherwise, will be having two
-		// different times in the token and DTO.
-
-		"iat": time.Now().Unix(),
-		"nbf": time.Now().Unix(),
+		"iat": iat.Unix(),
+		"nbf": iat.Unix(),
 		"jti": utils.GenerateUUID(),
 	}
 
@@ -141,7 +139,7 @@ func GenerateJWT(sub, aud string, claims map[string]string) (string, error) {
 
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	// Encode the header and payload in base64 URL format.
@@ -155,11 +153,11 @@ func GenerateJWT(sub, aud string, claims map[string]string) (string, error) {
 	// Sign the hashed input with the private key.
 	signature, err := rsa.SignPKCS1v15(nil, privateKey, crypto.SHA256, hashed[:])
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	// Encode the signature in base64 URL format.
 	signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
 
-	return signingInput + "." + signatureBase64, nil
+	return signingInput + "." + signatureBase64, iat.Unix(), nil
 }

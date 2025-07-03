@@ -32,6 +32,8 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
+const defaultRefreshTokenValidity = 86400 // default validity period of 1 day
+
 // RefreshTokenGrantHandler handles the refresh token grant type.
 type RefreshTokenGrantHandler struct{}
 
@@ -109,8 +111,11 @@ func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 		}
 	}
 
+	// Get validity period
+	validityPeriod := jwt.GetJWTTokenValidityPeriod()
+
 	// Issue new access token
-	accessToken, err := jwt.GenerateJWT(sub, aud, nil)
+	accessToken, iat, err := jwt.GenerateJWT(sub, aud, validityPeriod, nil)
 	if err != nil {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
@@ -123,16 +128,16 @@ func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 		AccessToken: model.TokenDTO{
 			Token:     accessToken,
 			TokenType: constants.TokenTypeBearer,
-			IssuedAt:  time.Now().Unix(),
-			ExpiresIn: 3600,
+			IssuedAt:  iat,
+			ExpiresIn: validityPeriod,
 			Scopes:    newTokenScopes,
 			ClientID:  tokenRequest.ClientID,
 		},
 	}
 
 	// Issue a new refresh token if renew_on_grant is enabled.
-	config := config.GetThunderRuntime().Config
-	if config.OAuth.RefreshToken.RenewOnGrant {
+	conf := config.GetThunderRuntime().Config
+	if conf.OAuth.RefreshToken.RenewOnGrant {
 		refreshTokenCtx := &model.TokenContext{
 			TokenAttributes: make(map[string]interface{}),
 		}
@@ -186,6 +191,13 @@ func (h *RefreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 		}
 	}
 
+	// Get validity period
+	conf := config.GetThunderRuntime().Config
+	validityPeriod := conf.OAuth.RefreshToken.ValidityPeriod
+	if validityPeriod == 0 {
+		validityPeriod = defaultRefreshTokenValidity
+	}
+
 	// Generate a JWT token for the refresh token.
 	claims := map[string]string{
 		"client_id":  clientID,
@@ -199,7 +211,7 @@ func (h *RefreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 		claims["access_token_aud"] = aud
 	}
 
-	token, err := jwt.GenerateJWT(clientID, clientID, claims)
+	token, iat, err := jwt.GenerateJWT(clientID, clientID, validityPeriod, claims)
 	if err != nil {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
@@ -213,8 +225,8 @@ func (h *RefreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 	tokenResponse.RefreshToken = model.TokenDTO{
 		Token:     token,
 		TokenType: constants.TokenTypeBearer,
-		IssuedAt:  time.Now().Unix(),
-		ExpiresIn: 3600,
+		IssuedAt:  iat,
+		ExpiresIn: validityPeriod,
 		Scopes:    scopes,
 		ClientID:  clientID,
 	}

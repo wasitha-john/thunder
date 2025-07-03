@@ -76,7 +76,9 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 		if ctx.AuthenticatedUser.UserID != "" {
 			tokenSub = ctx.AuthenticatedUser.UserID
 		}
-		token, err := jwt.GenerateJWT(tokenSub, ctx.AppID, ctx.AuthenticatedUser.Attributes)
+
+		token, _, err := jwt.GenerateJWT(tokenSub, ctx.AppID, jwt.GetJWTTokenValidityPeriod(),
+			ctx.AuthenticatedUser.Attributes)
 		if err != nil {
 			logger.Error("Failed to generate JWT token", log.Error(err))
 			return nil, errors.New("failed to generate JWT token: " + err.Error())

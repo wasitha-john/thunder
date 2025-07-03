@@ -67,7 +67,8 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthApplication, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	// Generate a JWT token for the client.
-	token, err := jwt.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID, nil)
+	token, _, err := jwt.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID,
+		jwt.GetJWTTokenValidityPeriod(), nil)
 	if err != nil {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
