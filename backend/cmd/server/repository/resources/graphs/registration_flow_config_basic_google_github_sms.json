@@ -1,6 +1,6 @@
 {
-    "id": "auth_flow_config_basic_google_github_sms",
-    "type": "AUTHENTICATION",
+    "id": "registration_flow_config_basic_google_github_sms",
+    "type": "REGISTRATION",
     "nodes": [
         {
             "id": "choose_auth",
@@ -54,7 +54,7 @@
                 "idpName": "Google"
             },
             "next": [
-                "authenticated"
+                "provisioning_social"
             ]
         },
         {
@@ -72,7 +72,7 @@
                 "idpName": "Github"
             },
             "next": [
-                "authenticated"
+                "provisioning_social"
             ]
         },
         {
@@ -106,15 +106,20 @@
                 }
             },
             "next": [
-                "attr_collector"
+                "provisioning_local"
             ]
         },
         {
-            "id": "attr_collector",
+            "id": "provisioning_local",
             "type": "TASK_EXECUTION",
             "inputData": [
                 {
                     "name": "username",
+                    "type": "string",
+                    "required": false
+                },
+                {
+                    "name": "password",
                     "type": "string",
                     "required": false
                 },
@@ -135,7 +140,17 @@
                 }
             ],
             "executor": {
-                "name": "AttributeCollector"
+                "name": "ProvisioningExecutor"
+            },
+            "next": [
+                "authenticated"
+            ]
+        },
+        {
+            "id": "provisioning_social",
+            "type": "TASK_EXECUTION",
+            "executor": {
+                "name": "ProvisioningExecutor"
             },
             "next": [
                 "authenticated"
