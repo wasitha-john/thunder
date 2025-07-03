@@ -233,9 +233,11 @@ func (e *Executor) appendRequiredData(ctx *NodeContext, execResp *ExecutorRespon
 				continue
 			}
 
-			if inputData.Required {
-				requireData = true
-			}
+			// if inputData.Required {
+			// 	requireData = true
+			// }
+			requireData = true
+
 			execResp.RequiredData = append(execResp.RequiredData, inputData)
 			logger.Debug("Input data not available in the context",
 				log.String("inputDataName", inputData.Name), log.Bool("isRequired", inputData.Required))
