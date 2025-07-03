@@ -50,7 +50,7 @@ func GetOrganizationUnitList() ([]model.OrganizationUnitBasic, error) {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	ous := make([]model.OrganizationUnitBasic, 0)
+	ous := make([]model.OrganizationUnitBasic, 0, len(results))
 	for _, row := range results {
 		ou, err := buildOrganizationUnitBasicFromResultRow(row)
 		if err != nil {
@@ -189,7 +189,58 @@ func DeleteOrganizationUnit(id string) error {
 	return nil
 }
 
-// Helper function for executing queries that return string arrays
+// GetSubOrganizationUnitsByParentIDs retrieves sub-organization units for multiple parent IDs.
+func GetSubOrganizationUnitsByParentIDs(parentIDs []string) (map[string][]string, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	if len(parentIDs) == 0 {
+		return make(map[string][]string), nil
+	}
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	query, args, err := buildSubOrganizationUnitsQuery(parentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build query: %w", err)
+	}
+
+	results, err := dbClient.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	subOUsMap := make(map[string][]string)
+
+	for _, parentID := range parentIDs {
+		subOUsMap[parentID] = make([]string, 0)
+	}
+
+	for _, row := range results {
+		ouID, ok := row["ou_id"].(string)
+		if !ok {
+			return nil, fmt.Errorf("ou_id is not a string")
+		}
+
+		parentID, ok := row["parent_id"].(string)
+		if !ok {
+			return nil, fmt.Errorf("parent_id is not a string")
+		}
+
+		subOUsMap[parentID] = append(subOUsMap[parentID], ouID)
+	}
+
+	return subOUsMap, nil
+}
+
+// executeQueryForStringArray executes a query and returns a slice of strings for a specified field name.
 func executeQueryForStringArray(
 	query dbmodel.DBQuery, fieldName string, params ...interface{},
 ) (*[]string, error) {

@@ -67,13 +67,21 @@ func (ous *OrganizationUnitService) GetOrganizationUnitList() (
 		return nil, &constants.ErrorInternalServerError
 	}
 
+	parentIDs := make([]string, len(ouList))
+	for i, ou := range ouList {
+		parentIDs[i] = ou.ID
+	}
+
+	subOUsMap, err := store.GetSubOrganizationUnitsByParentIDs(parentIDs)
+	if err != nil {
+		logger.Error("Failed to get sub-organization units", log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
 	for i := range ouList {
-		subOUs, err := store.GetSubOrganizationUnits(ouList[i].ID)
-		if err != nil {
-			logger.Error("Failed to get sub-organization units", log.String("ouID", ouList[i].ID), log.Error(err))
-			return nil, &constants.ErrorInternalServerError
+		if subOUs, exists := subOUsMap[ouList[i].ID]; exists {
+			ouList[i].SubOrganizationUnits = subOUs
 		}
-		ouList[i].SubOrganizationUnits = *subOUs
 	}
 
 	return ouList, nil
