@@ -14,7 +14,7 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 ## 🚀 Features
 
 - ✅ **Standards-Based**
-  - OAuth 2/ OpenID Connect (OIDC): Client Credentials, Authorization Code
+  - OAuth 2/ OpenID Connect (OIDC): Client Credentials, Authorization Code, Refresh Token
 - 🔗 **Login Options:**
   - Basic Authentication (Username and Password)
   - Social Logins
@@ -185,6 +185,17 @@ Authorization code flow requires you to setup a gate client to handle the login 
 
   - **Client ID:** `client123`
   - **Client Secret:** `secret123`
+
+##### Refresh an Access Token
+
+If the refresh grant is enabled for the application, a refresh token will be issued along with the access token. The refresh token can be used to obtain a new access token without requiring the user to log in again. Use the following cURL command to refresh an access token:
+
+  ```bash
+  curl -k -X POST 'https://localhost:8090/oauth2/token' \
+  -u 'client123:secret123' \
+  -d 'grant_type=refresh_token' \
+  -d 'refresh_token=<refresh_token>'
+  ```
 
 #### 4️⃣ Try Username and Password Login
 
