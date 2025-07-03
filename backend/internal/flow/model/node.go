@@ -20,10 +20,12 @@ package model
 
 import (
 	"errors"
+	"fmt"
 
 	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // NodeResponse represents the response from a node execution
@@ -43,6 +45,7 @@ type NodeResponse struct {
 
 // NodeInterface defines the interface for nodes in the graph
 type NodeInterface interface {
+	sysutils.ClonableInterface
 	Execute(ctx *NodeContext) (*NodeResponse, *serviceerror.ServiceError)
 	GetID() string
 	GetType() constants.NodeType
@@ -269,4 +272,33 @@ func (n *Node) SetExecutor(executor ExecutorInterface) {
 		n.executorConfig.Name = executor.GetName()
 	}
 	n.executorConfig.Executor = executor
+}
+
+// Clone creates a deep copy of the Node
+func (n *Node) Clone() (sysutils.ClonableInterface, error) {
+	nextCopy := append([]string{}, n.nextNodeList...)
+	prevCopy := append([]string{}, n.previousNodeList...)
+	inputCopy := append([]InputData{}, n.inputData...)
+
+	var execConfigCopy *ExecutorConfig
+	if n.executorConfig != nil {
+		execConfigCopy = &ExecutorConfig{
+			Name:       n.executorConfig.Name,
+			IdpName:    n.executorConfig.IdpName,
+			Properties: sysutils.DeepCopyMapOfStrings(n.executorConfig.Properties),
+			Executor:   n.executorConfig.Executor,
+		}
+	}
+
+	nodeCopy, err := NewNode(n.id, string(n._type), n.isStartNode, n.isFinalNode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to clone node: %w", err)
+	}
+
+	nodeCopy.SetNextNodeList(nextCopy)
+	nodeCopy.SetPreviousNodeList(prevCopy)
+	nodeCopy.SetInputData(inputCopy)
+	nodeCopy.SetExecutorConfig(execConfigCopy)
+
+	return nodeCopy, nil
 }

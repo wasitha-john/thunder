@@ -33,6 +33,7 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/utils"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
+	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 var (
@@ -271,10 +272,15 @@ func (c *FlowDAO) createRegistrationGraph(registrationGraphID string,
 	authGraph model.GraphInterface) (model.GraphInterface, error) {
 	// Create a new graph from the authentication graph
 	registrationGraph := model.NewGraph(registrationGraphID, constants.FlowTypeRegistration)
-	registrationGraph.SetNodes(authGraph.GetNodes())
-	registrationGraph.SetEdges(authGraph.GetEdges())
 
-	err := registrationGraph.SetStartNode(authGraph.GetStartNodeID())
+	nodesCopy, err := sysutils.DeepCopyMapOfClonables(authGraph.GetNodes())
+	if err != nil {
+		return nil, fmt.Errorf("failed to deep copy nodes from auth graph: %w", err)
+	}
+	registrationGraph.SetNodes(nodesCopy)
+	registrationGraph.SetEdges(sysutils.DeepCopyMapOfStringSlices(authGraph.GetEdges()))
+
+	err = registrationGraph.SetStartNode(authGraph.GetStartNodeID())
 	if err != nil {
 		return nil, fmt.Errorf("failed to set start node for registration graph: %w", err)
 	}
