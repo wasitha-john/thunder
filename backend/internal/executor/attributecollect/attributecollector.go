@@ -89,6 +89,12 @@ func (a *AttributeCollector) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 		RuntimeData:    make(map[string]string),
 	}
 
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
+		logger.Debug("Flow type is registration, skipping attribute collection")
+		execResp.Status = flowconst.ExecComplete
+		return execResp, nil
+	}
+
 	if !ctx.AuthenticatedUser.IsAuthenticated {
 		logger.Debug("User is not authenticated, cannot collect attributes")
 		execResp.Status = flowconst.ExecFailure
