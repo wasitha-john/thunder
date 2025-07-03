@@ -1,3 +1,15 @@
+-- Table to store Organization Units
+CREATE TABLE ORGANIZATION_UNIT (
+    ID              INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    OU_ID           VARCHAR(36) UNIQUE NOT NULL,
+    PARENT_ID       VARCHAR(36),
+    NAME            VARCHAR(50)        NOT NULL,
+    DESCRIPTION     VARCHAR(255),
+    CREATED_AT      TIMESTAMPTZ DEFAULT NOW(),
+    UPDATED_AT      TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (PARENT_ID) REFERENCES ORGANIZATION_UNIT (OU_ID) ON DELETE CASCADE
+);
+
 -- Table to store Users
 CREATE TABLE "USER" (
     ID          INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -203,3 +215,11 @@ VALUES
 ('550e8400-e29b-41d4-a716-446655440002', 'client_secret', 'secret2', '1'),
 ('550e8400-e29b-41d4-a716-446655440002', 'redirect_uri', 'https://localhost:3000', '0'),
 ('550e8400-e29b-41d4-a716-446655440002', 'scopes', 'openid,email,profile', '0');
+
+-- Insert sample organization units
+INSERT INTO ORGANIZATION_UNIT (OU_ID, PARENT_ID, NAME, DESCRIPTION)
+VALUES
+('456e8400-e29b-41d4-a716-446655440001', NULL, 'Root Organization', 'Root organization unit'),
+('456e8400-e29b-41d4-a716-446655440002', '456e8400-e29b-41d4-a716-446655440001', 'Engineering', 'Engineering department'),
+('456e8400-e29b-41d4-a716-446655440003', '456e8400-e29b-41d4-a716-446655440001', 'Sales', 'Sales department'),
+('456e8400-e29b-41d4-a716-446655440004', '456e8400-e29b-41d4-a716-446655440002', 'Frontend Team', 'Frontend development team');
