@@ -85,6 +85,57 @@ export const initiateNativeAuthFlow = async (flowType: 'LOGIN' | 'REGISTRATION' 
 };
 
 /**
+ * Initiates the native authentication or registration flow with additional data.
+ * 
+ * @param {string} flowType - The type of flow to initiate. Defaults to 'LOGIN'.
+ * @param {string} actionId - The ID of the action to execute.
+ * @param {object} inputs - Optional input data to include in the request.
+ * @returns {Promise<object>} - A promise that resolves to the response data from the server.
+ */
+export const initiateNativeAuthFlowWithData = async (flowType: 'LOGIN' | 'REGISTRATION' = 'LOGIN', 
+    actionId: string | null, inputs?: Record<string, unknown>) => {
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+
+    const data: Record<string, unknown> = {
+        "applicationId": applicationID,
+    };
+
+    if (actionId) {
+        data.actionId = actionId;
+    }
+
+    // Only add flowType if it's REGISTRATION (LOGIN is the default)
+    if (flowType === 'REGISTRATION') {
+        data.flowType = 'REGISTRATION';
+    }
+
+    // Include inputs if provided
+    if (inputs && Object.keys(inputs).length > 0) {
+        data.inputs = inputs;
+    }
+
+    try {
+        const response = await axios.post(`${flowEndpoint}/execute`, data, {
+            headers,
+        });
+
+        return { data: response.data };
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            const flowTypeName = flowType === 'REGISTRATION' ? 'registration' : 'authentication';
+            const message = error.response?.status === 400
+              ? `Error initiating native ${flowTypeName} request.`
+              : error.response?.data?.message || 'Server error occurred.';
+            throw new Error(message);
+        } else {
+            throw new Error('Unexpected error occurred.');
+        }
+    }
+};
+
+/**
  * Submits the user's selected authentication option when multiple options are available.
  * 
  * @param {string} flowId - The flow ID received from the initiateNativeAuth response.
