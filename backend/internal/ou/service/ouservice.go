@@ -74,13 +74,13 @@ func (ous *OrganizationUnitService) GetOrganizationUnitList() (
 
 	subOUsMap, err := store.GetSubOrganizationUnitsByParentIDs(parentIDs)
 	if err != nil {
-		logger.Error("Failed to get sub-organization units", log.Error(err))
+		logger.Error("Failed to get sub organization units", log.Error(err))
 		return nil, &constants.ErrorInternalServerError
 	}
 
 	for i := range ouList {
 		if subOUs, exists := subOUsMap[ouList[i].ID]; exists {
-			ouList[i].SubOrganizationUnits = subOUs
+			ouList[i].OrganizationUnits = subOUs
 		}
 	}
 
@@ -120,13 +120,13 @@ func (ous *OrganizationUnitService) CreateOrganizationUnit(
 
 	ouID := utils.GenerateUUID()
 	ou := model.OrganizationUnit{
-		ID:                   ouID,
-		Name:                 request.Name,
-		Description:          request.Description,
-		Parent:               request.Parent,
-		Users:                []string{},
-		Groups:               []string{},
-		SubOrganizationUnits: []string{},
+		ID:                ouID,
+		Name:              request.Name,
+		Description:       request.Description,
+		Parent:            request.Parent,
+		Users:             []string{},
+		Groups:            []string{},
+		OrganizationUnits: []string{},
 	}
 
 	err = store.CreateOrganizationUnit(ou)

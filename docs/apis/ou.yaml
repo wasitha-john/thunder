@@ -39,13 +39,13 @@ paths:
                   name: "Engineering"
                   description: "Engineering Unit"
                   parent: null
-                  sub-organization-units:
+                  organizationUnits:
                     - "6b59f277-fd79-40b1-afca-dce75d3709f7"
                 - id: "b7c40de6-95cd-4c45-8725-9c7cb5b9cafd"
                   name: "Sales"
                   description: "Sales Unit"
                   parent: null
-                  sub-organization-units: []
+                  organizationUnits: []
         "400":
           description: Bad request
           content:
@@ -152,7 +152,7 @@ paths:
                 groups:
                   - "c2a4f62d-7c79-46f2-b2de-8e8cb4f1c456"
                   - "8a8e4fa2-2e55-478d-bf0f-4a2ddaf9ee7d"
-                sub-organization-units:
+                organizationUnits:
                   - "6b59f277-fd79-40b1-afca-dce75d3709f7"
         "404":
           description: Organization unit not found
@@ -203,7 +203,7 @@ paths:
                 groups:
                   - "c2a4f62d-7c79-46f2-b2de-8e8cb4f1c456"
                   - "8a8e4fa2-2e55-478d-bf0f-4a2ddaf9ee7d"
-                sub-organization-units:
+                organizationUnits:
                   - "6b59f277-fd79-40b1-afca-dce75d3709f7"
         "400":
           description: Bad request
@@ -253,7 +253,7 @@ components:
   schemas:
     OrganizationUnitBasic:
       type: object
-      required: [id, name, parent, organization-units]
+      required: [id, name, parent, organizationUnits]
       properties:
         id:
           type: string
@@ -266,7 +266,7 @@ components:
           type: string
           format: uuid
           nullable: true
-        organization-units:
+        organizationUnits:
           type: array
           items:
             type: string

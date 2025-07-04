@@ -57,7 +57,7 @@ var (
 		Query: `DELETE FROM ORGANIZATION_UNIT WHERE OU_ID = $1`,
 	}
 
-	// QueryGetSubOrganizationUnits is the query to get sub-organization units of an organization unit.
+	// QueryGetSubOrganizationUnits is the query to get sub organization units of an organization unit.
 	QueryGetSubOrganizationUnits = dbmodel.DBQuery{
 		ID:    "OUQ-OU_MGT-07",
 		Query: `SELECT OU_ID FROM ORGANIZATION_UNIT WHERE PARENT_ID = $1`,
@@ -114,7 +114,7 @@ var (
 	}
 )
 
-// buildSubOrganizationUnitsQuery constructs a query to get sub-organization units for multiple parent IDs.
+// buildSubOrganizationUnitsQuery constructs a query to get sub organization units for multiple parent IDs.
 func buildSubOrganizationUnitsQuery(parentIDs []string) (dbmodel.DBQuery, []interface{}, error) {
 	if len(parentIDs) == 0 {
 		return dbmodel.DBQuery{}, nil, fmt.Errorf("parentIDs list cannot be empty")
