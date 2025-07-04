@@ -47,6 +47,8 @@ fi
 GO_OS=${2:-$DEFAULT_OS}
 GO_ARCH=${3:-$DEFAULT_ARCH}
 
+echo "Using GO OS: $GO_OS and ARCH: $GO_ARCH"
+
 SAMPLE_DIST_NODE_VERSION=node18
 SAMPLE_DIST_OS=${2:-$DEFAULT_OS}
 SAMPLE_DIST_ARCH=${3:-$DEFAULT_ARCH}
@@ -151,7 +153,7 @@ function build_backend() {
         output_binary="${BINARY_NAME}.exe"
     fi
 
-    GO_OS=$GO_OS GO_ARCH=$GO_ARCH CGO_ENABLED=0 go build -C "$BACKEND_BASE_DIR" \
+    GOOS=$GO_OS GOARCH=$GO_ARCH CGO_ENABLED=0 go build -C "$BACKEND_BASE_DIR" \
     -x -ldflags "-X \"main.version=$VERSION\" \
     -X \"main.buildDate=$$(date -u '+%Y-%m-%d %H:%M:%S UTC')\"" \
     -o "../$BUILD_DIR/$output_binary" ./cmd/server
