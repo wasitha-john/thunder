@@ -120,9 +120,9 @@ func GetOrganizationUnit(id string) (model.OrganizationUnit, error) {
 
 	subOUs, err := GetSubOrganizationUnits(id)
 	if err != nil {
-		return model.OrganizationUnit{}, fmt.Errorf("failed to get sub-organization units: %w", err)
+		return model.OrganizationUnit{}, fmt.Errorf("failed to get sub organization units: %w", err)
 	}
-	ou.SubOrganizationUnits = *subOUs
+	ou.OrganizationUnits = *subOUs
 
 	users, err := GetOrganizationUnitUsers(id)
 	if err != nil {
@@ -189,7 +189,7 @@ func DeleteOrganizationUnit(id string) error {
 	return nil
 }
 
-// GetSubOrganizationUnitsByParentIDs retrieves sub-organization units for multiple parent IDs.
+// GetSubOrganizationUnitsByParentIDs retrieves sub organization units for multiple parent IDs.
 func GetSubOrganizationUnitsByParentIDs(parentIDs []string) (map[string][]string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
@@ -273,7 +273,7 @@ func executeQueryForStringArray(
 	return &values, nil
 }
 
-// GetSubOrganizationUnits retrieves the sub-organization units of a given organization unit ID.
+// GetSubOrganizationUnits retrieves the sub organization units of a given organization unit ID.
 func GetSubOrganizationUnits(ouID string) (*[]string, error) {
 	return executeQueryForStringArray(QueryGetSubOrganizationUnits, "ou_id", ouID)
 }
@@ -415,11 +415,11 @@ func buildOrganizationUnitBasicFromResultRow(
 	}
 
 	return model.OrganizationUnitBasic{
-		ID:                   ouID,
-		Name:                 name,
-		Description:          description,
-		Parent:               parentID,
-		SubOrganizationUnits: make([]string, 0), // Will be populated by caller
+		ID:                ouID,
+		Name:              name,
+		Description:       description,
+		Parent:            parentID,
+		OrganizationUnits: make([]string, 0), // Will be populated by caller
 	}, nil
 }
 
@@ -433,12 +433,12 @@ func buildOrganizationUnitFromResultRow(
 	}
 
 	return model.OrganizationUnit{
-		ID:                   ou.ID,
-		Name:                 ou.Name,
-		Description:          ou.Description,
-		Parent:               ou.Parent,
-		Users:                []string{},
-		Groups:               []string{},
-		SubOrganizationUnits: []string{},
+		ID:                ou.ID,
+		Name:              ou.Name,
+		Description:       ou.Description,
+		Parent:            ou.Parent,
+		Users:             []string{},
+		Groups:            []string{},
+		OrganizationUnits: []string{},
 	}, nil
 }

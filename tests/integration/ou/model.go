@@ -20,22 +20,22 @@ package ou
 
 // OrganizationUnitBasic represents the basic information of an organization unit.
 type OrganizationUnitBasic struct {
-	ID                   string   `json:"id"`
-	Name                 string   `json:"name"`
-	Description          string   `json:"description,omitempty"`
-	Parent               *string  `json:"parent"`
-	SubOrganizationUnits []string `json:"sub-organization-units"`
+	ID                string   `json:"id"`
+	Name              string   `json:"name"`
+	Description       string   `json:"description,omitempty"`
+	Parent            *string  `json:"parent"`
+	OrganizationUnits []string `json:"organizationUnits"`
 }
 
 // OrganizationUnit represents a complete organization unit with users and groups.
 type OrganizationUnit struct {
-	ID                   string   `json:"id"`
-	Name                 string   `json:"name"`
-	Description          string   `json:"description,omitempty"`
-	Parent               *string  `json:"parent"`
-	Users                []string `json:"users,omitempty"`
-	Groups               []string `json:"groups,omitempty"`
-	SubOrganizationUnits []string `json:"sub-organization-units"`
+	ID                string   `json:"id"`
+	Name              string   `json:"name"`
+	Description       string   `json:"description,omitempty"`
+	Parent            *string  `json:"parent"`
+	Users             []string `json:"users,omitempty"`
+	Groups            []string `json:"groups,omitempty"`
+	OrganizationUnits []string `json:"organizationUnits"`
 }
 
 // CreateOURequest represents the request body for creating an organization unit.

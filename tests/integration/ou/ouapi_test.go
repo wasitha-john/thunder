@@ -130,8 +130,8 @@ func (suite *OUAPITestSuite) TestGetOrganizationUnit() {
 	suite.Equal(ouToCreate.Name, retrievedOU.Name)
 	suite.Equal(ouToCreate.Description, retrievedOU.Description)
 	suite.Equal(ouToCreate.Parent, retrievedOU.Parent)
-	suite.NotNil(retrievedOU.SubOrganizationUnits)
-	suite.Contains(retrievedOU.SubOrganizationUnits, createdChildOUID)
+	suite.NotNil(retrievedOU.OrganizationUnits)
+	suite.Contains(retrievedOU.OrganizationUnits, createdChildOUID)
 }
 
 func (suite *OUAPITestSuite) TestListOrganizationUnits() {
