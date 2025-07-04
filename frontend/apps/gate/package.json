@@ -19,7 +19,7 @@
     "@oxygen-ui/react": "file:../../packages/oxygen-ui",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
-    "next": "15.3.1",
+    "next": "15.3.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
