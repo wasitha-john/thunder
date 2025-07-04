@@ -46,18 +46,6 @@ paths:
                   description: "Sales Unit"
                   parent: null
                   organizationUnits: []
-        "400":
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        "404":
-          description: Parent organization unit not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         "500":
           description: Internal server error
 
@@ -112,12 +100,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                invalid-request:
+                  summary: Invalid request format
+                  value:
+                    code: "OU-1001"
+                    message: "Invalid request format"
+                    description: "The request body is malformed, contains invalid data, or required fields are missing/empty"
+                parent-not-found:
+                  summary: Parent organization unit not found
+                  value:
+                    code: "OU-1005"
+                    message: "Parent organization unit not found"
+                    description: "Parent organization unit not found"
+                circular-dependency:
+                  summary: Circular dependency detected
+                  value:
+                    code: "OU-1007"
+                    message: "Circular dependency detected"
+                    description: "Setting this parent would create a circular dependency"
         "409":
-          description: An organization unit with the same name exists under the same parent
+          description: Organization unit name conflict
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                code: "OU-1004"
+                message: "Organization unit name conflict"
+                description: "An organization unit with the same name exists under the same parent"
         "500":
           description: Internal server error
 
@@ -160,6 +171,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                code: "OU-1003"
+                message: "Organization unit not found"
+                description: "The organization unit with the specified id does not exist"
         "500":
           description: Internal server error
 
@@ -211,18 +226,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                invalid-request:
+                  summary: Invalid request format
+                  value:
+                    code: "OU-1001"
+                    message: "Invalid request format"
+                    description: "The request body is malformed, contains invalid data, or required fields are missing/empty"
+                parent-not-found:
+                  summary: Parent organization unit not found
+                  value:
+                    code: "OU-1005"
+                    message: "Parent organization unit not found"
+                    description: "Parent organization unit not found"
+                circular-dependency:
+                  summary: Circular dependency detected
+                  value:
+                    code: "OU-1007"
+                    message: "Circular dependency detected"
+                    description: "Setting this parent would create a circular dependency"
         "404":
           description: Organization unit not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                code: "OU-1003"
+                message: "Organization unit not found"
+                description: "The organization unit with the specified id does not exist"
         "409":
-          description: An organization unit with the same name exists under the same parent
+          description: Organization unit name conflict
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                code: "OU-1004"
+                message: "Organization unit name conflict"
+                description: "An organization unit with the same name exists under the same parent"
         "500":
           description: Internal server error
 
@@ -241,11 +283,28 @@ paths:
         "204":
           description: Organization unit deleted
         "400":
-          description: Cannot delete organization unit with children
+          description: Bad request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                has-children:
+                  summary: Organization unit has children
+                  value:
+                    code: "OU-1006"
+                    message: "Organization unit has children"
+                    description: "Cannot delete organization unit with children or users/groups"
+        "404":
+          description: Organization unit not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "OU-1003"
+                message: "Organization unit not found"
+                description: "The organization unit with the specified id does not exist"
         "500":
           description: Internal server error
 
@@ -309,8 +368,7 @@ components:
       required: [code, message]
       properties:
         code:
-          type: integer
-          format: int64
+          type: string
         message:
           type: string
         description:
