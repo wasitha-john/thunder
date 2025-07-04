@@ -414,6 +414,7 @@ const LoginPage = () => {
 
         initiateNativeAuthFlowWithData('REGISTRATION', selectedAction, completeFormData)
             .then((result) => {
+                setInputs([]);
                 const data = result.data;
 
                 if (data.flowStatus && data.flowStatus === 'COMPLETE' && data.assertion) {
@@ -451,6 +452,7 @@ const LoginPage = () => {
                 setLoading(false);
             }).catch((error) => {
                 console.error(`Error during user registration:`, error);
+                setInputs([]);
                 setConnectionError(true);
                 setLoading(false);
             });
@@ -468,6 +470,8 @@ const LoginPage = () => {
                 completeFormData[input.name] = '';
             }
         });
+
+        const isMobileInput = inputs.some(input => input.name === "mobileNumber");
 
         if (needsDecision) {
             // This is a decision submission - identify the action from form data
@@ -487,7 +491,11 @@ const LoginPage = () => {
             // This is a direct input submission
             submitNativeAuth(flowId, completeFormData)
                 .then((result) => {
-                    processAuthResponse(result.data);
+                    if (isMobileInput) {
+                        processAuthResponse(result.data, "mobile");
+                    } else {
+                        processAuthResponse(result.data);
+                    }
                 })
                 .catch((error) => {
                     console.error("Error during authentication:", error);
