@@ -1,5 +1,5 @@
 # WSO2 Thunder ⚡
-### The Lighting Fast Identity Management Suite
+### The Lightning Fast Identity Management Suite
 
 ![Login Flow Demo](resources/images/thunder-login-demo.gif)
 
