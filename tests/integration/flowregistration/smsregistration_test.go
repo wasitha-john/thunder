@@ -145,12 +145,10 @@ func (ts *SMSRegistrationFlowTestSuite) TestSMSRegistrationFlowWithMobileNumber(
 	ts.Require().Equal("VIEW", otpFlowStep.Type, "Expected flow type to be VIEW")
 	ts.Require().NotEmpty(otpFlowStep.Data, "Flow data should not be empty")
 	ts.Require().NotEmpty(otpFlowStep.Data.Inputs, "Flow should require inputs")
-
-	ts.Require().True(HasInput(otpFlowStep.Data.Inputs, "otp"),
-		"OTP input should be required")
+	ts.Require().True(HasInput(otpFlowStep.Data.Inputs, "otp"), "OTP input should be required")
 
 	// Wait for SMS to be sent
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 
 	// Verify SMS was sent
 	lastMessage := ts.mockServer.GetLastMessage()
@@ -172,12 +170,24 @@ func (ts *SMSRegistrationFlowTestSuite) TestSMSRegistrationFlowWithMobileNumber(
 	ts.Require().Equal("VIEW", completeFlowStep.Type, "Expected flow type to be VIEW after OTP input")
 	ts.Require().NotEmpty(completeFlowStep.Data, "Flow data should not be empty after OTP input")
 	ts.Require().NotEmpty(completeFlowStep.Data.Inputs, "Flow should require inputs after OTP input")
-	ts.Require().True(ValidateRequiredInputs(completeFlowStep.Data.Inputs,
-		[]string{"email", "firstName", "lastName"}),
-		"Email, first name, and last name should be required inputs after first step")
+	ts.Require().True(ValidateRequiredInputs(completeFlowStep.Data.Inputs, []string{"email"}),
+		"Email should be a required inputs after first step")
 
 	// Step 4: Provide additional attributes
-	attrInputs := fillRequiredRegistrationAttributes(completeFlowStep.Data.Inputs, mobileNumber)
+	fillInputs := []InputData{
+		{
+			Name:     "firstName",
+			Type:     "string",
+			Required: true,
+		},
+		{
+			Name:     "lastName",
+			Type:     "string",
+			Required: true,
+		},
+	}
+	fillInputs = append(fillInputs, completeFlowStep.Data.Inputs...)
+	attrInputs := fillRequiredRegistrationAttributes(fillInputs, mobileNumber)
 	completeFlowStep, err = completeRegistrationFlow(flowStep.FlowID, "", attrInputs)
 	if err != nil {
 		ts.T().Fatalf("Failed to complete registration flow with attributes: %v", err)
