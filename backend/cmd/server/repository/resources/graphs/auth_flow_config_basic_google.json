@@ -13,18 +13,6 @@
         {
             "id": "basic_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "username",
-                    "type": "string",
-                    "required": true
-                },
-                {
-                    "name": "password",
-                    "type": "string",
-                    "required": true
-                }
-            ],
             "executor": {
                 "name": "BasicAuthExecutor"
             },
@@ -35,18 +23,6 @@
         {
             "id": "google_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "code",
-                    "type": "string",
-                    "required": true
-                },
-                {
-                    "name": "nonce",
-                    "type": "string",
-                    "required": false
-                }
-            ],
             "executor": {
                 "name": "GoogleOIDCAuthExecutor",
                 "idpName": "Google"

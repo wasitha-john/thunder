@@ -5,13 +5,6 @@
         {
             "id": "github_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "code",
-                    "type": "string",
-                    "required": true
-                }
-            ],
             "executor": {
                 "name": "GithubOAuthExecutor",
                 "idpName": "Github"

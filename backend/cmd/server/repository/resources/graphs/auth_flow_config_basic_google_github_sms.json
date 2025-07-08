@@ -15,18 +15,6 @@
         {
             "id": "basic_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "username",
-                    "type": "string",
-                    "required": true
-                },
-                {
-                    "name": "password",
-                    "type": "string",
-                    "required": true
-                }
-            ],
             "executor": {
                 "name": "BasicAuthExecutor"
             },
@@ -38,11 +26,6 @@
             "id": "google_auth",
             "type": "TASK_EXECUTION",
             "inputData": [
-                {
-                    "name": "code",
-                    "type": "string",
-                    "required": true
-                },
                 {
                     "name": "nonce",
                     "type": "string",
@@ -60,13 +43,6 @@
         {
             "id": "github_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "code",
-                    "type": "string",
-                    "required": true
-                }
-            ],
             "executor": {
                 "name": "GithubOAuthExecutor",
                 "idpName": "Github"
@@ -92,13 +68,6 @@
         {
             "id": "sms_otp_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "otp",
-                    "type": "number",
-                    "required": true
-                }
-            ],
             "executor": {
                 "name": "SMSOTPAuthExecutor",
                 "properties": {
@@ -113,21 +82,6 @@
             "id": "attr_collector",
             "type": "TASK_EXECUTION",
             "inputData": [
-                {
-                    "name": "username",
-                    "type": "string",
-                    "required": false
-                },
-                {
-                    "name": "firstName",
-                    "type": "string",
-                    "required": false
-                },
-                {
-                    "name": "lastName",
-                    "type": "string",
-                    "required": false
-                },
                 {
                     "name": "mobileNumber",
                     "type": "string",
