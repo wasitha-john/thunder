@@ -19,7 +19,7 @@ database:
 user_store:
   default_user:
     username: "thor"
-    password: "thor123"
+    password: "thor@123"
 
 flow:
   graph_directory: "repository/resources/graphs/"

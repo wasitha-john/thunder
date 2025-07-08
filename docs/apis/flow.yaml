@@ -80,7 +80,7 @@ components:
           description: Input data provided for the flow step execution (required for continuing a flow)
           example: {
             "username": "thor",
-            "password": "thor123"
+            "password": "thor@123"
           }
 
     FlowResponse:

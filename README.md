@@ -120,7 +120,7 @@ Create a user in the system to tryout the authentication flows. You can use the 
       "type": "superhuman",
       "attributes": {
           "username": "thor",
-          "password": "thor123",
+          "password": "thor@123",
           "email": "thor@thunder.sky",
           "firstName": "Thor",
           "lastName": "Odinson",
@@ -410,7 +410,7 @@ curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
     "type": "superhuman",
     "attributes": {
         "username": "thor",
-        "password": "thor123",
+        "password": "thor@123",
         "email": "thor@thunder.sky",
         "firstName": "Thor",
         "lastName": "Odinson",
@@ -504,7 +504,7 @@ When you configure an authentication flow for an application, Thunder automatica
       "type": "superhuman",
       "attributes": {
           "username": "thor",
-          "password": "thor123",
+          "password": "thor@123",
           "email": "thor@thunder.sky",
           "firstName": "Thor",
           "lastName": "Odinson",
@@ -584,7 +584,7 @@ When you configure an authentication flow for an application, Thunder automatica
       "flowId": "<flow_id>",
       "inputs": {
           "username": "thor",
-          "password": "thor123"
+          "password": "thor@123"
       }
   }'
   ```
@@ -893,7 +893,7 @@ When you configure an authentication flow for an application, Thunder automatica
       "type": "superhuman",
       "attributes": {
           "username": "thor",
-          "password": "thor123",
+          "password": "thor@123",
           "email": "thor@thunder.sky",
           "firstName": "Thor",
           "lastName": "Odinson",
