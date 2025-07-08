@@ -19,13 +19,6 @@
         {
             "id": "sms_otp_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "otp",
-                    "type": "number",
-                    "required": true
-                }
-            ],
             "executor": {
                 "name": "SMSOTPAuthExecutor",
                 "properties": {

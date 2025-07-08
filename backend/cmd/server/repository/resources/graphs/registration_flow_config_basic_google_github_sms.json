@@ -15,40 +15,16 @@
         {
             "id": "basic_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "username",
-                    "type": "string",
-                    "required": true
-                },
-                {
-                    "name": "password",
-                    "type": "string",
-                    "required": true
-                }
-            ],
             "executor": {
                 "name": "BasicAuthExecutor"
             },
             "next": [
-                "sms_otp_auth"
+                "sms_otp_auth_basic"
             ]
         },
         {
             "id": "google_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "code",
-                    "type": "string",
-                    "required": true
-                },
-                {
-                    "name": "nonce",
-                    "type": "string",
-                    "required": false
-                }
-            ],
             "executor": {
                 "name": "GoogleOIDCAuthExecutor",
                 "idpName": "Google"
@@ -60,13 +36,6 @@
         {
             "id": "github_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "code",
-                    "type": "string",
-                    "required": true
-                }
-            ],
             "executor": {
                 "name": "GithubOAuthExecutor",
                 "idpName": "Github"
@@ -92,13 +61,6 @@
         {
             "id": "sms_otp_auth",
             "type": "TASK_EXECUTION",
-            "inputData": [
-                {
-                    "name": "otp",
-                    "type": "number",
-                    "required": true
-                }
-            ],
             "executor": {
                 "name": "SMSOTPAuthExecutor",
                 "properties": {
@@ -106,22 +68,35 @@
                 }
             },
             "next": [
-                "provisioning_local"
+                "provisioning_local_sms"
             ]
         },
         {
-            "id": "provisioning_local",
+            "id": "sms_otp_auth_basic",
+            "type": "TASK_EXECUTION",
+            "executor": {
+                "name": "SMSOTPAuthExecutor",
+                "properties": {
+                    "senderName": "Custom SMS Sender"
+                }
+            },
+            "next": [
+                "provisioning_local_basic"
+            ]
+        },
+        {
+            "id": "provisioning_local_basic",
             "type": "TASK_EXECUTION",
             "inputData": [
                 {
                     "name": "username",
                     "type": "string",
-                    "required": false
+                    "required": true
                 },
                 {
                     "name": "password",
                     "type": "string",
-                    "required": false
+                    "required": true
                 },
                 {
                     "name": "firstName",
@@ -137,6 +112,33 @@
                     "name": "mobileNumber",
                     "type": "string",
                     "required": false
+                }
+            ],
+            "executor": {
+                "name": "ProvisioningExecutor"
+            },
+            "next": [
+                "authenticated"
+            ]
+        },
+        {
+            "id": "provisioning_local_sms",
+            "type": "TASK_EXECUTION",
+            "inputData": [
+                {
+                    "name": "firstName",
+                    "type": "string",
+                    "required": false
+                },
+                {
+                    "name": "lastName",
+                    "type": "string",
+                    "required": false
+                },
+                {
+                    "name": "mobileNumber",
+                    "type": "string",
+                    "required": true
                 }
             ],
             "executor": {
