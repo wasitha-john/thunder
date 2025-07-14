@@ -37,12 +37,14 @@ const (
 var (
 	ouToCreate = CreateOURequest{
 		Name:        "Test Organization Unit",
+		Handle:      "test-org-unit",
 		Description: "Test OU for integration testing",
 		Parent:      nil,
 	}
 
 	childOUToCreate = CreateOURequest{
 		Name:        "Child Test OU",
+		Handle:      "child-test-ou",
 		Description: "Child OU for testing hierarchy",
 		Parent:      nil,
 	}
@@ -189,6 +191,7 @@ func (suite *OUAPITestSuite) TestUpdateOrganizationUnit() {
 
 	updateRequest := UpdateOURequest{
 		Name:        "Updated Test Organization Unit",
+		Handle:      "updated-test-org-unit",
 		Description: "Updated description for testing",
 	}
 
@@ -221,12 +224,14 @@ func (suite *OUAPITestSuite) TestUpdateOrganizationUnit() {
 	// Verify the update
 	suite.Equal(createdOUID, updatedOU.ID)
 	suite.Equal("Updated Test Organization Unit", updatedOU.Name)
+	suite.Equal("updated-test-org-unit", updatedOU.Handle)
 	suite.Equal("Updated description for testing", updatedOU.Description)
 }
 
 func (suite *OUAPITestSuite) TestDeleteOrganizationUnit() {
 	tempOUToCreate := CreateOURequest{
 		Name:        "Temp Test OU",
+		Handle:      "temp-test-ou",
 		Description: "Temporary OU for deletion test",
 		Parent:      nil,
 	}
@@ -312,6 +317,7 @@ func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithInvalidData() {
 func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithInvalidParent() {
 	invalidOU := CreateOURequest{
 		Name:        "OU with Invalid Parent",
+		Handle:      "ou-with-invalid-parent",
 		Description: "Testing invalid parent",
 		Parent:      stringPtr("invalid-parent-id-12345"),
 	}
@@ -350,6 +356,7 @@ func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithInvalidParent() {
 func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithDuplicateName() {
 	duplicateOU := CreateOURequest{
 		Name:        ouToCreate.Name,
+		Handle:      "duplicate-name-test",
 		Description: "Duplicate name test",
 		Parent:      nil,
 	}
@@ -383,6 +390,45 @@ func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithDuplicateName() {
 
 	suite.Equal("OU-1004", errorResp["code"])
 	suite.Equal("Organization unit name conflict", errorResp["message"])
+}
+
+func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithDuplicateHandle() {
+	duplicateHandleOU := CreateOURequest{
+		Name:        "OU with Duplicate Handle",
+		Handle:      ouToCreate.Handle,
+		Description: "Duplicate handle test",
+		Parent:      nil,
+	}
+
+	jsonData, err := json.Marshal(duplicateHandleOU)
+	suite.Require().NoError(err)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("POST", testServerURL+"/organization-units", bytes.NewBuffer(jsonData))
+	suite.Require().NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusConflict, resp.StatusCode)
+
+	// Verify the error response
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp map[string]interface{}
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("OU-1010", errorResp["code"])
+	suite.Equal("Organization unit handle conflict", errorResp["message"])
 }
 
 func (suite *OUAPITestSuite) TestDeleteOrganizationUnitWithChildren() {
@@ -424,6 +470,7 @@ func (suite *OUAPITestSuite) TestUpdateOrganizationUnitWithInvalidParent() {
 
 	updateRequest := UpdateOURequest{
 		Name:        "Updated OU with Invalid Parent",
+		Handle:      "updated-ou-with-invalid-parent",
 		Description: "Testing invalid parent update",
 		Parent:      stringPtr("invalid-parent-id-12345"),
 	}
@@ -466,12 +513,14 @@ func (suite *OUAPITestSuite) TestUpdateOrganizationUnitWithDuplicateName() {
 
 	sibling1Request := CreateOURequest{
 		Name:        "Sibling OU 1",
+		Handle:      "sibling-ou-1",
 		Description: "First sibling OU for testing duplicate names",
 		Parent:      &createdOUID,
 	}
 
 	sibling2Request := CreateOURequest{
 		Name:        "Sibling OU 2",
+		Handle:      "sibling-ou-2",
 		Description: "Second sibling OU for testing duplicate names",
 		Parent:      &createdOUID,
 	}
@@ -496,6 +545,7 @@ func (suite *OUAPITestSuite) TestUpdateOrganizationUnitWithDuplicateName() {
 
 	updateRequest := UpdateOURequest{
 		Name:        sibling1Request.Name,
+		Handle:      "testing-duplicate-name-update",
 		Description: "Testing duplicate name update with sibling",
 		Parent:      &createdOUID,
 	}
@@ -534,7 +584,36 @@ func (suite *OUAPITestSuite) TestUpdateOrganizationUnitWithDuplicateName() {
 func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithEmptyName() {
 	invalidOU := CreateOURequest{
 		Name:        "",
+		Handle:      "empty-name-ou",
 		Description: "OU with empty name",
+		Parent:      nil,
+	}
+
+	jsonData, err := json.Marshal(invalidOU)
+	suite.Require().NoError(err)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("POST", testServerURL+"/organization-units", bytes.NewBuffer(jsonData))
+	suite.Require().NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+}
+
+func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithEmptyHandle() {
+	invalidOU := CreateOURequest{
+		Name:        "OU with Empty Handle",
+		Handle:      "",
+		Description: "OU with empty handle",
 		Parent:      nil,
 	}
 
@@ -561,6 +640,7 @@ func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithEmptyName() {
 func (suite *OUAPITestSuite) TestUpdateNonExistentOrganizationUnit() {
 	updateRequest := UpdateOURequest{
 		Name:        "Non-existent OU Update",
+		Handle:      "non-existent-ou-update",
 		Description: "Testing update of non-existent OU",
 	}
 

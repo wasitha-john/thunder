@@ -80,6 +80,7 @@ func CreateOrganizationUnit(ou model.OrganizationUnit) error {
 		QueryCreateOrganizationUnit,
 		ou.ID,
 		ou.Parent,
+		ou.Handle,
 		ou.Name,
 		ou.Description,
 	)
@@ -157,6 +158,7 @@ func UpdateOrganizationUnit(ou model.OrganizationUnit) error {
 		QueryUpdateOrganizationUnit,
 		ou.ID,
 		ou.Parent,
+		ou.Handle,
 		ou.Name,
 		ou.Description,
 	)
@@ -290,72 +292,44 @@ func GetOrganizationUnitGroups(ouID string) (*[]string, error) {
 
 // CheckOrganizationUnitNameConflict checks if an organization unit name conflicts under the same parent.
 func CheckOrganizationUnitNameConflict(name string, parentID *string) (bool, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
-	if err != nil {
-		return false, fmt.Errorf("failed to get database client: %w", err)
-	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
-
-	var results []map[string]interface{}
-
-	if parentID != nil {
-		results, err = dbClient.Query(QueryCheckOrganizationUnitNameConflict, name, *parentID)
-	} else {
-		results, err = dbClient.Query(QueryCheckOrganizationUnitNameConflictRoot, name)
-	}
-
-	if err != nil {
-		return false, fmt.Errorf("failed to execute query: %w", err)
-	}
-
-	if len(results) > 0 {
-		if count, ok := results[0]["count"].(int64); ok && count > 0 {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return checkConflict(
+		QueryCheckOrganizationUnitNameConflict,
+		QueryCheckOrganizationUnitNameConflictRoot,
+		name,
+		parentID,
+	)
 }
 
 // CheckOrganizationUnitNameConflictForUpdate checks if an organization unit name conflicts during update.
 func CheckOrganizationUnitNameConflictForUpdate(name string, parentID *string, ouID string) (bool, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	return checkConflict(
+		QueryCheckOrganizationUnitNameConflictForUpdate,
+		QueryCheckOrganizationUnitNameConflictRootForUpdate,
+		name,
+		parentID,
+		ouID,
+	)
+}
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
-	if err != nil {
-		return false, fmt.Errorf("failed to get database client: %w", err)
-	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
+// CheckOrganizationUnitHandleConflict checks if an organization unit handle conflicts under the same parent.
+func CheckOrganizationUnitHandleConflict(handle string, parentID *string) (bool, error) {
+	return checkConflict(
+		QueryCheckOrganizationUnitHandleConflict,
+		QueryCheckOrganizationUnitHandleConflictRoot,
+		handle,
+		parentID,
+	)
+}
 
-	var results []map[string]interface{}
-
-	if parentID != nil {
-		results, err = dbClient.Query(QueryCheckOrganizationUnitNameConflictForUpdate, name, *parentID, ouID)
-	} else {
-		results, err = dbClient.Query(QueryCheckOrganizationUnitNameConflictRootForUpdate, name, ouID)
-	}
-
-	if err != nil {
-		return false, fmt.Errorf("failed to execute query: %w", err)
-	}
-
-	if len(results) > 0 {
-		if count, ok := results[0]["count"].(int64); ok && count > 0 {
-			return true, nil
-		}
-	}
-
-	return false, nil
+// CheckOrganizationUnitHandleConflictForUpdate checks if an organization unit handle conflicts during update.
+func CheckOrganizationUnitHandleConflictForUpdate(handle string, parentID *string, ouID string) (bool, error) {
+	return checkConflict(
+		QueryCheckOrganizationUnitHandleConflictForUpdate,
+		QueryCheckOrganizationUnitHandleConflictRootForUpdate,
+		handle,
+		parentID,
+		ouID,
+	)
 }
 
 // CheckOrganizationUnitHasChildResources checks if an organization unit has users groups or sub-ous.
@@ -400,6 +374,11 @@ func buildOrganizationUnitBasicFromResultRow(
 		return model.OrganizationUnitBasic{}, fmt.Errorf("name is not a string")
 	}
 
+	handle, ok := row["handle"].(string)
+	if !ok {
+		return model.OrganizationUnitBasic{}, fmt.Errorf("handle is not a string")
+	}
+
 	description := ""
 	if desc, ok := row["description"]; ok && desc != nil {
 		if descStr, ok := desc.(string); ok {
@@ -416,6 +395,7 @@ func buildOrganizationUnitBasicFromResultRow(
 
 	return model.OrganizationUnitBasic{
 		ID:                ouID,
+		Handle:            handle,
 		Name:              name,
 		Description:       description,
 		Parent:            parentID,
@@ -434,6 +414,7 @@ func buildOrganizationUnitFromResultRow(
 
 	return model.OrganizationUnit{
 		ID:                ou.ID,
+		Handle:            ou.Handle,
 		Name:              ou.Name,
 		Description:       ou.Description,
 		Parent:            ou.Parent,
@@ -441,4 +422,46 @@ func buildOrganizationUnitFromResultRow(
 		Groups:            []string{},
 		OrganizationUnits: []string{},
 	}, nil
+}
+
+// checkConflict is a helper function to check for conflicts in organization unit attributes.
+func checkConflict(
+	queryWithParent, queryWithoutParent dbmodel.DBQuery,
+	value string,
+	parentID *string,
+	extraArgs ...interface{},
+) (bool, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		return false, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	var results []map[string]interface{}
+
+	if parentID != nil {
+		args := append([]interface{}{value, *parentID}, extraArgs...)
+		results, err = dbClient.Query(queryWithParent, args...)
+	} else {
+		args := append([]interface{}{value}, extraArgs...)
+		results, err = dbClient.Query(queryWithoutParent, args...)
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	if len(results) > 0 {
+		if count, ok := results[0]["count"].(int64); ok && count > 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

@@ -30,25 +30,25 @@ var (
 	// QueryGetOrganizationUnitList is the query to get all organization units.
 	QueryGetOrganizationUnitList = dbmodel.DBQuery{
 		ID:    "OUQ-OU_MGT-01",
-		Query: `SELECT OU_ID, NAME, DESCRIPTION, PARENT_ID FROM ORGANIZATION_UNIT`,
+		Query: `SELECT OU_ID, HANDLE, NAME, DESCRIPTION, PARENT_ID FROM ORGANIZATION_UNIT`,
 	}
 
 	// QueryCreateOrganizationUnit is the query to create a new organization unit.
 	QueryCreateOrganizationUnit = dbmodel.DBQuery{
 		ID:    "OUQ-OU_MGT-03",
-		Query: `INSERT INTO ORGANIZATION_UNIT (OU_ID, PARENT_ID, NAME, DESCRIPTION) VALUES ($1, $2, $3, $4)`,
+		Query: `INSERT INTO ORGANIZATION_UNIT (OU_ID, PARENT_ID, HANDLE, NAME, DESCRIPTION) VALUES ($1, $2, $3, $4, $5)`,
 	}
 
 	// QueryGetOrganizationUnitByID is the query to get an organization unit by id.
 	QueryGetOrganizationUnitByID = dbmodel.DBQuery{
 		ID:    "OUQ-OU_MGT-04",
-		Query: `SELECT OU_ID, PARENT_ID, NAME, DESCRIPTION FROM ORGANIZATION_UNIT WHERE OU_ID = $1`,
+		Query: `SELECT OU_ID, PARENT_ID, HANDLE, NAME, DESCRIPTION FROM ORGANIZATION_UNIT WHERE OU_ID = $1`,
 	}
 
 	// QueryUpdateOrganizationUnit is the query to update an organization unit.
 	QueryUpdateOrganizationUnit = dbmodel.DBQuery{
 		ID:    "OUQ-OU_MGT-05",
-		Query: `UPDATE ORGANIZATION_UNIT SET PARENT_ID = $2, NAME = $3, DESCRIPTION = $4 WHERE OU_ID = $1`,
+		Query: `UPDATE ORGANIZATION_UNIT SET PARENT_ID = $2, HANDLE = $3, NAME = $4, DESCRIPTION = $5 WHERE OU_ID = $1`,
 	}
 
 	// QueryDeleteOrganizationUnit is the query to delete an organization unit.
@@ -111,6 +111,35 @@ var (
 					(SELECT COUNT(*) FROM ORGANIZATION_UNIT WHERE PARENT_ID = $1) +
 					(SELECT COUNT(*) FROM "USER" WHERE OU_ID = $1) + 
 					(SELECT COUNT(*) FROM "GROUP" WHERE OU_ID = $1) as count`,
+	}
+
+	// QueryCheckOrganizationUnitHandleConflict is the query to check if an organization
+	// unit handle conflicts under the same parent.
+	QueryCheckOrganizationUnitHandleConflict = dbmodel.DBQuery{
+		ID:    "OUQ-OU_MGT-15",
+		Query: `SELECT COUNT(*) as count FROM ORGANIZATION_UNIT WHERE HANDLE = $1 AND PARENT_ID = $2`,
+	}
+
+	// QueryCheckOrganizationUnitHandleConflictForUpdate is the query to check handle conflict during update.
+	QueryCheckOrganizationUnitHandleConflictForUpdate = dbmodel.DBQuery{
+		ID: "OUQ-OU_MGT-16",
+		Query: `SELECT COUNT(*) as count FROM ORGANIZATION_UNIT WHERE HANDLE = $1 AND PARENT_ID = $2 ` +
+			`AND OU_ID != $3`,
+	}
+
+	// QueryCheckOrganizationUnitHandleConflictRoot is the query to check if an organization
+	// unit handle conflicts at root level.
+	QueryCheckOrganizationUnitHandleConflictRoot = dbmodel.DBQuery{
+		ID:    "OUQ-OU_MGT-17",
+		Query: `SELECT COUNT(*) as count FROM ORGANIZATION_UNIT WHERE HANDLE = $1 AND PARENT_ID IS NULL`,
+	}
+
+	// QueryCheckOrganizationUnitHandleConflictRootForUpdate is the query to check handle
+	// conflict at root level during update.
+	QueryCheckOrganizationUnitHandleConflictRootForUpdate = dbmodel.DBQuery{
+		ID: "OUQ-OU_MGT-18",
+		Query: `SELECT COUNT(*) as count FROM ORGANIZATION_UNIT WHERE HANDLE = $1 AND PARENT_ID IS NULL ` +
+			`AND OU_ID != $2`,
 	}
 )
 

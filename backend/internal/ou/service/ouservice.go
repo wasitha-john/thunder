@@ -98,6 +98,10 @@ func (ous *OrganizationUnitService) CreateOrganizationUnit(
 		return model.OrganizationUnit{}, err
 	}
 
+	if err := ous.validateOUHandle(request.Handle); err != nil {
+		return model.OrganizationUnit{}, err
+	}
+
 	if request.Parent != nil {
 		_, err := store.GetOrganizationUnit(*request.Parent)
 		if err != nil {
@@ -118,9 +122,19 @@ func (ous *OrganizationUnitService) CreateOrganizationUnit(
 		return model.OrganizationUnit{}, &constants.ErrorOrganizationUnitNameConflict
 	}
 
+	handleConflict, err := store.CheckOrganizationUnitHandleConflict(request.Handle, request.Parent)
+	if err != nil {
+		logger.Error("Failed to check organization unit handle conflict", log.Error(err))
+		return model.OrganizationUnit{}, &constants.ErrorInternalServerError
+	}
+	if handleConflict {
+		return model.OrganizationUnit{}, &constants.ErrorOrganizationUnitHandleConflict
+	}
+
 	ouID := utils.GenerateUUID()
 	ou := model.OrganizationUnit{
 		ID:                ouID,
+		Handle:            request.Handle,
 		Name:              request.Name,
 		Description:       request.Description,
 		Parent:            request.Parent,
@@ -170,6 +184,10 @@ func (ous *OrganizationUnitService) UpdateOrganizationUnit(
 		return model.OrganizationUnit{}, err
 	}
 
+	if err := ous.validateOUHandle(request.Handle); err != nil {
+		return model.OrganizationUnit{}, err
+	}
+
 	existingOU, err := store.GetOrganizationUnit(id)
 	if err != nil {
 		if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
@@ -194,16 +212,16 @@ func (ous *OrganizationUnitService) UpdateOrganizationUnit(
 		return model.OrganizationUnit{}, err
 	}
 
-	var conflict bool
+	var nameConflict bool
 	if existingOU.Parent != request.Parent || existingOU.Name != request.Name {
 		if request.Parent == nil {
-			conflict, err = store.CheckOrganizationUnitNameConflict(request.Name, request.Parent)
+			nameConflict, err = store.CheckOrganizationUnitNameConflict(request.Name, request.Parent)
 			if err != nil {
 				logger.Error("Failed to check organization unit name conflict", log.Error(err))
 				return model.OrganizationUnit{}, &constants.ErrorInternalServerError
 			}
 		} else {
-			conflict, err = store.CheckOrganizationUnitNameConflictForUpdate(request.Name, request.Parent, id)
+			nameConflict, err = store.CheckOrganizationUnitNameConflictForUpdate(request.Name, request.Parent, id)
 			if err != nil {
 				logger.Error("Failed to check organization unit name conflict", log.Error(err))
 				return model.OrganizationUnit{}, &constants.ErrorInternalServerError
@@ -211,12 +229,34 @@ func (ous *OrganizationUnitService) UpdateOrganizationUnit(
 		}
 	}
 
-	if conflict {
+	if nameConflict {
 		return model.OrganizationUnit{}, &constants.ErrorOrganizationUnitNameConflict
+	}
+
+	var handleConflict bool
+	if existingOU.Parent != request.Parent || existingOU.Handle != request.Handle {
+		if request.Parent == nil {
+			handleConflict, err = store.CheckOrganizationUnitHandleConflict(request.Handle, request.Parent)
+			if err != nil {
+				logger.Error("Failed to check organization unit handle conflict", log.Error(err))
+				return model.OrganizationUnit{}, &constants.ErrorInternalServerError
+			}
+		} else {
+			handleConflict, err = store.CheckOrganizationUnitHandleConflictForUpdate(request.Handle, request.Parent, id)
+			if err != nil {
+				logger.Error("Failed to check organization unit handle conflict", log.Error(err))
+				return model.OrganizationUnit{}, &constants.ErrorInternalServerError
+			}
+		}
+	}
+
+	if handleConflict {
+		return model.OrganizationUnit{}, &constants.ErrorOrganizationUnitHandleConflict
 	}
 
 	updatedOU := model.OrganizationUnit{
 		ID:          existingOU.ID,
+		Handle:      request.Handle,
 		Name:        request.Name,
 		Description: request.Description,
 		Parent:      request.Parent,
@@ -318,6 +358,15 @@ func (ous *OrganizationUnitService) checkCircularDependency(ouID string, parentI
 // validateOUName validates organization unit name
 func (ous *OrganizationUnitService) validateOUName(name string) *serviceerror.ServiceError {
 	if strings.TrimSpace(name) == "" {
+		return &constants.ErrorInvalidRequestFormat
+	}
+
+	return nil
+}
+
+// validateOUHandle validates organization unit handle
+func (ous *OrganizationUnitService) validateOUHandle(handle string) *serviceerror.ServiceError {
+	if strings.TrimSpace(handle) == "" {
 		return &constants.ErrorInvalidRequestFormat
 	}
 
