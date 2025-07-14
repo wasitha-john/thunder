@@ -34,6 +34,8 @@ $(TOOL_BIN):
 # Default target
 all: prepare clean test_unit build test_integration
 
+backend: prepare clean test_unit build_backend test_integration
+
 prepare:
 	chmod +x build.sh
 
