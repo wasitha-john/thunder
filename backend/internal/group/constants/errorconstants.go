@@ -72,6 +72,20 @@ var (
 		Error:            "Invalid user ID",
 		ErrorDescription: "One or more user IDs in the request do not exist",
 	}
+	// ErrorInvalidLimit is the error returned when limit parameter is invalid.
+	ErrorInvalidLimit = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "GRP-1011",
+		Error:            "Invalid limit parameter",
+		ErrorDescription: "The limit parameter must be a positive integer",
+	}
+	// ErrorInvalidOffset is the error returned when offset parameter is invalid.
+	ErrorInvalidOffset = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "GRP-1012",
+		Error:            "Invalid offset parameter",
+		ErrorDescription: "The offset parameter must be a non-negative integer",
+	}
 )
 
 // Server errors for group management operations.
