@@ -139,14 +139,21 @@ func (suite *GroupAPITestSuite) TestListGroups() {
 		suite.T().Fatalf("Failed to read response body: %v", err)
 	}
 
-	var groups []GroupBasic
-	err = json.Unmarshal(body, &groups)
+	var groupListResponse GroupListResponse
+	err = json.Unmarshal(body, &groupListResponse)
 	suite.Require().NoError(err)
+
+	// Verify response structure
+	suite.GreaterOrEqual(groupListResponse.TotalResults, 1, "Should have at least one group")
+	suite.Equal(1, groupListResponse.StartIndex, "StartIndex should be 1 for non-paginated request")
+	suite.Equal(groupListResponse.TotalResults, groupListResponse.Count, "Count should equal TotalResults for non-paginated request")
+	suite.Equal(len(groupListResponse.Groups), groupListResponse.Count, "Groups array length should match Count")
+	suite.Equal(0, len(groupListResponse.Links), "Links should be empty for non-paginated request")
 
 	// Verify the list contains our created group
 	found := false
 	createdGroup := buildCreatedGroup()
-	for _, group := range groups {
+	for _, group := range groupListResponse.Groups {
 		if group.Id == createdGroup.Id {
 			found = true
 			suite.Equal(createdGroup.Name, group.Name)
@@ -154,6 +161,154 @@ func (suite *GroupAPITestSuite) TestListGroups() {
 		}
 	}
 	suite.True(found, "Created group should be in the list")
+}
+
+func (suite *GroupAPITestSuite) TestListGroupsWithPagination() {
+	if createdGroupID == "" {
+		suite.T().Fatal("Group ID is not available, group creation failed in setup")
+	}
+
+	// Test pagination with limit=1, offset=0
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/groups?limit=1&offset=0", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var groupListResponse GroupListResponse
+	err = json.Unmarshal(body, &groupListResponse)
+	suite.Require().NoError(err)
+
+	// Verify pagination structure
+	suite.GreaterOrEqual(groupListResponse.TotalResults, 1, "Should have at least one group")
+	suite.Equal(1, groupListResponse.StartIndex, "StartIndex should be 1 for offset=0")
+	suite.LessOrEqual(groupListResponse.Count, 1, "Count should be at most 1 due to limit=1")
+	suite.LessOrEqual(len(groupListResponse.Groups), 1, "Should return at most 1 group")
+
+	// Verify links structure when there might be more pages
+	if groupListResponse.TotalResults > 1 {
+		suite.NotEmpty(groupListResponse.Links, "Should have pagination links when there are more results")
+
+		// Check for next link
+		hasNext := false
+		for _, link := range groupListResponse.Links {
+			if link.Rel == "next" {
+				hasNext = true
+				suite.Contains(link.Href, "offset=1", "Next link should have offset=1")
+				suite.Contains(link.Href, "limit=1", "Next link should have limit=1")
+			}
+		}
+		suite.True(hasNext, "Should have next link when there are more results")
+	}
+}
+
+func (suite *GroupAPITestSuite) TestListGroupsWithInvalidPagination() {
+	// Test with invalid limit parameter
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	// Test invalid limit (negative)
+	req, err := http.NewRequest("GET", testServerURL+"/groups?limit=-1", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp map[string]interface{}
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("GRP-1011", errorResp["code"])
+	suite.Equal("Invalid limit parameter", errorResp["message"])
+
+	// Test invalid offset (negative)
+	req, err = http.NewRequest("GET", testServerURL+"/groups?offset=-1", nil)
+	suite.Require().NoError(err)
+
+	resp, err = client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	body, err = io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("GRP-1012", errorResp["code"])
+	suite.Equal("Invalid offset parameter", errorResp["message"])
+
+	// Test invalid limit (too large)
+	req, err = http.NewRequest("GET", testServerURL+"/groups?limit=101", nil)
+	suite.Require().NoError(err)
+
+	resp, err = client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	body, err = io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("GRP-1011", errorResp["code"])
+	suite.Equal("Invalid limit parameter", errorResp["message"])
+}
+
+func (suite *GroupAPITestSuite) TestListGroupsWithOnlyOffset() {
+	// Test with only offset parameter provided (should use default limit=30)
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/groups?offset=0", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var groupListResponse GroupListResponse
+	err = json.Unmarshal(body, &groupListResponse)
+	suite.Require().NoError(err)
+
+	// Verify that pagination structure is present (should use default limit=30)
+	suite.GreaterOrEqual(groupListResponse.TotalResults, 1, "Should have at least one group")
+	suite.Equal(1, groupListResponse.StartIndex, "StartIndex should be 1 for offset=0")
+	suite.LessOrEqual(groupListResponse.Count, 30, "Count should be at most 30 due to default limit")
 }
 
 func (suite *GroupAPITestSuite) TestUpdateGroup() {

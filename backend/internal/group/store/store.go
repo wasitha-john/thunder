@@ -32,8 +32,39 @@ import (
 
 const loggerComponentName = "GroupStore"
 
-// GetGroupList retrieves all root groups.
-func GetGroupList() ([]model.GroupBasicDAO, error) {
+// GetGroupListCount retrieves the total count of root groups.
+func GetGroupListCount() (int, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return 0, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	countResults, err := dbClient.Query(QueryGetGroupListCount)
+	if err != nil {
+		logger.Error("Failed to execute count query", log.Error(err))
+		return 0, fmt.Errorf("failed to execute count query: %w", err)
+	}
+
+	var totalCount int
+	if len(countResults) > 0 {
+		if total, ok := countResults[0]["total"].(int64); ok {
+			totalCount = int(total)
+		}
+	}
+
+	return totalCount, nil
+}
+
+// GetGroupList retrieves root groups.
+func GetGroupList(limit, offset int) ([]model.GroupBasicDAO, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -47,12 +78,10 @@ func GetGroupList() ([]model.GroupBasicDAO, error) {
 		}
 	}()
 
-	var results []map[string]interface{}
-
-	results, err = dbClient.Query(QueryGetGroupList)
+	results, err := dbClient.Query(QueryGetGroupList, limit, offset)
 	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
-		return nil, fmt.Errorf("failed to execute query: %w", err)
+		logger.Error("Failed to execute group list query", log.Error(err))
+		return nil, fmt.Errorf("failed to execute group list query: %w", err)
 	}
 
 	groups := make([]model.GroupBasicDAO, 0)

@@ -21,6 +21,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/asgardeo/thunder/internal/group/constants"
 	"github.com/asgardeo/thunder/internal/group/model"
@@ -35,7 +36,7 @@ const loggerComponentName = "GroupMgtService"
 
 // GroupServiceInterface defines the interface for the group service.
 type GroupServiceInterface interface {
-	GetGroupList() ([]model.GroupBasic, *serviceerror.ServiceError)
+	GetGroupList(limit, offset int) (*model.GroupListResponse, *serviceerror.ServiceError)
 	CreateGroup(request model.CreateGroupRequest) (*model.Group, *serviceerror.ServiceError)
 	GetGroup(groupID string) (*model.Group, *serviceerror.ServiceError)
 	UpdateGroup(groupID string, request model.UpdateGroupRequest) (*model.Group, *serviceerror.ServiceError)
@@ -50,12 +51,22 @@ func GetGroupService() GroupServiceInterface {
 	return &GroupService{}
 }
 
-// GetGroupList retrieves a list of root groups.
-func (gs *GroupService) GetGroupList() ([]model.GroupBasic, *serviceerror.ServiceError) {
+// GetGroupList retrieves a list of groups. limit should be a positive integer & offset should be non-negative
+// integer
+func (gs *GroupService) GetGroupList(limit, offset int) (*model.GroupListResponse, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-	logger.Debug("Listing all groups")
 
-	groups, err := store.GetGroupList()
+	if err := validatePaginationParams(limit, offset); err != nil {
+		return nil, err
+	}
+
+	totalCount, err := store.GetGroupListCount()
+	if err != nil {
+		logger.Error("Failed to get group count", log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	groups, err := store.GetGroupList(limit, offset)
 	if err != nil {
 		logger.Error("Failed to list groups", log.Error(err))
 		return nil, &constants.ErrorInternalServerError
@@ -66,7 +77,15 @@ func (gs *GroupService) GetGroupList() ([]model.GroupBasic, *serviceerror.Servic
 		groupBasics = append(groupBasics, buildGroupBasic(groupDAO))
 	}
 
-	return groupBasics, nil
+	response := &model.GroupListResponse{
+		TotalResults: totalCount,
+		Groups:       groupBasics,
+		StartIndex:   offset + 1,
+		Count:        len(groupBasics),
+		Links:        buildPaginationLinks(limit, offset, totalCount),
+	}
+
+	return response, nil
 }
 
 // CreateGroup creates a new group.
@@ -413,4 +432,54 @@ func buildParent(parentID *string, ouID string) model.Parent {
 		}
 	}
 	return parent
+}
+
+// validatePaginationParams validates pagination parameters.
+func validatePaginationParams(limit, offset int) *serviceerror.ServiceError {
+	if limit < 1 || limit > 100 {
+		return &constants.ErrorInvalidLimit
+	}
+	if offset < 0 {
+		return &constants.ErrorInvalidOffset
+	}
+	return nil
+}
+
+// buildPaginationLinks builds pagination links for the response.
+func buildPaginationLinks(limit, offset, totalCount int) []model.Link {
+	links := make([]model.Link, 0)
+
+	if offset > 0 {
+		links = append(links, model.Link{
+			Href: fmt.Sprintf("/groups?offset=0&limit=%d", limit),
+			Rel:  "first",
+		})
+
+		prevOffset := offset - limit
+		if prevOffset < 0 {
+			prevOffset = 0
+		}
+		links = append(links, model.Link{
+			Href: fmt.Sprintf("/groups?offset=%d&limit=%d", prevOffset, limit),
+			Rel:  "prev",
+		})
+	}
+
+	if offset+limit < totalCount {
+		nextOffset := offset + limit
+		links = append(links, model.Link{
+			Href: fmt.Sprintf("/groups?offset=%d&limit=%d", nextOffset, limit),
+			Rel:  "next",
+		})
+	}
+
+	lastPageOffset := ((totalCount - 1) / limit) * limit
+	if offset < lastPageOffset {
+		links = append(links, model.Link{
+			Href: fmt.Sprintf("/groups?offset=%d&limit=%d", lastPageOffset, limit),
+			Rel:  "last",
+		})
+	}
+
+	return links
 }

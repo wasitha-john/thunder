@@ -63,3 +63,18 @@ type UpdateGroupRequest struct {
 	Users       []string `json:"users,omitempty"`
 	Groups      []string `json:"groups,omitempty"`
 }
+
+// Link represents a pagination link.
+type Link struct {
+	Href string `json:"href"`
+	Rel  string `json:"rel"`
+}
+
+// GroupListResponse represents the response for listing groups with pagination.
+type GroupListResponse struct {
+	TotalResults int          `json:"totalResults"`
+	StartIndex   int          `json:"startIndex"`
+	Count        int          `json:"count"`
+	Groups       []GroupBasic `json:"groups"`
+	Links        []Link       `json:"links"`
+}

@@ -22,6 +22,8 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"strconv"
 
 	"github.com/asgardeo/thunder/internal/group/constants"
 	"github.com/asgardeo/thunder/internal/group/model"
@@ -34,6 +36,7 @@ import (
 )
 
 const loggerComponentName = "GroupHandler"
+const limitDefault = 30
 
 // GroupHandler is the handler for group management operations.
 type GroupHandler struct{}
@@ -47,9 +50,19 @@ func NewGroupHandler() *GroupHandler {
 func (gh *GroupHandler) HandleGroupListRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
+	limit, offset, svcErr := parsePaginationParams(r.URL.Query())
+	if svcErr != nil {
+		gh.handleError(w, logger, svcErr)
+		return
+	}
+
+	if limit == 0 {
+		limit = limitDefault
+	}
+
 	groupProvider := provider.NewGroupProvider()
 	groupService := groupProvider.GetGroupService()
-	groups, svcErr := groupService.GetGroupList()
+	groupListResponse, svcErr := groupService.GetGroupList(limit, offset)
 	if svcErr != nil {
 		gh.handleError(w, logger, svcErr)
 		return
@@ -58,13 +71,16 @@ func (gh *GroupHandler) HandleGroupListRequest(w http.ResponseWriter, r *http.Re
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
 
-	if err := json.NewEncoder(w).Encode(groups); err != nil {
+	if err := json.NewEncoder(w).Encode(groupListResponse); err != nil {
 		logger.Error("Error encoding response", log.Error(err))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 
-	logger.Debug("Successfully listed groups")
+	logger.Debug("Successfully listed groups with pagination",
+		log.Int("limit", limit), log.Int("offset", offset),
+		log.Int("totalResults", groupListResponse.TotalResults),
+		log.Int("count", groupListResponse.Count))
 }
 
 // HandleGroupPostRequest handles the create group request.
@@ -254,7 +270,8 @@ func (gh *GroupHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 		case constants.ErrorGroupNameConflict.Code:
 			statusCode = http.StatusConflict
 		case constants.ErrorParentNotFound.Code, constants.ErrorCannotDeleteGroup.Code,
-			constants.ErrorInvalidRequestFormat.Code, constants.ErrorMissingGroupID.Code:
+			constants.ErrorInvalidRequestFormat.Code, constants.ErrorMissingGroupID.Code,
+			constants.ErrorInvalidLimit.Code, constants.ErrorInvalidOffset.Code:
 			statusCode = http.StatusBadRequest
 		default:
 			statusCode = http.StatusBadRequest
@@ -329,4 +346,28 @@ func (gh *GroupHandler) sanitizeUpdateGroupRequest(request *model.UpdateGroupReq
 	}
 
 	return sanitized
+}
+
+// parsePaginationParams parses limit and offset query parameters from the request.
+func parsePaginationParams(query url.Values) (int, int, *serviceerror.ServiceError) {
+	limit := 0
+	offset := 0
+
+	if limitStr := query.Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err != nil {
+			return 0, 0, &constants.ErrorInvalidLimit
+		} else {
+			limit = parsedLimit
+		}
+	}
+
+	if offsetStr := query.Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err != nil {
+			return 0, 0, &constants.ErrorInvalidOffset
+		} else {
+			offset = parsedOffset
+		}
+	}
+
+	return limit, offset, nil
 }
