@@ -22,6 +22,7 @@ package model
 // OrganizationUnitBasic represents the basic information of an organization unit.
 type OrganizationUnitBasic struct {
 	ID                string   `json:"id"`
+	Handle            string   `json:"handle"`
 	Name              string   `json:"name"`
 	Description       string   `json:"description,omitempty"`
 	Parent            *string  `json:"parent"`
@@ -31,6 +32,7 @@ type OrganizationUnitBasic struct {
 // OrganizationUnit represents a complete organization unit with users, groups, and sub organization units.
 type OrganizationUnit struct {
 	ID                string   `json:"id"`
+	Handle            string   `json:"handle"`
 	Name              string   `json:"name"`
 	Description       string   `json:"description,omitempty"`
 	Parent            *string  `json:"parent"`
@@ -41,6 +43,7 @@ type OrganizationUnit struct {
 
 // OrganizationUnitRequest represents the request body for creating an organization unit.
 type OrganizationUnitRequest struct {
+	Handle      string  `json:"handle"`
 	Name        string  `json:"name"`
 	Description string  `json:"description,omitempty"`
 	Parent      *string `json:"parent"`

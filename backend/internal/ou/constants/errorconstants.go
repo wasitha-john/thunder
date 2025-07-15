@@ -76,6 +76,13 @@ var (
 		Error:            "Circular dependency detected",
 		ErrorDescription: "Setting this parent would create a circular dependency",
 	}
+	// ErrorOrganizationUnitHandleConflict is the error returned when an organization unit handle conflicts.
+	ErrorOrganizationUnitHandleConflict = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "OU-1010",
+		Error:            "Organization unit handle conflict",
+		ErrorDescription: "An organization unit with the same handle already exists under the same parent",
+	}
 )
 
 // Server errors for organization unit management operations.

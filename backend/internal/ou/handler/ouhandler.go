@@ -249,7 +249,8 @@ func (ouh *OrganizationUnitHandler) handleError(w http.ResponseWriter, logger *l
 		statusCode = http.StatusBadRequest
 		if svcErr.Code == constants.ErrorOrganizationUnitNotFound.Code {
 			statusCode = http.StatusNotFound
-		} else if svcErr.Code == constants.ErrorOrganizationUnitNameConflict.Code {
+		} else if svcErr.Code == constants.ErrorOrganizationUnitNameConflict.Code ||
+			svcErr.Code == constants.ErrorOrganizationUnitHandleConflict.Code {
 			statusCode = http.StatusConflict
 		}
 	default:
@@ -275,6 +276,7 @@ func (ouh *OrganizationUnitHandler) sanitizeOrganizationUnitRequest(
 	request model.OrganizationUnitRequest,
 ) model.OrganizationUnitRequest {
 	return model.OrganizationUnitRequest{
+		Handle:      sysutils.SanitizeString(request.Handle),
 		Name:        sysutils.SanitizeString(request.Name),
 		Description: sysutils.SanitizeString(request.Description),
 		Parent:      request.Parent,
