@@ -20,211 +20,259 @@
 package authn
 
 import (
+	"encoding/json"
 	"net/http"
-	"strings"
 	"time"
 
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
-	"github.com/asgardeo/thunder/internal/authn/utils"
-	oauthconstants "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
+	"github.com/asgardeo/thunder/internal/authn/constants"
+	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	"github.com/asgardeo/thunder/internal/authn/model"
+	"github.com/asgardeo/thunder/internal/flow"
+	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
+	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/oauth/jwt"
+	authzutils "github.com/asgardeo/thunder/internal/oauth/oauth2/authz/utils"
 	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	sessionmodel "github.com/asgardeo/thunder/internal/oauth/session/model"
 	sessionstore "github.com/asgardeo/thunder/internal/oauth/session/store"
 	sessionutils "github.com/asgardeo/thunder/internal/oauth/session/utils"
-	"github.com/asgardeo/thunder/internal/outboundauth"
-	"github.com/asgardeo/thunder/internal/outboundauth/basicauth"
-	"github.com/asgardeo/thunder/internal/outboundauth/github"
-	"github.com/asgardeo/thunder/internal/system/config"
+	serverconst "github.com/asgardeo/thunder/internal/system/constants"
+	"github.com/asgardeo/thunder/internal/system/error/apierror"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
-// AuthenticationHandler handles authentication requests.
+// AuthenticationHandlerInterface defines the interface for handling authentication requests.
+type AuthenticationHandlerInterface interface {
+	HandleAuthenticationRequest(w http.ResponseWriter, r *http.Request)
+}
+
+// AuthenticationHandler implements the AuthenticationHandlerInterface to handle authentication requests.
 type AuthenticationHandler struct {
 }
 
 // NewAuthenticationHandler creates a new instance of AuthenticationHandler.
-func NewAuthenticationHandler() *AuthenticationHandler {
+func NewAuthenticationHandler() AuthenticationHandlerInterface {
 	return &AuthenticationHandler{}
-}
-
-// InitAuthenticationFlow initializes the authentication process.
-func (ah *AuthenticationHandler) InitAuthenticationFlow(w http.ResponseWriter, r *http.Request,
-	ctx *authnmodel.AuthenticationContext) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "AuthenticationHandler"))
-	logger.Info("Initializing authentication flow.")
-
-	// Handle the authentication request with the selected authenticator.
-	selectedAuthenticator := r.URL.Query().Get("authenticator")
-	authr := getAuthenticator(selectedAuthenticator)
-	logger.Debug("Selected authenticator: ", log.String("authenticator", authr.GetName()))
-
-	// Check if the session data is already stored with a session data key.
-	sessionDataKey := ctx.SessionDataKey
-	sessionDataStore := sessionstore.GetSessionDataStore()
-	ok, sessionData := sessionDataStore.GetSession(sessionDataKey)
-	if !ok {
-		http.Error(w, "Session data not found for session data key", http.StatusBadRequest)
-		return
-	}
-
-	sessionData.CurrentAuthenticator = authr.GetName()
-
-	// Store session data in the session store. This replaces the old session data with the new one.
-	sessionDataStore.AddSession(ctx.SessionDataKey, sessionData)
-
-	err := authr.Process(w, r, ctx)
-	if err != nil {
-		utils.RedirectToErrorPage(w, r, oauthconstants.ErrorServerError,
-			"Failed to process authentication request")
-	}
 }
 
 // HandleAuthenticationRequest handles the authentication request received.
 func (ah *AuthenticationHandler) HandleAuthenticationRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "AuthenticationHandler"))
-	logger.Info("Handling authentication request.")
+	logger.Debug("Handling authentication request")
 
-	var sessionDataKey, state string
-	if r.Method == http.MethodGet {
-		logger.Debug("Processing GET request received for authentication flow endpoint.")
-
-		// Extract session data key from the query parameters.
-		sessionDataKey = r.URL.Query().Get(oauthconstants.SessionDataKey)
-		state = r.URL.Query().Get(oauthconstants.State)
-	} else {
-		logger.Debug("Processing POST request received for authentication flow endpoint.")
-
-		// Parse form data.
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Failed to parse form data", http.StatusBadRequest)
-			return
+	authR, err := systemutils.DecodeJSONBody[model.AuthNRequest](r)
+	if err != nil {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(constants.APIErrorJSONDecodeError); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
 		}
-
-		// Extract session data key from the form data.
-		sessionDataKey = r.FormValue(oauthconstants.SessionDataKey)
-		state = r.FormValue(oauthconstants.State)
+		return
 	}
 
-	if sessionDataKey == "" {
-		if state == "" {
-			http.Error(w, "Session data key or state parameter not found", http.StatusBadRequest)
-			return
-		}
+	// Sanitize the inputs
+	sessionDataKey := systemutils.SanitizeString(authR.SessionDataKey)
+	flowID := systemutils.SanitizeString(authR.FlowID)
+	actionID := systemutils.SanitizeString(authR.ActionID)
+	inputs := systemutils.SanitizeStringMap(authR.Inputs)
 
-		logger.Info("Extracting session data key from state parameter.")
-
-		// Extract session data key from the state parameter for federated flows.
-		sessionDataKey = strings.Split(state, ",")[0]
-		if sessionDataKey == "" {
-			logger.Error("Session data key not found in state parameter.")
-			http.Error(w, "Invalid state parameter", http.StatusBadRequest)
-			return
+	if sessionDataKey == "" && flowID == "" {
+		if err := json.NewEncoder(w).Encode(constants.APIErrorInvalidRequest); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
 		}
+		return
 	}
 
-	// Check if the session data is already stored with a session data key.
-	logger.Info("Retrieving session data for session data key", log.String("sessionDataKey", sessionDataKey))
+	var sessionData sessionmodel.SessionData
+	appID := ""
+
 	sessionDataStore := sessionstore.GetSessionDataStore()
-	ok, sessionData := sessionDataStore.GetSession(sessionDataKey)
-	if !ok {
-		logger.Error("Session data not found for session data key", log.String("sessionDataKey", sessionDataKey))
-		http.Error(w, "Session data not found for session data key", http.StatusBadRequest)
-		return
-	}
+	if sessionDataKey != "" {
+		// Check if the session data is already stored with a session data key.
+		logger.Info("Retrieving session data for session data key", log.String("sessionDataKey", sessionDataKey))
 
-	// Check for the current authenticator in the session data.
-	if sessionData.CurrentAuthenticator == "" {
-		logger.Error("Current authenticator not found in session data.")
-		http.Error(w, "Current authenticator not found in session data", http.StatusBadRequest)
-		return
-	}
-	authr := getAuthenticator(sessionData.CurrentAuthenticator)
-	logger.Debug("Selected authenticator", log.String("authenticator", authr.GetName()))
+		var ok bool
+		ok, sessionData = sessionDataStore.GetSession(sessionDataKey)
+		if !ok {
+			if err := json.NewEncoder(w).Encode(constants.APIErrorSessionNotFound); err != nil {
+				logger.Error("Error encoding error response", log.Error(err))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
+		}
 
-	// Create a new session data object.
-	newSessionDataKey := sessionutils.GenerateNewSessionDataKey()
-	newSessionData := &sessionmodel.SessionData{
-		OAuthParameters: oauthmodel.OAuthParameters{
-			SessionDataKey: newSessionDataKey,
-			ClientID:       sessionData.OAuthParameters.ClientID,
-			RedirectURI:    sessionData.OAuthParameters.RedirectURI,
-			Scopes:         sessionData.OAuthParameters.Scopes,
-			State:          sessionData.OAuthParameters.State,
-		},
-		AuthTime:             time.Now(),
-		CurrentAuthenticator: authr.GetName(),
-	}
+		// Remove the previous session data if it exists.
+		sessionDataStore.ClearSession(sessionDataKey)
 
-	// Create the authentication context.
-	authCtx := authnmodel.AuthenticationContext{}
-	authCtx.SessionDataKey = newSessionDataKey
-
-	// Remove the old session data from the session store and add the new entry.
-	sessionDataStore.ClearSession(sessionDataKey)
-	sessionDataStore.AddSession(newSessionDataKey, *newSessionData)
-
-	// Handle the authentication request with the selected authenticator.
-	err := authr.Process(w, r, &authCtx)
-	if err != nil {
-		http.Error(w, "Failed to process authentication request", http.StatusInternalServerError)
-		return
-	}
-
-	// Store session data in the session store. This replaces the old session data with the new one.
-	newSessionData.AuthenticatedUser = authCtx.AuthenticatedUser
-	newSessionData.AuthTime = authCtx.AuthTime
-	sessionDataStore.AddSession(authCtx.SessionDataKey, *newSessionData)
-
-	// Construct the redirect URI with the new session data key.
-	redirectURI := "https://localhost:8090/oauth2/authorize"
-	queryParams := map[string]string{
-		"sessionDataKey": newSessionDataKey,
-	}
-	redirectURI, err = systemutils.GetURIWithQueryParams(redirectURI, queryParams)
-	if err != nil {
-		http.Error(w, "Failed to construct redirect URI", http.StatusInternalServerError)
-		return
-	}
-
-	http.Redirect(w, r, redirectURI, http.StatusFound)
-}
-
-// getAuthenticator retrieves the authenticator based on the provided name.
-func getAuthenticator(authrName string) outboundauth.AuthenticatorInterface {
-	// If the authenticator is not specified, use the default authenticator.
-	if authrName == "" {
-		authrName = config.GetThunderRuntime().Config.Authenticator.DefaultAuthenticator
-	}
-
-	switch authrName {
-	case "BasicAuthenticator":
-		return basicauth.NewBasicAuthenticator(getAuthenticatorConfig(authrName))
-	case "GithubAuthenticator":
-		return github.NewGithubAuthenticator(getAuthenticatorConfig(authrName))
-	default:
-		return basicauth.NewBasicAuthenticator(getAuthenticatorConfig("BasicAuthenticator"))
-	}
-}
-
-// getAuthenticatorConfig retrieves the configuration for the specified authenticator.
-func getAuthenticatorConfig(authrName string) *config.Authenticator {
-	authConfig := config.GetThunderRuntime().Config.Authenticator
-	authenticators := authConfig.Authenticators
-
-	for _, authenticator := range authenticators {
-		if authenticator.Name == authrName {
-			return &authenticator
+		// Retrieve app id.
+		appID = sessionData.OAuthParameters.AppID
+		if appID == "" {
+			if err := json.NewEncoder(w).Encode(constants.APIErrorAppIDNotFound); err != nil {
+				logger.Error("Error encoding error response", log.Error(err))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
 		}
 	}
 
-	if authrName == "BasicAuthenticator" {
-		return &config.Authenticator{
-			Name:        "BasicAuthenticator",
-			DisplayName: "Username & Password",
-			Type:        "local",
+	flowSvc := flow.GetFlowService()
+	flowStep, flowErr := flowSvc.Execute(appID, flowID, actionID, flowconst.FlowTypeAuthentication, inputs)
+
+	if flowErr != nil {
+		handleFlowError(w, logger, flowErr)
+		return
+	}
+
+	if sessionDataKey != "" && flowID == "" {
+		// If the flow is incomplete, add a new session data with the flow ID as the key.
+		if flowStep.Status == flowconst.FlowStatusIncomplete {
+			logger.Debug("Flow execution is incomplete, storing session data", log.String("flowID", flowStep.FlowID))
+			sessionDataStore.AddSession(flowStep.FlowID, sessionData)
+		}
+	} else {
+		// If the flow is completed or received an error, clear the session data for the flow ID.
+		if flowStep.Status == flowconst.FlowStatusComplete {
+			var ok bool
+			ok, sessionData = sessionDataStore.GetSession(flowStep.FlowID)
+			if !ok {
+				if err := json.NewEncoder(w).Encode(constants.APIErrorSessionNotFound); err != nil {
+					logger.Error("Error encoding error response", log.Error(err))
+					http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+				}
+				return
+			}
+		}
+		if flowStep.Status != flowconst.FlowStatusIncomplete {
+			sessionDataStore.ClearSession(flowStep.FlowID)
 		}
 	}
 
-	return nil
+	var authResp model.AuthNResponse
+	if flowStep.Status == flowconst.FlowStatusComplete {
+		logger.Debug("Flow execution completed successfully", log.String("flowID", flowStep.FlowID))
+
+		// Retrieve authenticated user information from the assertion.
+		assertion := flowStep.Assertion
+		if assertion == "" {
+			if err := json.NewEncoder(w).Encode(constants.ServerErrorFlowAssertionNotFound); err != nil {
+				logger.Error("Error encoding error response", log.Error(err))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		_, jwtPayload, err := jwt.DecodeJWT(assertion)
+		if err != nil {
+			if err := json.NewEncoder(w).Encode(constants.ServerErrorJWTDecodeError); err != nil {
+				logger.Error("Error encoding error response", log.Error(err))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		userAttributes := make(map[string]string)
+		userID := ""
+		for key, value := range jwtPayload {
+			switch key {
+			case "sub":
+				userID = value.(string)
+			case "username":
+				userAttributes["username"] = value.(string)
+			case "email":
+				userAttributes["email"] = value.(string)
+			case "firstName":
+				userAttributes["firstName"] = value.(string)
+			case "lastName":
+				userAttributes["lastName"] = value.(string)
+			}
+		}
+
+		// Update the session data with the flow step data.
+		newSessionDataKey := sessionutils.GenerateNewSessionDataKey()
+		newSessionData := &sessionmodel.SessionData{
+			OAuthParameters: oauthmodel.OAuthParameters{
+				SessionDataKey: newSessionDataKey,
+				ClientID:       sessionData.OAuthParameters.ClientID,
+				RedirectURI:    sessionData.OAuthParameters.RedirectURI,
+				Scopes:         sessionData.OAuthParameters.Scopes,
+				State:          sessionData.OAuthParameters.State,
+			},
+			AuthTime: time.Now(),
+			AuthenticatedUser: authndto.AuthenticatedUser{
+				IsAuthenticated: true,
+				UserID:          userID,
+				Attributes:      userAttributes,
+			},
+		}
+
+		// Remove the old session data from the session store and add the new entry.
+		sessionDataStore.ClearSession(flowStep.FlowID)
+		sessionDataStore.AddSession(newSessionDataKey, *newSessionData)
+
+		// Construct the redirect URI with the new session data key.
+		redirectURI := authzutils.GetAuthorizationEndpoint()
+		queryParams := map[string]string{
+			"sessionDataKey": newSessionDataKey,
+		}
+		redirectURI, err = systemutils.GetURIWithQueryParams(redirectURI, queryParams)
+		if err != nil {
+			if err := json.NewEncoder(w).Encode(constants.ServerErrorRedirectURIConstructionError); err != nil {
+				logger.Error("Error encoding error response", log.Error(err))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		authResp = model.AuthNResponse{
+			FlowID:     flowStep.FlowID,
+			FlowStatus: string(flowStep.Status),
+			Data: flowmodel.FlowData{
+				RedirectURL: redirectURI,
+			},
+		}
+	} else {
+		authResp = model.AuthNResponse{
+			FlowID:        flowStep.FlowID,
+			StepID:        flowStep.StepID,
+			FlowStatus:    string(flowStep.Status),
+			Type:          string(flowStep.Type),
+			Data:          flowStep.Data,
+			FailureReason: flowStep.FailureReason,
+		}
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	err = json.NewEncoder(w).Encode(authResp)
+	if err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+// handleFlowError handles errors that occur during auth flow as an API error response.
+func handleFlowError(w http.ResponseWriter, logger *log.Logger, flowErr *serviceerror.ServiceError) {
+	logger.Error("Error occurred during authentication flow", log.Any("flowError", flowErr))
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+
+	var errResp *apierror.ErrorResponse
+	if flowErr.Type == serviceerror.ClientErrorType {
+		errResp = &constants.APIErrorFlowExecutionError
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		errResp = &constants.ServerErrorFlowExecutionError
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	if err := json.NewEncoder(w).Encode(errResp); err != nil {
+		logger.Error("Error encoding error response", log.Error(err))
+		http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+	}
 }

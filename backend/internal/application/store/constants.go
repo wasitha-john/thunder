@@ -24,7 +24,7 @@ var (
 	// QueryGetApplicationByClientID is the query to retrieve application details by client ID.
 	QueryGetApplicationByClientID = dbmodel.DBQuery{
 		ID: "ASQ-APP_MGT-00",
-		Query: "SELECT CONSUMER_KEY, CONSUMER_SECRET, CALLBACK_URIS, GRANT_TYPES " +
+		Query: "SELECT APP_ID, CONSUMER_KEY, CONSUMER_SECRET, CALLBACK_URIS, GRANT_TYPES " +
 			"FROM IDN_OAUTH_CONSUMER_APPS WHERE CONSUMER_KEY = $1",
 	}
 

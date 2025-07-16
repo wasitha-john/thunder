@@ -16,22 +16,26 @@
  * under the License.
  */
 
-// Package utils provides utility functions for the OIDC authenticator.
-package utils
+// Package dto defines the common data transfer objects for authentication handling.
+package dto
 
-// GetScopesString converts the scopes slice to a space-separated string.
-func GetScopesString(scopes []string) string {
-	if len(scopes) == 0 {
-		return ""
-	}
-	scopesString := scopes[0]
-	for i := 1; i < len(scopes); i++ {
-		scopesString += " " + scopes[i]
-	}
-	return scopesString
+import (
+	"context"
+	"time"
+)
+
+// AuthenticatedUser represents the user information of an authenticated user.
+type AuthenticatedUser struct {
+	IsAuthenticated bool
+	UserID          string
+	Attributes      map[string]string
 }
 
-// GetState generates the state string for the federated flow.
-func GetState(sessionDataKey string) string {
-	return sessionDataKey + "," + "oidc"
+// AuthenticationContext represents the context of an authentication session.
+type AuthenticationContext struct {
+	context.Context
+	SessionDataKey     string
+	RequestQueryParams map[string]string
+	AuthenticatedUser  AuthenticatedUser
+	AuthTime           time.Time
 }

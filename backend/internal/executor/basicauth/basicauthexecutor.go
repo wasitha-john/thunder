@@ -22,7 +22,7 @@ package basicauth
 import (
 	"encoding/json"
 
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
+	authndto "github.com/asgardeo/thunder/internal/authn/dto"
 	"github.com/asgardeo/thunder/internal/executor/identify"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
@@ -170,7 +170,7 @@ func (b *BasicAuthExecutor) GetRequiredData(ctx *flowmodel.NodeContext) []flowmo
 // getAuthenticatedUser perform authentication based on the provided username and password and return
 // authenticated user details.
 func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse) (*authnmodel.AuthenticatedUser, error) {
+	execResp *flowmodel.ExecutorResponse) (*authndto.AuthenticatedUser, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, b.GetID()))
 
@@ -188,7 +188,7 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 				logger.Debug("User not found for the provided username. Proceeding with registration flow.")
 				execResp.Status = flowconst.ExecComplete
 
-				return &authnmodel.AuthenticatedUser{
+				return &authndto.AuthenticatedUser{
 					IsAuthenticated: false,
 					Attributes: map[string]string{
 						userAttributeUsername: username,
@@ -217,9 +217,9 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 		return nil, err
 	}
 
-	var authenticatedUser authnmodel.AuthenticatedUser
+	var authenticatedUser authndto.AuthenticatedUser
 	if user == nil {
-		authenticatedUser = authnmodel.AuthenticatedUser{
+		authenticatedUser = authndto.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	} else {
@@ -247,7 +247,7 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 			lastName = lastNameAttr.(string)
 		}
 
-		authenticatedUser = authnmodel.AuthenticatedUser{
+		authenticatedUser = authndto.AuthenticatedUser{
 			IsAuthenticated: true,
 			UserID:          user.ID,
 			Attributes:      map[string]string{},

@@ -330,7 +330,7 @@ func getIDPConfigs(idpProperties []idpmodel.IDPProperty, execConfig *model.Execu
 		return "", "", "", nil, nil, fmt.Errorf("missing required properties for executor with IDP name %s",
 			execConfig.IdpName)
 	}
-	scopes := sysutils.ParseStringArray(scopesStr)
+	scopes := sysutils.ParseStringArray(scopesStr, ",")
 
 	return clientID, clientSecret, redirectURI, scopes, additionalParams, nil
 }

@@ -28,7 +28,7 @@ import (
 // AuthenticationService defines the service for handling authentication requests.
 type AuthenticationService struct {
 	ServerOpsService server.ServerOperationServiceInterface
-	authHandler      *authn.AuthenticationHandler
+	authHandler      authn.AuthenticationHandlerInterface
 }
 
 // NewAuthenticationService creates a new instance of AuthenticationService.
@@ -45,13 +45,12 @@ func NewAuthenticationService(mux *http.ServeMux) ServiceInterface {
 func (s *AuthenticationService) RegisterRoutes(mux *http.ServeMux) {
 	opts := server.RequestWrapOptions{
 		Cors: &server.Cors{
-			AllowedMethods:   "POST, GET",
+			AllowedMethods:   "POST",
 			AllowedHeaders:   "Content-Type, Authorization",
 			AllowCredentials: true,
 		},
 	}
 	s.ServerOpsService.WrapHandleFunction(mux, "POST /flow/authn", &opts, s.authHandler.HandleAuthenticationRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /flow/authn", &opts, s.authHandler.HandleAuthenticationRequest)
 	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /flow/authn", &opts,
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)

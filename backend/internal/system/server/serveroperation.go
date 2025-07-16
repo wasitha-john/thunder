@@ -93,7 +93,7 @@ func (ops *ServerOperationService) getAllowedOrigins() ([]string, error) {
 		return nil, err
 	}
 
-	return utils.ParseStringArray(allowedOrigins), nil
+	return utils.ParseStringArray(allowedOrigins, ","), nil
 }
 
 // addAllowedOriginHeaders sets the CORS headers for the response based on the configured allowed origins.

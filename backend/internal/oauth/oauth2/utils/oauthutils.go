@@ -62,7 +62,7 @@ func GetOAuthMessage(r *http.Request, w http.ResponseWriter) (*authzmodel.OAuthM
 	// Determine the request type.
 	var requestType string
 	if sessionDataKey != "" && r.FormValue(constants.SessionDataKeyConsent) == "" {
-		requestType = constants.TypeAuthorizationResponseFromFramework
+		requestType = constants.TypeAuthorizationResponseFromEngine
 	} else if r.FormValue(constants.ClientID) != "" && sessionDataKey == "" &&
 		r.FormValue(constants.SessionDataKeyConsent) == "" {
 		requestType = constants.TypeInitialAuthorizationRequest

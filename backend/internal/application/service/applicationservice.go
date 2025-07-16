@@ -81,9 +81,9 @@ func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuth
 
 	row := results[0]
 
-	clientID, ok := row["consumer_key"].(string)
+	appID, ok := row["app_id"].(string)
 	if !ok {
-		return nil, errors.New("failed to parse consumer_key as string")
+		return nil, errors.New("failed to parse app_id as string")
 	}
 
 	clientSecret, ok := row["consumer_secret"].(string)
@@ -94,7 +94,7 @@ func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuth
 	var redirectURIs []string
 	if row["callback_uris"] != nil {
 		if uris, ok := row["callback_uris"].(string); ok {
-			redirectURIs = utils.ParseStringArray(uris)
+			redirectURIs = utils.ParseStringArray(uris, ",")
 		} else {
 			return nil, errors.New("failed to parse callback_uris as string")
 		}
@@ -103,13 +103,14 @@ func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuth
 	var allowedGrantTypes []string
 	if row["grant_types"] != nil {
 		if grants, ok := row["grant_types"].(string); ok {
-			allowedGrantTypes = utils.ParseStringArray(grants)
+			allowedGrantTypes = utils.ParseStringArray(grants, ",")
 		} else {
 			return nil, errors.New("failed to parse grant_types as string")
 		}
 	}
 
 	return &model.OAuthApplication{
+		ID:                appID,
 		ClientID:          clientID,
 		ClientSecret:      clientSecret,
 		RedirectURIs:      redirectURIs,

@@ -25,12 +25,27 @@ import (
 	"strings"
 )
 
-// ParseStringArray parses a comma-separated string into a slice of strings.
-func ParseStringArray(value interface{}) []string {
-	if value == nil {
+// ParseStringArray parses a string into a slice of strings using the specified separator.
+func ParseStringArray(value string, separator string) []string {
+	if value == "" {
 		return []string{}
 	}
-	return strings.Split(value.(string), ",")
+	if separator == "" {
+		separator = ","
+	}
+	return strings.Split(value, separator)
+}
+
+// StringifyStringArray converts a slice of strings into a single string,
+// joining the elements with the specified separator.
+func StringifyStringArray(values []string, separator string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	if separator == "" {
+		separator = ","
+	}
+	return strings.Join(values, separator)
 }
 
 // ConvertInterfaceMapToStringMap converts a map with string keys and interface{} values

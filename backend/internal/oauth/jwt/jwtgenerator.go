@@ -31,6 +31,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/asgardeo/thunder/internal/system/config"
@@ -160,4 +161,32 @@ func GenerateJWT(sub, aud string, validityPeriod int64, claims map[string]string
 	signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
 
 	return signingInput + "." + signatureBase64, iat.Unix(), nil
+}
+
+// DecodeJWT decodes a JWT string and returns its header and payload as maps.
+func DecodeJWT(token string) (map[string]interface{}, map[string]interface{}, error) {
+	parts := strings.SplitN(token, ".", 3)
+	if len(parts) != 3 {
+		return nil, nil, errors.New("invalid JWT format")
+	}
+
+	headerBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return nil, nil, errors.New("failed to decode JWT header: " + err.Error())
+	}
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, nil, errors.New("failed to decode JWT payload: " + err.Error())
+	}
+
+	header := make(map[string]interface{})
+	if err := json.Unmarshal(headerBytes, &header); err != nil {
+		return nil, nil, errors.New("failed to unmarshal JWT header: " + err.Error())
+	}
+	payload := make(map[string]interface{})
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return nil, nil, errors.New("failed to unmarshal JWT payload: " + err.Error())
+	}
+
+	return header, payload, nil
 }

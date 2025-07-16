@@ -36,7 +36,7 @@ func TestStringUtilSuite(t *testing.T) {
 func (suite *StringUtilTestSuite) TestParseStringArray() {
 	testCases := []struct {
 		name     string
-		input    interface{}
+		input    string
 		expected []string
 	}{
 		{
@@ -59,16 +59,11 @@ func (suite *StringUtilTestSuite) TestParseStringArray() {
 			input:    "value1, value2, value3",
 			expected: []string{"value1", " value2", " value3"},
 		},
-		{
-			name:     "NilInput",
-			input:    nil,
-			expected: []string{},
-		},
 	}
 
 	for _, tc := range testCases {
 		suite.T().Run(tc.name, func(t *testing.T) {
-			result := ParseStringArray(tc.input)
+			result := ParseStringArray(tc.input, ",")
 			assert.Equal(t, tc.expected, result)
 		})
 	}

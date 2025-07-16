@@ -46,9 +46,9 @@ const (
 
 // Oauth message types.
 const (
-	TypeInitialAuthorizationRequest        = "initialAuthorizationRequest"
-	TypeAuthorizationResponseFromFramework = "authorizationResponseFromFramework"
-	TypeConsentResponseFromUser            = "consentResponseFromUser"
+	TypeInitialAuthorizationRequest     = "initialAuthorizationRequest"
+	TypeAuthorizationResponseFromEngine = "authorizationResponseFromEngine"
+	TypeConsentResponseFromUser         = "consentResponseFromUser"
 )
 
 // OAuth2 endpoints.
