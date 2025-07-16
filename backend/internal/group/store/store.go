@@ -93,11 +93,10 @@ func GetGroupList(limit, offset int) ([]model.GroupBasicDAO, error) {
 		}
 
 		groupBasic := model.GroupBasicDAO{
-			ID:          group.ID,
-			Name:        group.Name,
-			Description: group.Description,
-			Parent:      group.Parent,
-			OU:          group.OU,
+			ID:                 group.ID,
+			Name:               group.Name,
+			Description:        group.Description,
+			OrganizationUnitID: group.OrganizationUnitID,
 		}
 
 		groups = append(groups, groupBasic)
@@ -132,8 +131,7 @@ func CreateGroup(group model.GroupDAO) error {
 	_, err = tx.Exec(
 		QueryCreateGroup.Query,
 		group.ID,
-		group.Parent,
-		group.OU,
+		group.OrganizationUnitID,
 		group.Name,
 		group.Description,
 	)
@@ -146,8 +144,7 @@ func CreateGroup(group model.GroupDAO) error {
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	// Add users to the group
-	err = addUsersToGroup(tx, group.ID, group.Users, logger)
+	err = addMembersToGroup(tx, group.ID, group.Members, logger)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
@@ -202,19 +199,11 @@ func GetGroup(id string) (model.GroupDAO, error) {
 		return model.GroupDAO{}, err
 	}
 
-	// Get child groups
-	childGroups, err := GetChildGroups(id)
+	members, err := getGroupMembers(dbClient, id, logger)
 	if err != nil {
 		return model.GroupDAO{}, err
 	}
-	group.Groups = *childGroups
-
-	// Get users
-	users, err := getGroupUsers(dbClient, id, logger)
-	if err != nil {
-		return model.GroupDAO{}, err
-	}
-	group.Users = users
+	group.Members = members
 
 	return group, nil
 }
@@ -245,8 +234,7 @@ func UpdateGroup(group model.GroupDAO) error {
 	result, err := tx.Exec(
 		QueryUpdateGroup.Query,
 		group.ID,
-		group.Parent,
-		group.OU,
+		group.OrganizationUnitID,
 		group.Name,
 		group.Description,
 	)
@@ -278,8 +266,8 @@ func UpdateGroup(group model.GroupDAO) error {
 		return model.ErrGroupNotFound
 	}
 
-	// Update group users
-	err = updateGroupUsers(tx, group.ID, group.Users, logger)
+	// Update group members
+	err = updateGroupMembers(tx, group.ID, group.Members, logger)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
@@ -319,15 +307,15 @@ func DeleteGroup(id string) error {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Delete group users first
-	_, err = tx.Exec(QueryDeleteGroupUsers.Query, id)
+	// Delete group assignments first
+	_, err = tx.Exec(QueryDeleteGroupMembers.Query, id)
 	if err != nil {
-		logger.Error("Failed to delete group users", log.Error(err))
+		logger.Error("Failed to delete group member assignments", log.Error(err))
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
 			err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
 		}
-		return fmt.Errorf("failed to delete group users: %w", err)
+		return fmt.Errorf("failed to delete group members: %w", err)
 	}
 
 	// Delete the group
@@ -359,6 +347,54 @@ func DeleteGroup(id string) error {
 	return nil
 }
 
+// ValidateGroupIDs checks if all provided group IDs exist.
+func ValidateGroupIDs(groupIDs []string) ([]string, error) {
+	if len(groupIDs) == 0 {
+		return []string{}, nil
+	}
+
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return nil, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	query, args, err := buildBulkGroupExistsQuery(groupIDs)
+	if err != nil {
+		logger.Error("Failed to build bulk group exists query", log.Error(err))
+		return nil, fmt.Errorf("failed to build bulk group exists query: %w", err)
+	}
+
+	results, err := dbClient.Query(query, args...)
+	if err != nil {
+		logger.Error("Failed to execute bulk group exists query", log.Error(err))
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	existingGroupIDs := make(map[string]bool)
+	for _, row := range results {
+		if groupID, ok := row["group_id"].(string); ok {
+			existingGroupIDs[groupID] = true
+		}
+	}
+
+	var invalidGroupIDs []string
+	for _, groupID := range groupIDs {
+		if !existingGroupIDs[groupID] {
+			invalidGroupIDs = append(invalidGroupIDs, groupID)
+		}
+	}
+
+	return invalidGroupIDs, nil
+}
+
 // buildGroupFromResultRow constructs a model.Group from a database result row.
 func buildGroupFromResultRow(row map[string]interface{}, logger *log.Logger) (model.GroupDAO, error) {
 	groupID, ok := row["group_id"].(string)
@@ -385,100 +421,81 @@ func buildGroupFromResultRow(row map[string]interface{}, logger *log.Logger) (mo
 		return model.GroupDAO{}, fmt.Errorf("failed to parse ou_id as string")
 	}
 
-	var parentID *string
-	if row["parent_id"] != nil {
-		if parentGroupID, ok := row["parent_id"].(string); ok {
-			parentID = &parentGroupID
-		}
-	}
-
 	group := model.GroupDAO{
-		ID:          groupID,
-		Name:        name,
-		Description: description,
-		Parent:      parentID,
-		OU:          ouID,
+		ID:                 groupID,
+		Name:               name,
+		Description:        description,
+		OrganizationUnitID: ouID,
 	}
 
 	return group, nil
 }
 
-// GetChildGroups retrieves the child groups of a given group ID.
-func GetChildGroups(groupID string) (*[]string, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+// getGroupMembers retrieves the assigned members of a given group.
+func getGroupMembers(dbClient client.DBClientInterface, groupID string, logger *log.Logger) ([]model.Member, error) {
+	results, err := dbClient.Query(QueryGetGroupMembers, groupID)
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
-		return nil, fmt.Errorf("failed to get database client: %w", err)
-	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
-
-	results, err := dbClient.Query(QueryGetChildGroups, groupID)
-	if err != nil {
-		logger.Error("Failed to get child groups", log.Error(err))
-		return nil, fmt.Errorf("failed to get child groups: %w", err)
+		logger.Error("Failed to get group members", log.Error(err))
+		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}
 
-	childGroups := make([]string, 0)
+	members := make([]model.Member, 0)
 	for _, row := range results {
-		if childID, ok := row["group_id"].(string); ok {
-			childGroups = append(childGroups, childID)
+		if memberID, ok := row["member_id"].(string); ok {
+			if memberType, ok := row["member_type"].(string); ok {
+				members = append(members, model.Member{
+					ID:   memberID,
+					Type: model.MemberType(memberType),
+				})
+			}
 		}
 	}
 
-	return &childGroups, nil
+	return members, nil
 }
 
-// getChildGroups retrieves the child groups of a given group ID.
-func getGroupUsers(dbClient client.DBClientInterface, groupID string, logger *log.Logger) ([]string, error) {
-	results, err := dbClient.Query(QueryGetGroupUsers, groupID)
-	if err != nil {
-		logger.Error("Failed to get group users", log.Error(err))
-		return nil, fmt.Errorf("failed to get group users: %w", err)
-	}
-
-	users := make([]string, 0)
-	for _, row := range results {
-		if userID, ok := row["user_id"].(string); ok {
-			users = append(users, userID)
-		}
-	}
-
-	return users, nil
-}
-
-// addUsersToGroup adds a list of users to a group.
-func addUsersToGroup(tx dbmodel.TxInterface, groupID string, users []string, logger *log.Logger) error {
-	for _, userID := range users {
-		_, err := tx.Exec(QueryAddUserToGroup.Query, groupID, userID)
+// addMembersToGroup adds a list of members to a group.
+func addMembersToGroup(
+	tx dbmodel.TxInterface,
+	groupID string,
+	members []model.Member,
+	logger *log.Logger,
+) error {
+	for _, member := range members {
+		_, err := tx.Exec(QueryAddMemberToGroup.Query, groupID, member.Type, member.ID)
 		if err != nil {
-			logger.Error("Failed to add user to group", log.String("userID", userID), log.Error(err))
-			return fmt.Errorf("failed to add user to group: %w", err)
+			logger.Error("Failed to add member to group", log.String("memberID", member.ID), log.Error(err))
+			return fmt.Errorf("failed to add member to group: %w", err)
 		}
 	}
 	return nil
 }
 
-// updateGroupUsers updates the users in a group by first deleting existing users and then adding new ones.
-func updateGroupUsers(tx dbmodel.TxInterface, groupID string, users []string, logger *log.Logger) error {
-	// Delete existing users
-	_, err := tx.Exec(QueryDeleteGroupUsers.Query, groupID)
+// updateGroupMembers updates the members assigned to the group by first deleting existing members and
+// then adding new ones.
+func updateGroupMembers(
+	tx dbmodel.TxInterface,
+	groupID string,
+	members []model.Member,
+	logger *log.Logger,
+) error {
+	_, err := tx.Exec(QueryDeleteGroupMembers.Query, groupID)
 	if err != nil {
-		logger.Error("Failed to delete existing group users", log.Error(err))
-		return fmt.Errorf("failed to delete existing group users: %w", err)
+		logger.Error("Failed to delete existing group member assignments", log.Error(err))
+		return fmt.Errorf("failed to delete existing group member assignments: %w", err)
 	}
 
-	// Add new users
-	return addUsersToGroup(tx, groupID, users, logger)
+	err = addMembersToGroup(tx, groupID, members, logger)
+	if err != nil {
+		logger.Error("Failed to assign members to group", log.Error(err))
+		return fmt.Errorf("failed to assign members to group: %w", err)
+	}
+	return nil
 }
 
-// CheckGroupNameConflictForCreate checks if the new group name conflicts with existing groups under the same parent.
-func CheckGroupNameConflictForCreate(name string, parent model.Parent) error {
+// CheckGroupNameConflictForCreate checks if the new group name conflicts with existing groups
+// in the same organization unit.
+func CheckGroupNameConflictForCreate(name string, organizationUnitID string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -492,11 +509,12 @@ func CheckGroupNameConflictForCreate(name string, parent model.Parent) error {
 		}
 	}()
 
-	return checkGroupNameConflictForCreate(dbClient, name, parent, logger)
+	return checkGroupNameConflictForCreate(dbClient, name, organizationUnitID, logger)
 }
 
-// CheckGroupNameConflictForUpdate checks if the new group name conflicts with other groups under the same parent.
-func CheckGroupNameConflictForUpdate(name string, parent model.Parent, groupID string) error {
+// CheckGroupNameConflictForUpdate checks if the new group name conflicts with other groups
+// in the same organization unit.
+func CheckGroupNameConflictForUpdate(name string, organizationUnitID string, groupID string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -510,27 +528,22 @@ func CheckGroupNameConflictForUpdate(name string, parent model.Parent, groupID s
 		}
 	}()
 
-	return checkGroupNameConflictForUpdate(dbClient, name, parent, groupID, logger)
+	return checkGroupNameConflictForUpdate(dbClient, name, organizationUnitID, groupID, logger)
 }
 
-// checkGroupNameConflictForCreate checks if the new group name conflicts with existing groups under the same parent.
+// checkGroupNameConflictForCreate checks if the new group name conflicts with existing groups
+// in the same organization unit.
 func checkGroupNameConflictForCreate(
 	dbClient client.DBClientInterface,
 	name string,
-	parent model.Parent,
+	organizationUnitID string,
 	logger *log.Logger,
 ) error {
 	var results []map[string]interface{}
 	var err error
 
-	// Use appropriate query based on parent type and whether this is an update operation
-	if parent.Type == model.ParentTypeGroup {
-		results, err = dbClient.Query(QueryCheckGroupNameConflict, name, parent.ID)
-	} else if parent.Type == model.ParentTypeOrganizationUnit {
-		results, err = dbClient.Query(QueryCheckGroupNameConflictInOU, name, parent.ID)
-	} else {
-		return fmt.Errorf("invalid parent type: %s", parent.Type)
-	}
+	// Check name conflict within the organization unit
+	results, err = dbClient.Query(QueryCheckGroupNameConflict, name, organizationUnitID)
 
 	if err != nil {
 		logger.Error("Failed to check group name conflict", log.Error(err))
@@ -546,25 +559,20 @@ func checkGroupNameConflictForCreate(
 	return nil
 }
 
-// checkGroupNameConflictForUpdate checks if the new group name conflicts with other groups under the same parent.
+// checkGroupNameConflictForUpdate checks if the new group name conflicts with other groups
+// in the same organization unit.
 func checkGroupNameConflictForUpdate(
 	dbClient client.DBClientInterface,
 	name string,
-	parent model.Parent,
+	organizationUnitID string,
 	groupID string,
 	logger *log.Logger,
 ) error {
 	var results []map[string]interface{}
 	var err error
 
-	// Use appropriate query based on parent type and whether this is an update operation
-	if parent.Type == model.ParentTypeGroup {
-		results, err = dbClient.Query(QueryCheckGroupNameConflictForUpdate, name, parent.ID, groupID)
-	} else if parent.Type == model.ParentTypeOrganizationUnit {
-		results, err = dbClient.Query(QueryCheckGroupNameConflictInOUForUpdate, name, parent.ID, groupID)
-	} else {
-		return fmt.Errorf("invalid parent type: %s", parent.Type)
-	}
+	// Check name conflict within the organization unit, excluding the current group
+	results, err = dbClient.Query(QueryCheckGroupNameConflictForUpdate, name, organizationUnitID, groupID)
 
 	if err != nil {
 		logger.Error("Failed to check group name conflict", log.Error(err))

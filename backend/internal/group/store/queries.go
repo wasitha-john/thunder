@@ -20,6 +20,9 @@
 package store
 
 import (
+	"fmt"
+	"strings"
+
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 )
 
@@ -27,32 +30,32 @@ var (
 	// QueryGetGroupListCount is the query to get total count of root groups.
 	QueryGetGroupListCount = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-00",
-		Query: `SELECT COUNT(*) as total FROM "GROUP" WHERE OU_ID IS NOT NULL AND PARENT_ID IS NULL`,
+		Query: `SELECT COUNT(*) as total FROM "GROUP" WHERE OU_ID IS NOT NULL`,
 	}
 
 	// QueryGetGroupList is the query to get root groups with pagination.
 	QueryGetGroupList = dbmodel.DBQuery{
 		ID: "GRQ-GROUP_MGT-01",
-		Query: `SELECT GROUP_ID, OU_ID, NAME, DESCRIPTION FROM "GROUP" WHERE OU_ID IS NOT NULL AND PARENT_ID IS NULL ` +
+		Query: `SELECT GROUP_ID, OU_ID, NAME, DESCRIPTION FROM "GROUP" WHERE OU_ID IS NOT NULL ` +
 			`ORDER BY NAME LIMIT $1 OFFSET $2`,
 	}
 
 	// QueryCreateGroup is the query to create a new group.
 	QueryCreateGroup = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-02",
-		Query: `INSERT INTO "GROUP" (GROUP_ID, PARENT_ID, OU_ID, NAME, DESCRIPTION) VALUES ($1, $2, $3, $4, $5)`,
+		Query: `INSERT INTO "GROUP" (GROUP_ID, OU_ID, NAME, DESCRIPTION) VALUES ($1, $2, $3, $4)`,
 	}
 
 	// QueryGetGroupByID is the query to get a group by id.
 	QueryGetGroupByID = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-03",
-		Query: `SELECT GROUP_ID, PARENT_ID, OU_ID, NAME, DESCRIPTION FROM "GROUP" WHERE GROUP_ID = $1`,
+		Query: `SELECT GROUP_ID, OU_ID, NAME, DESCRIPTION FROM "GROUP" WHERE GROUP_ID = $1`,
 	}
 
 	// QueryUpdateGroup is the query to update a group.
 	QueryUpdateGroup = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-04",
-		Query: `UPDATE "GROUP" SET PARENT_ID = $2, OU_ID = $3, NAME = $4, DESCRIPTION = $5 WHERE GROUP_ID = $1`,
+		Query: `UPDATE "GROUP" SET OU_ID = $2, NAME = $3, DESCRIPTION = $4 WHERE GROUP_ID = $1`,
 	}
 
 	// QueryDeleteGroup is the query to delete a group.
@@ -61,52 +64,63 @@ var (
 		Query: `DELETE FROM "GROUP" WHERE GROUP_ID = $1`,
 	}
 
-	// QueryGetChildGroups is the query to get child groups of a group.
-	QueryGetChildGroups = dbmodel.DBQuery{
+	// QueryGetGroupMembers is the query to get members assigned to a group.
+	QueryGetGroupMembers = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-06",
-		Query: `SELECT GROUP_ID FROM "GROUP" WHERE PARENT_ID = $1`,
+		Query: `SELECT MEMBER_ID, MEMBER_TYPE FROM GROUP_MEMBER_REFERENCE WHERE GROUP_ID = $1`,
 	}
 
-	// QueryGetGroupUsers is the query to get users in a group.
-	QueryGetGroupUsers = dbmodel.DBQuery{
-		ID:    "GRQ-GROUP_MGT-07",
-		Query: `SELECT USER_ID FROM GROUP_USER_REFERENCE WHERE GROUP_ID = $1`,
-	}
-
-	// QueryDeleteGroupUsers is the query to delete all users from a group.
-	QueryDeleteGroupUsers = dbmodel.DBQuery{
+	// QueryDeleteGroupMembers is the query to delete all members assigned to a group.
+	QueryDeleteGroupMembers = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-08",
-		Query: `DELETE FROM GROUP_USER_REFERENCE WHERE GROUP_ID = $1`,
+		Query: `DELETE FROM GROUP_MEMBER_REFERENCE WHERE GROUP_ID = $1`,
 	}
 
-	// QueryAddUserToGroup is the query to add a user to a group.
-	QueryAddUserToGroup = dbmodel.DBQuery{
+	// QueryAddMemberToGroup is the query to assign member to a group.
+	QueryAddMemberToGroup = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-09",
-		Query: `INSERT INTO GROUP_USER_REFERENCE (GROUP_ID, USER_ID) VALUES ($1, $2)`,
+		Query: `INSERT INTO GROUP_MEMBER_REFERENCE (GROUP_ID, MEMBER_TYPE, MEMBER_ID) VALUES ($1, $2, $3)`,
 	}
 
-	// QueryCheckGroupNameConflict is the query to check if a group name conflicts under the same parent.
+	// QueryCheckGroupNameConflict is the query to check if a group name conflicts within the same organization unit.
 	QueryCheckGroupNameConflict = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-10",
-		Query: `SELECT COUNT(*) as count FROM "GROUP" WHERE NAME = $1 AND PARENT_ID = $2`,
+		Query: `SELECT COUNT(*) as count FROM "GROUP" WHERE NAME = $1 AND OU_ID = $2`,
 	}
 
 	// QueryCheckGroupNameConflictForUpdate is the query to check name conflict during update.
 	QueryCheckGroupNameConflictForUpdate = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-11",
-		Query: `SELECT COUNT(*) as count FROM "GROUP" WHERE NAME = $1 AND PARENT_ID = $2 AND GROUP_ID != $3`,
-	}
-
-	// QueryCheckGroupNameConflictInOU is the query to check if a group name conflicts within an organization unit.
-	QueryCheckGroupNameConflictInOU = dbmodel.DBQuery{
-		ID:    "GRQ-GROUP_MGT-12",
-		Query: `SELECT COUNT(*) as count FROM "GROUP" WHERE NAME = $1 AND OU_ID = $2 AND PARENT_ID IS NULL`,
-	}
-
-	// QueryCheckGroupNameConflictInOUForUpdate is the query to check name conflict in OU during update.
-	QueryCheckGroupNameConflictInOUForUpdate = dbmodel.DBQuery{
-		ID: "GRQ-GROUP_MGT-13",
-		Query: `SELECT COUNT(*) as count FROM "GROUP" WHERE NAME = $1 AND OU_ID = $2 AND ` +
-			`PARENT_ID IS NULL AND GROUP_ID != $3`,
+		Query: `SELECT COUNT(*) as count FROM "GROUP" WHERE NAME = $1 AND OU_ID = $2 AND GROUP_ID != $3`,
 	}
 )
+
+// buildBulkGroupExistsQuery constructs a query to check which group IDs exist from a list.
+func buildBulkGroupExistsQuery(groupIDs []string) (dbmodel.DBQuery, []interface{}, error) {
+	if len(groupIDs) == 0 {
+		return dbmodel.DBQuery{}, nil, fmt.Errorf("groupIDs list cannot be empty")
+	}
+	args := make([]interface{}, len(groupIDs))
+
+	postgresPlaceholders := make([]string, len(groupIDs))
+	sqlitePlaceholders := make([]string, len(groupIDs))
+
+	for i, groupID := range groupIDs {
+		postgresPlaceholders[i] = fmt.Sprintf("$%d", i+1)
+		sqlitePlaceholders[i] = "?"
+		args[i] = groupID
+	}
+
+	baseQuery := "SELECT GROUP_ID FROM \"GROUP\" WHERE GROUP_ID IN (%s)"
+	postgresQuery := fmt.Sprintf(baseQuery, strings.Join(postgresPlaceholders, ","))
+	sqliteQuery := fmt.Sprintf(baseQuery, strings.Join(sqlitePlaceholders, ","))
+
+	query := dbmodel.DBQuery{
+		ID:            "ASQ-GROUP_MGT-12",
+		Query:         postgresQuery,
+		PostgresQuery: postgresQuery,
+		SQLiteQuery:   sqliteQuery,
+	}
+
+	return query, args, nil
+}

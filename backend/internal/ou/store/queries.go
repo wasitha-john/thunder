@@ -78,7 +78,7 @@ var (
 	// QueryGetOrganizationUnitGroups is the query to get groups in an organization unit.
 	QueryGetOrganizationUnitGroups = dbmodel.DBQuery{
 		ID:    "OUQ-OU_MGT-09",
-		Query: `SELECT GROUP_ID FROM "GROUP" WHERE OU_ID = $1 AND PARENT_ID IS NULL`,
+		Query: `SELECT GROUP_ID FROM "GROUP" WHERE OU_ID = $1`,
 	}
 
 	// QueryCheckOrganizationUnitNameConflict is the query to check if an organization

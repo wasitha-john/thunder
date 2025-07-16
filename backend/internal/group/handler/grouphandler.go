@@ -269,7 +269,7 @@ func (gh *GroupHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 			statusCode = http.StatusNotFound
 		case constants.ErrorGroupNameConflict.Code:
 			statusCode = http.StatusConflict
-		case constants.ErrorParentNotFound.Code, constants.ErrorCannotDeleteGroup.Code,
+		case constants.ErrorInvalidOUID.Code, constants.ErrorCannotDeleteGroup.Code,
 			constants.ErrorInvalidRequestFormat.Code, constants.ErrorMissingGroupID.Code,
 			constants.ErrorInvalidLimit.Code, constants.ErrorInvalidOffset.Code:
 			statusCode = http.StatusBadRequest
@@ -302,18 +302,18 @@ func (gh *GroupHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 // sanitizeCreateGroupRequest sanitizes the create group request input.
 func (gh *GroupHandler) sanitizeCreateGroupRequest(request *model.CreateGroupRequest) model.CreateGroupRequest {
 	sanitized := model.CreateGroupRequest{
-		Name:        sysutils.SanitizeString(request.Name),
-		Description: sysutils.SanitizeString(request.Description),
-		Parent: model.Parent{
-			Type: request.Parent.Type,
-			ID:   sysutils.SanitizeString(request.Parent.ID),
-		},
+		Name:               sysutils.SanitizeString(request.Name),
+		Description:        sysutils.SanitizeString(request.Description),
+		OrganizationUnitID: sysutils.SanitizeString(request.OrganizationUnitID),
 	}
 
-	if request.Users != nil {
-		sanitized.Users = make([]string, len(request.Users))
-		for i, user := range request.Users {
-			sanitized.Users[i] = sysutils.SanitizeString(user)
+	if request.Members != nil {
+		sanitized.Members = make([]model.Member, len(request.Members))
+		for i, member := range request.Members {
+			sanitized.Members[i] = model.Member{
+				ID:   sysutils.SanitizeString(member.ID),
+				Type: member.Type,
+			}
 		}
 	}
 
@@ -323,25 +323,18 @@ func (gh *GroupHandler) sanitizeCreateGroupRequest(request *model.CreateGroupReq
 // sanitizeUpdateGroupRequest sanitizes the update group request input.
 func (gh *GroupHandler) sanitizeUpdateGroupRequest(request *model.UpdateGroupRequest) model.UpdateGroupRequest {
 	sanitized := model.UpdateGroupRequest{
-		Name:        sysutils.SanitizeString(request.Name),
-		Description: sysutils.SanitizeString(request.Description),
-		Parent: model.Parent{
-			Type: request.Parent.Type,
-			ID:   sysutils.SanitizeString(request.Parent.ID),
-		},
+		Name:               sysutils.SanitizeString(request.Name),
+		Description:        sysutils.SanitizeString(request.Description),
+		OrganizationUnitID: sysutils.SanitizeString(request.OrganizationUnitID),
 	}
 
-	if request.Users != nil {
-		sanitized.Users = make([]string, len(request.Users))
-		for i, user := range request.Users {
-			sanitized.Users[i] = sysutils.SanitizeString(user)
-		}
-	}
-
-	if request.Groups != nil {
-		sanitized.Groups = make([]string, len(request.Groups))
-		for i, group := range request.Groups {
-			sanitized.Groups[i] = sysutils.SanitizeString(group)
+	if request.Members != nil {
+		sanitized.Members = make([]model.Member, len(request.Members))
+		for i, member := range request.Members {
+			sanitized.Members[i] = model.Member{
+				ID:   sysutils.SanitizeString(member.ID),
+				Type: member.Type,
+			}
 		}
 	}
 
