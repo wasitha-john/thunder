@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package constants provides constants for the authentication module.
 package constants
 
 import (

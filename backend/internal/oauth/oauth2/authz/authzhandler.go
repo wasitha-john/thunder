@@ -46,13 +46,15 @@ type AuthorizeHandlerInterface interface {
 
 // AuthorizeHandler implements the AuthorizeHandlerInterface for handling OAuth2 authorization requests.
 type AuthorizeHandler struct {
-	authValidator AuthorizationValidatorInterface
+	AppProvider   appprovider.ApplicationProviderInterface
+	AuthValidator AuthorizationValidatorInterface
 }
 
 // NewAuthorizeHandler creates a new instance of AuthorizeHandler.
 func NewAuthorizeHandler() AuthorizeHandlerInterface {
 	return &AuthorizeHandler{
-		authValidator: NewAuthorizationValidator(),
+		AppProvider:   appprovider.NewApplicationProvider(),
+		AuthValidator: NewAuthorizationValidator(),
 	}
 }
 
@@ -107,9 +109,7 @@ func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(msg *authzmodel.OA
 	}
 
 	// Retrieve the OAuth application based on the client Id.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-
+	appService := ah.AppProvider.GetApplicationService()
 	app, err := appService.GetOAuthApplication(clientID)
 	if err != nil || app == nil {
 		redirectToErrorPage(w, r, constants.ErrorInvalidClient, "Invalid client_id")
@@ -117,7 +117,7 @@ func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(msg *authzmodel.OA
 	}
 
 	// Validate the authorization request.
-	sendErrorToApp, errorCode, errorMessage := ah.authValidator.validateInitialAuthorizationRequest(msg, app)
+	sendErrorToApp, errorCode, errorMessage := ah.AuthValidator.validateInitialAuthorizationRequest(msg, app)
 	if errorCode != "" {
 		if sendErrorToApp && redirectURI != "" {
 			// Redirect to the redirect URI with an error.

@@ -31,7 +31,7 @@ type AuthNRequest struct {
 	Inputs         map[string]string `json:"inputs"`
 }
 
-// FlowResponse represents the flow execution API response body
+// AuthNResponse represents the authentication response body.
 type AuthNResponse struct {
 	FlowID        string             `json:"flowId"`
 	StepID        string             `json:"stepId,omitempty"`

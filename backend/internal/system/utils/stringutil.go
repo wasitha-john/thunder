@@ -33,7 +33,11 @@ func ParseStringArray(value string, separator string) []string {
 	if separator == "" {
 		separator = ","
 	}
-	return strings.Split(value, separator)
+	split := strings.Split(value, separator)
+	for i := range split {
+		split[i] = strings.TrimSpace(split[i])
+	}
+	return split
 }
 
 // StringifyStringArray converts a slice of strings into a single string,

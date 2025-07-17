@@ -42,7 +42,7 @@ func (suite *StringUtilTestSuite) TestParseStringArray() {
 		{
 			name:     "EmptyString",
 			input:    "",
-			expected: []string{""},
+			expected: []string{},
 		},
 		{
 			name:     "SingleValue",
@@ -57,7 +57,7 @@ func (suite *StringUtilTestSuite) TestParseStringArray() {
 		{
 			name:     "ValuesWithSpaces",
 			input:    "value1, value2, value3",
-			expected: []string{"value1", " value2", " value3"},
+			expected: []string{"value1", "value2", "value3"},
 		},
 	}
 
@@ -342,4 +342,116 @@ func (suite *StringUtilTestSuite) TestNumStringToBool() {
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func (suite *StringUtilTestSuite) TestStringifyStringArray() {
+	testCases := []struct {
+		name     string
+		input    []string
+		sep      string
+		expected string
+	}{
+		{
+			name:     "EmptySlice",
+			input:    []string{},
+			sep:      ",",
+			expected: "",
+		},
+		{
+			name:     "SingleValue",
+			input:    []string{"a"},
+			sep:      ",",
+			expected: "a",
+		},
+		{
+			name:     "MultipleValues",
+			input:    []string{"a", "b", "c"},
+			sep:      ",",
+			expected: "a,b,c",
+		},
+		{
+			name:     "CustomSeparator",
+			input:    []string{"a", "b", "c"},
+			sep:      "|",
+			expected: "a|b|c",
+		},
+		{
+			name:     "EmptySeparator",
+			input:    []string{"a", "b"},
+			sep:      "",
+			expected: "a,b",
+		},
+	}
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			result := StringifyStringArray(tc.input, tc.sep)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func (suite *StringUtilTestSuite) TestParseStringArray_CustomSeparator() {
+	testCases := []struct {
+		name     string
+		input    string
+		sep      string
+		expected []string
+	}{
+		{
+			name:     "PipeSeparator",
+			input:    "a|b|c",
+			sep:      "|",
+			expected: []string{"a", "b", "c"},
+		},
+		{
+			name:     "EmptySeparatorDefaultsToComma",
+			input:    "a,b,c",
+			sep:      "",
+			expected: []string{"a", "b", "c"},
+		},
+	}
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			result := ParseStringArray(tc.input, tc.sep)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func (suite *StringUtilTestSuite) TestConvertInterfaceValueToString_ExtraCases() {
+	testCases := []struct {
+		name     string
+		input    interface{}
+		expected string
+	}{
+		{
+			name:     "StructValue",
+			input:    struct{ X int }{X: 5},
+			expected: "{5}",
+		},
+		{
+			name:     "MapValue",
+			input:    map[string]int{"a": 1},
+			expected: "map[a:1]",
+		},
+		{
+			name:     "NilSlice",
+			input:    ([]string)(nil),
+			expected: "",
+		},
+	}
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			result := ConvertInterfaceValueToString(tc.input)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func (suite *StringUtilTestSuite) TestMergeStringMaps_OverlapNilValue() {
+	dst := map[string]string{"a": "1", "b": "2"}
+	src := map[string]string{"b": "", "c": "3"}
+	expected := map[string]string{"a": "1", "b": "", "c": "3"}
+	result := MergeStringMaps(dst, src)
+	assert.Equal(suite.T(), expected, result)
 }

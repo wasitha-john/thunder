@@ -28,10 +28,16 @@ import React, { useState, useEffect, ReactElement } from 'react';
 import axios from 'axios';
 import AppConfig from '@/configs/app.json';
 
+interface LoginInput {
+  name: string;
+  type: string;
+  required?: boolean;
+}
+
 const LoginPageContent = function (): ReactElement {
   const [insecureWarning, setInsecureWarning] = useState<boolean>(false);
   const [flowId, setFlowId] = useState<string>('');
-  const [inputs, setInputs] = useState<any[]>([]);
+  const [inputs, setInputs] = useState<LoginInput[]>([]);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
@@ -69,33 +75,51 @@ const LoginPageContent = function (): ReactElement {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    try {
-      const res = await axios.post(AppConfig.authenticationEndpoint, {
-        flowId,
-        inputs: formValues,
-      }, {
-        headers: { 'Content-Type': 'application/json' },
-        withCredentials: true,
-        validateStatus: () => true,
-      });
-      if (res.status === 302 && res.headers.location) {
-        window.location.href = res.headers.location;
-        return;
-      }
-      if (res.data.flowStatus === 'ERROR') {
-        setError(res.data.failureReason || 'Authentication failed.');
-      } else if (res.data.flowStatus === 'COMPLETE') {
-        const redirectUrl = res.data.data.redirectURL;
-        if (redirectUrl) {
-          window.location.href = redirectUrl;
-        } else {
-          setError('Authentication completed but no redirect URL provided.');
+    let currentFlowId = flowId;
+    let currentInputs = formValues;
+    let continueFlow = true;
+    while (continueFlow) {
+      try {
+        const res = await axios.post(AppConfig.authenticationEndpoint, {
+          flowId: currentFlowId,
+          inputs: currentInputs,
+        }, {
+          headers: { 'Content-Type': 'application/json' },
+          withCredentials: true,
+          validateStatus: () => true,
+        });
+        if (res.status === 302 && res.headers.location) {
+          window.location.href = res.headers.location;
+          return;
         }
-      } else if (res.data.flowStatus === 'INCOMPLETE') {
-        setError('Authentication incomplete.');
+        if (res.status !== 200) {
+          setError(res.data?.message || `Error response status: ${res.status}`);
+          continueFlow = false;
+          break;
+        }
+        if (res.data.flowStatus === 'ERROR') {
+          setError(res.data.failureReason || 'Authentication failed.');
+          continueFlow = false;
+        } else if (res.data.flowStatus === 'COMPLETE') {
+          const redirectUrl = res.data.data.redirectURL;
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+          } else {
+            setError('Authentication completed but no redirect URL provided.');
+          }
+          continueFlow = false;
+        } else if (res.data.flowStatus === 'INCOMPLETE') {
+          // Update inputs and flowId for next step
+          setInputs(res.data.data?.inputs || []);
+          setFlowId(res.data.flowId);
+          setFormValues({}); // Clear previous values for new input
+          continueFlow = false; // Stop loop, wait for user to submit again
+          setError(''); // Clear any previous error
+        }
+      } catch (err) {
+        setError('Failed to authenticate.');
+        continueFlow = false;
       }
-    } catch (err) {
-      setError('Failed to authenticate.');
     }
   };
 
@@ -118,21 +142,32 @@ const LoginPageContent = function (): ReactElement {
         <Typography>Loading...</Typography>
       ) : (
         <Box display="flex" flexDirection="column" gap={2}>
-          {inputs.map((input) => (
-            <Box key={input.name} display="flex" flexDirection="column" gap={0.5}>
-              <InputLabel htmlFor={input.name}>{input.name.charAt(0).toUpperCase() + input.name.slice(1)}</InputLabel>
-              <OutlinedInput
-                type={input.type === 'password' ? 'password' : 'text'}
-                id={input.name}
-                name={input.name}
-                placeholder={`Enter your ${input.name}`}
-                size="small"
-                required={input.required}
-                value={formValues[input.name] || ''}
-                onChange={handleInputChange}
-              />
-            </Box>
-          ))}
+          {inputs.map((input) => {
+            const words = input.name.replace(/([A-Z])/g, ' $1').split(' ');
+            let formattedLabel = words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            let formattedPlaceholder = words.join(' ').toLowerCase();
+
+            if (input.name === 'otp') {
+              formattedLabel = "OTP";
+              formattedPlaceholder = "one time password";
+            }
+
+            return (
+              <Box key={input.name} display="flex" flexDirection="column" gap={0.5}>
+                <InputLabel htmlFor={input.name}>{formattedLabel}</InputLabel>
+                <OutlinedInput
+                  type={input.name === 'password' ? 'password' : 'text'}
+                  id={input.name}
+                  name={input.name}
+                  placeholder={`Enter your ${formattedPlaceholder}`}
+                  size="small"
+                  required={input.required}
+                  value={formValues[input.name] || ''}
+                  onChange={handleInputChange}
+                />
+              </Box>
+            );
+          })}
           <Button variant="contained" color="primary" type="submit" fullWidth sx={{ mt: 2 }}>
             Sign In
           </Button>
