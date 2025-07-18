@@ -82,7 +82,7 @@ func GetGroupList(limit, offset int) ([]model.GroupBasicDAO, error) {
 
 	groups := make([]model.GroupBasicDAO, 0)
 	for _, row := range results {
-		group, err := buildGroupFromResultRow(row, logger)
+		group, err := buildGroupFromResultRow(row)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build group from result row: %w", err)
 		}
@@ -135,7 +135,7 @@ func CreateGroup(group model.GroupDAO) error {
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	err = addMembersToGroup(tx, group.ID, group.Members, logger)
+	err = addMembersToGroup(tx, group.ID, group.Members)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
@@ -179,7 +179,7 @@ func GetGroup(id string) (model.GroupDAO, error) {
 	}
 
 	row := results[0]
-	group, err := buildGroupFromResultRow(row, logger)
+	group, err := buildGroupFromResultRow(row)
 	if err != nil {
 		return model.GroupDAO{}, err
 	}
@@ -303,7 +303,7 @@ func UpdateGroup(group model.GroupDAO) error {
 	}
 
 	// Update group members
-	err = updateGroupMembers(tx, group.ID, group.Members, logger)
+	err = updateGroupMembers(tx, group.ID, group.Members)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
@@ -419,7 +419,7 @@ func ValidateGroupIDs(groupIDs []string) ([]string, error) {
 }
 
 // buildGroupFromResultRow constructs a model.Group from a database result row.
-func buildGroupFromResultRow(row map[string]interface{}, logger *log.Logger) (model.GroupDAO, error) {
+func buildGroupFromResultRow(row map[string]interface{}) (model.GroupDAO, error) {
 	groupID, ok := row["group_id"].(string)
 	if !ok {
 		return model.GroupDAO{}, fmt.Errorf("failed to parse group_id as string")
@@ -455,7 +455,6 @@ func addMembersToGroup(
 	tx dbmodel.TxInterface,
 	groupID string,
 	members []model.Member,
-	logger *log.Logger,
 ) error {
 	for _, member := range members {
 		_, err := tx.Exec(QueryAddMemberToGroup.Query, groupID, member.Type, member.ID)
@@ -472,14 +471,13 @@ func updateGroupMembers(
 	tx dbmodel.TxInterface,
 	groupID string,
 	members []model.Member,
-	logger *log.Logger,
 ) error {
 	_, err := tx.Exec(QueryDeleteGroupMembers.Query, groupID)
 	if err != nil {
 		return fmt.Errorf("failed to delete existing group member assignments: %w", err)
 	}
 
-	err = addMembersToGroup(tx, groupID, members, logger)
+	err = addMembersToGroup(tx, groupID, members)
 	if err != nil {
 		return fmt.Errorf("failed to assign members to group: %w", err)
 	}
@@ -501,7 +499,7 @@ func CheckGroupNameConflictForCreate(name string, organizationUnitID string) err
 		}
 	}()
 
-	return checkGroupNameConflictForCreate(dbClient, name, organizationUnitID, logger)
+	return checkGroupNameConflictForCreate(dbClient, name, organizationUnitID)
 }
 
 // CheckGroupNameConflictForUpdate checks if the new group name conflicts with other groups
@@ -519,7 +517,7 @@ func CheckGroupNameConflictForUpdate(name string, organizationUnitID string, gro
 		}
 	}()
 
-	return checkGroupNameConflictForUpdate(dbClient, name, organizationUnitID, groupID, logger)
+	return checkGroupNameConflictForUpdate(dbClient, name, organizationUnitID, groupID)
 }
 
 // checkGroupNameConflictForCreate checks if the new group name conflicts with existing groups
@@ -528,7 +526,6 @@ func checkGroupNameConflictForCreate(
 	dbClient client.DBClientInterface,
 	name string,
 	organizationUnitID string,
-	logger *log.Logger,
 ) error {
 	var results []map[string]interface{}
 	var err error
@@ -556,7 +553,6 @@ func checkGroupNameConflictForUpdate(
 	name string,
 	organizationUnitID string,
 	groupID string,
-	logger *log.Logger,
 ) error {
 	var results []map[string]interface{}
 	var err error
