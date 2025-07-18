@@ -32,9 +32,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/asgardeo/thunder/internal/system/config"
 )
 
 type JWTGeneratorTestSuite struct {
@@ -94,7 +95,10 @@ func (suite *JWTGeneratorTestSuite) SetupTest() {
 func (suite *JWTGeneratorTestSuite) TearDownTest() {
 	// Clean up temporary directory
 	if suite.tempDir != "" {
-		os.RemoveAll(suite.tempDir)
+		err := os.RemoveAll(suite.tempDir)
+		if err != nil {
+			suite.T().Logf("Failed to remove temp directory: %v", err)
+		}
 	}
 	// Reset runtime config after each test
 	config.ResetThunderRuntimeForTest()
@@ -118,11 +122,11 @@ func (suite *JWTGeneratorTestSuite) generateTestCertificate() error {
 			StreetAddress: []string{""},
 			PostalCode:    []string{""},
 		},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IPAddresses:  nil,
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses: nil,
 	}
 
 	// Create certificate
@@ -136,7 +140,11 @@ func (suite *JWTGeneratorTestSuite) generateTestCertificate() error {
 	if err != nil {
 		return err
 	}
-	defer certOut.Close()
+	defer func() {
+		if closeErr := certOut.Close(); closeErr != nil {
+			suite.T().Logf("Failed to close cert file: %v", closeErr)
+		}
+	}()
 
 	err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 	if err != nil {
@@ -148,7 +156,11 @@ func (suite *JWTGeneratorTestSuite) generateTestCertificate() error {
 	if err != nil {
 		return err
 	}
-	defer keyOut.Close()
+	defer func() {
+		if closeErr := keyOut.Close(); closeErr != nil {
+			suite.T().Logf("Failed to close key file: %v", closeErr)
+		}
+	}()
 
 	privKeyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
