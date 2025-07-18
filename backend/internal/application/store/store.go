@@ -214,7 +214,7 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 	var redirectURIs []string
 	if row["callback_uris"] != nil {
 		if uris, ok := row["callback_uris"].(string); ok {
-			redirectURIs = utils.ParseStringArray(uris)
+			redirectURIs = utils.ParseStringArray(uris, ",")
 		} else {
 			logger.Error("failed to parse callback_uris as string")
 			return model.Application{}, fmt.Errorf("failed to parse callback_uris as string")
@@ -224,7 +224,7 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 	var allowedGrantTypes []string
 	if row["grant_types"] != nil {
 		if grants, ok := row["grant_types"].(string); ok {
-			allowedGrantTypes = utils.ParseStringArray(grants)
+			allowedGrantTypes = utils.ParseStringArray(grants, ",")
 		} else {
 			logger.Error("failed to parse grant_types as string")
 			return model.Application{}, fmt.Errorf("failed to parse grant_types as string")

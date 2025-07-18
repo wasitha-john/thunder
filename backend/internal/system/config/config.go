@@ -87,25 +87,6 @@ type OAuthConfig struct {
 	RefreshToken RefreshTokenConfig `yaml:"refresh_token"`
 }
 
-// Authenticator holds the configuration details for an individual authenticator.
-type Authenticator struct {
-	Name             string            `yaml:"name"`
-	Type             string            `yaml:"type"`
-	DisplayName      string            `yaml:"display_name"`
-	Description      string            `yaml:"description"`
-	ClientID         string            `yaml:"client_id"`
-	ClientSecret     string            `yaml:"client_secret"`
-	RedirectURI      string            `yaml:"redirect_uri"`
-	Scopes           []string          `yaml:"scopes"`
-	AdditionalParams map[string]string `yaml:"additional_params"`
-}
-
-// AuthenticatorConfig holds the configuration details for the authenticators.
-type AuthenticatorConfig struct {
-	DefaultAuthenticator string          `yaml:"default"`
-	Authenticators       []Authenticator `yaml:"authenticators"`
-}
-
 // FlowAuthnConfig holds the configuration details for the authentication flows.
 type FlowAuthnConfig struct {
 	DefaultFlow string `yaml:"default_flow"`
@@ -119,13 +100,12 @@ type FlowConfig struct {
 
 // Config holds the complete configuration details of the server.
 type Config struct {
-	Server        ServerConfig        `yaml:"server"`
-	GateClient    GateClientConfig    `yaml:"gate_client"`
-	Security      SecurityConfig      `yaml:"security"`
-	Database      DatabaseConfig      `yaml:"database"`
-	OAuth         OAuthConfig         `yaml:"oauth"`
-	Authenticator AuthenticatorConfig `yaml:"authenticator"`
-	Flow          FlowConfig          `yaml:"flow"`
+	Server     ServerConfig     `yaml:"server"`
+	GateClient GateClientConfig `yaml:"gate_client"`
+	Security   SecurityConfig   `yaml:"security"`
+	Database   DatabaseConfig   `yaml:"database"`
+	OAuth      OAuthConfig      `yaml:"oauth"`
+	Flow       FlowConfig       `yaml:"flow"`
 }
 
 // LoadConfig loads the configurations from the specified YAML file.

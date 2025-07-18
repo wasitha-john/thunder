@@ -16,26 +16,27 @@
  * under the License.
  */
 
-// Package model defines the data structures for authentication flow.
+// Package model defines the data structures for authentication.
 package model
 
 import (
-	"context"
-	"time"
+	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 )
 
-// AuthenticatedUser represents the user information of an authenticated user.
-type AuthenticatedUser struct {
-	IsAuthenticated bool
-	UserID          string
-	Attributes      map[string]string
+// AuthNRequest represents the authentication request body.
+type AuthNRequest struct {
+	SessionDataKey string            `json:"sessionDataKey"`
+	FlowID         string            `json:"flowId"`
+	ActionID       string            `json:"actionId"`
+	Inputs         map[string]string `json:"inputs"`
 }
 
-// AuthenticationContext represents the context of an authentication session.
-type AuthenticationContext struct {
-	context.Context
-	SessionDataKey     string
-	RequestQueryParams map[string]string
-	AuthenticatedUser  AuthenticatedUser
-	AuthTime           time.Time
+// AuthNResponse represents the authentication response body.
+type AuthNResponse struct {
+	FlowID        string             `json:"flowId"`
+	StepID        string             `json:"stepId,omitempty"`
+	FlowStatus    string             `json:"flowStatus"`
+	Type          string             `json:"type,omitempty"`
+	Data          flowmodel.FlowData `json:"data,omitempty"`
+	FailureReason string             `json:"failureReason,omitempty"`
 }

@@ -21,10 +21,12 @@ package utils
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
+	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
@@ -73,4 +75,15 @@ func GetAuthorizationCode(oAuthMessage *model.OAuthMessage) (model.Authorization
 		Scopes:           scope,
 		State:            constants.AuthCodeStateActive,
 	}, nil
+}
+
+// GetAuthorizationEndpoint returns the server authorization endpoint URL.
+func GetAuthorizationEndpoint() string {
+	serverConfig := config.GetThunderRuntime().Config
+	scheme := "https://"
+	if serverConfig.Server.HTTPOnly {
+		scheme = "http://"
+	}
+	baseURL := scheme + serverConfig.Server.Hostname + ":" + strconv.Itoa(serverConfig.Server.Port)
+	return baseURL + "/oauth2/authorize"
 }

@@ -28,7 +28,7 @@ import (
 	"slices"
 	"time"
 
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
+	authndto "github.com/asgardeo/thunder/internal/authn/dto"
 	"github.com/asgardeo/thunder/internal/executor/oauth"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
@@ -164,7 +164,7 @@ func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext
 
 		if tokenResp.Scope == "" {
 			logger.Error("Scopes are empty in the token response")
-			execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
+			execResp.AuthenticatedUser = authndto.AuthenticatedUser{
 				IsAuthenticated: false,
 			}
 		} else {
@@ -178,7 +178,7 @@ func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext
 			execResp.AuthenticatedUser = *authenticatedUser
 		}
 	} else {
-		execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
+		execResp.AuthenticatedUser = authndto.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
@@ -319,7 +319,7 @@ func (o *GithubOAuthExecutor) validateTokenResponse(tokenResp *model.TokenRespon
 
 // getAuthenticatedUserWithAttributes retrieves the authenticated user with attributes from github.
 func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse, accessToken string) (*authnmodel.AuthenticatedUser, error) {
+	execResp *flowmodel.ExecutorResponse, accessToken string) (*authndto.AuthenticatedUser, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -363,7 +363,7 @@ func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.
 
 				// TODO: Need to convert attributes as per the IDP to local attribute mapping
 				//  when the support is implemented.
-				return &authnmodel.AuthenticatedUser{
+				return &authndto.AuthenticatedUser{
 					IsAuthenticated: false,
 					Attributes:      getUserAttributes(userInfo, ""),
 				}, nil
@@ -383,7 +383,7 @@ func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.
 
 	// TODO: Need to convert attributes as per the IDP to local attribute mapping
 	//  when the support is implemented.
-	authenticatedUser := authnmodel.AuthenticatedUser{
+	authenticatedUser := authndto.AuthenticatedUser{
 		IsAuthenticated: true,
 		UserID:          *userID,
 		Attributes:      getUserAttributes(userInfo, *userID),

@@ -22,14 +22,13 @@ package model
 import (
 	"time"
 
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
+	authndto "github.com/asgardeo/thunder/internal/authn/dto"
 	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
 // SessionData represents the session data for the authentication.
 type SessionData struct {
-	OAuthParameters      oauthmodel.OAuthParameters
-	AuthTime             time.Time
-	CurrentAuthenticator string
-	AuthenticatedUser    authnmodel.AuthenticatedUser
+	OAuthParameters   oauthmodel.OAuthParameters
+	AuthTime          time.Time
+	AuthenticatedUser authndto.AuthenticatedUser
 }

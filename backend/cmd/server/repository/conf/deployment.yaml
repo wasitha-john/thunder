@@ -31,14 +31,6 @@ oauth:
     renew_on_grant: false
     validity_period: 86400
 
-authenticator:
-  default: "BasicAuthenticator"
-  authenticators:
-    - name: "BasicAuthenticator"
-      type: "local"
-      display_name: "Username & Password"
-      description: "Login with username and password"
-
 flow:
   graph_directory: "repository/resources/graphs/"
   authn:

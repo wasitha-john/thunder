@@ -28,8 +28,7 @@ import (
 	"strings"
 	"time"
 
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
-	authnutils "github.com/asgardeo/thunder/internal/authn/utils"
+	authndto "github.com/asgardeo/thunder/internal/authn/dto"
 	"github.com/asgardeo/thunder/internal/executor/identify"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	"github.com/asgardeo/thunder/internal/executor/oauth/utils"
@@ -232,7 +231,7 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 
 		if tokenResp.Scope == "" {
 			logger.Error("Scopes are empty in the token response")
-			execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
+			execResp.AuthenticatedUser = authndto.AuthenticatedUser{
 				IsAuthenticated: false,
 			}
 		} else {
@@ -246,7 +245,7 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 			execResp.AuthenticatedUser = *authenticatedUser
 		}
 	} else {
-		execResp.AuthenticatedUser = authnmodel.AuthenticatedUser{
+		execResp.AuthenticatedUser = authndto.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
@@ -418,7 +417,7 @@ func (o *OAuthExecutor) getQueryParams(ctx *flowmodel.NodeContext) (map[string]s
 	queryParams[oauth2const.ClientID] = o.oAuthProperties.ClientID
 	queryParams[oauth2const.RedirectURI] = o.oAuthProperties.RedirectURI
 	queryParams[oauth2const.ResponseType] = oauth2const.Code
-	queryParams[oauth2const.Scope] = authnutils.GetScopesString(o.oAuthProperties.Scopes)
+	queryParams[oauth2const.Scope] = systemutils.StringifyStringArray(o.oAuthProperties.Scopes, " ")
 
 	// append any configured additional parameters.
 	additionalParams := o.oAuthProperties.AdditionalParams
@@ -451,7 +450,7 @@ func (o *OAuthExecutor) validateTokenResponse(tokenResp *model.TokenResponse) er
 // getAuthenticatedUserWithAttributes retrieves the authenticated user information with additional attributes
 // from the OAuth provider using the access token.
 func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse, accessToken string) (*authnmodel.AuthenticatedUser, error) {
+	execResp *flowmodel.ExecutorResponse, accessToken string) (*authndto.AuthenticatedUser, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -496,7 +495,7 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 
 				// TODO: Need to convert attributes as per the IDP to local attribute mapping
 				//  when the support is implemented.
-				return &authnmodel.AuthenticatedUser{
+				return &authndto.AuthenticatedUser{
 					IsAuthenticated: false,
 					Attributes:      getUserAttributes(userInfo, ""),
 				}, nil
@@ -516,7 +515,7 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 
 	// TODO: Need to convert attributes as per the IDP to local attribute mapping
 	//  when the support is implemented.
-	authenticatedUser := authnmodel.AuthenticatedUser{
+	authenticatedUser := authndto.AuthenticatedUser{
 		IsAuthenticated: true,
 		UserID:          *userID,
 		Attributes:      getUserAttributes(userInfo, *userID),

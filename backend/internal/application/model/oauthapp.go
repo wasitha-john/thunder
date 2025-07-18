@@ -28,6 +28,7 @@ import (
 
 // OAuthApplication represents an OAuth application details.
 type OAuthApplication struct {
+	ID                string
 	ClientID          string
 	ClientSecret      string
 	RedirectURIs      []string
