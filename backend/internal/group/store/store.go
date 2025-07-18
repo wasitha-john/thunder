@@ -114,13 +114,11 @@ func CreateGroup(group model.GroupDAO) error {
 		}
 	}()
 
-	// Begin transaction
 	tx, err := dbClient.BeginTx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Create the group
 	_, err = tx.Exec(
 		QueryCreateGroup.Query,
 		group.ID,
@@ -143,7 +141,6 @@ func CreateGroup(group model.GroupDAO) error {
 		return err
 	}
 
-	// Commit the transaction
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -265,13 +262,11 @@ func UpdateGroup(group model.GroupDAO) error {
 		}
 	}()
 
-	// Begin transaction
 	tx, err := dbClient.BeginTx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Update the group
 	result, err := tx.Exec(
 		QueryUpdateGroup.Query,
 		group.ID,
@@ -286,7 +281,6 @@ func UpdateGroup(group model.GroupDAO) error {
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	// Check if group was found and updated
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
@@ -302,7 +296,6 @@ func UpdateGroup(group model.GroupDAO) error {
 		return model.ErrGroupNotFound
 	}
 
-	// Update group members
 	err = updateGroupMembers(tx, group.ID, group.Members)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
@@ -311,7 +304,6 @@ func UpdateGroup(group model.GroupDAO) error {
 		return err
 	}
 
-	// Commit the transaction
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -333,13 +325,11 @@ func DeleteGroup(id string) error {
 		}
 	}()
 
-	// Begin transaction
 	tx, err := dbClient.BeginTx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Delete group assignments first
 	_, err = tx.Exec(QueryDeleteGroupMembers.Query, id)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
@@ -348,7 +338,6 @@ func DeleteGroup(id string) error {
 		return fmt.Errorf("failed to delete group members: %w", err)
 	}
 
-	// Delete the group
 	result, err := tx.Exec(QueryDeleteGroup.Query, id)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
@@ -357,12 +346,10 @@ func DeleteGroup(id string) error {
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	// Commit the transaction
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	// Check rows affected after successful commit
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
@@ -530,7 +517,6 @@ func checkGroupNameConflictForCreate(
 	var results []map[string]interface{}
 	var err error
 
-	// Check name conflict within the organization unit
 	results, err = dbClient.Query(QueryCheckGroupNameConflict, name, organizationUnitID)
 
 	if err != nil {
@@ -557,7 +543,6 @@ func checkGroupNameConflictForUpdate(
 	var results []map[string]interface{}
 	var err error
 
-	// Check name conflict within the organization unit, excluding the current group
 	results, err = dbClient.Query(QueryCheckGroupNameConflictForUpdate, name, organizationUnitID, groupID)
 
 	if err != nil {

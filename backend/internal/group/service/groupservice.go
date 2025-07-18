@@ -96,7 +96,6 @@ func (gs *GroupService) CreateGroup(request model.CreateGroupRequest) (*model.Gr
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Creating group", log.String("name", request.Name))
 
-	// Validate request
 	if err := gs.validateCreateGroupRequest(request); err != nil {
 		return nil, err
 	}
@@ -185,12 +184,10 @@ func (gs *GroupService) UpdateGroup(
 		return nil, &constants.ErrorMissingGroupID
 	}
 
-	// Validate request
 	if err := gs.validateUpdateGroupRequest(request); err != nil {
 		return nil, err
 	}
 
-	// Get existing group to ensure it exists
 	existingGroupDAO, err := store.GetGroup(groupID)
 	if err != nil {
 		if errors.Is(err, model.ErrGroupNotFound) {
@@ -241,7 +238,6 @@ func (gs *GroupService) UpdateGroup(
 		}
 	}
 
-	// Create updated group object
 	updatedGroupDAO := model.GroupDAO{
 		ID:                 existingGroup.ID,
 		Name:               request.Name,
@@ -250,7 +246,6 @@ func (gs *GroupService) UpdateGroup(
 		Members:            request.Members,
 	}
 
-	// Update group in the database
 	if err := store.UpdateGroup(updatedGroupDAO); err != nil {
 		logger.Error("Failed to update group", log.Error(err))
 		return nil, &constants.ErrorInternalServerError
@@ -270,7 +265,6 @@ func (gs *GroupService) DeleteGroup(groupID string) *serviceerror.ServiceError {
 		return &constants.ErrorMissingGroupID
 	}
 
-	// Check if group exists
 	_, err := store.GetGroup(groupID)
 	if err != nil {
 		if errors.Is(err, model.ErrGroupNotFound) {
@@ -281,7 +275,6 @@ func (gs *GroupService) DeleteGroup(groupID string) *serviceerror.ServiceError {
 		return &constants.ErrorInternalServerError
 	}
 
-	// Delete the group
 	if err := store.DeleteGroup(groupID); err != nil {
 		logger.Error("Failed to delete group", log.String("id", groupID), log.Error(err))
 		return &constants.ErrorInternalServerError
