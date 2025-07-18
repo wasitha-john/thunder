@@ -104,6 +104,15 @@ type GroupListResponse struct {
 	Links        []Link       `json:"links"`
 }
 
+// MemberListResponse represents the response for listing group members with pagination.
+type MemberListResponse struct {
+	TotalResults int      `json:"totalResults"`
+	StartIndex   int      `json:"startIndex"`
+	Count        int      `json:"count"`
+	Members      []Member `json:"members"`
+	Links        []Link   `json:"links"`
+}
+
 // Error variables
 var (
 	// ErrGroupNotFound is returned when the group is not found in the system.

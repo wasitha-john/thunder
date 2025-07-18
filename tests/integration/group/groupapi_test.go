@@ -112,13 +112,6 @@ func (suite *GroupAPITestSuite) TestGetGroup() {
 	suite.Equal(createdGroup.Id, retrievedGroup.Id)
 	suite.Equal(createdGroup.Name, retrievedGroup.Name)
 	suite.Equal(createdGroup.OrganizationUnitId, retrievedGroup.OrganizationUnitId)
-
-	// Verify members
-	suite.Equal(len(createdGroup.Members), len(retrievedGroup.Members))
-	if len(createdGroup.Members) > 0 && len(retrievedGroup.Members) > 0 {
-		suite.Equal(createdGroup.Members[0].Id, retrievedGroup.Members[0].Id)
-		suite.Equal(createdGroup.Members[0].Type, retrievedGroup.Members[0].Type)
-	}
 }
 
 func (suite *GroupAPITestSuite) TestListGroups() {
@@ -687,7 +680,6 @@ func (suite *GroupAPITestSuite) TestUpdateGroupWithValidEmptyUserList() {
 
 	suite.Equal(createdGroupID, updatedGroup.Id)
 	suite.Equal("Updated Group with Empty Users", updatedGroup.Name)
-	suite.Equal(0, len(updatedGroup.Members))
 }
 
 func (suite *GroupAPITestSuite) TestUpdateGroupWithMultipleInvalidUserIDs() {
@@ -1151,4 +1143,102 @@ func buildCreatedGroup() Group {
 
 func TestGroupAPITestSuite(t *testing.T) {
 	suite.Run(t, new(GroupAPITestSuite))
+}
+
+func (suite *GroupAPITestSuite) TestGetGroupMembers() {
+	if createdGroupID == "" {
+		suite.T().Fatal("Group ID is not available for member retrieval")
+	}
+
+	// Get the group members
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/groups/"+createdGroupID+"/members", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var memberListResponse MemberListResponse
+	err = json.Unmarshal(body, &memberListResponse)
+	suite.Require().NoError(err)
+
+	// Verify the response structure
+	suite.GreaterOrEqual(memberListResponse.TotalResults, 1, "Should have at least one member")
+	suite.Equal(1, memberListResponse.StartIndex, "StartIndex should be 1 for non-paginated request")
+	suite.Equal(memberListResponse.TotalResults, memberListResponse.Count, "Count should equal TotalResults for non-paginated request")
+	suite.Equal(len(memberListResponse.Members), memberListResponse.Count, "Members array length should match Count")
+
+	// Verify we have the expected member
+	found := false
+	for _, member := range memberListResponse.Members {
+		if member.Id == "550e8400-e29b-41d4-a716-446655440000" && member.Type == MemberTypeUser {
+			found = true
+			break
+		}
+	}
+	suite.True(found, "Expected member should be in the list")
+}
+
+func (suite *GroupAPITestSuite) TestGetGroupMembersWithPagination() {
+	if createdGroupID == "" {
+		suite.T().Fatal("Group ID is not available for member retrieval")
+	}
+
+	// Test pagination with limit=1, offset=0
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/groups/"+createdGroupID+"/members?limit=1&offset=0", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var memberListResponse MemberListResponse
+	err = json.Unmarshal(body, &memberListResponse)
+	suite.Require().NoError(err)
+
+	// Verify pagination structure
+	suite.GreaterOrEqual(memberListResponse.TotalResults, 1, "Should have at least one member")
+	suite.Equal(1, memberListResponse.StartIndex, "StartIndex should be 1 for offset=0")
+	suite.LessOrEqual(memberListResponse.Count, 1, "Count should be at most 1 due to limit=1")
+	suite.LessOrEqual(len(memberListResponse.Members), 1, "Should return at most 1 member")
+}
+
+func (suite *GroupAPITestSuite) TestGetGroupMembersNotFound() {
+	// Try to get members of a non-existent group
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/groups/non-existent-id/members", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusNotFound, resp.StatusCode)
 }

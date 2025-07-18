@@ -56,10 +56,6 @@ func (gh *GroupHandler) HandleGroupListRequest(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if limit == 0 {
-		limit = limitDefault
-	}
-
 	groupProvider := provider.NewGroupProvider()
 	groupService := groupProvider.GetGroupService()
 	groupListResponse, svcErr := groupService.GetGroupList(limit, offset)
@@ -259,6 +255,55 @@ func (gh *GroupHandler) HandleGroupDeleteRequest(w http.ResponseWriter, r *http.
 	logger.Debug("Successfully deleted group", log.String("group id", id))
 }
 
+// HandleGroupMembersGetRequest handles the get group members request.
+func (gh *GroupHandler) HandleGroupMembersGetRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	id := r.PathValue("id")
+	if id == "" {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorMissingGroupID.Code,
+			Message:     constants.ErrorMissingGroupID.Error,
+			Description: constants.ErrorMissingGroupID.ErrorDescription,
+		}
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	limit, offset, svcErr := parsePaginationParams(r.URL.Query())
+	if svcErr != nil {
+		gh.handleError(w, logger, svcErr)
+		return
+	}
+
+	groupProvider := provider.NewGroupProvider()
+	groupService := groupProvider.GetGroupService()
+	memberListResponse, svcErr := groupService.GetGroupMembers(id, limit, offset)
+	if svcErr != nil {
+		gh.handleError(w, logger, svcErr)
+		return
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(memberListResponse); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	logger.Debug("Successfully retrieved group members", log.String("group id", id),
+		log.Int("limit", limit), log.Int("offset", offset),
+		log.Int("totalResults", memberListResponse.TotalResults),
+		log.Int("count", memberListResponse.Count))
+}
+
 // handleError handles service errors and returns appropriate HTTP responses.
 func (gh *GroupHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 	svcErr *serviceerror.ServiceError) {
@@ -360,6 +405,10 @@ func parsePaginationParams(query url.Values) (int, int, *serviceerror.ServiceErr
 		} else {
 			offset = parsedOffset
 		}
+	}
+
+	if limit == 0 {
+		limit = limitDefault
 	}
 
 	return limit, offset, nil
