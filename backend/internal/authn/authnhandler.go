@@ -238,15 +238,35 @@ func decodeAttributesFromAssertion(assertion string) (string, map[string]string,
 	for key, value := range jwtPayload {
 		switch key {
 		case "sub":
-			userID = value.(string)
+			if strValue, ok := value.(string); ok {
+				userID = strValue
+			} else {
+				return "", nil, errors.New("JWT 'sub' claim is not a string")
+			}
 		case "username":
-			userAttributes["username"] = value.(string)
+			if strValue, ok := value.(string); ok {
+				userAttributes["username"] = strValue
+			} else {
+				return "", nil, errors.New("JWT 'username' claim is not a string")
+			}
 		case "email":
-			userAttributes["email"] = value.(string)
+			if strValue, ok := value.(string); ok {
+				userAttributes["email"] = strValue
+			} else {
+				return "", nil, errors.New("JWT 'email' claim is not a string")
+			}
 		case "firstName":
-			userAttributes["firstName"] = value.(string)
+			if strValue, ok := value.(string); ok {
+				userAttributes["firstName"] = strValue
+			} else {
+				return "", nil, errors.New("JWT 'firstName' claim is not a string")
+			}
 		case "lastName":
-			userAttributes["lastName"] = value.(string)
+			if strValue, ok := value.(string); ok {
+				userAttributes["lastName"] = strValue
+			} else {
+				return "", nil, errors.New("JWT 'lastName' claim is not a string")
+			}
 		}
 	}
 

@@ -41,28 +41,6 @@ oauth:
     issuer: thunder
     validity_period: 3600
 
-authenticator:
-  default: basic
-  authenticators:
-    - name: basic
-      type: basic
-      display_name: Basic Auth
-      description: Username and password authentication
-      client_id: ""
-      client_secret: ""
-      redirect_uri: ""
-      scopes: []
-    - name: google
-      type: oauth2
-      display_name: Google
-      description: Sign in with Google
-      client_id: google-client-id
-      client_secret: google-client-secret
-      redirect_uri: https://localhost:8080/callback
-      scopes: ["email", "profile"]
-      additional_params:
-        prompt: consent
-
 flow:
   graph_directory: "repository/resources/graphs/"
   authn:

@@ -41,7 +41,8 @@ func ParseStringArray(value string, separator string) []string {
 }
 
 // StringifyStringArray converts a slice of strings into a single string,
-// joining the elements with the specified separator.
+// joining the elements with the specified separator. If the slice is empty,
+// it returns an empty string. If the separator is empty, it defaults to a comma.
 func StringifyStringArray(values []string, separator string) string {
 	if len(values) == 0 {
 		return ""

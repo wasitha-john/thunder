@@ -72,12 +72,6 @@ func (suite *ConfigTestSuite) TestLoadConfigValid() {
 	assert.Equal(suite.T(), "thunder", config.OAuth.JWT.Issuer)
 	assert.Equal(suite.T(), int64(3600), config.OAuth.JWT.ValidityPeriod)
 
-	// Verify authenticator config
-	assert.Equal(suite.T(), "basic", config.Authenticator.DefaultAuthenticator)
-	assert.Equal(suite.T(), 2, len(config.Authenticator.Authenticators))
-	assert.Equal(suite.T(), "google", config.Authenticator.Authenticators[1].Name)
-	assert.Equal(suite.T(), []string{"email", "profile"}, config.Authenticator.Authenticators[1].Scopes)
-
 	// Verify flow config
 	assert.Equal(suite.T(), "repository/resources/graphs/", config.Flow.GraphDirectory)
 	assert.Equal(suite.T(), "auth_flow_config_basic", config.Flow.Authn.DefaultFlow)
