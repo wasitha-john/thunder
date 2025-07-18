@@ -78,4 +78,22 @@ func (s *GroupService) RegisterRoutes(mux *http.ServeMux) {
 			w.WriteHeader(http.StatusNoContent)
 		},
 	)
+
+	opts3 := server.RequestWrapOptions{
+		Cors: &server.Cors{
+			AllowedMethods:   "GET",
+			AllowedHeaders:   "Content-Type, Authorization",
+			AllowCredentials: true,
+		},
+	}
+	s.serverOpsService.WrapHandleFunction(mux, "GET /groups/{id}/members", &opts3,
+		s.groupHandler.HandleGroupMembersGetRequest)
+	s.serverOpsService.WrapHandleFunction(
+		mux,
+		"OPTIONS /groups/{id}/members",
+		&opts3,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		},
+	)
 }

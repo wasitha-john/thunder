@@ -76,3 +76,12 @@ type GroupListResponse struct {
 	Groups       []GroupBasic `json:"groups"`
 	Links        []Link       `json:"links"`
 }
+
+// MemberListResponse represents the response for listing group members with pagination.
+type MemberListResponse struct {
+	TotalResults int      `json:"totalResults"`
+	StartIndex   int      `json:"startIndex"`
+	Count        int      `json:"count"`
+	Members      []Member `json:"members"`
+	Links        []Link   `json:"links"`
+}

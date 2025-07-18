@@ -66,8 +66,15 @@ var (
 
 	// QueryGetGroupMembers is the query to get members assigned to a group.
 	QueryGetGroupMembers = dbmodel.DBQuery{
-		ID:    "GRQ-GROUP_MGT-06",
-		Query: `SELECT MEMBER_ID, MEMBER_TYPE FROM GROUP_MEMBER_REFERENCE WHERE GROUP_ID = $1`,
+		ID: "GRQ-GROUP_MGT-06",
+		Query: `SELECT MEMBER_ID, MEMBER_TYPE FROM GROUP_MEMBER_REFERENCE WHERE GROUP_ID = $1 ` +
+			`ORDER BY MEMBER_TYPE, MEMBER_ID LIMIT $2 OFFSET $3`,
+	}
+
+	// QueryGetGroupMemberCount is the query to get total count of members in a group.
+	QueryGetGroupMemberCount = dbmodel.DBQuery{
+		ID:    "GRQ-GROUP_MGT-07",
+		Query: `SELECT COUNT(*) as total FROM GROUP_MEMBER_REFERENCE WHERE GROUP_ID = $1`,
 	}
 
 	// QueryDeleteGroupMembers is the query to delete all members assigned to a group.

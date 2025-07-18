@@ -43,6 +43,7 @@ type GroupServiceInterface interface {
 	GetGroup(groupID string) (*model.Group, *serviceerror.ServiceError)
 	UpdateGroup(groupID string, request model.UpdateGroupRequest) (*model.Group, *serviceerror.ServiceError)
 	DeleteGroup(groupID string) *serviceerror.ServiceError
+	GetGroupMembers(groupID string, limit, offset int) (*model.MemberListResponse, *serviceerror.ServiceError)
 }
 
 // GroupService is the default implementation of the GroupServiceInterface.
@@ -84,7 +85,7 @@ func (gs *GroupService) GetGroupList(limit, offset int) (*model.GroupListRespons
 		Groups:       groupBasics,
 		StartIndex:   offset + 1,
 		Count:        len(groupBasics),
-		Links:        buildPaginationLinks(limit, offset, totalCount),
+		Links:        buildPaginationLinks("/groups", limit, offset, totalCount),
 	}
 
 	return response, nil
@@ -290,6 +291,55 @@ func (gs *GroupService) DeleteGroup(groupID string) *serviceerror.ServiceError {
 	return nil
 }
 
+// GetGroupMembers retrieves members of a group with pagination.
+func (gs *GroupService) GetGroupMembers(groupID string, limit, offset int) (
+	*model.MemberListResponse, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	if err := validatePaginationParams(limit, offset); err != nil {
+		return nil, err
+	}
+
+	if groupID == "" {
+		return nil, &constants.ErrorMissingGroupID
+	}
+
+	_, err := store.GetGroup(groupID)
+	if err != nil {
+		if errors.Is(err, model.ErrGroupNotFound) {
+			logger.Debug("Group not found", log.String("id", groupID))
+			return nil, &constants.ErrorGroupNotFound
+		}
+		logger.Error("Failed to retrieve group", log.String("id", groupID), log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	totalCount, err := store.GetGroupMemberCount(groupID)
+	if err != nil {
+		logger.Error("Failed to get group member count", log.String("groupID", groupID), log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	members, err := store.GetGroupMembers(groupID, limit, offset)
+	if err != nil {
+		logger.Error("Failed to get group members", log.String("groupID", groupID), log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	baseURL := fmt.Sprintf("/groups/%s/members", groupID)
+	links := buildPaginationLinks(baseURL, limit, offset, totalCount)
+
+	response := &model.MemberListResponse{
+		TotalResults: totalCount,
+		Members:      members,
+		StartIndex:   offset + 1,
+		Count:        len(members),
+		Links:        links,
+	}
+
+	return response, nil
+}
+
 // validateCreateGroupRequest validates the create group request.
 func (gs *GroupService) validateCreateGroupRequest(request model.CreateGroupRequest) *serviceerror.ServiceError {
 	if request.Name == "" {
@@ -416,12 +466,12 @@ func validatePaginationParams(limit, offset int) *serviceerror.ServiceError {
 }
 
 // buildPaginationLinks builds pagination links for the response.
-func buildPaginationLinks(limit, offset, totalCount int) []model.Link {
+func buildPaginationLinks(base string, limit, offset, totalCount int) []model.Link {
 	links := make([]model.Link, 0)
 
 	if offset > 0 {
 		links = append(links, model.Link{
-			Href: fmt.Sprintf("/groups?offset=0&limit=%d", limit),
+			Href: fmt.Sprintf("%s?offset=0&limit=%d", base, limit),
 			Rel:  "first",
 		})
 
@@ -430,7 +480,7 @@ func buildPaginationLinks(limit, offset, totalCount int) []model.Link {
 			prevOffset = 0
 		}
 		links = append(links, model.Link{
-			Href: fmt.Sprintf("/groups?offset=%d&limit=%d", prevOffset, limit),
+			Href: fmt.Sprintf("%s?offset=%d&limit=%d", base, prevOffset, limit),
 			Rel:  "prev",
 		})
 	}
@@ -438,7 +488,7 @@ func buildPaginationLinks(limit, offset, totalCount int) []model.Link {
 	if offset+limit < totalCount {
 		nextOffset := offset + limit
 		links = append(links, model.Link{
-			Href: fmt.Sprintf("/groups?offset=%d&limit=%d", nextOffset, limit),
+			Href: fmt.Sprintf("%s?offset=%d&limit=%d", base, nextOffset, limit),
 			Rel:  "next",
 		})
 	}
@@ -446,7 +496,7 @@ func buildPaginationLinks(limit, offset, totalCount int) []model.Link {
 	lastPageOffset := ((totalCount - 1) / limit) * limit
 	if offset < lastPageOffset {
 		links = append(links, model.Link{
-			Href: fmt.Sprintf("/groups?offset=%d&limit=%d", lastPageOffset, limit),
+			Href: fmt.Sprintf("%s?offset=%d&limit=%d", base, lastPageOffset, limit),
 			Rel:  "last",
 		})
 	}

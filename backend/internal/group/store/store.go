@@ -199,13 +199,75 @@ func GetGroup(id string) (model.GroupDAO, error) {
 		return model.GroupDAO{}, err
 	}
 
-	members, err := getGroupMembers(dbClient, id, logger)
-	if err != nil {
-		return model.GroupDAO{}, err
-	}
-	group.Members = members
-
 	return group, nil
+}
+
+// GetGroupMembers retrieves members of a group with pagination.
+func GetGroupMembers(groupID string, limit, offset int) ([]model.Member, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return nil, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	results, err := dbClient.Query(QueryGetGroupMembers, groupID, limit, offset)
+	if err != nil {
+		logger.Error("Failed to get group members", log.Error(err))
+		return nil, fmt.Errorf("failed to get group members: %w", err)
+	}
+
+	members := make([]model.Member, 0)
+	for _, row := range results {
+		if memberID, ok := row["member_id"].(string); ok {
+			if memberType, ok := row["member_type"].(string); ok {
+				members = append(members, model.Member{
+					ID:   memberID,
+					Type: model.MemberType(memberType),
+				})
+			}
+		}
+	}
+
+	return members, nil
+}
+
+// GetGroupMemberCount retrieves the total count of members in a group.
+func GetGroupMemberCount(groupID string) (int, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return 0, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	countResults, err := dbClient.Query(QueryGetGroupMemberCount, groupID)
+	if err != nil {
+		logger.Error("Failed to get group member count", log.Error(err))
+		return 0, fmt.Errorf("failed to get group member count: %w", err)
+	}
+
+	if len(countResults) == 0 {
+		return 0, nil
+	}
+
+	if count, ok := countResults[0]["total"].(int64); ok {
+		return int(count), nil
+	}
+
+	return 0, nil
 }
 
 // UpdateGroup updates an existing group.
@@ -429,29 +491,6 @@ func buildGroupFromResultRow(row map[string]interface{}, logger *log.Logger) (mo
 	}
 
 	return group, nil
-}
-
-// getGroupMembers retrieves the assigned members of a given group.
-func getGroupMembers(dbClient client.DBClientInterface, groupID string, logger *log.Logger) ([]model.Member, error) {
-	results, err := dbClient.Query(QueryGetGroupMembers, groupID)
-	if err != nil {
-		logger.Error("Failed to get group members", log.Error(err))
-		return nil, fmt.Errorf("failed to get group members: %w", err)
-	}
-
-	members := make([]model.Member, 0)
-	for _, row := range results {
-		if memberID, ok := row["member_id"].(string); ok {
-			if memberType, ok := row["member_type"].(string); ok {
-				members = append(members, model.Member{
-					ID:   memberID,
-					Type: model.MemberType(memberType),
-				})
-			}
-		}
-	}
-
-	return members, nil
 }
 
 // addMembersToGroup adds a list of members to a group.
