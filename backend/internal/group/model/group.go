@@ -19,10 +19,6 @@
 // Package model defines the data structures and interfaces for group management.
 package model
 
-import (
-	"errors"
-)
-
 // MemberType represents the type of member entity.
 type MemberType string
 
@@ -112,15 +108,3 @@ type MemberListResponse struct {
 	Members      []Member `json:"members"`
 	Links        []Link   `json:"links"`
 }
-
-// Error variables
-var (
-	// ErrGroupNotFound is returned when the group is not found in the system.
-	ErrGroupNotFound = errors.New("group not found")
-
-	// ErrGroupNameConflict is returned when a group with the same name exists under the same parent.
-	ErrGroupNameConflict = errors.New("a group with the same name exists under the same parent")
-
-	// ErrParentNotFound is returned when the parent group or organization unit is not found.
-	ErrParentNotFound = errors.New("parent not found")
-)

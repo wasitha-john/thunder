@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/asgardeo/thunder/internal/group/constants"
 	"github.com/asgardeo/thunder/internal/group/model"
 	"github.com/asgardeo/thunder/internal/system/database/client"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
@@ -168,7 +169,7 @@ func GetGroup(id string) (model.GroupDAO, error) {
 	}
 
 	if len(results) == 0 {
-		return model.GroupDAO{}, model.ErrGroupNotFound
+		return model.GroupDAO{}, constants.ErrGroupNotFound
 	}
 
 	if len(results) != 1 {
@@ -293,7 +294,7 @@ func UpdateGroup(group model.GroupDAO) error {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			return fmt.Errorf("failed to rollback transaction: %w", rollbackErr)
 		}
-		return model.ErrGroupNotFound
+		return constants.ErrGroupNotFound
 	}
 
 	err = updateGroupMembers(tx, group.ID, group.Members)
@@ -525,7 +526,7 @@ func checkGroupNameConflictForCreate(
 
 	if len(results) > 0 {
 		if count, ok := results[0]["count"].(int64); ok && count > 0 {
-			return model.ErrGroupNameConflict
+			return constants.ErrGroupNameConflict
 		}
 	}
 
@@ -551,7 +552,7 @@ func checkGroupNameConflictForUpdate(
 
 	if len(results) > 0 {
 		if count, ok := results[0]["count"].(int64); ok && count > 0 {
-			return model.ErrGroupNameConflict
+			return constants.ErrGroupNameConflict
 		}
 	}
 

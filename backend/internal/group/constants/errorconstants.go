@@ -19,7 +19,11 @@
 // Package constants defines error constants for group management operations.
 package constants
 
-import "github.com/asgardeo/thunder/internal/system/error/serviceerror"
+import (
+	"errors"
+
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+)
 
 // Client errors for group management operations.
 var (
@@ -104,4 +108,13 @@ var (
 		Error:            "Internal server error",
 		ErrorDescription: "An unexpected error occurred while processing the request",
 	}
+)
+
+// Internal error constants for group management operations.
+var (
+	// ErrGroupNotFound is returned when the group is not found in the system.
+	ErrGroupNotFound = errors.New("group not found")
+
+	// ErrGroupNameConflict is returned when a group with the same name exists under the same parent.
+	ErrGroupNameConflict = errors.New("a group with the same name exists under the same parent")
 )

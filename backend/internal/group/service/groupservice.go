@@ -124,7 +124,7 @@ func (gs *GroupService) CreateGroup(request model.CreateGroupRequest) (*model.Gr
 	}
 
 	if err := store.CheckGroupNameConflictForCreate(request.Name, request.OrganizationUnitID); err != nil {
-		if errors.Is(err, model.ErrGroupNameConflict) {
+		if errors.Is(err, constants.ErrGroupNameConflict) {
 			logger.Debug("Group name conflict detected", log.String("name", request.Name))
 			return nil, &constants.ErrorGroupNameConflict
 		}
@@ -161,7 +161,7 @@ func (gs *GroupService) GetGroup(groupID string) (*model.Group, *serviceerror.Se
 
 	groupDAO, err := store.GetGroup(groupID)
 	if err != nil {
-		if errors.Is(err, model.ErrGroupNotFound) {
+		if errors.Is(err, constants.ErrGroupNotFound) {
 			logger.Debug("Group not found", log.String("id", groupID))
 			return nil, &constants.ErrorGroupNotFound
 		}
@@ -190,7 +190,7 @@ func (gs *GroupService) UpdateGroup(
 
 	existingGroupDAO, err := store.GetGroup(groupID)
 	if err != nil {
-		if errors.Is(err, model.ErrGroupNotFound) {
+		if errors.Is(err, constants.ErrGroupNotFound) {
 			logger.Debug("Group not found", log.String("id", groupID))
 			return nil, &constants.ErrorGroupNotFound
 		}
@@ -229,7 +229,7 @@ func (gs *GroupService) UpdateGroup(
 
 	if existingGroup.Name != request.Name || existingGroup.OrganizationUnitID != request.OrganizationUnitID {
 		if err := store.CheckGroupNameConflictForUpdate(request.Name, request.OrganizationUnitID, groupID); err != nil {
-			if errors.Is(err, model.ErrGroupNameConflict) {
+			if errors.Is(err, constants.ErrGroupNameConflict) {
 				logger.Debug("Group name conflict detected during update", log.String("name", request.Name))
 				return nil, &constants.ErrorGroupNameConflict
 			}
@@ -267,7 +267,7 @@ func (gs *GroupService) DeleteGroup(groupID string) *serviceerror.ServiceError {
 
 	_, err := store.GetGroup(groupID)
 	if err != nil {
-		if errors.Is(err, model.ErrGroupNotFound) {
+		if errors.Is(err, constants.ErrGroupNotFound) {
 			logger.Debug("Group not found", log.String("id", groupID))
 			return &constants.ErrorGroupNotFound
 		}
@@ -299,7 +299,7 @@ func (gs *GroupService) GetGroupMembers(groupID string, limit, offset int) (
 
 	_, err := store.GetGroup(groupID)
 	if err != nil {
-		if errors.Is(err, model.ErrGroupNotFound) {
+		if errors.Is(err, constants.ErrGroupNotFound) {
 			logger.Debug("Group not found", log.String("id", groupID))
 			return nil, &constants.ErrorGroupNotFound
 		}
