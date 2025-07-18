@@ -18,50 +18,48 @@
 
 package group
 
-// ParentType represents the type of parent entity.
-type ParentType string
+// MemberType represents the type of member entity.
+type MemberType string
 
 const (
-	ParentTypeOrganizationUnit ParentType = "organizationUnit"
-	ParentTypeGroup            ParentType = "group"
+	MemberTypeUser  MemberType = "user"
+	MemberTypeGroup MemberType = "group"
 )
 
-// Parent represents the parent of a group (either organization unit or another group).
-type Parent struct {
-	Type ParentType `json:"type"` // "organizationUnit" or "group"
+// Member represents a member of a group (either user or another group).
+type Member struct {
 	Id   string     `json:"id"`
+	Type MemberType `json:"type"`
 }
 
 // GroupBasic represents the basic information of a group.
 type GroupBasic struct {
-	Id          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Parent      Parent   `json:"parent"`
-	Groups      []string `json:"groups"` // Child group Ids
+	Id                 string `json:"id"`
+	Name               string `json:"name"`
+	Description        string `json:"description,omitempty"`
+	OrganizationUnitId string `json:"organizationUnitId"`
 }
 
-// Group represents a complete group with users.
+// Group represents a complete group with members.
 type Group struct {
 	GroupBasic
-	Users []string `json:"users,omitempty"` // User Ids
+	Members []Member `json:"members,omitempty"`
 }
 
 // CreateGroupRequest represents the request body for creating a group.
 type CreateGroupRequest struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Parent      Parent   `json:"parent"`
-	Users       []string `json:"users,omitempty"`
+	Name               string   `json:"name"`
+	Description        string   `json:"description,omitempty"`
+	OrganizationUnitId string   `json:"organizationUnitId"`
+	Members            []Member `json:"members,omitempty"`
 }
 
 // UpdateGroupRequest represents the request body for updating a group.
 type UpdateGroupRequest struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Parent      Parent   `json:"parent"`
-	Users       []string `json:"users,omitempty"`
-	Groups      []string `json:"groups,omitempty"`
+	Name               string   `json:"name"`
+	Description        string   `json:"description,omitempty"`
+	OrganizationUnitId string   `json:"organizationUnitId"`
+	Members            []Member `json:"members,omitempty"`
 }
 
 // Link represents a pagination link.

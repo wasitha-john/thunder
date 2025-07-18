@@ -27,24 +27,22 @@ CREATE TABLE USER (
 CREATE TABLE "GROUP" (
     ID          INTEGER PRIMARY KEY AUTOINCREMENT,
     GROUP_ID    VARCHAR(36) UNIQUE NOT NULL,
-    PARENT_ID   VARCHAR(36),
     OU_ID       VARCHAR(36)        NOT NULL,
     NAME        VARCHAR(50)        NOT NULL,
     DESCRIPTION VARCHAR(255),
     CREATED_AT  TEXT DEFAULT (datetime('now')),
-    UPDATED_AT  TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (PARENT_ID) REFERENCES "GROUP" (GROUP_ID) ON DELETE CASCADE
+    UPDATED_AT  TEXT DEFAULT (datetime('now'))
 );
 
--- Table to store Group-User memberships
-CREATE TABLE GROUP_USER_REFERENCE (
-    ID         INTEGER PRIMARY KEY AUTOINCREMENT,
-    GROUP_ID   VARCHAR(36) NOT NULL,
-    USER_ID    VARCHAR(36) NOT NULL,
-    CREATED_AT TEXT DEFAULT (datetime('now')),
-    UPDATED_AT TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (GROUP_ID) REFERENCES "GROUP" (GROUP_ID) ON DELETE CASCADE,
-    FOREIGN KEY (USER_ID) REFERENCES USER (USER_ID) ON DELETE CASCADE
+-- Table to store Group member assignments
+CREATE TABLE GROUP_MEMBER_REFERENCE (
+    ID          INTEGER PRIMARY KEY AUTOINCREMENT,
+    GROUP_ID    VARCHAR(36) NOT NULL,
+    MEMBER_TYPE VARCHAR(7)  NOT NULL,
+    MEMBER_ID   VARCHAR(36) NOT NULL,
+    CREATED_AT  TEXT DEFAULT (datetime('now')),
+    UPDATED_AT  TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (GROUP_ID) REFERENCES "GROUP" (GROUP_ID) ON DELETE CASCADE
 );
 
 -- Table to store basic service provider (app) details.
@@ -217,3 +215,11 @@ VALUES
 ('550e8400-e29b-41d4-a716-446655440002', 'client_secret', 'secret2', '1'),
 ('550e8400-e29b-41d4-a716-446655440002', 'redirect_uri', 'https://localhost:3000', '0'),
 ('550e8400-e29b-41d4-a716-446655440002', 'scopes', 'openid,email,profile', '0');
+
+-- Insert sample organization units
+INSERT INTO ORGANIZATION_UNIT (OU_ID, PARENT_ID, HANDLE, NAME, DESCRIPTION, CREATED_AT, UPDATED_AT)
+VALUES
+('456e8400-e29b-41d4-a716-446655440001', NULL, 'root', 'Root Organization', 'Root organization unit', datetime('now'), datetime('now')),
+('456e8400-e29b-41d4-a716-446655440002', '456e8400-e29b-41d4-a716-446655440001', 'engineering', 'Engineering', 'Engineering department', datetime('now'), datetime('now')),
+('456e8400-e29b-41d4-a716-446655440003', '456e8400-e29b-41d4-a716-446655440001', 'sales', 'Sales', 'Sales department', datetime('now'), datetime('now')),
+('456e8400-e29b-41d4-a716-446655440004', '456e8400-e29b-41d4-a716-446655440002', 'frontend', 'Frontend Team', 'Frontend development team', datetime('now'), datetime('now'));

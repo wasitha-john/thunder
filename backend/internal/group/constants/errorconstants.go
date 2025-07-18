@@ -51,12 +51,12 @@ var (
 		Error:            "Group name conflict",
 		ErrorDescription: "A group with the same name exists under the same parent",
 	}
-	// ErrorParentNotFound is the error returned when parent is not found.
-	ErrorParentNotFound = serviceerror.ServiceError{
+	// ErrorInvalidOUID is the error returned when parent is not found.
+	ErrorInvalidOUID = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
 		Code:             "GRP-1005",
-		Error:            "Parent not found",
-		ErrorDescription: "Parent group or organization unit not found",
+		Error:            "Invalid OU ID",
+		ErrorDescription: "Organization unit does not exists",
 	}
 	// ErrorCannotDeleteGroup is the error returned when group cannot be deleted.
 	ErrorCannotDeleteGroup = serviceerror.ServiceError{
@@ -65,12 +65,19 @@ var (
 		Error:            "Cannot delete group",
 		ErrorDescription: "Cannot delete group with child groups",
 	}
-	// ErrorInvalidUserID is the error returned when user ID is invalid.
-	ErrorInvalidUserID = serviceerror.ServiceError{
+	// ErrorInvalidUserMemberID is the error returned when user member ID is invalid.
+	ErrorInvalidUserMemberID = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
 		Code:             "GRP-1007",
-		Error:            "Invalid user ID",
-		ErrorDescription: "One or more user IDs in the request do not exist",
+		Error:            "Invalid user member ID",
+		ErrorDescription: "One or more user member IDs in the request do not exist",
+	}
+	// ErrorInvalidGroupMemberID is the error returned when group member ID is invalid.
+	ErrorInvalidGroupMemberID = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "GRP-1008",
+		Error:            "Invalid group member ID",
+		ErrorDescription: "One or more group member IDs in the request do not exist",
 	}
 	// ErrorInvalidLimit is the error returned when limit parameter is invalid.
 	ErrorInvalidLimit = serviceerror.ServiceError{
