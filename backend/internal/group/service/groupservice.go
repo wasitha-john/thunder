@@ -96,7 +96,6 @@ func (gs *GroupService) CreateGroup(request model.CreateGroupRequest) (*model.Gr
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Creating group", log.String("name", request.Name))
 
-	// Validate request
 	if err := gs.validateCreateGroupRequest(request); err != nil {
 		return nil, err
 	}
@@ -125,7 +124,7 @@ func (gs *GroupService) CreateGroup(request model.CreateGroupRequest) (*model.Gr
 	}
 
 	if err := store.CheckGroupNameConflictForCreate(request.Name, request.OrganizationUnitID); err != nil {
-		if errors.Is(err, model.ErrGroupNameConflict) {
+		if errors.Is(err, constants.ErrGroupNameConflict) {
 			logger.Debug("Group name conflict detected", log.String("name", request.Name))
 			return nil, &constants.ErrorGroupNameConflict
 		}
@@ -162,7 +161,7 @@ func (gs *GroupService) GetGroup(groupID string) (*model.Group, *serviceerror.Se
 
 	groupDAO, err := store.GetGroup(groupID)
 	if err != nil {
-		if errors.Is(err, model.ErrGroupNotFound) {
+		if errors.Is(err, constants.ErrGroupNotFound) {
 			logger.Debug("Group not found", log.String("id", groupID))
 			return nil, &constants.ErrorGroupNotFound
 		}
@@ -185,15 +184,13 @@ func (gs *GroupService) UpdateGroup(
 		return nil, &constants.ErrorMissingGroupID
 	}
 
-	// Validate request
 	if err := gs.validateUpdateGroupRequest(request); err != nil {
 		return nil, err
 	}
 
-	// Get existing group to ensure it exists
 	existingGroupDAO, err := store.GetGroup(groupID)
 	if err != nil {
-		if errors.Is(err, model.ErrGroupNotFound) {
+		if errors.Is(err, constants.ErrGroupNotFound) {
 			logger.Debug("Group not found", log.String("id", groupID))
 			return nil, &constants.ErrorGroupNotFound
 		}
@@ -232,7 +229,7 @@ func (gs *GroupService) UpdateGroup(
 
 	if existingGroup.Name != request.Name || existingGroup.OrganizationUnitID != request.OrganizationUnitID {
 		if err := store.CheckGroupNameConflictForUpdate(request.Name, request.OrganizationUnitID, groupID); err != nil {
-			if errors.Is(err, model.ErrGroupNameConflict) {
+			if errors.Is(err, constants.ErrGroupNameConflict) {
 				logger.Debug("Group name conflict detected during update", log.String("name", request.Name))
 				return nil, &constants.ErrorGroupNameConflict
 			}
@@ -241,7 +238,6 @@ func (gs *GroupService) UpdateGroup(
 		}
 	}
 
-	// Create updated group object
 	updatedGroupDAO := model.GroupDAO{
 		ID:                 existingGroup.ID,
 		Name:               request.Name,
@@ -250,7 +246,6 @@ func (gs *GroupService) UpdateGroup(
 		Members:            request.Members,
 	}
 
-	// Update group in the database
 	if err := store.UpdateGroup(updatedGroupDAO); err != nil {
 		logger.Error("Failed to update group", log.Error(err))
 		return nil, &constants.ErrorInternalServerError
@@ -270,10 +265,9 @@ func (gs *GroupService) DeleteGroup(groupID string) *serviceerror.ServiceError {
 		return &constants.ErrorMissingGroupID
 	}
 
-	// Check if group exists
 	_, err := store.GetGroup(groupID)
 	if err != nil {
-		if errors.Is(err, model.ErrGroupNotFound) {
+		if errors.Is(err, constants.ErrGroupNotFound) {
 			logger.Debug("Group not found", log.String("id", groupID))
 			return &constants.ErrorGroupNotFound
 		}
@@ -281,7 +275,6 @@ func (gs *GroupService) DeleteGroup(groupID string) *serviceerror.ServiceError {
 		return &constants.ErrorInternalServerError
 	}
 
-	// Delete the group
 	if err := store.DeleteGroup(groupID); err != nil {
 		logger.Error("Failed to delete group", log.String("id", groupID), log.Error(err))
 		return &constants.ErrorInternalServerError
@@ -306,7 +299,7 @@ func (gs *GroupService) GetGroupMembers(groupID string, limit, offset int) (
 
 	_, err := store.GetGroup(groupID)
 	if err != nil {
-		if errors.Is(err, model.ErrGroupNotFound) {
+		if errors.Is(err, constants.ErrGroupNotFound) {
 			logger.Debug("Group not found", log.String("id", groupID))
 			return nil, &constants.ErrorGroupNotFound
 		}

@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/asgardeo/thunder/internal/group/constants"
 	"github.com/asgardeo/thunder/internal/group/model"
 	"github.com/asgardeo/thunder/internal/system/database/client"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
@@ -38,7 +39,6 @@ func GetGroupListCount() (int, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -49,7 +49,6 @@ func GetGroupListCount() (int, error) {
 
 	countResults, err := dbClient.Query(QueryGetGroupListCount)
 	if err != nil {
-		logger.Error("Failed to execute count query", log.Error(err))
 		return 0, fmt.Errorf("failed to execute count query: %w", err)
 	}
 
@@ -69,7 +68,6 @@ func GetGroupList(limit, offset int) ([]model.GroupBasicDAO, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -80,15 +78,13 @@ func GetGroupList(limit, offset int) ([]model.GroupBasicDAO, error) {
 
 	results, err := dbClient.Query(QueryGetGroupList, limit, offset)
 	if err != nil {
-		logger.Error("Failed to execute group list query", log.Error(err))
 		return nil, fmt.Errorf("failed to execute group list query: %w", err)
 	}
 
 	groups := make([]model.GroupBasicDAO, 0)
 	for _, row := range results {
-		group, err := buildGroupFromResultRow(row, logger)
+		group, err := buildGroupFromResultRow(row)
 		if err != nil {
-			logger.Error("Failed to build group from result row", log.Error(err))
 			return nil, fmt.Errorf("failed to build group from result row: %w", err)
 		}
 
@@ -111,7 +107,6 @@ func CreateGroup(group model.GroupDAO) error {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -120,14 +115,11 @@ func CreateGroup(group model.GroupDAO) error {
 		}
 	}()
 
-	// Begin transaction
 	tx, err := dbClient.BeginTx()
 	if err != nil {
-		logger.Error("Failed to begin transaction", log.Error(err))
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Create the group
 	_, err = tx.Exec(
 		QueryCreateGroup.Query,
 		group.ID,
@@ -136,26 +128,21 @@ func CreateGroup(group model.GroupDAO) error {
 		group.Description,
 	)
 	if err != nil {
-		logger.Error("Failed to execute create group query", log.Error(err))
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
 			err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
 		}
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	err = addMembersToGroup(tx, group.ID, group.Members, logger)
+	err = addMembersToGroup(tx, group.ID, group.Members)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
 			err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
 		}
 		return err
 	}
 
-	// Commit the transaction
 	if err = tx.Commit(); err != nil {
-		logger.Error("Failed to commit transaction", log.Error(err))
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
@@ -168,7 +155,6 @@ func GetGroup(id string) (model.GroupDAO, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return model.GroupDAO{}, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -179,22 +165,19 @@ func GetGroup(id string) (model.GroupDAO, error) {
 
 	results, err := dbClient.Query(QueryGetGroupByID, id)
 	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
 		return model.GroupDAO{}, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
-		logger.Error("Group not found with id: " + id)
-		return model.GroupDAO{}, model.ErrGroupNotFound
+		return model.GroupDAO{}, constants.ErrGroupNotFound
 	}
 
 	if len(results) != 1 {
-		logger.Error("Unexpected number of results")
 		return model.GroupDAO{}, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
 	row := results[0]
-	group, err := buildGroupFromResultRow(row, logger)
+	group, err := buildGroupFromResultRow(row)
 	if err != nil {
 		return model.GroupDAO{}, err
 	}
@@ -208,7 +191,6 @@ func GetGroupMembers(groupID string, limit, offset int) ([]model.Member, error) 
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -219,7 +201,6 @@ func GetGroupMembers(groupID string, limit, offset int) ([]model.Member, error) 
 
 	results, err := dbClient.Query(QueryGetGroupMembers, groupID, limit, offset)
 	if err != nil {
-		logger.Error("Failed to get group members", log.Error(err))
 		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}
 
@@ -244,7 +225,6 @@ func GetGroupMemberCount(groupID string) (int, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -255,7 +235,6 @@ func GetGroupMemberCount(groupID string) (int, error) {
 
 	countResults, err := dbClient.Query(QueryGetGroupMemberCount, groupID)
 	if err != nil {
-		logger.Error("Failed to get group member count", log.Error(err))
 		return 0, fmt.Errorf("failed to get group member count: %w", err)
 	}
 
@@ -276,7 +255,6 @@ func UpdateGroup(group model.GroupDAO) error {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -285,14 +263,11 @@ func UpdateGroup(group model.GroupDAO) error {
 		}
 	}()
 
-	// Begin transaction
 	tx, err := dbClient.BeginTx()
 	if err != nil {
-		logger.Error("Failed to begin transaction", log.Error(err))
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Update the group
 	result, err := tx.Exec(
 		QueryUpdateGroup.Query,
 		group.ID,
@@ -301,46 +276,36 @@ func UpdateGroup(group model.GroupDAO) error {
 		group.Description,
 	)
 	if err != nil {
-		logger.Error("Failed to execute update group query", log.Error(err))
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
 			err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
 		}
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	// Check if group was found and updated
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		logger.Error("Failed to get rows affected", log.Error(err))
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
 			err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
 		}
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
 
 	if rowsAffected == 0 {
-		logger.Error("Group not found with id: " + group.ID)
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
+			return fmt.Errorf("failed to rollback transaction: %w", rollbackErr)
 		}
-		return model.ErrGroupNotFound
+		return constants.ErrGroupNotFound
 	}
 
-	// Update group members
-	err = updateGroupMembers(tx, group.ID, group.Members, logger)
+	err = updateGroupMembers(tx, group.ID, group.Members)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
 			err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
 		}
 		return err
 	}
 
-	// Commit the transaction
 	if err = tx.Commit(); err != nil {
-		logger.Error("Failed to commit transaction", log.Error(err))
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
@@ -353,7 +318,6 @@ func DeleteGroup(id string) error {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -362,46 +326,34 @@ func DeleteGroup(id string) error {
 		}
 	}()
 
-	// Begin transaction
 	tx, err := dbClient.BeginTx()
 	if err != nil {
-		logger.Error("Failed to begin transaction", log.Error(err))
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Delete group assignments first
 	_, err = tx.Exec(QueryDeleteGroupMembers.Query, id)
 	if err != nil {
-		logger.Error("Failed to delete group member assignments", log.Error(err))
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
 			err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
 		}
 		return fmt.Errorf("failed to delete group members: %w", err)
 	}
 
-	// Delete the group
 	result, err := tx.Exec(QueryDeleteGroup.Query, id)
 	if err != nil {
-		logger.Error("Failed to execute delete group query", log.Error(err))
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
 			err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
 		}
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	// Commit the transaction
 	if err = tx.Commit(); err != nil {
-		logger.Error("Failed to commit transaction", log.Error(err))
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	// Check rows affected after successful commit
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		logger.Error("Failed to get rows affected", log.Error(err))
-		// Transaction is already committed, so we don't return an error for this
+		return fmt.Errorf("failed to get rows affected: %w", err)
 	} else if rowsAffected == 0 {
 		logger.Debug("Group not found with id: " + id)
 	}
@@ -419,7 +371,6 @@ func ValidateGroupIDs(groupIDs []string) ([]string, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -430,13 +381,11 @@ func ValidateGroupIDs(groupIDs []string) ([]string, error) {
 
 	query, args, err := buildBulkGroupExistsQuery(groupIDs)
 	if err != nil {
-		logger.Error("Failed to build bulk group exists query", log.Error(err))
 		return nil, fmt.Errorf("failed to build bulk group exists query: %w", err)
 	}
 
 	results, err := dbClient.Query(query, args...)
 	if err != nil {
-		logger.Error("Failed to execute bulk group exists query", log.Error(err))
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
@@ -458,28 +407,24 @@ func ValidateGroupIDs(groupIDs []string) ([]string, error) {
 }
 
 // buildGroupFromResultRow constructs a model.Group from a database result row.
-func buildGroupFromResultRow(row map[string]interface{}, logger *log.Logger) (model.GroupDAO, error) {
+func buildGroupFromResultRow(row map[string]interface{}) (model.GroupDAO, error) {
 	groupID, ok := row["group_id"].(string)
 	if !ok {
-		logger.Error("Failed to parse group_id as string")
 		return model.GroupDAO{}, fmt.Errorf("failed to parse group_id as string")
 	}
 
 	name, ok := row["name"].(string)
 	if !ok {
-		logger.Error("Failed to parse name as string")
 		return model.GroupDAO{}, fmt.Errorf("failed to parse name as string")
 	}
 
 	description, ok := row["description"].(string)
 	if !ok {
-		logger.Error("Failed to parse description as string")
 		return model.GroupDAO{}, fmt.Errorf("failed to parse description as string")
 	}
 
 	ouID, ok := row["ou_id"].(string)
 	if !ok {
-		logger.Error("Failed to parse ou_id as string")
 		return model.GroupDAO{}, fmt.Errorf("failed to parse ou_id as string")
 	}
 
@@ -498,12 +443,10 @@ func addMembersToGroup(
 	tx dbmodel.TxInterface,
 	groupID string,
 	members []model.Member,
-	logger *log.Logger,
 ) error {
 	for _, member := range members {
 		_, err := tx.Exec(QueryAddMemberToGroup.Query, groupID, member.Type, member.ID)
 		if err != nil {
-			logger.Error("Failed to add member to group", log.String("memberID", member.ID), log.Error(err))
 			return fmt.Errorf("failed to add member to group: %w", err)
 		}
 	}
@@ -516,17 +459,14 @@ func updateGroupMembers(
 	tx dbmodel.TxInterface,
 	groupID string,
 	members []model.Member,
-	logger *log.Logger,
 ) error {
 	_, err := tx.Exec(QueryDeleteGroupMembers.Query, groupID)
 	if err != nil {
-		logger.Error("Failed to delete existing group member assignments", log.Error(err))
 		return fmt.Errorf("failed to delete existing group member assignments: %w", err)
 	}
 
-	err = addMembersToGroup(tx, groupID, members, logger)
+	err = addMembersToGroup(tx, groupID, members)
 	if err != nil {
-		logger.Error("Failed to assign members to group", log.Error(err))
 		return fmt.Errorf("failed to assign members to group: %w", err)
 	}
 	return nil
@@ -539,7 +479,6 @@ func CheckGroupNameConflictForCreate(name string, organizationUnitID string) err
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -548,7 +487,7 @@ func CheckGroupNameConflictForCreate(name string, organizationUnitID string) err
 		}
 	}()
 
-	return checkGroupNameConflictForCreate(dbClient, name, organizationUnitID, logger)
+	return checkGroupNameConflictForCreate(dbClient, name, organizationUnitID)
 }
 
 // CheckGroupNameConflictForUpdate checks if the new group name conflicts with other groups
@@ -558,7 +497,6 @@ func CheckGroupNameConflictForUpdate(name string, organizationUnitID string, gro
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -567,7 +505,7 @@ func CheckGroupNameConflictForUpdate(name string, organizationUnitID string, gro
 		}
 	}()
 
-	return checkGroupNameConflictForUpdate(dbClient, name, organizationUnitID, groupID, logger)
+	return checkGroupNameConflictForUpdate(dbClient, name, organizationUnitID, groupID)
 }
 
 // checkGroupNameConflictForCreate checks if the new group name conflicts with existing groups
@@ -576,22 +514,19 @@ func checkGroupNameConflictForCreate(
 	dbClient client.DBClientInterface,
 	name string,
 	organizationUnitID string,
-	logger *log.Logger,
 ) error {
 	var results []map[string]interface{}
 	var err error
 
-	// Check name conflict within the organization unit
 	results, err = dbClient.Query(QueryCheckGroupNameConflict, name, organizationUnitID)
 
 	if err != nil {
-		logger.Error("Failed to check group name conflict", log.Error(err))
 		return fmt.Errorf("failed to check group name conflict: %w", err)
 	}
 
 	if len(results) > 0 {
 		if count, ok := results[0]["count"].(int64); ok && count > 0 {
-			return model.ErrGroupNameConflict
+			return constants.ErrGroupNameConflict
 		}
 	}
 
@@ -605,22 +540,19 @@ func checkGroupNameConflictForUpdate(
 	name string,
 	organizationUnitID string,
 	groupID string,
-	logger *log.Logger,
 ) error {
 	var results []map[string]interface{}
 	var err error
 
-	// Check name conflict within the organization unit, excluding the current group
 	results, err = dbClient.Query(QueryCheckGroupNameConflictForUpdate, name, organizationUnitID, groupID)
 
 	if err != nil {
-		logger.Error("Failed to check group name conflict", log.Error(err))
 		return fmt.Errorf("failed to check group name conflict: %w", err)
 	}
 
 	if len(results) > 0 {
 		if count, ok := results[0]["count"].(int64); ok && count > 0 {
-			return model.ErrGroupNameConflict
+			return constants.ErrGroupNameConflict
 		}
 	}
 
