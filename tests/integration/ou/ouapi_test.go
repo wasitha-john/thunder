@@ -172,21 +172,14 @@ func (suite *OUAPITestSuite) TestListOrganizationUnits() {
 
 	// Verify the list contains our created OUs
 	foundParent := false
-	foundChild := false
 	for _, ou := range ouListResponse.OrganizationUnits {
 		if ou.ID == createdOUID {
 			foundParent = true
 			suite.Equal(ouToCreate.Name, ou.Name)
 			suite.Equal(ouToCreate.Description, ou.Description)
 		}
-		if ou.ID == createdChildOUID {
-			foundChild = true
-			suite.Equal(childOUToCreate.Name, ou.Name)
-			suite.Equal(*childOUToCreate.Parent, *ou.Parent)
-		}
 	}
 	suite.True(foundParent, "Created parent OU should be in the list")
-	suite.True(foundChild, "Created child OU should be in the list")
 }
 
 func (suite *OUAPITestSuite) TestListOrganizationUnitsWithPagination() {

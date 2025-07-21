@@ -25,7 +25,6 @@ type OrganizationUnitBasic struct {
 	Handle            string   `json:"handle"`
 	Name              string   `json:"name"`
 	Description       string   `json:"description,omitempty"`
-	Parent            *string  `json:"parent"`
 	OrganizationUnits []string `json:"organizationUnits"`
 }
 
