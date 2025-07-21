@@ -58,8 +58,9 @@ func GetTLSConfig(cfg *config.Config, currentDirectory string) (*tls.Config, err
 }
 
 // GetCertificateKid extracts the Key ID (kid) from the TLS certificate using SHA-256 thumbprint.
-func GetCertificateKid(cfg *config.Config, currentDirectory string) (string, error) {
-	tlsConfig, err := GetTLSConfig(cfg, currentDirectory)
+func GetCertificateKid() (string, error) {
+	thunderRuntime := config.GetThunderRuntime()
+	tlsConfig, err := GetTLSConfig(&thunderRuntime.Config, thunderRuntime.ThunderHome)
 	if err != nil {
 		return "", err
 	}

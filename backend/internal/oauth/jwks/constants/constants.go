@@ -52,3 +52,11 @@ var ErrorUnsupportedPublicKeyType = &serviceerror.ServiceError{
 	Error:            "Unsupported public key type.",
 	ErrorDescription: "The certificate public key type is not supported for JWKS.",
 }
+
+// ErrorWhileRetrievingCertificateKid is returned when there is an error retrieving the certificate kid.
+var ErrorWhileRetrievingCertificateKid = &serviceerror.ServiceError{
+	Code:             "JWKS-5005",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Error while retrieving certificate kid.",
+	ErrorDescription: "An error occurred while retrieving the certificate Key ID (kid).",
+}

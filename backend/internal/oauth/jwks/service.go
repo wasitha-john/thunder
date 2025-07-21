@@ -57,9 +57,9 @@ func (s *JWKSService) GetJWKS() (*model.JWKSResponse, *serviceerror.ServiceError
 	thunderRuntime := config.GetThunderRuntime()
 
 	// Get the certificate kid using the common utility function
-	kid, err := cert.GetCertificateKid(&thunderRuntime.Config, thunderRuntime.ThunderHome)
+	kid, err := cert.GetCertificateKid()
 	if err != nil {
-		svcErr := constants.ErrorWhileRetrievingTLSConfig
+		svcErr := constants.ErrorWhileRetrievingCertificateKid
 		svcErr.ErrorDescription = err.Error()
 		return nil, svcErr
 	}

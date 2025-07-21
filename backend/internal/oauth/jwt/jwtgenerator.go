@@ -105,21 +105,16 @@ func GenerateJWT(sub, aud string, validityPeriod int64, claims map[string]string
 	thunderRuntime := config.GetThunderRuntime()
 
 	// Get the certificate kid (Key ID) for the JWT header.
-	kid, err := cert.GetCertificateKid(&thunderRuntime.Config, thunderRuntime.ThunderHome)
+	kid, err := cert.GetCertificateKid()
 	if err != nil {
-		// Log the error but continue without kid to maintain backward compatibility
-		// In production, you might want to make this a hard failure
-		kid = ""
+		return "", 0, err
 	}
 
 	// Create the JWT header.
 	header := map[string]string{
 		"alg": "RS256",
 		"typ": "JWT",
-	}
-	// Add kid only if we successfully retrieved it
-	if kid != "" {
-		header["kid"] = kid
+		"kid": kid,
 	}
 
 	headerJSON, err := json.Marshal(header)
