@@ -181,7 +181,7 @@ func generateTestCertificate(t *testing.T, certFile, keyFile string) error {
 	}
 
 	// Write certificate to file
-	certOut, err := os.Create(certFile)
+	certOut, err := os.Create(certFile) // #nosec G304 - Test file with controlled path
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func generateTestCertificate(t *testing.T, certFile, keyFile string) error {
 	}
 
 	// Write private key to file
-	keyOut, err := os.Create(keyFile)
+	keyOut, err := os.Create(keyFile) // #nosec G304 - Test file with controlled path
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func generateTestCertificate(t *testing.T, certFile, keyFile string) error {
 // Helper method to get the certificate kid using the same logic as JWKS
 func getCertificateKidFromCert(certFile string) (string, error) {
 	// Read certificate file
-	certData, err := os.ReadFile(certFile)
+	certData, err := os.ReadFile(certFile) // #nosec G304 - Test file with controlled path
 	if err != nil {
 		return "", err
 	}
