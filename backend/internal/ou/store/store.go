@@ -45,7 +45,7 @@ func GetOrganizationUnitListCount() (int, error) {
 		}
 	}()
 
-	results, err := dbClient.Query(QueryGetOrganizationUnitListCount)
+	results, err := dbClient.Query(QueryGetRootOrganizationUnitListCount)
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute count query: %w", err)
 	}
@@ -76,7 +76,7 @@ func GetOrganizationUnitList(limit, offset int) ([]model.OrganizationUnitBasic, 
 		}
 	}()
 
-	results, err := dbClient.Query(QueryGetOrganizationUnitList, limit, offset)
+	results, err := dbClient.Query(QueryGetRootOrganizationUnitList, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -395,19 +395,11 @@ func buildOrganizationUnitBasicFromResultRow(
 		}
 	}
 
-	var parentID *string
-	if parent, ok := row["parent_id"]; ok && parent != nil {
-		if parentStr, ok := parent.(string); ok {
-			parentID = &parentStr
-		}
-	}
-
 	return model.OrganizationUnitBasic{
 		ID:                ouID,
 		Handle:            handle,
 		Name:              name,
 		Description:       description,
-		Parent:            parentID,
 		OrganizationUnits: make([]string, 0), // Will be populated by caller
 	}, nil
 }
@@ -421,12 +413,19 @@ func buildOrganizationUnitFromResultRow(
 		return model.OrganizationUnit{}, fmt.Errorf("failed to build organization unit: %w", err)
 	}
 
+	var parentID *string
+	if parent, ok := row["parent_id"]; ok && parent != nil {
+		if parentStr, ok := parent.(string); ok {
+			parentID = &parentStr
+		}
+	}
+
 	return model.OrganizationUnit{
 		ID:                ou.ID,
 		Handle:            ou.Handle,
 		Name:              ou.Name,
 		Description:       ou.Description,
-		Parent:            ou.Parent,
+		Parent:            parentID,
 		Users:             []string{},
 		Groups:            []string{},
 		OrganizationUnits: []string{},
