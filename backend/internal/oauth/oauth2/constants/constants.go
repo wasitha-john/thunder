@@ -42,6 +42,8 @@ const (
 	SessionDataKey        = "sessionDataKey"
 	SessionDataKeyConsent = "sessionDataKeyConsent"
 	ShowInsecureWarning   = "showInsecureWarning"
+	AppID                 = "applicationId"
+	Assertion             = "assertion"
 )
 
 // Oauth message types.

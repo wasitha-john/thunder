@@ -44,12 +44,21 @@ func NewAuthorizationService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for the AuthorizationService.
 func (s *AuthorizationService) RegisterRoutes(mux *http.ServeMux) {
-	opts := server.RequestWrapOptions{
+	opts1 := server.RequestWrapOptions{
 		Cors: &server.Cors{
-			AllowedMethods:   "GET",
+			AllowedMethods:   "GET, POST",
 			AllowedHeaders:   "Content-Type, Authorization",
 			AllowCredentials: true,
 		},
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /oauth2/authorize", &opts, s.authHandler.HandleAuthorizeRequest)
+
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /oauth2/authorize", &opts1,
+		s.authHandler.HandleAuthorizeGetRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /oauth2/authorize", &opts1,
+		s.authHandler.HandleAuthorizePostRequest)
+
+	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /oauth2/authorize", &opts1,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 }

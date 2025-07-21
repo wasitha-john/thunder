@@ -1,4 +1,5 @@
 {
     "productName": "WSO2 Thunder",
-    "authenticationEndpoint": "https://localhost:8090/flow/authn"
+    "flowExecutionEndpoint": "https://localhost:8090/flow/execute",
+    "authorizationEndpoint": "https://localhost:8090/oauth2/authorize"
 }

@@ -22,7 +22,6 @@ package model
 type OAuthParameters struct {
 	SessionDataKey string
 	State          string
-	AppID          string
 	ClientID       string
 	RedirectURI    string
 	ResponseType   string
