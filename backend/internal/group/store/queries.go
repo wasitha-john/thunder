@@ -27,17 +27,16 @@ import (
 )
 
 var (
-	// QueryGetGroupListCount is the query to get total count of root groups.
+	// QueryGetGroupListCount is the query to get total count of groups.
 	QueryGetGroupListCount = dbmodel.DBQuery{
 		ID:    "GRQ-GROUP_MGT-00",
-		Query: `SELECT COUNT(*) as total FROM "GROUP" WHERE OU_ID IS NOT NULL`,
+		Query: `SELECT COUNT(*) as total FROM "GROUP"`,
 	}
 
-	// QueryGetGroupList is the query to get root groups with pagination.
+	// QueryGetGroupList is the query to get groups with pagination.
 	QueryGetGroupList = dbmodel.DBQuery{
-		ID: "GRQ-GROUP_MGT-01",
-		Query: `SELECT GROUP_ID, OU_ID, NAME, DESCRIPTION FROM "GROUP" WHERE OU_ID IS NOT NULL ` +
-			`ORDER BY NAME LIMIT $1 OFFSET $2`,
+		ID:    "GRQ-GROUP_MGT-01",
+		Query: `SELECT GROUP_ID, OU_ID, NAME, DESCRIPTION FROM "GROUP" ORDER BY NAME LIMIT $1 OFFSET $2`,
 	}
 
 	// QueryCreateGroup is the query to create a new group.
