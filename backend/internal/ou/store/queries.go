@@ -138,4 +138,18 @@ var (
 					(SELECT COUNT(*) FROM "USER" WHERE OU_ID = $1) + 
 					(SELECT COUNT(*) FROM "GROUP" WHERE OU_ID = $1) as count`,
 	}
+
+	// QueryGetOrganizationUnitByHandle is the query to get an organization unit by handle and parent.
+	QueryGetOrganizationUnitByHandle = dbmodel.DBQuery{
+		ID: "OUQ-OU_MGT-19",
+		Query: `SELECT OU_ID, PARENT_ID, HANDLE, NAME, DESCRIPTION FROM ORGANIZATION_UNIT ` +
+			`WHERE HANDLE = $1 AND PARENT_ID = $2`,
+	}
+
+	// QueryGetRootOrganizationUnitByHandle is the query to get a root organization unit by handle.
+	QueryGetRootOrganizationUnitByHandle = dbmodel.DBQuery{
+		ID: "OUQ-OU_MGT-20",
+		Query: `SELECT OU_ID, PARENT_ID, HANDLE, NAME, DESCRIPTION FROM ORGANIZATION_UNIT ` +
+			`WHERE HANDLE = $1 AND PARENT_ID IS NULL`,
+	}
 )

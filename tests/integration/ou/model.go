@@ -94,3 +94,10 @@ type GroupListResponse struct {
 	Groups       []Group `json:"groups"`
 	Links        []Link  `json:"links"`
 }
+
+// ErrorResponse represents an error response.
+type ErrorResponse struct {
+	Code        string `json:"code"`
+	Message     string `json:"message"`
+	Description string `json:"description,omitempty"`
+}

@@ -23,6 +23,7 @@ package services
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/asgardeo/thunder/internal/ou/handler"
 	"github.com/asgardeo/thunder/internal/system/server"
@@ -70,8 +71,29 @@ func (s *OrganizationUnitService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	s.serverOpsService.WrapHandleFunction(
-		mux, "GET /organization-units/{id}", &opts2, s.ouHandler.HandleOUGetRequest)
+	s.serverOpsService.WrapHandleFunction(mux, "GET /organization-units/", &opts2,
+		func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/organization-units/")
+			segments := strings.Split(path, "/")
+			r.SetPathValue("id", segments[0])
+
+			if len(segments) == 1 {
+				s.ouHandler.HandleOUGetRequest(w, r)
+			} else if len(segments) == 2 {
+				switch segments[1] {
+				case "ous":
+					s.ouHandler.HandleOUChildrenListRequest(w, r)
+				case "users":
+					s.ouHandler.HandleOUUsersListRequest(w, r)
+				case "groups":
+					s.ouHandler.HandleOUGroupsListRequest(w, r)
+				default:
+					http.NotFound(w, r)
+				}
+			} else {
+				http.NotFound(w, r)
+			}
+		})
 	s.serverOpsService.WrapHandleFunction(
 		mux, "PUT /organization-units/{id}", &opts2, s.ouHandler.HandleOUPutRequest)
 	s.serverOpsService.WrapHandleFunction(
@@ -85,31 +107,14 @@ func (s *OrganizationUnitService) RegisterRoutes(mux *http.ServeMux) {
 		},
 	)
 
-	opts3 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
-	}
 	s.serverOpsService.WrapHandleFunction(
-		mux, "GET /organization-units/{id}/ous", &opts3, s.ouHandler.HandleOUChildrenListRequest)
+		mux, "GET /organization-units/tree/{path...}", &opts2, s.ouHandler.HandleOUGetByPathRequest)
 	s.serverOpsService.WrapHandleFunction(
-		mux, "OPTIONS /organization-units/{id}/ous", &opts3, func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusNoContent)
-		})
-
+		mux, "PUT /organization-units/tree/{path...}", &opts2, s.ouHandler.HandleOUPutByPathRequest)
 	s.serverOpsService.WrapHandleFunction(
-		mux, "GET /organization-units/{id}/users", &opts3, s.ouHandler.HandleOUUsersListRequest)
+		mux, "DELETE /organization-units/tree/{path...}", &opts2, s.ouHandler.HandleOUDeleteByPathRequest)
 	s.serverOpsService.WrapHandleFunction(
-		mux, "OPTIONS /organization-units/{id}/users", &opts3, func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusNoContent)
-		})
-
-	s.serverOpsService.WrapHandleFunction(
-		mux, "GET /organization-units/{id}/groups", &opts3, s.ouHandler.HandleOUGroupsListRequest)
-	s.serverOpsService.WrapHandleFunction(
-		mux, "OPTIONS /organization-units/{id}/groups", &opts3, func(w http.ResponseWriter, r *http.Request) {
+		mux, "OPTIONS /organization-units/tree/{path...}", &opts2, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 		})
 }

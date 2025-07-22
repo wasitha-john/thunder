@@ -153,6 +153,61 @@ func GetOrganizationUnit(id string) (model.OrganizationUnit, error) {
 	return ou, nil
 }
 
+// GetOrganizationUnitByPath retrieves an organization unit by its hierarchical handle path.
+func GetOrganizationUnitByPath(handlePath []string) (model.OrganizationUnit, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	if len(handlePath) == 0 {
+		return model.OrganizationUnit{}, constants.ErrOrganizationUnitNotFound
+	}
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		return model.OrganizationUnit{}, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	var currentOU model.OrganizationUnit
+	var parentID *string
+	var fullPath string
+
+	for i, handle := range handlePath {
+		fullPath = fullPath + "/" + handle
+		var results []map[string]interface{}
+
+		if parentID == nil {
+			results, err = dbClient.Query(QueryGetRootOrganizationUnitByHandle, handle)
+		} else {
+			results, err = dbClient.Query(QueryGetOrganizationUnitByHandle, handle, *parentID)
+		}
+
+		if err != nil {
+			return model.OrganizationUnit{}, fmt.Errorf("failed to execute query for handle %s: %w", handle, err)
+		}
+
+		if len(results) == 0 {
+			logger.Debug("Organization unit not found in path",
+				log.String("handle", handle),
+				log.Int("pathIndex", i),
+				log.String("fullPath", fullPath))
+			return model.OrganizationUnit{}, constants.ErrOrganizationUnitNotFound
+		}
+
+		currentOU, err = buildOrganizationUnitFromResultRow(results[0])
+		if err != nil {
+			return model.OrganizationUnit{}, fmt.Errorf("failed to build organization unit for handle %s: %w", handle, err)
+		}
+
+		parentID = &currentOU.ID
+	}
+
+	return currentOU, nil
+}
+
 // IsOrganizationUnitExists checks if an organization unit exists by ID.
 func IsOrganizationUnitExists(id string) (bool, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))

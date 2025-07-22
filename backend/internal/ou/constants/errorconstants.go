@@ -79,21 +79,28 @@ var (
 	// ErrorOrganizationUnitHandleConflict is the error returned when an organization unit handle conflicts.
 	ErrorOrganizationUnitHandleConflict = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "OU-1010",
+		Code:             "OU-1008",
 		Error:            "Organization unit handle conflict",
 		ErrorDescription: "An organization unit with the same handle already exists under the same parent",
+	}
+	// ErrorInvalidHandlePath is the error returned when handle path is invalid.
+	ErrorInvalidHandlePath = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "OU-1009",
+		Error:            "Invalid handle path",
+		ErrorDescription: "The specified handle path does not exist",
 	}
 	// ErrorInvalidLimit is the error returned when limit parameter is invalid.
 	ErrorInvalidLimit = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "OU-1011",
+		Code:             "OU-1010",
 		Error:            "Invalid limit parameter",
 		ErrorDescription: "The limit parameter must be a positive integer",
 	}
 	// ErrorInvalidOffset is the error returned when offset parameter is invalid.
 	ErrorInvalidOffset = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "OU-1012",
+		Code:             "OU-1011",
 		Error:            "Invalid offset parameter",
 		ErrorDescription: "The offset parameter must be a non-negative integer",
 	}

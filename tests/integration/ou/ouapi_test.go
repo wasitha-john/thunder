@@ -224,7 +224,7 @@ func (suite *OUAPITestSuite) TestListOrganizationUnitsWithInvalidPagination() {
 	err = json.Unmarshal(body, &errorResp)
 	suite.Require().NoError(err)
 
-	suite.Equal("OU-1011", errorResp["code"])
+	suite.Equal("OU-1010", errorResp["code"])
 
 	req, err = http.NewRequest("GET", testServerURL+"/organization-units?offset=-1", nil)
 	suite.Require().NoError(err)
@@ -241,7 +241,7 @@ func (suite *OUAPITestSuite) TestListOrganizationUnitsWithInvalidPagination() {
 	err = json.Unmarshal(body, &errorResp)
 	suite.Require().NoError(err)
 
-	suite.Equal("OU-1012", errorResp["code"])
+	suite.Equal("OU-1011", errorResp["code"])
 }
 
 func (suite *OUAPITestSuite) TestListOrganizationUnitsWithOnlyOffset() {
@@ -510,7 +510,7 @@ func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithDuplicateHandle() {
 	err = json.Unmarshal(body, &errorResp)
 	suite.Require().NoError(err)
 
-	suite.Equal("OU-1010", errorResp["code"])
+	suite.Equal("OU-1008", errorResp["code"])
 	suite.Equal("Organization unit handle conflict", errorResp["message"])
 }
 
