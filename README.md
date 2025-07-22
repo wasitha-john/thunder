@@ -92,19 +92,15 @@ Follow these steps to run WSO2 Thunder using Docker.
     docker pull ghcr.io/asgardeo/thunder:latest
     ```
 
-2. **Prepare the configuration file**
+2. **Run the container**
 
-    Create a `deployment.yaml` file in your working directory and copy the content from [deployment.yaml](https://github.com/asgardeo/thunder/blob/main/backend/cmd/server/repository/conf/deployment.yaml).
-
-    Update the server configs as below:
-
-    ```yaml
-    server:
-      hostname: 0.0.0.0
-      port: 8090
+    ```bash
+    docker run --rm \
+      -p 8090:8090 \
+      ghcr.io/asgardeo/thunder:latest
     ```
 
-3. **Run the container**
+    Optionally if you want to modify the server configurations, you can mount a custom `deployment.yaml` file. Create a `deployment.yaml` file in your working directory similar to the [deployment.yaml](https://github.com/asgardeo/thunder/blob/main/backend/cmd/server/repository/conf/deployment.yaml), and mount it as below:
 
     ```bash
     docker run --rm \

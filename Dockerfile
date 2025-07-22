@@ -29,6 +29,9 @@ WORKDIR /app
 # Copy the entire source code
 COPY . .
 
+# Modify the hostname in the deployment configuration
+RUN sed -i 's/hostname: "localhost"/hostname: "0.0.0.0"/' backend/cmd/server/repository/conf/deployment.yaml
+
 # Build the binary for the target architecture
 ARG TARGETARCH
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
