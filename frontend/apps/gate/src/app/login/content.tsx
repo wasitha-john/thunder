@@ -35,19 +35,27 @@ interface LoginInput {
 }
 
 const LoginPageContent = function (): ReactElement {
+  const [sessionDataKey, setSessionDataKey] = useState<string>('');
+  const [appId, setAppId] = useState<string>('');
   const [insecureWarning, setInsecureWarning] = useState<boolean>(false);
   const [flowId, setFlowId] = useState<string>('');
   const [inputs, setInputs] = useState<LoginInput[]>([]);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const params: URLSearchParams = new URLSearchParams(window.location.search);
     const key = params.get('sessionDataKey') || '';
+    const appId = params.get('applicationId') || '';
+
+    setSessionDataKey(key);
+    setAppId(appId);
     setInsecureWarning(params.get('showInsecureWarning') === 'true');
+
     if (key) {
-      axios.post(AppConfig.authenticationEndpoint, { sessionDataKey: key }, {
+      axios.post(AppConfig.flowExecutionEndpoint, { applicationId: appId }, {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
@@ -72,6 +80,10 @@ const LoginPageContent = function (): ReactElement {
     setFormValues({ ...formValues, [e.target.name]: e.target.value });
   };
 
+  const handleTogglePasswordVisibility = () => {
+    setShowPassword((prev) => !prev);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -80,7 +92,7 @@ const LoginPageContent = function (): ReactElement {
     let continueFlow = true;
     while (continueFlow) {
       try {
-        const res = await axios.post(AppConfig.authenticationEndpoint, {
+        const res = await axios.post(AppConfig.flowExecutionEndpoint, {
           flowId: currentFlowId,
           inputs: currentInputs,
         }, {
@@ -88,10 +100,6 @@ const LoginPageContent = function (): ReactElement {
           withCredentials: true,
           validateStatus: () => true,
         });
-        if (res.status === 302 && res.headers.location) {
-          window.location.href = res.headers.location;
-          return;
-        }
         if (res.status !== 200) {
           setError(res.data?.message || `Error response status: ${res.status}`);
           continueFlow = false;
@@ -101,11 +109,28 @@ const LoginPageContent = function (): ReactElement {
           setError(res.data.failureReason || 'Authentication failed.');
           continueFlow = false;
         } else if (res.data.flowStatus === 'COMPLETE') {
-          const redirectUrl = res.data.data.redirectURL;
+          const assertion = res?.data?.assertion;
+
+          const authZRes = await axios.post(AppConfig.authorizationEndpoint, {
+            sessionDataKey,
+            assertion,
+          }, {
+            headers: { 'Content-Type': 'application/json' },
+            withCredentials: true,
+            validateStatus: () => true,
+          });
+
+          if (authZRes.status !== 200) {
+            setError(authZRes.data?.message || `Authorization failed with status: ${authZRes.status}`);
+            continueFlow = false;
+            break;
+          }
+
+          const redirectUrl = authZRes?.data?.redirect_uri;
           if (redirectUrl) {
             window.location.href = redirectUrl;
           } else {
-            setError('Authentication completed but no redirect URL provided.');
+            setError('Authorization completed but no redirect URL provided.');
           }
           continueFlow = false;
         } else if (res.data.flowStatus === 'INCOMPLETE') {
@@ -156,7 +181,7 @@ const LoginPageContent = function (): ReactElement {
               <Box key={input.name} display="flex" flexDirection="column" gap={0.5}>
                 <InputLabel htmlFor={input.name}>{formattedLabel}</InputLabel>
                 <OutlinedInput
-                  type={input.name === 'password' ? 'password' : 'text'}
+                  type={input.name === 'password' ? (showPassword ? 'text' : 'password') : 'text'}
                   id={input.name}
                   name={input.name}
                   placeholder={`Enter your ${formattedPlaceholder}`}
@@ -164,6 +189,21 @@ const LoginPageContent = function (): ReactElement {
                   required={input.required}
                   value={formValues[input.name] || ''}
                   onChange={handleInputChange}
+                  endAdornment={input.name === 'password' && (
+                    <Button
+                      variant="text"
+                      onClick={handleTogglePasswordVisibility}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        color: '#1976d2',
+                      }}
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </Button>
+                  )}
                 />
               </Box>
             );
