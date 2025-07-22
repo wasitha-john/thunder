@@ -41,10 +41,16 @@ type OrganizationUnitServiceInterface interface {
 		request model.OrganizationUnitRequest,
 	) (model.OrganizationUnit, *serviceerror.ServiceError)
 	GetOrganizationUnit(id string) (model.OrganizationUnit, *serviceerror.ServiceError)
+	IsOrganizationUnitExists(id string) (bool, *serviceerror.ServiceError)
 	UpdateOrganizationUnit(
 		id string, request model.OrganizationUnitRequest,
 	) (model.OrganizationUnit, *serviceerror.ServiceError)
 	DeleteOrganizationUnit(id string) *serviceerror.ServiceError
+	GetOrganizationUnitChildren(
+		id string, limit, offset int,
+	) (*model.OrganizationUnitListResponse, *serviceerror.ServiceError)
+	GetOrganizationUnitUsers(id string, limit, offset int) (*model.UserListResponse, *serviceerror.ServiceError)
+	GetOrganizationUnitGroups(id string, limit, offset int) (*model.GroupListResponse, *serviceerror.ServiceError)
 }
 
 // OrganizationUnitService provides organization unit management operations.
@@ -104,13 +110,13 @@ func (ous *OrganizationUnitService) CreateOrganizationUnit(
 	}
 
 	if request.Parent != nil {
-		_, err := store.GetOrganizationUnit(*request.Parent)
+		exists, err := store.IsOrganizationUnitExists(*request.Parent)
 		if err != nil {
-			if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
-				return model.OrganizationUnit{}, &constants.ErrorParentOrganizationUnitNotFound
-			}
-			logger.Error("Failed to validate parent organization unit", log.Error(err))
+			logger.Error("Failed to check parent organization unit existence", log.Error(err))
 			return model.OrganizationUnit{}, &constants.ErrorInternalServerError
+		}
+		if !exists {
+			return model.OrganizationUnit{}, &constants.ErrorParentOrganizationUnitNotFound
 		}
 	}
 
@@ -134,14 +140,11 @@ func (ous *OrganizationUnitService) CreateOrganizationUnit(
 
 	ouID := utils.GenerateUUID()
 	ou := model.OrganizationUnit{
-		ID:                ouID,
-		Handle:            request.Handle,
-		Name:              request.Name,
-		Description:       request.Description,
-		Parent:            request.Parent,
-		Users:             []string{},
-		Groups:            []string{},
-		OrganizationUnits: []string{},
+		ID:          ouID,
+		Handle:      request.Handle,
+		Name:        request.Name,
+		Description: request.Description,
+		Parent:      request.Parent,
 	}
 
 	err = store.CreateOrganizationUnit(ou)
@@ -174,6 +177,20 @@ func (ous *OrganizationUnitService) GetOrganizationUnit(
 	return ou, nil
 }
 
+// IsOrganizationUnitExists checks if an organization unit exists by ID.
+func (ous *OrganizationUnitService) IsOrganizationUnitExists(id string) (bool, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Checking if organization unit exists", log.String("ouID", id))
+
+	exists, err := store.IsOrganizationUnitExists(id)
+	if err != nil {
+		logger.Error("Failed to check organization unit existence", log.Error(err))
+		return false, &constants.ErrorInternalServerError
+	}
+
+	return exists, nil
+}
+
 // UpdateOrganizationUnit updates an organization unit.
 func (ous *OrganizationUnitService) UpdateOrganizationUnit(
 	id string, request model.OrganizationUnitRequest,
@@ -199,13 +216,13 @@ func (ous *OrganizationUnitService) UpdateOrganizationUnit(
 	}
 
 	if request.Parent != nil {
-		_, err := store.GetOrganizationUnit(*request.Parent)
+		exists, err := store.IsOrganizationUnitExists(*request.Parent)
 		if err != nil {
-			if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
-				return model.OrganizationUnit{}, &constants.ErrorParentOrganizationUnitNotFound
-			}
-			logger.Error("Failed to validate parent organization unit", log.Error(err))
+			logger.Error("Failed to check parent organization unit existence", log.Error(err))
 			return model.OrganizationUnit{}, &constants.ErrorInternalServerError
+		}
+		if !exists {
+			return model.OrganizationUnit{}, &constants.ErrorParentOrganizationUnitNotFound
 		}
 	}
 
@@ -266,13 +283,13 @@ func (ous *OrganizationUnitService) DeleteOrganizationUnit(id string) *serviceer
 	logger.Debug("Deleting organization unit", log.String("ouID", id))
 
 	// Check if organization unit exists
-	_, err := store.GetOrganizationUnit(id)
+	exists, err := store.IsOrganizationUnitExists(id)
 	if err != nil {
-		if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
-			return &constants.ErrorOrganizationUnitNotFound
-		}
-		logger.Error("Failed to get organization unit", log.Error(err))
+		logger.Error("Failed to check organization unit existence", log.Error(err))
 		return &constants.ErrorInternalServerError
+	}
+	if !exists {
+		return &constants.ErrorOrganizationUnitNotFound
 	}
 
 	hasChildren, err := store.CheckOrganizationUnitHasChildResources(id)
@@ -297,40 +314,118 @@ func (ous *OrganizationUnitService) DeleteOrganizationUnit(id string) *serviceer
 	return nil
 }
 
-// checkCircularDependency checks if setting a parent would create a circular dependency
-func (ous *OrganizationUnitService) checkCircularDependency(ouID string, parentID *string) *serviceerror.ServiceError {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+// GetOrganizationUnitUsers retrieves a list of users for a given organization unit ID.
+func (ous *OrganizationUnitService) GetOrganizationUnitUsers(
+	id string, limit, offset int,
+) (*model.UserListResponse, *serviceerror.ServiceError) {
+	items, totalCount, svcErr := ous.getResourceListWithExistenceCheck(
+		id, limit, offset, "users",
+		func(id string, limit, offset int) (interface{}, error) {
+			return store.GetOrganizationUnitUsersList(id, limit, offset)
+		},
+		store.GetOrganizationUnitUsersCount,
+	)
+	if svcErr != nil {
+		return nil, svcErr
+	}
 
+	users, ok := items.([]model.User)
+	if !ok {
+		return nil, &constants.ErrorInternalServerError
+	}
+	response := &model.UserListResponse{
+		TotalResults: totalCount,
+		Users:        users,
+		StartIndex:   offset + 1,
+		Count:        len(users),
+		Links:        buildPaginationLinks(limit, offset, totalCount),
+	}
+
+	return response, nil
+}
+
+// GetOrganizationUnitGroups retrieves a list of groups for a given organization unit ID.
+func (ous *OrganizationUnitService) GetOrganizationUnitGroups(
+	id string, limit, offset int,
+) (*model.GroupListResponse, *serviceerror.ServiceError) {
+	items, totalCount, svcErr := ous.getResourceListWithExistenceCheck(
+		id, limit, offset, "groups",
+		func(id string, limit, offset int) (interface{}, error) {
+			return store.GetOrganizationUnitGroupsList(id, limit, offset)
+		},
+		store.GetOrganizationUnitGroupsCount,
+	)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+
+	groups, ok := items.([]model.Group)
+	if !ok {
+		return nil, &constants.ErrorInternalServerError
+	}
+	response := &model.GroupListResponse{
+		TotalResults: totalCount,
+		Groups:       groups,
+		StartIndex:   offset + 1,
+		Count:        len(groups),
+		Links:        buildPaginationLinks(limit, offset, totalCount),
+	}
+
+	return response, nil
+}
+
+// GetOrganizationUnitChildren retrieves a list of child organization units for a given organization unit ID.
+func (ous *OrganizationUnitService) GetOrganizationUnitChildren(
+	id string, limit, offset int,
+) (*model.OrganizationUnitListResponse, *serviceerror.ServiceError) {
+	items, totalCount, svcErr := ous.getResourceListWithExistenceCheck(
+		id, limit, offset, "child organization units",
+		func(id string, limit, offset int) (interface{}, error) {
+			return store.GetOrganizationUnitChildrenList(id, limit, offset)
+		},
+		store.GetOrganizationUnitChildrenCount,
+	)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+
+	children, ok := items.([]model.OrganizationUnitBasic)
+	if !ok {
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	response := &model.OrganizationUnitListResponse{
+		TotalResults:      totalCount,
+		OrganizationUnits: children,
+		StartIndex:        offset + 1,
+		Count:             len(children),
+		Links:             buildPaginationLinks(limit, offset, totalCount),
+	}
+
+	return response, nil
+}
+
+// checkCircularDependency checks if setting the parent would create a circular dependency.
+func (ous *OrganizationUnitService) checkCircularDependency(ouID string, parentID *string) *serviceerror.ServiceError {
 	if parentID == nil {
 		return nil
 	}
 
-	if *parentID == ouID {
+	if ouID == *parentID {
 		return &constants.ErrorCircularDependency
 	}
 
-	// Check if the parent or any of its ancestors is the current OU
 	currentParentID := parentID
-	visited := make(map[string]bool)
-
 	for currentParentID != nil {
 		if *currentParentID == ouID {
 			return &constants.ErrorCircularDependency
 		}
-
-		// Prevent infinite loops in case of existing circular dependencies in data
-		if visited[*currentParentID] {
-			logger.Error("Existing circular dependency detected in data", log.String("parentID", *currentParentID))
-			break
-		}
-		visited[*currentParentID] = true
 
 		parentOU, err := store.GetOrganizationUnit(*currentParentID)
 		if err != nil {
 			if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
 				break
 			}
-			logger.Error("Failed to get organization unit while checking circular dependency", log.Error(err))
 			return &constants.ErrorInternalServerError
 		}
 
@@ -340,7 +435,7 @@ func (ous *OrganizationUnitService) checkCircularDependency(ouID string, parentI
 	return nil
 }
 
-// validateOUName validates organization unit name
+// validateOUName validates organization unit name.
 func (ous *OrganizationUnitService) validateOUName(name string) *serviceerror.ServiceError {
 	if strings.TrimSpace(name) == "" {
 		return &constants.ErrorInvalidRequestFormat
@@ -349,7 +444,7 @@ func (ous *OrganizationUnitService) validateOUName(name string) *serviceerror.Se
 	return nil
 }
 
-// validateOUHandle validates organization unit handle
+// validateOUHandle validates organization unit handle.
 func (ous *OrganizationUnitService) validateOUHandle(handle string) *serviceerror.ServiceError {
 	if strings.TrimSpace(handle) == "" {
 		return &constants.ErrorInvalidRequestFormat
@@ -406,4 +501,44 @@ func buildPaginationLinks(limit, offset, totalCount int) []model.Link {
 	}
 
 	return links
+}
+
+// getResourceListWithExistenceCheck is a generic function to get resources for an
+// organization unit with existence check.
+func (ous *OrganizationUnitService) getResourceListWithExistenceCheck(
+	id string, limit, offset int, resourceType string,
+	getListFunc func(string, int, int) (interface{}, error),
+	getCountFunc func(string) (int, error),
+) (interface{}, int, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Getting resource for organization unit", log.String("resource_type", resourceType),
+		log.String("ouID", id))
+
+	if err := validatePaginationParams(limit, offset); err != nil {
+		return nil, 0, err
+	}
+
+	// Check if the organization unit exists
+	exists, err := store.IsOrganizationUnitExists(id)
+	if err != nil {
+		logger.Error("Failed to check organization unit existence", log.Error(err))
+		return nil, 0, &constants.ErrorInternalServerError
+	}
+	if !exists {
+		return nil, 0, &constants.ErrorOrganizationUnitNotFound
+	}
+
+	items, err := getListFunc(id, limit, offset)
+	if err != nil {
+		logger.Error("Failed to list resource", log.String("resource_type", resourceType), log.Error(err))
+		return nil, 0, &constants.ErrorInternalServerError
+	}
+
+	totalCount, err := getCountFunc(id)
+	if err != nil {
+		logger.Error("Failed to get resource count", log.String("resource_type", resourceType), log.Error(err))
+		return nil, 0, &constants.ErrorInternalServerError
+	}
+
+	return items, totalCount, nil
 }
