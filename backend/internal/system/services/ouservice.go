@@ -84,4 +84,32 @@ func (s *OrganizationUnitService) RegisterRoutes(mux *http.ServeMux) {
 			w.WriteHeader(http.StatusNoContent)
 		},
 	)
+
+	opts3 := server.RequestWrapOptions{
+		Cors: &server.Cors{
+			AllowedMethods:   "GET",
+			AllowedHeaders:   "Content-Type, Authorization",
+			AllowCredentials: true,
+		},
+	}
+	s.serverOpsService.WrapHandleFunction(
+		mux, "GET /organization-units/{id}/ous", &opts3, s.ouHandler.HandleOUChildrenListRequest)
+	s.serverOpsService.WrapHandleFunction(
+		mux, "OPTIONS /organization-units/{id}/ous", &opts3, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+	s.serverOpsService.WrapHandleFunction(
+		mux, "GET /organization-units/{id}/users", &opts3, s.ouHandler.HandleOUUsersListRequest)
+	s.serverOpsService.WrapHandleFunction(
+		mux, "OPTIONS /organization-units/{id}/users", &opts3, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+	s.serverOpsService.WrapHandleFunction(
+		mux, "GET /organization-units/{id}/groups", &opts3, s.ouHandler.HandleOUGroupsListRequest)
+	s.serverOpsService.WrapHandleFunction(
+		mux, "OPTIONS /organization-units/{id}/groups", &opts3, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 }

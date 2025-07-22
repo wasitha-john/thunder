@@ -27,16 +27,13 @@ type OrganizationUnitBasic struct {
 	Description string `json:"description,omitempty"`
 }
 
-// OrganizationUnit represents a complete organization unit with users, groups, and sub organization units.
+// OrganizationUnit represents an organization unit.
 type OrganizationUnit struct {
-	ID                string   `json:"id"`
-	Handle            string   `json:"handle"`
-	Name              string   `json:"name"`
-	Description       string   `json:"description,omitempty"`
-	Parent            *string  `json:"parent"`
-	Users             []string `json:"users,omitempty"`
-	Groups            []string `json:"groups,omitempty"`
-	OrganizationUnits []string `json:"organizationUnits"`
+	ID          string  `json:"id"`
+	Handle      string  `json:"handle"`
+	Name        string  `json:"name"`
+	Description string  `json:"description,omitempty"`
+	Parent      *string `json:"parent"`
 }
 
 // OrganizationUnitRequest represents the request body for creating an organization unit.
@@ -60,4 +57,33 @@ type OrganizationUnitListResponse struct {
 	Count             int                     `json:"count"`
 	OrganizationUnits []OrganizationUnitBasic `json:"organizationUnits"`
 	Links             []Link                  `json:"links"`
+}
+
+// User represents a user with basic information for OU endpoints.
+type User struct {
+	ID string `json:"id"`
+}
+
+// Group represents a group with basic information for OU endpoints.
+type Group struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// UserListResponse represents the response for listing users in an organization unit.
+type UserListResponse struct {
+	TotalResults int    `json:"totalResults"`
+	StartIndex   int    `json:"startIndex"`
+	Count        int    `json:"count"`
+	Users        []User `json:"users"`
+	Links        []Link `json:"links"`
+}
+
+// GroupListResponse represents the response for listing groups in an organization unit.
+type GroupListResponse struct {
+	TotalResults int     `json:"totalResults"`
+	StartIndex   int     `json:"startIndex"`
+	Count        int     `json:"count"`
+	Groups       []Group `json:"groups"`
+	Links        []Link  `json:"links"`
 }

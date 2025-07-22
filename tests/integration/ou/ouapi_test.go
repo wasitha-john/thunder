@@ -63,19 +63,13 @@ func TestOUAPITestSuite(t *testing.T) {
 
 func (suite *OUAPITestSuite) SetupSuite() {
 	id, err := createOU(suite, ouToCreate)
-	if err != nil {
-		suite.T().Fatalf("Failed to create OU during setup: %v", err)
-	} else {
-		createdOUID = id
-	}
+	suite.Require().NoError(err, "Failed to create OU during setup: %v", err)
 
+	createdOUID = id
 	childOUToCreate.Parent = &createdOUID
 	childID, err := createOU(suite, childOUToCreate)
-	if err != nil {
-		suite.T().Fatalf("Failed to create child OU during setup: %v", err)
-	} else {
-		createdChildOUID = childID
-	}
+	suite.Require().NoError(err, "Failed to create child OU during setup: %v", err)
+	createdChildOUID = childID
 }
 
 func (suite *OUAPITestSuite) TearDownSuite() {
@@ -119,9 +113,7 @@ func (suite *OUAPITestSuite) TestGetOrganizationUnit() {
 	suite.Equal(http.StatusOK, resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		suite.T().Fatalf("Failed to read response body: %v", err)
-	}
+	suite.Require().NoError(err, "Failed to read response body: %v", err)
 
 	var retrievedOU OrganizationUnit
 	err = json.Unmarshal(body, &retrievedOU)
@@ -132,8 +124,6 @@ func (suite *OUAPITestSuite) TestGetOrganizationUnit() {
 	suite.Equal(ouToCreate.Name, retrievedOU.Name)
 	suite.Equal(ouToCreate.Description, retrievedOU.Description)
 	suite.Equal(ouToCreate.Parent, retrievedOU.Parent)
-	suite.NotNil(retrievedOU.OrganizationUnits)
-	suite.Contains(retrievedOU.OrganizationUnits, createdChildOUID)
 }
 
 func (suite *OUAPITestSuite) TestListOrganizationUnits() {
@@ -157,9 +147,7 @@ func (suite *OUAPITestSuite) TestListOrganizationUnits() {
 	suite.Equal(http.StatusOK, resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		suite.T().Fatalf("Failed to read response body: %v", err)
-	}
+	suite.Require().NoError(err, "Failed to read response body: %v", err)
 
 	var ouListResponse OrganizationUnitListResponse
 	err = json.Unmarshal(body, &ouListResponse)
@@ -359,9 +347,7 @@ func (suite *OUAPITestSuite) TestDeleteOrganizationUnit() {
 	suite.Require().NoError(err)
 
 	getResp, err := client.Do(getReq)
-	if err != nil {
-		suite.T().Fatalf("Failed to execute GET request: %v", err)
-	}
+	suite.Require().NoError(err, "Failed to execute GET request: %v", err)
 	defer getResp.Body.Close()
 
 	suite.Equal(http.StatusNotFound, getResp.StatusCode)
@@ -378,9 +364,7 @@ func (suite *OUAPITestSuite) TestGetNonExistentOrganizationUnit() {
 	suite.Require().NoError(err)
 
 	resp, err := client.Do(req)
-	if err != nil {
-		suite.T().Fatalf("Failed to execute GET request: %v", err)
-	}
+	suite.Require().NoError(err, "Failed to execute GET request: %v", err)
 	defer resp.Body.Close()
 
 	suite.Equal(http.StatusNotFound, resp.StatusCode)
@@ -406,9 +390,8 @@ func (suite *OUAPITestSuite) TestCreateOrganizationUnitWithInvalidData() {
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
-	if err != nil {
-		suite.T().Fatalf("Failed to execute POST request: %v", err)
-	}
+
+	suite.Require().NoError(err, "Failed to execute POST request: %v", err)
 	defer resp.Body.Close()
 
 	suite.Equal(http.StatusBadRequest, resp.StatusCode)
@@ -779,6 +762,301 @@ func (suite *OUAPITestSuite) TestDeleteNonExistentOrganizationUnit() {
 	defer resp.Body.Close()
 
 	suite.Equal(http.StatusNotFound, resp.StatusCode)
+}
+
+func (suite *OUAPITestSuite) TestGetOrganizationUnitChildren() {
+	if createdOUID == "" {
+		suite.T().Fatal("OU ID is not available for retrieving children")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/"+createdOUID+"/ous", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err, "Failed to read response body")
+
+	var childrenResponse OrganizationUnitListResponse
+	err = json.Unmarshal(body, &childrenResponse)
+	suite.Require().NoError(err)
+
+	// Verify response structure
+	suite.GreaterOrEqual(childrenResponse.TotalResults, 1)
+	suite.Equal(1, childrenResponse.StartIndex)
+
+	// Verify our child OU is in the list
+	foundChild := false
+	for _, ou := range childrenResponse.OrganizationUnits {
+		if ou.ID == createdChildOUID {
+			foundChild = true
+			suite.Equal(childOUToCreate.Name, ou.Name)
+			suite.Equal(childOUToCreate.Description, ou.Description)
+		}
+	}
+	suite.True(foundChild, "Created child OU should be in the children list")
+}
+
+func (suite *OUAPITestSuite) TestGetOrganizationUnitUsers() {
+	if createdOUID == "" {
+		suite.T().Fatal("OU ID is not available for retrieving users")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/"+createdOUID+"/users", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err, "Failed to read response body: %v", err)
+
+	var usersResponse UserListResponse
+	err = json.Unmarshal(body, &usersResponse)
+	suite.Require().NoError(err)
+
+	// Verify response structure
+	suite.GreaterOrEqual(usersResponse.TotalResults, 0)
+	suite.Equal(1, usersResponse.StartIndex)
+	suite.Equal(len(usersResponse.Users), usersResponse.Count)
+}
+
+func (suite *OUAPITestSuite) TestGetOrganizationUnitGroups() {
+	if createdOUID == "" {
+		suite.T().Fatal("OU ID is not available for retrieving groups")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/"+createdOUID+"/groups", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err, "Failed to read response body: %v", err)
+
+	var groupsResponse GroupListResponse
+	err = json.Unmarshal(body, &groupsResponse)
+	suite.Require().NoError(err)
+
+	// Verify response structure
+	suite.GreaterOrEqual(groupsResponse.TotalResults, 0)
+	suite.Equal(1, groupsResponse.StartIndex)
+	suite.Equal(len(groupsResponse.Groups), groupsResponse.Count)
+}
+
+func (suite *OUAPITestSuite) TestGetNonExistentOrganizationUnitChildren() {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/non-existent-id/ous", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusNotFound, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp map[string]interface{}
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("OU-1003", errorResp["code"])
+}
+
+func (suite *OUAPITestSuite) TestGetNonExistentOrganizationUnitUsers() {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/non-existent-id/users", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusNotFound, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp map[string]interface{}
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("OU-1003", errorResp["code"])
+}
+
+func (suite *OUAPITestSuite) TestGetNonExistentOrganizationUnitGroups() {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/non-existent-id/groups", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusNotFound, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp map[string]interface{}
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("OU-1003", errorResp["code"])
+}
+
+func (suite *OUAPITestSuite) TestGetOrganizationUnitChildrenWithPagination() {
+	if createdOUID == "" {
+		suite.T().Fatal("OU ID is not available for retrieving children with pagination")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/"+createdOUID+"/ous?limit=1&offset=0", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var childrenResponse OrganizationUnitListResponse
+	err = json.Unmarshal(body, &childrenResponse)
+	suite.Require().NoError(err)
+
+	suite.GreaterOrEqual(childrenResponse.TotalResults, 0)
+	suite.Equal(1, childrenResponse.StartIndex)
+	suite.LessOrEqual(childrenResponse.Count, 1)
+}
+
+func (suite *OUAPITestSuite) TestGetOrganizationUnitUsersWithPagination() {
+	if createdOUID == "" {
+		suite.T().Fatal("OU ID is not available for retrieving users with pagination")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/"+createdOUID+"/users?limit=10&offset=0", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var usersResponse UserListResponse
+	err = json.Unmarshal(body, &usersResponse)
+	suite.Require().NoError(err)
+
+	suite.GreaterOrEqual(usersResponse.TotalResults, 0)
+	suite.Equal(1, usersResponse.StartIndex)
+	suite.LessOrEqual(usersResponse.Count, 10)
+}
+
+func (suite *OUAPITestSuite) TestGetOrganizationUnitGroupsWithPagination() {
+	if createdOUID == "" {
+		suite.T().Fatal("OU ID is not available for retrieving groups with pagination")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/"+createdOUID+"/groups?limit=10&offset=0", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var groupsResponse GroupListResponse
+	err = json.Unmarshal(body, &groupsResponse)
+	suite.Require().NoError(err)
+
+	suite.GreaterOrEqual(groupsResponse.TotalResults, 0)
+	suite.Equal(1, groupsResponse.StartIndex)
+	suite.LessOrEqual(groupsResponse.Count, 10)
 }
 
 func createOU(ts *OUAPITestSuite, ouRequest CreateOURequest) (string, error) {

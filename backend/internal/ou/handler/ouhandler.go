@@ -253,6 +253,30 @@ func (ouh *OrganizationUnitHandler) HandleOUDeleteRequest(w http.ResponseWriter,
 	logger.Debug("Successfully deleted organization unit", log.String("ouId", id))
 }
 
+// HandleOUChildrenListRequest handles the list child organization units request.
+func (ouh *OrganizationUnitHandler) HandleOUChildrenListRequest(w http.ResponseWriter, r *http.Request) {
+	ouh.handleResourceListRequest(w, r, "child organization units",
+		func(id string, limit, offset int) (interface{}, *serviceerror.ServiceError) {
+			return ouh.service.GetOrganizationUnitChildren(id, limit, offset)
+		})
+}
+
+// HandleOUUsersListRequest handles the list users in organization unit request.
+func (ouh *OrganizationUnitHandler) HandleOUUsersListRequest(w http.ResponseWriter, r *http.Request) {
+	ouh.handleResourceListRequest(w, r, "users",
+		func(id string, limit, offset int) (interface{}, *serviceerror.ServiceError) {
+			return ouh.service.GetOrganizationUnitUsers(id, limit, offset)
+		})
+}
+
+// HandleOUGroupsListRequest handles the list groups in organization unit request.
+func (ouh *OrganizationUnitHandler) HandleOUGroupsListRequest(w http.ResponseWriter, r *http.Request) {
+	ouh.handleResourceListRequest(w, r, "groups",
+		func(id string, limit, offset int) (interface{}, *serviceerror.ServiceError) {
+			return ouh.service.GetOrganizationUnitGroups(id, limit, offset)
+		})
+}
+
 // handleError handles service errors and returns appropriate HTTP responses.
 func (ouh *OrganizationUnitHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 	svcErr *serviceerror.ServiceError) {
@@ -324,4 +348,72 @@ func parsePaginationParams(query url.Values) (int, int, *serviceerror.ServiceErr
 	}
 
 	return limit, offset, nil
+}
+
+// handleResourceListRequest is a generic handler for listing resources under an organization unit.
+func (ouh *OrganizationUnitHandler) handleResourceListRequest(
+	w http.ResponseWriter, r *http.Request, resourceType string,
+	serviceFunc func(string, int, int) (interface{}, *serviceerror.ServiceError),
+) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	id := r.PathValue("id")
+	if id == "" {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorMissingOrganizationUnitID.Code,
+			Message:     constants.ErrorMissingOrganizationUnitID.Error,
+			Description: constants.ErrorMissingOrganizationUnitID.ErrorDescription,
+		}
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	limit, offset, svcErr := parsePaginationParams(r.URL.Query())
+	if svcErr != nil {
+		ouh.handleError(w, logger, svcErr)
+		return
+	}
+
+	if limit == 0 {
+		limit = limitDefault
+	}
+
+	response, svcErr := serviceFunc(id, limit, offset)
+	if svcErr != nil {
+		ouh.handleError(w, logger, svcErr)
+		return
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	// Extract pagination info for logging based on response type
+	var totalResults, count int
+	switch resp := response.(type) {
+	case *model.OrganizationUnitListResponse:
+		totalResults = resp.TotalResults
+		count = resp.Count
+	case *model.UserListResponse:
+		totalResults = resp.TotalResults
+		count = resp.Count
+	case *model.GroupListResponse:
+		totalResults = resp.TotalResults
+		count = resp.Count
+	}
+
+	logger.Debug("Successfully listed resources in organization unit", log.String("resourceType", resourceType),
+		log.Int("limit", limit), log.Int("offset", offset),
+		log.Int("totalResults", totalResults),
+		log.Int("count", count))
 }
