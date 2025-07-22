@@ -19,14 +19,6 @@
 // Package validator provides functionality for validating scopes.
 package validator
 
-import (
-	"strings"
-
-	"github.com/asgardeo/thunder/internal/oauth/scope/constants"
-	"github.com/asgardeo/thunder/internal/system/database/provider"
-	"github.com/asgardeo/thunder/internal/system/log"
-)
-
 // ScopeError represents an error during scope validation.
 type ScopeError struct {
 	Error            string
@@ -52,48 +44,6 @@ func (sv *APIScopeValidator) ValidateScopes(requestedScopes, clientID string) (s
 		return "", nil
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "APIScopeValidator"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
-	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
-		return "", &ScopeError{
-			Error:            "server_error",
-			ErrorDescription: "Failed to validate scopes",
-		}
-	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Error closing database client", log.Error(closeErr))
-		}
-	}()
-
-	// Query authorized scopes for the client.
-	results, err := dbClient.Query(constants.QueryGetAuthorizedScopesByClientID, clientID)
-	if err != nil {
-		logger.Error("Failed to execute scope query", log.Error(err))
-		return "", &ScopeError{
-			Error:            "server_error",
-			ErrorDescription: "Failed to validate scopes",
-		}
-	}
-
-	// Extract authorized scopes into a map for faster lookup.
-	authorizedScopeMap := make(map[string]struct{})
-	for _, row := range results {
-		if scopeName, ok := row["name"].(string); ok {
-			authorizedScopeMap[scopeName] = struct{}{}
-		}
-	}
-
-	// Filter requested scopes using the map.
-	requestedScopeList := strings.Fields(requestedScopes)
-	validScopes := make([]string, 0, len(requestedScopeList))
-	for _, scope := range requestedScopeList {
-		if _, ok := authorizedScopeMap[scope]; ok {
-			validScopes = append(validScopes, scope)
-		}
-	}
-
-	return strings.Join(validScopes, " "), nil
+	// Return all requested scopes for now.
+	return requestedScopes, nil
 }

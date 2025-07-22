@@ -47,3 +47,9 @@ var QueryUpdateAuthorizationCodeState = dbmodel.DBQuery{
 	ID:    "AZQ-00004",
 	Query: "UPDATE IDN_OAUTH2_AUTHZ_CODE SET STATE = $1 WHERE CODE_ID = $2",
 }
+
+// QueryGetAuthorizationCodeScopes is the query to retrieve scopes for an authorization code.
+var QueryGetAuthorizationCodeScopes = dbmodel.DBQuery{
+	ID:    "AZQ-00005",
+	Query: "SELECT SCOPE FROM IDN_OAUTH2_AUTHZ_CODE_SCOPE WHERE CODE_ID = $1",
+}
