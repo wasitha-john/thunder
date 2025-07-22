@@ -111,6 +111,11 @@ func GetAuthorizationCode(clientID, authCode string) (model.AuthorizationCode, e
 	}
 	row := results[0]
 
+	codeID := row["code_id"].(string)
+	if codeID == "" {
+		return model.AuthorizationCode{}, constants.ErrAuthorizationCodeNotFound
+	}
+
 	// Handle time_created field.
 	timeCreated, err := parseTimeField(row["time_created"], "time_created")
 	if err != nil {
@@ -123,14 +128,25 @@ func GetAuthorizationCode(clientID, authCode string) (model.AuthorizationCode, e
 		return model.AuthorizationCode{}, err
 	}
 
+	// Retrieve authorized scopes for the authorization code.
+	scopeResults, err := dbClient.Query(constants.QueryGetAuthorizationCodeScopes, codeID)
+	if err != nil {
+		return model.AuthorizationCode{}, fmt.Errorf("error while retrieving authorized scopes: %w", err)
+	}
+	scopes := ""
+	if len(scopeResults) > 0 {
+		scopes = scopeResults[0]["scope"].(string)
+	}
+
 	return model.AuthorizationCode{
-		CodeID:           row["code_id"].(string),
+		CodeID:           codeID,
 		Code:             row["authorization_code"].(string),
 		ClientID:         clientID,
 		RedirectURI:      row["callback_url"].(string),
 		AuthorizedUserID: row["authz_user"].(string),
 		TimeCreated:      timeCreated,
 		ExpiryTime:       expiryTime,
+		Scopes:           scopes,
 		State:            row["state"].(string),
 	}, nil
 }

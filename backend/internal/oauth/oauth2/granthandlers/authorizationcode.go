@@ -19,6 +19,7 @@
 package granthandlers
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -119,6 +120,18 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 		}
 	}
 
+	// Filter out the authorized scopes for the token.
+	tokenScopes := make([]string, 0)
+	requestedScopes := strings.Split(tokenRequest.Scope, " ")
+	authZAuthorizedScopes := strings.Split(authCode.Scopes, " ")
+	if len(authZAuthorizedScopes) > 0 {
+		for _, scope := range requestedScopes {
+			if slices.Contains(authZAuthorizedScopes, scope) {
+				tokenScopes = append(tokenScopes, scope)
+			}
+		}
+	}
+
 	// Generate a JWT token for the client
 	token, _, err := jwt.GenerateJWT(authCode.AuthorizedUserID, authCode.ClientID,
 		jwt.GetJWTTokenValidityPeriod(), nil)
@@ -137,13 +150,12 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	ctx.TokenAttributes["aud"] = authCode.ClientID
 
 	// Prepare the token response.
-	scopes := strings.Split(tokenRequest.Scope, " ")
 	accessToken := &model.TokenDTO{
 		Token:     token,
 		TokenType: constants.TokenTypeBearer,
 		IssuedAt:  time.Now().Unix(),
 		ExpiresIn: 3600,
-		Scopes:    scopes,
+		Scopes:    tokenScopes,
 		ClientID:  tokenRequest.ClientID,
 	}
 
