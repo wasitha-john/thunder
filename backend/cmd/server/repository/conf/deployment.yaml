@@ -1,6 +1,7 @@
 server:
   hostname: "localhost"
   port: 8090
+  # http_only: false
 
 gate_client:
   hostname: "localhost"

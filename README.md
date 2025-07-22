@@ -40,40 +40,84 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 
 ### Download and Run WSO2 Thunder
 
+You can run WSO2 Thunder either by downloading the release artifact or using the official Docker image.
+
+#### Option 1: Run from Release Artifact
+
 Follow these steps to download the latest release of WSO2 Thunder and run it locally.
 
-#### Step 1: Download the distribution from the latest release
+1. **Download the distribution from the latest release**
 
-Download `thunder_<os>_<arch>-<version>.zip` from the [latest release](https://github.com/asgardeo/thunder/releases/latest) for your operating system and architecture.
+    Download `thunder_<os>_<arch>-<version>.zip` from the [latest release](https://github.com/asgardeo/thunder/releases/latest) for your operating system and architecture.
 
-For example, if you are using a MacOS machine with a Apple Silicon (ARM64) processor, you would download `thunder_macos_arm64-<version>.zip`.
+    For example, if you are using a MacOS machine with a Apple Silicon (ARM64) processor, you would download `thunder_macos_arm64-<version>.zip`.
 
-#### Step 2: Unzip and start the product
+2. **Unzip the product**
 
-- Unzip the downloaded file using the following command:
+    Unzip the downloaded file using the following command:
 
-  ```bash
-  unzip thunder-<os>_<arch>-<version>.zip
-  ```
+    ```bash
+    unzip thunder-<os>_<arch>-<version>.zip
+    ```
 
-- Navigate to the unzipped directory:
+    Navigate to the unzipped directory:
 
-  ```bash
-  cd thunder-<os>_<arch>-<version>/
-  ```
+    ```bash
+    cd thunder-<os>_<arch>-<version>/
+    ```
 
-- Start the product using the following command:
+3. **Start the product**
 
-  - If you are using a Linux or macOS machine:
+    Start the product using the following command:
+
+    If you are using a Linux or macOS machine:
 
     ```bash
     bash start.sh
     ```
 
-  - If you are using a Windows machine:
+    If you are using a Windows machine:
 
     ```bash
     start.bat
+    ```
+
+#### Option 2: Run with Docker
+
+Follow these steps to run WSO2 Thunder using Docker.
+
+1. **Pull the Docker image**
+
+    ```bash
+    docker pull ghcr.io/asgardeo/thunder:latest
+    ```
+
+2. **Run the container**
+
+    ```bash
+    docker run --rm \
+      -p 8090:8090 \
+      ghcr.io/asgardeo/thunder:latest
+    ```
+
+    Optionally if you want to modify the server configurations, you can mount a custom `deployment.yaml` file. Create a `deployment.yaml` file in your working directory similar to the [deployment.yaml](https://github.com/asgardeo/thunder/blob/main/backend/cmd/server/repository/conf/deployment.yaml), and mount it as below:
+
+    ```bash
+    docker run --rm \
+      -p 8090:8090 \
+      -v $(pwd)/deployment.yaml:/opt/thunder/repository/conf/deployment.yaml \
+      ghcr.io/asgardeo/thunder:latest
+    ```
+
+    Optionally if you want to use custom certificates, you can mount them as follows:
+
+    ```bash
+    docker run --rm \
+      -p 8090:8090 \
+      -v $(pwd)/deployment.yaml:/opt/thunder/repository/conf/deployment.yaml \
+      -v $(pwd)/certs/server.cert:/opt/thunder/repository/resources/security/server.cert \
+      -v $(pwd)/certs/server.key:/opt/thunder/repository/resources/security/server.key \
+      ghcr.io/asgardeo/thunder:latest
     ```
 
 ### Download and Run the Sample App
