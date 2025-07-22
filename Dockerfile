@@ -37,6 +37,9 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
         ./build.sh build_backend linux arm64; \
     fi
 
+# List the contents of the dist directory to verify zip output
+RUN ls -l /app/target/dist/
+
 # Runtime stage
 FROM alpine:3.19
 
@@ -61,9 +64,9 @@ ARG TARGETARCH
 COPY --from=builder /app/target/dist/ /tmp/dist/
 RUN cd /tmp/dist && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-        find . -name "thunder-[0-9]*-linux-x64.zip" -exec cp {} /tmp/ \; ; \
+        find . -name "thunder-*-linux-x64.zip" | grep -E '^.*/thunder-v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(-[A-Z]+)?)?-linux-x64\.zip$' | xargs -I{} cp {} /tmp/ ; \
     else \
-        find . -name "thunder-[0-9]*-linux-arm64.zip" -exec cp {} /tmp/ \; ; \
+        find . -name "thunder-*-linux-arm64.zip" | grep -E '^.*/thunder-v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(-[A-Z]+)?)?-linux-arm64\.zip$' | xargs -I{} cp {} /tmp/ ; \
     fi && \
     cd /tmp && \
     unzip thunder-*.zip && \
