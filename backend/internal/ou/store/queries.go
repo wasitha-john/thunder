@@ -19,12 +19,7 @@
 // Package store provides the implementation for organization unit persistence operations.
 package store
 
-import (
-	"fmt"
-	"strings"
-
-	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
-)
+import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 
 var (
 	// QueryGetRootOrganizationUnitListCount is the query to get total count of organization units.
@@ -119,34 +114,3 @@ var (
 					(SELECT COUNT(*) FROM "GROUP" WHERE OU_ID = $1) as count`,
 	}
 )
-
-// buildSubOrganizationUnitsQuery constructs a query to get sub organization units for multiple parent IDs.
-func buildSubOrganizationUnitsQuery(parentIDs []string) (dbmodel.DBQuery, []interface{}, error) {
-	if len(parentIDs) == 0 {
-		return dbmodel.DBQuery{}, nil, fmt.Errorf("parentIDs list cannot be empty")
-	}
-
-	args := make([]interface{}, len(parentIDs))
-
-	postgresPlaceholders := make([]string, len(parentIDs))
-	sqlitePlaceholders := make([]string, len(parentIDs))
-
-	for i, parentID := range parentIDs {
-		postgresPlaceholders[i] = fmt.Sprintf("$%d", i+1)
-		sqlitePlaceholders[i] = "?"
-		args[i] = parentID
-	}
-
-	baseQuery := "SELECT OU_ID, PARENT_ID FROM ORGANIZATION_UNIT WHERE PARENT_ID IN (%s)"
-	postgresQuery := fmt.Sprintf(baseQuery, strings.Join(postgresPlaceholders, ","))
-	sqliteQuery := fmt.Sprintf(baseQuery, strings.Join(sqlitePlaceholders, ","))
-
-	query := dbmodel.DBQuery{
-		ID:            "OUQ-OU_MGT-02",
-		Query:         postgresQuery,
-		PostgresQuery: postgresQuery,
-		SQLiteQuery:   sqliteQuery,
-	}
-
-	return query, args, nil
-}

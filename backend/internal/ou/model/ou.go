@@ -21,11 +21,10 @@ package model
 
 // OrganizationUnitBasic represents the basic information of an organization unit.
 type OrganizationUnitBasic struct {
-	ID                string   `json:"id"`
-	Handle            string   `json:"handle"`
-	Name              string   `json:"name"`
-	Description       string   `json:"description,omitempty"`
-	OrganizationUnits []string `json:"organizationUnits"`
+	ID          string `json:"id"`
+	Handle      string `json:"handle"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 }
 
 // OrganizationUnit represents a complete organization unit with users, groups, and sub organization units.
