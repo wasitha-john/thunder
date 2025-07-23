@@ -37,5 +37,5 @@ type JWKS struct {
 
 // JWKSResponse defines the structure of the response containing JWKS.
 type JWKSResponse struct {
-	Keys []JWKS
+	Keys []JWKS `json:"keys"`
 }
