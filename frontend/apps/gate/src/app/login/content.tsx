@@ -55,7 +55,7 @@ const LoginPageContent = function (): ReactElement {
     setInsecureWarning(params.get('showInsecureWarning') === 'true');
 
     if (key) {
-      axios.post(AppConfig.flowExecutionEndpoint, { applicationId: appId }, {
+      axios.post(AppConfig.flowExecutionEndpoint, { applicationId: appId, flowType: "AUTHENTICATION" }, {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',

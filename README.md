@@ -480,7 +480,8 @@ curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
   ```bash
   curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
-      "applicationId": "550e8400-e29b-41d4-a716-446655440000"
+      "applicationId": "550e8400-e29b-41d4-a716-446655440000",
+      "flowType": "AUTHENTICATION"
   }'
   ```
 
@@ -592,7 +593,8 @@ When you configure an authentication flow for an application, Thunder automatica
   ```bash
   curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
-      "applicationId": "<application_id>"
+      "applicationId": "<application_id>",
+      "flowType": "AUTHENTICATION"
   }'
   ```
 
@@ -704,7 +706,8 @@ When you configure an authentication flow for an application, Thunder automatica
   ```bash
   curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
-      "applicationId": "<application_id>"
+      "applicationId": "<application_id>",
+      "flowType": "AUTHENTICATION"
   }'
   ```
 
@@ -827,7 +830,8 @@ When you configure an authentication flow for an application, Thunder automatica
   ```bash
   curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
-      "applicationId": "<application_id>"
+      "applicationId": "<application_id>",
+      "flowType": "AUTHENTICATION"
   }'
   ```
 
@@ -951,7 +955,8 @@ When you configure an authentication flow for an application, Thunder automatica
   ```bash
   curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
   -d '{
-      "applicationId": "<application_id>"
+      "applicationId": "<application_id>",
+      "flowType": "AUTHENTICATION"
   }'
   ```
 

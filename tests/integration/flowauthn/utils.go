@@ -33,6 +33,7 @@ const testServerURL = "https://localhost:8095"
 func initiateAuthFlow(appID string, inputs map[string]string) (*FlowStep, error) {
 	flowReqBody := map[string]interface{}{
 		"applicationId": appID,
+		"flowType":      "AUTHENTICATION",
 	}
 	if len(inputs) > 0 {
 		flowReqBody["inputs"] = inputs
@@ -80,6 +81,7 @@ func initiateAuthFlow(appID string, inputs map[string]string) (*FlowStep, error)
 func initiateAuthFlowWithError(appID string, inputs map[string]string) (*ErrorResponse, error) {
 	flowReqBody := map[string]interface{}{
 		"applicationId": appID,
+		"flowType":      "AUTHENTICATION",
 	}
 	if len(inputs) > 0 {
 		flowReqBody["inputs"] = inputs
