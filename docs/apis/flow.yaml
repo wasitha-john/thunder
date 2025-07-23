@@ -62,7 +62,7 @@ components:
           example: "550e8400-e29b-41d4-a716-446655440000"
         flowType:
           type: string
-          description: Type of the flow to execute. Default is "AUTHENTICATION" (required only to initiate a flow execution)
+          description: Type of the flow to execute
           enum:
             - AUTHENTICATION
             - REGISTRATION

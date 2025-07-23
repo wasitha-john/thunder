@@ -42,8 +42,8 @@ var (
 // FlowServiceInterface defines the interface for flow orchestration and acts as the entry point for flow execution
 type FlowServiceInterface interface {
 	Init() error
-	Execute(appID, flowID, actionID string, flowType constants.FlowType,
-		inputData map[string]string) (*model.FlowStep, *serviceerror.ServiceError)
+	Execute(appID, flowID, actionID, flowType string, inputData map[string]string) (
+		*model.FlowStep, *serviceerror.ServiceError)
 }
 
 // FlowService is the implementation of FlowServiceInterface
@@ -72,8 +72,8 @@ func (s *FlowService) Init() error {
 }
 
 // Execute executes a flow with the given data
-func (s *FlowService) Execute(appID, flowID, actionID string, flowType constants.FlowType,
-	inputData map[string]string) (*model.FlowStep, *serviceerror.ServiceError) {
+func (s *FlowService) Execute(appID, flowID, actionID, flowType string, inputData map[string]string) (
+	*model.FlowStep, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowService"))
 
 	var context *model.EngineContext
@@ -105,8 +105,13 @@ func (s *FlowService) Execute(appID, flowID, actionID string, flowType constants
 }
 
 // initContext initializes a new flow context with the given details.
-func (s *FlowService) loadNewContext(appID, actionID string, flowType constants.FlowType,
-	inputData map[string]string, logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
+func (s *FlowService) loadNewContext(appID, actionID, flowTypeStr string, inputData map[string]string,
+	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
+	flowType, err := validateFlowType(flowTypeStr)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.initContext(appID, flowType, logger)
 	if err != nil {
 		return nil, err
@@ -195,6 +200,16 @@ func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.Fl
 			return
 		}
 		logger.Debug("Flow context stored in the store", log.String("flowID", ctx.FlowID))
+	}
+}
+
+// validateFlowType validates the provided flow type string and returns the corresponding FlowType.
+func validateFlowType(flowTypeStr string) (constants.FlowType, *serviceerror.ServiceError) {
+	switch constants.FlowType(flowTypeStr) {
+	case constants.FlowTypeAuthentication, constants.FlowTypeRegistration:
+		return constants.FlowType(flowTypeStr), nil
+	default:
+		return "", &constants.ErrorInvalidFlowType
 	}
 }
 
