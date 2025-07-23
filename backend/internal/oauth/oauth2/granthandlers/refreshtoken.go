@@ -420,7 +420,10 @@ func (h *RefreshTokenGrantHandler) extractScopes(requestedScopes string, refresh
 	refreshTokenScopes := []string{}
 	if s, ok := refreshTokenClaims["scopes"]; ok && s != "" {
 		if scopeStr, ok := s.(string); ok {
-			refreshTokenScopes = strings.Split(strings.TrimSpace(scopeStr), " ")
+			trimmedScopeStr := strings.TrimSpace(scopeStr)
+			if trimmedScopeStr != "" {
+				refreshTokenScopes = strings.Split(trimmedScopeStr, " ")
+			}
 		} else {
 			logger.Debug("Scopes in refresh token are not a valid string", log.Any("scopes", s))
 			return nil, nil, &model.ErrorResponse{
@@ -435,10 +438,10 @@ func (h *RefreshTokenGrantHandler) extractScopes(requestedScopes string, refresh
 	if len(refreshTokenScopes) == 0 {
 		logger.Debug("Scopes not found in the refresh token. Skipping granting any scopes")
 	} else {
-		requestedScopesList := strings.Split(strings.TrimSpace(requestedScopes), " ")
-		if len(requestedScopesList) > 0 {
-			logger.Debug("Requested scopes found in the token request", log.Any("requestedScopes", requestedScopes))
-			for _, scope := range requestedScopesList {
+		trimmedScopes := strings.TrimSpace(requestedScopes)
+		if trimmedScopes != "" {
+			logger.Debug("Requested scopes found in the token request", log.Any("requestedScopes", trimmedScopes))
+			for _, scope := range strings.Split(trimmedScopes, " ") {
 				if scope == "" {
 					continue
 				}

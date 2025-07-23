@@ -19,7 +19,6 @@
 package granthandlers
 
 import (
-	"slices"
 	"strings"
 	"time"
 
@@ -120,22 +119,17 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 		}
 	}
 
-	// Filter out the authorized scopes for the token.
-	tokenScopes := make([]string, 0)
-	requestedScopes := strings.Split(strings.TrimSpace(tokenRequest.Scope), " ")
-	authZAuthorizedScopes := strings.Split(strings.TrimSpace(authCode.Scopes), " ")
-	if len(authZAuthorizedScopes) > 0 {
-		for _, scope := range requestedScopes {
-			if slices.Contains(authZAuthorizedScopes, scope) {
-				tokenScopes = append(tokenScopes, scope)
-			}
-		}
+	// Get authorized scopes from the authorization code
+	authorizedScopesStr := strings.TrimSpace(authCode.Scopes)
+	authorizedScopes := []string{}
+	if authorizedScopesStr != "" {
+		authorizedScopes = strings.Split(authorizedScopesStr, " ")
 	}
 
 	// Generate a JWT token for the client
 	jwtClaims := make(map[string]string)
-	if len(tokenScopes) > 0 {
-		jwtClaims["scope"] = strings.Join(tokenScopes, " ")
+	if authorizedScopesStr != "" {
+		jwtClaims["scope"] = authorizedScopesStr
 	}
 	token, _, err := jwt.GenerateJWT(authCode.AuthorizedUserID, authCode.ClientID,
 		jwt.GetJWTTokenValidityPeriod(), jwtClaims)
@@ -159,7 +153,7 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 		TokenType: constants.TokenTypeBearer,
 		IssuedAt:  time.Now().Unix(),
 		ExpiresIn: 3600,
-		Scopes:    tokenScopes,
+		Scopes:    authorizedScopes,
 		ClientID:  tokenRequest.ClientID,
 	}
 

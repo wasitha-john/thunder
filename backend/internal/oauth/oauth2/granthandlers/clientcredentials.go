@@ -67,7 +67,7 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthApplication, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	scopeString := strings.TrimSpace(tokenRequest.Scope)
-	var scopes []string
+	scopes := []string{}
 	if scopeString != "" {
 		scopes = strings.Split(scopeString, " ")
 	}
