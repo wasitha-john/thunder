@@ -60,9 +60,10 @@ export const initiateNativeAuthFlow = async (flowType: 'LOGIN' | 'REGISTRATION' 
         "applicationId": applicationID
     };
 
-    // Only add flowType if it's REGISTRATION (LOGIN is the default)
     if (flowType === 'REGISTRATION') {
         data.flowType = 'REGISTRATION';
+    } else {
+        data.flowType = 'AUTHENTICATION';
     }
 
     try {
@@ -106,9 +107,10 @@ export const initiateNativeAuthFlowWithData = async (flowType: 'LOGIN' | 'REGIST
         data.actionId = actionId;
     }
 
-    // Only add flowType if it's REGISTRATION (LOGIN is the default)
     if (flowType === 'REGISTRATION') {
         data.flowType = 'REGISTRATION';
+    } else {
+        data.flowType = 'AUTHENTICATION';
     }
 
     // Include inputs if provided
