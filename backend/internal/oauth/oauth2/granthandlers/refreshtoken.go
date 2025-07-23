@@ -115,7 +115,11 @@ func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	validityPeriod := jwt.GetJWTTokenValidityPeriod()
 
 	// Issue new access token
-	accessToken, iat, err := jwt.GenerateJWT(sub, aud, validityPeriod, nil)
+	jwtClaims := make(map[string]string)
+	if len(newTokenScopes) > 0 {
+		jwtClaims["scope"] = strings.Join(newTokenScopes, " ")
+	}
+	accessToken, iat, err := jwt.GenerateJWT(sub, aud, validityPeriod, jwtClaims)
 	if err != nil {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
@@ -416,7 +420,7 @@ func (h *RefreshTokenGrantHandler) extractScopes(requestedScopes string, refresh
 	refreshTokenScopes := []string{}
 	if s, ok := refreshTokenClaims["scopes"]; ok && s != "" {
 		if scopeStr, ok := s.(string); ok {
-			refreshTokenScopes = strings.Split(scopeStr, " ")
+			refreshTokenScopes = strings.Split(strings.TrimSpace(scopeStr), " ")
 		} else {
 			logger.Debug("Scopes in refresh token are not a valid string", log.Any("scopes", s))
 			return nil, nil, &model.ErrorResponse{
@@ -431,8 +435,8 @@ func (h *RefreshTokenGrantHandler) extractScopes(requestedScopes string, refresh
 	if len(refreshTokenScopes) == 0 {
 		logger.Debug("Scopes not found in the refresh token. Skipping granting any scopes")
 	} else {
-		requestedScopesList := strings.Split(requestedScopes, " ")
-		if requestedScopes != "" && len(requestedScopesList) > 0 {
+		requestedScopesList := strings.Split(strings.TrimSpace(requestedScopes), " ")
+		if len(requestedScopesList) > 0 {
 			logger.Debug("Requested scopes found in the token request", log.Any("requestedScopes", requestedScopes))
 			for _, scope := range requestedScopesList {
 				if scope == "" {

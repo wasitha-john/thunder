@@ -122,8 +122,8 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 
 	// Filter out the authorized scopes for the token.
 	tokenScopes := make([]string, 0)
-	requestedScopes := strings.Split(tokenRequest.Scope, " ")
-	authZAuthorizedScopes := strings.Split(authCode.Scopes, " ")
+	requestedScopes := strings.Split(strings.TrimSpace(tokenRequest.Scope), " ")
+	authZAuthorizedScopes := strings.Split(strings.TrimSpace(authCode.Scopes), " ")
 	if len(authZAuthorizedScopes) > 0 {
 		for _, scope := range requestedScopes {
 			if slices.Contains(authZAuthorizedScopes, scope) {
@@ -133,8 +133,12 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	}
 
 	// Generate a JWT token for the client
+	jwtClaims := make(map[string]string)
+	if len(tokenScopes) > 0 {
+		jwtClaims["scope"] = strings.Join(tokenScopes, " ")
+	}
 	token, _, err := jwt.GenerateJWT(authCode.AuthorizedUserID, authCode.ClientID,
-		jwt.GetJWTTokenValidityPeriod(), nil)
+		jwt.GetJWTTokenValidityPeriod(), jwtClaims)
 	if err != nil {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
