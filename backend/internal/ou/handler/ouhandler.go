@@ -131,19 +131,8 @@ func (ouh *OrganizationUnitHandler) HandleOUPostRequest(w http.ResponseWriter, r
 func (ouh *OrganizationUnitHandler) HandleOUGetRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	id := r.PathValue("id")
-	if id == "" {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorMissingOrganizationUnitID.Code,
-			Message:     constants.ErrorMissingOrganizationUnitID.Error,
-			Description: constants.ErrorMissingOrganizationUnitID.ErrorDescription,
-		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
+	id, idValidateFailed := extractAndValidateID(w, r, logger)
+	if idValidateFailed {
 		return
 	}
 
@@ -153,12 +142,7 @@ func (ouh *OrganizationUnitHandler) HandleOUGetRequest(w http.ResponseWriter, r 
 		return
 	}
 
-	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(ou); err != nil {
-		logger.Error("Error encoding response", log.Error(err))
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	if buildOUResponse(w, ou, logger) {
 		return
 	}
 
@@ -169,41 +153,15 @@ func (ouh *OrganizationUnitHandler) HandleOUGetRequest(w http.ResponseWriter, r 
 func (ouh *OrganizationUnitHandler) HandleOUPutRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	id := r.PathValue("id")
-	if id == "" {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorMissingOrganizationUnitID.Code,
-			Message:     constants.ErrorMissingOrganizationUnitID.Error,
-			Description: constants.ErrorMissingOrganizationUnitID.ErrorDescription,
-		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
+	id, idValidateFailed := extractAndValidateID(w, r, logger)
+	if idValidateFailed {
 		return
 	}
 
-	updateRequest, err := sysutils.DecodeJSONBody[model.OrganizationUnitRequest](r)
-	if err != nil {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidRequestFormat.Code,
-			Message:     constants.ErrorInvalidRequestFormat.Error,
-			Description: "Failed to parse request body: " + err.Error(),
-		}
-
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
+	sanitizedRequest, requestValidationFailed := validateUpdateRequest(w, r, logger, ouh)
+	if requestValidationFailed {
 		return
 	}
-
-	sanitizedRequest := ouh.sanitizeOrganizationUnitRequest(*updateRequest)
 
 	ou, svcErr := ouh.service.UpdateOrganizationUnit(id, sanitizedRequest)
 	if svcErr != nil {
@@ -211,12 +169,7 @@ func (ouh *OrganizationUnitHandler) HandleOUPutRequest(w http.ResponseWriter, r 
 		return
 	}
 
-	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(ou); err != nil {
-		logger.Error("Error encoding response", log.Error(err))
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	if buildOUResponse(w, ou, logger) {
 		return
 	}
 
@@ -227,19 +180,8 @@ func (ouh *OrganizationUnitHandler) HandleOUPutRequest(w http.ResponseWriter, r 
 func (ouh *OrganizationUnitHandler) HandleOUDeleteRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	id := r.PathValue("id")
-	if id == "" {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorMissingOrganizationUnitID.Code,
-			Message:     constants.ErrorMissingOrganizationUnitID.Error,
-			Description: constants.ErrorMissingOrganizationUnitID.ErrorDescription,
-		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
+	id, idValidateFailed := extractAndValidateID(w, r, logger)
+	if idValidateFailed {
 		return
 	}
 
@@ -280,7 +222,6 @@ func (ouh *OrganizationUnitHandler) HandleOUGroupsListRequest(w http.ResponseWri
 // handleError handles service errors and returns appropriate HTTP responses.
 func (ouh *OrganizationUnitHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 	svcErr *serviceerror.ServiceError) {
-	// TODO: Revisit
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 
 	var statusCode int
@@ -293,7 +234,8 @@ func (ouh *OrganizationUnitHandler) handleError(w http.ResponseWriter, logger *l
 			svcErr.Code == constants.ErrorOrganizationUnitHandleConflict.Code {
 			statusCode = http.StatusConflict
 		} else if svcErr.Code == constants.ErrorInvalidLimit.Code ||
-			svcErr.Code == constants.ErrorInvalidOffset.Code {
+			svcErr.Code == constants.ErrorInvalidOffset.Code ||
+			svcErr.Code == constants.ErrorInvalidHandlePath.Code {
 			statusCode = http.StatusBadRequest
 		}
 	default:
@@ -324,6 +266,62 @@ func (ouh *OrganizationUnitHandler) sanitizeOrganizationUnitRequest(
 		Description: sysutils.SanitizeString(request.Description),
 		Parent:      request.Parent,
 	}
+}
+
+func extractAndValidateID(w http.ResponseWriter, r *http.Request, logger *log.Logger) (string, bool) {
+	id := r.PathValue("id")
+	if id == "" {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorMissingOrganizationUnitID.Code,
+			Message:     constants.ErrorMissingOrganizationUnitID.Error,
+			Description: constants.ErrorMissingOrganizationUnitID.ErrorDescription,
+		}
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return "", true
+	}
+	return id, false
+}
+
+func validateUpdateRequest(
+	w http.ResponseWriter, r *http.Request, logger *log.Logger, ouh *OrganizationUnitHandler,
+) (model.OrganizationUnitRequest, bool) {
+	updateRequest, err := sysutils.DecodeJSONBody[model.OrganizationUnitRequest](r)
+	if err != nil {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidRequestFormat.Code,
+			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Description: "Failed to parse request body: " + err.Error(),
+		}
+
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return model.OrganizationUnitRequest{}, true
+	}
+
+	sanitizedRequest := ouh.sanitizeOrganizationUnitRequest(*updateRequest)
+	return sanitizedRequest, false
+}
+
+func buildOUResponse(w http.ResponseWriter, ou model.OrganizationUnit, logger *log.Logger) bool {
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(ou); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return true
+	}
+	return false
 }
 
 // parsePaginationParams parses limit and offset query parameters from the request.
@@ -357,19 +355,8 @@ func (ouh *OrganizationUnitHandler) handleResourceListRequest(
 ) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	id := r.PathValue("id")
-	if id == "" {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorMissingOrganizationUnitID.Code,
-			Message:     constants.ErrorMissingOrganizationUnitID.Error,
-			Description: constants.ErrorMissingOrganizationUnitID.ErrorDescription,
-		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
+	id, idValidateFailed := extractAndValidateID(w, r, logger)
+	if idValidateFailed {
 		return
 	}
 
@@ -416,4 +403,91 @@ func (ouh *OrganizationUnitHandler) handleResourceListRequest(
 		log.Int("limit", limit), log.Int("offset", offset),
 		log.Int("totalResults", totalResults),
 		log.Int("count", count))
+}
+
+// HandleOUGetByPathRequest handles the get organization unit by hierarchical handle path request.
+func (ouh *OrganizationUnitHandler) HandleOUGetByPathRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	path, pathValidationFailed := extractAndValidatePath(w, r, logger)
+	if pathValidationFailed {
+		return
+	}
+
+	ou, svcErr := ouh.service.GetOrganizationUnitByPath(path)
+	if svcErr != nil {
+		ouh.handleError(w, logger, svcErr)
+		return
+	}
+
+	if buildOUResponse(w, ou, logger) {
+		return
+	}
+
+	logger.Debug("Successfully retrieved organization unit by path", log.String("path", path))
+}
+
+// HandleOUPutByPathRequest handles the update organization unit by hierarchical handle path request.
+func (ouh *OrganizationUnitHandler) HandleOUPutByPathRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	path, pathValidationFailed := extractAndValidatePath(w, r, logger)
+	if pathValidationFailed {
+		return
+	}
+
+	sanitizedRequest, requestValidationFailed := validateUpdateRequest(w, r, logger, ouh)
+	if requestValidationFailed {
+		return
+	}
+
+	ou, svcErr := ouh.service.UpdateOrganizationUnitByPath(path, sanitizedRequest)
+	if svcErr != nil {
+		ouh.handleError(w, logger, svcErr)
+		return
+	}
+
+	if buildOUResponse(w, ou, logger) {
+		return
+	}
+
+	logger.Debug("Successfully updated organization unit by path", log.String("path", path))
+}
+
+// HandleOUDeleteByPathRequest handles the delete organization unit by hierarchical handle path request.
+func (ouh *OrganizationUnitHandler) HandleOUDeleteByPathRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	path, pathValidationFailed := extractAndValidatePath(w, r, logger)
+	if pathValidationFailed {
+		return
+	}
+
+	svcErr := ouh.service.DeleteOrganizationUnitByPath(path)
+	if svcErr != nil {
+		ouh.handleError(w, logger, svcErr)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	logger.Debug("Successfully deleted organization unit by path", log.String("path", path))
+}
+
+func extractAndValidatePath(w http.ResponseWriter, r *http.Request, logger *log.Logger) (string, bool) {
+	path := r.PathValue("path")
+	if path == "" {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidHandlePath.Code,
+			Message:     constants.ErrorInvalidHandlePath.Error,
+			Description: constants.ErrorInvalidHandlePath.ErrorDescription,
+		}
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return "", true
+	}
+	return path, false
 }

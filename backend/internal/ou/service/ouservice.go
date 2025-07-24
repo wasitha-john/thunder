@@ -41,11 +41,16 @@ type OrganizationUnitServiceInterface interface {
 		request model.OrganizationUnitRequest,
 	) (model.OrganizationUnit, *serviceerror.ServiceError)
 	GetOrganizationUnit(id string) (model.OrganizationUnit, *serviceerror.ServiceError)
+	GetOrganizationUnitByPath(handlePath string) (model.OrganizationUnit, *serviceerror.ServiceError)
 	IsOrganizationUnitExists(id string) (bool, *serviceerror.ServiceError)
 	UpdateOrganizationUnit(
 		id string, request model.OrganizationUnitRequest,
 	) (model.OrganizationUnit, *serviceerror.ServiceError)
+	UpdateOrganizationUnitByPath(
+		handlePath string, request model.OrganizationUnitRequest,
+	) (model.OrganizationUnit, *serviceerror.ServiceError)
 	DeleteOrganizationUnit(id string) *serviceerror.ServiceError
+	DeleteOrganizationUnitByPath(handlePath string) *serviceerror.ServiceError
 	GetOrganizationUnitChildren(
 		id string, limit, offset int,
 	) (*model.OrganizationUnitListResponse, *serviceerror.ServiceError)
@@ -177,6 +182,30 @@ func (ous *OrganizationUnitService) GetOrganizationUnit(
 	return ou, nil
 }
 
+// GetOrganizationUnitByPath retrieves an organization unit by hierarchical handle path.
+func (ous *OrganizationUnitService) GetOrganizationUnitByPath(
+	handlePath string,
+) (model.OrganizationUnit, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Getting organization unit by path", log.String("path", handlePath))
+
+	handles, serviceError := validateAndProcessHandlePath(handlePath)
+	if serviceError != nil {
+		return model.OrganizationUnit{}, serviceError
+	}
+
+	ou, err := store.GetOrganizationUnitByPath(handles)
+	if err != nil {
+		if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
+			return model.OrganizationUnit{}, &constants.ErrorOrganizationUnitNotFound
+		}
+		logger.Error("Failed to get organization unit by path", log.Error(err))
+		return model.OrganizationUnit{}, &constants.ErrorInternalServerError
+	}
+
+	return ou, nil
+}
+
 // IsOrganizationUnitExists checks if an organization unit exists by ID.
 func (ous *OrganizationUnitService) IsOrganizationUnitExists(id string) (bool, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
@@ -198,14 +227,6 @@ func (ous *OrganizationUnitService) UpdateOrganizationUnit(
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Updating organization unit", log.String("ouID", id))
 
-	if err := ous.validateOUName(request.Name); err != nil {
-		return model.OrganizationUnit{}, err
-	}
-
-	if err := ous.validateOUHandle(request.Handle); err != nil {
-		return model.OrganizationUnit{}, err
-	}
-
 	existingOU, err := store.GetOrganizationUnit(id)
 	if err != nil {
 		if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
@@ -213,6 +234,59 @@ func (ous *OrganizationUnitService) UpdateOrganizationUnit(
 		}
 		logger.Error("Failed to get organization unit", log.Error(err))
 		return model.OrganizationUnit{}, &constants.ErrorInternalServerError
+	}
+
+	updatedOU, serviceError := ous.updateOUInternal(id, request, existingOU, logger)
+	if serviceError != nil {
+		return model.OrganizationUnit{}, serviceError
+	}
+
+	logger.Debug("Successfully updated organization unit", log.String("ouID", id))
+	return updatedOU, nil
+}
+
+// UpdateOrganizationUnitByPath updates an organization unit by hierarchical handle path.
+func (ous *OrganizationUnitService) UpdateOrganizationUnitByPath(
+	handlePath string, request model.OrganizationUnitRequest,
+) (model.OrganizationUnit, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Updating organization unit by path", log.String("path", handlePath))
+
+	handles, serviceError := validateAndProcessHandlePath(handlePath)
+	if serviceError != nil {
+		return model.OrganizationUnit{}, serviceError
+	}
+
+	existingOU, err := store.GetOrganizationUnitByPath(handles)
+	if err != nil {
+		if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
+			return model.OrganizationUnit{}, &constants.ErrorOrganizationUnitNotFound
+		}
+		logger.Error("Failed to get organization unit by path", log.Error(err))
+		return model.OrganizationUnit{}, &constants.ErrorInternalServerError
+	}
+
+	updatedOU, serviceError := ous.updateOUInternal(existingOU.ID, request, existingOU, logger)
+	if serviceError != nil {
+		return model.OrganizationUnit{}, serviceError
+	}
+
+	logger.Debug("Successfully updated organization unit by path", log.String("ouID", existingOU.ID))
+	return updatedOU, nil
+}
+
+func (ous *OrganizationUnitService) updateOUInternal(
+	id string,
+	request model.OrganizationUnitRequest,
+	existingOU model.OrganizationUnit,
+	logger *log.Logger,
+) (model.OrganizationUnit, *serviceerror.ServiceError) {
+	if err := ous.validateOUName(request.Name); err != nil {
+		return model.OrganizationUnit{}, err
+	}
+
+	if err := ous.validateOUHandle(request.Handle); err != nil {
+		return model.OrganizationUnit{}, err
 	}
 
 	if request.Parent != nil {
@@ -231,6 +305,7 @@ func (ous *OrganizationUnitService) UpdateOrganizationUnit(
 	}
 
 	var nameConflict bool
+	var err error
 	if existingOU.Parent != request.Parent || existingOU.Name != request.Name {
 		nameConflict, err = store.CheckOrganizationUnitNameConflict(request.Name, request.Parent)
 		if err != nil {
@@ -272,8 +347,6 @@ func (ous *OrganizationUnitService) UpdateOrganizationUnit(
 		logger.Error("Failed to update organization unit", log.Error(err))
 		return model.OrganizationUnit{}, &constants.ErrorInternalServerError
 	}
-
-	logger.Debug("Successfully updated organization unit", log.String("ouID", id))
 	return updatedOU, nil
 }
 
@@ -292,6 +365,45 @@ func (ous *OrganizationUnitService) DeleteOrganizationUnit(id string) *serviceer
 		return &constants.ErrorOrganizationUnitNotFound
 	}
 
+	serviceError := ous.deleteOUInternal(id, logger)
+	if serviceError != nil {
+		return serviceError
+	}
+
+	logger.Debug("Successfully deleted organization unit", log.String("ouID", id))
+	return nil
+}
+
+// DeleteOrganizationUnitByPath deletes an organization unit by hierarchical handle path.
+func (ous *OrganizationUnitService) DeleteOrganizationUnitByPath(handlePath string) *serviceerror.ServiceError {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Deleting organization unit by path", log.String("path", handlePath))
+
+	handles, serviceError := validateAndProcessHandlePath(handlePath)
+	if serviceError != nil {
+		return serviceError
+	}
+
+	existingOU, err := store.GetOrganizationUnitByPath(handles)
+	if err != nil {
+		if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
+			return &constants.ErrorOrganizationUnitNotFound
+		}
+		logger.Error("Failed to get organization unit by path", log.Error(err))
+		return &constants.ErrorInternalServerError
+	}
+
+	svcErr := ous.deleteOUInternal(existingOU.ID, logger)
+	if svcErr != nil {
+		return svcErr
+	}
+
+	logger.Debug("Successfully deleted organization unit by path", log.String("ouID", existingOU.ID))
+	return nil
+}
+
+// deleteOUInternal deletes an organization unit by ID after checking if it has child resources.
+func (ous *OrganizationUnitService) deleteOUInternal(id string, logger *log.Logger) *serviceerror.ServiceError {
 	hasChildren, err := store.CheckOrganizationUnitHasChildResources(id)
 	if err != nil {
 		logger.Error("Failed to check if organization unit has children", log.Error(err))
@@ -309,8 +421,6 @@ func (ous *OrganizationUnitService) DeleteOrganizationUnit(id string) *serviceer
 		logger.Error("Failed to delete organization unit", log.Error(err))
 		return &constants.ErrorInternalServerError
 	}
-
-	logger.Debug("Successfully deleted organization unit", log.String("ouID", id))
 	return nil
 }
 
@@ -451,6 +561,25 @@ func (ous *OrganizationUnitService) validateOUHandle(handle string) *serviceerro
 	}
 
 	return nil
+}
+
+func validateAndProcessHandlePath(handlePath string) ([]string, *serviceerror.ServiceError) {
+	if strings.TrimSpace(handlePath) == "" {
+		return nil, &constants.ErrorInvalidHandlePath
+	}
+
+	handles := strings.Split(strings.Trim(handlePath, "/"), "/")
+	if len(handles) == 0 {
+		return nil, &constants.ErrorInvalidHandlePath
+	}
+
+	var validHandles []string
+	for _, handle := range handles {
+		if strings.TrimSpace(handle) != "" {
+			validHandles = append(validHandles, strings.TrimSpace(handle))
+		}
+	}
+	return validHandles, nil
 }
 
 // validatePaginationParams validates pagination parameters.
