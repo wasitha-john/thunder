@@ -1,11 +1,11 @@
 # WSO2 Thunder ⚡
-### The Lightning Fast Identity Management Suite
+### Identity Management Suite
 
-![Login Flow Demo](resources/images/thunder-login-demo.gif)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub last commit](https://img.shields.io/github/last-commit/asgardeo/thunder.svg)](https://github.com/asgardeo/thunder/commits/main)
+[![GitHub issues](https://img.shields.io/github/issues/asgardeo/thunder.svg)](https://github.com/asgardeo/thunder/issues)
 
-**Project Thunder** is a modern, identity management service by WSO2. It empowers you to design tailored login, registration, and recovery flows using a flexible identity flow designer.
-
-Thunder secures users, applications, services, and AI agents by managing their identities and offering a complete suite of supporting capabilities.
+Thunder is a modern, open-source identity management service designed for teams building secure, customizable authentication experiences across applications, services, and AI agents. It enables developers to design and orchestrate login, registration, and recovery flows using a flexible identity flow designer.
 
 Designed for extensibility, scalability, and seamless containerized deployment, Thunder integrates naturally with microservices and DevOps environments—serving as the core identity layer for your cloud platform.
 
@@ -16,19 +16,15 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 - ✅ **Standards-Based**
   - OAuth 2/ OpenID Connect (OIDC): Client Credentials, Authorization Code, Refresh Token
 - 🔗 **Login Options:**
-  - Basic Authentication (Username and Password)
-  - Social Logins
-    - Login with GitHub
-    - Login with Google
-  - Login with SMS OTP
+  - Basic Authentication (Username/Password)
+  - Social Logins: Google, Github
+  - SMS OTP
 - 📝 **Registration Options:**
-  - Username and Password Registration
-  - Social Registration
-    - Register with GitHub
-    - Register with Google
-  - SMS OTP Registration
+  - Username/Password
+  - Social Registration: Google, Github
+  - SMS OTP
 - 🌐 **RESTful APIs:**
-  - App Native Login/ Registration
+  - App Native Login/Registration
   - User Management
   - Application Management
   - Identity Provider Management
