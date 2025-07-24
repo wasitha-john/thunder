@@ -54,8 +54,17 @@ type OrganizationUnitServiceInterface interface {
 	GetOrganizationUnitChildren(
 		id string, limit, offset int,
 	) (*model.OrganizationUnitListResponse, *serviceerror.ServiceError)
+	GetOrganizationUnitChildrenByPath(
+		handlePath string, limit, offset int,
+	) (*model.OrganizationUnitListResponse, *serviceerror.ServiceError)
 	GetOrganizationUnitUsers(id string, limit, offset int) (*model.UserListResponse, *serviceerror.ServiceError)
+	GetOrganizationUnitUsersByPath(
+		handlePath string, limit, offset int,
+	) (*model.UserListResponse, *serviceerror.ServiceError)
 	GetOrganizationUnitGroups(id string, limit, offset int) (*model.GroupListResponse, *serviceerror.ServiceError)
+	GetOrganizationUnitGroupsByPath(
+		handlePath string, limit, offset int,
+	) (*model.GroupListResponse, *serviceerror.ServiceError)
 }
 
 // OrganizationUnitService provides organization unit management operations.
@@ -513,6 +522,78 @@ func (ous *OrganizationUnitService) GetOrganizationUnitChildren(
 	}
 
 	return response, nil
+}
+
+// GetOrganizationUnitChildrenByPath retrieves a list of child organization units by hierarchical handle path.
+func (ous *OrganizationUnitService) GetOrganizationUnitChildrenByPath(
+	handlePath string, limit, offset int,
+) (*model.OrganizationUnitListResponse, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Getting organization unit children by path", log.String("path", handlePath))
+
+	handles, serviceError := validateAndProcessHandlePath(handlePath)
+	if serviceError != nil {
+		return nil, serviceError
+	}
+
+	ou, err := store.GetOrganizationUnitByPath(handles)
+	if err != nil {
+		if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
+			return nil, &constants.ErrorOrganizationUnitNotFound
+		}
+		logger.Error("Failed to get organization unit by path", log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	return ous.GetOrganizationUnitChildren(ou.ID, limit, offset)
+}
+
+// GetOrganizationUnitUsersByPath retrieves a list of users by hierarchical handle path.
+func (ous *OrganizationUnitService) GetOrganizationUnitUsersByPath(
+	handlePath string, limit, offset int,
+) (*model.UserListResponse, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Getting organization unit users by path", log.String("path", handlePath))
+
+	handles, serviceError := validateAndProcessHandlePath(handlePath)
+	if serviceError != nil {
+		return nil, serviceError
+	}
+
+	ou, err := store.GetOrganizationUnitByPath(handles)
+	if err != nil {
+		if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
+			return nil, &constants.ErrorOrganizationUnitNotFound
+		}
+		logger.Error("Failed to get organization unit by path", log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	return ous.GetOrganizationUnitUsers(ou.ID, limit, offset)
+}
+
+// GetOrganizationUnitGroupsByPath retrieves a list of groups by hierarchical handle path.
+func (ous *OrganizationUnitService) GetOrganizationUnitGroupsByPath(
+	handlePath string, limit, offset int,
+) (*model.GroupListResponse, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Getting organization unit groups by path", log.String("path", handlePath))
+
+	handles, serviceError := validateAndProcessHandlePath(handlePath)
+	if serviceError != nil {
+		return nil, serviceError
+	}
+
+	ou, err := store.GetOrganizationUnitByPath(handles)
+	if err != nil {
+		if errors.Is(err, constants.ErrOrganizationUnitNotFound) {
+			return nil, &constants.ErrorOrganizationUnitNotFound
+		}
+		logger.Error("Failed to get organization unit by path", log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	return ous.GetOrganizationUnitGroups(ou.ID, limit, offset)
 }
 
 // checkCircularDependency checks if setting the parent would create a circular dependency.
