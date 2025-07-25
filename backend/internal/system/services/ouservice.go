@@ -107,8 +107,28 @@ func (s *OrganizationUnitService) RegisterRoutes(mux *http.ServeMux) {
 		},
 	)
 
-	s.serverOpsService.WrapHandleFunction(
-		mux, "GET /organization-units/tree/{path...}", &opts2, s.ouHandler.HandleOUGetByPathRequest)
+	s.serverOpsService.WrapHandleFunction(mux, "GET /organization-units/tree/{path...}", &opts2,
+		func(w http.ResponseWriter, r *http.Request) {
+			pathValue := r.PathValue("path")
+			handlers := map[string]func(http.ResponseWriter, *http.Request){
+				"/ous":    s.ouHandler.HandleOUChildrenListByPathRequest,
+				"/users":  s.ouHandler.HandleOUUsersListByPathRequest,
+				"/groups": s.ouHandler.HandleOUGroupsListByPathRequest,
+			}
+
+			for suffix, handlerFunc := range handlers {
+				if strings.HasSuffix(pathValue, suffix) {
+					newPath := strings.TrimSuffix(pathValue, suffix)
+					r.SetPathValue("path", newPath)
+					handlerFunc(w, r)
+					return
+				}
+			}
+
+			newPath := "/organization-units/tree/" + pathValue
+			r.URL.Path = newPath
+			s.ouHandler.HandleOUGetByPathRequest(w, r)
+		})
 	s.serverOpsService.WrapHandleFunction(
 		mux, "PUT /organization-units/tree/{path...}", &opts2, s.ouHandler.HandleOUPutByPathRequest)
 	s.serverOpsService.WrapHandleFunction(

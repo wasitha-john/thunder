@@ -473,6 +473,87 @@ func (ouh *OrganizationUnitHandler) HandleOUDeleteByPathRequest(w http.ResponseW
 	logger.Debug("Successfully deleted organization unit by path", log.String("path", path))
 }
 
+// handleResourceListByPathRequest is a generic handler for listing resources under an organization unit by path.
+func (ouh *OrganizationUnitHandler) handleResourceListByPathRequest(
+	w http.ResponseWriter, r *http.Request, resourceType string,
+	serviceFunc func(string, int, int) (interface{}, *serviceerror.ServiceError),
+) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	path, pathValidationFailed := extractAndValidatePath(w, r, logger)
+	if pathValidationFailed {
+		return
+	}
+
+	limit, offset, svcErr := parsePaginationParams(r.URL.Query())
+	if svcErr != nil {
+		ouh.handleError(w, logger, svcErr)
+		return
+	}
+
+	if limit == 0 {
+		limit = limitDefault
+	}
+
+	response, svcErr := serviceFunc(path, limit, offset)
+	if svcErr != nil {
+		ouh.handleError(w, logger, svcErr)
+		return
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	if logger.IsDebugEnabled() {
+		var totalResults, count int
+		switch resp := response.(type) {
+		case *model.OrganizationUnitListResponse:
+			totalResults = resp.TotalResults
+			count = resp.Count
+		case *model.UserListResponse:
+			totalResults = resp.TotalResults
+			count = resp.Count
+		case *model.GroupListResponse:
+			totalResults = resp.TotalResults
+			count = resp.Count
+		}
+
+		logger.Debug("Successfully listed resources in organization unit by path", log.String("resourceType", resourceType),
+			log.String("path", path), log.Int("limit", limit), log.Int("offset", offset),
+			log.Int("totalResults", totalResults), log.Int("count", count))
+	}
+}
+
+// HandleOUChildrenListByPathRequest handles the list child organization units by path request.
+func (ouh *OrganizationUnitHandler) HandleOUChildrenListByPathRequest(w http.ResponseWriter, r *http.Request) {
+	ouh.handleResourceListByPathRequest(w, r, "child organization units",
+		func(path string, limit, offset int) (interface{}, *serviceerror.ServiceError) {
+			return ouh.service.GetOrganizationUnitChildrenByPath(path, limit, offset)
+		})
+}
+
+// HandleOUUsersListByPathRequest handles the list users in organization unit by path request.
+func (ouh *OrganizationUnitHandler) HandleOUUsersListByPathRequest(w http.ResponseWriter, r *http.Request) {
+	ouh.handleResourceListByPathRequest(w, r, "users",
+		func(path string, limit, offset int) (interface{}, *serviceerror.ServiceError) {
+			return ouh.service.GetOrganizationUnitUsersByPath(path, limit, offset)
+		})
+}
+
+// HandleOUGroupsListByPathRequest handles the list groups in organization unit by path request.
+func (ouh *OrganizationUnitHandler) HandleOUGroupsListByPathRequest(w http.ResponseWriter, r *http.Request) {
+	ouh.handleResourceListByPathRequest(w, r, "groups",
+		func(path string, limit, offset int) (interface{}, *serviceerror.ServiceError) {
+			return ouh.service.GetOrganizationUnitGroupsByPath(path, limit, offset)
+		})
+}
+
 func extractAndValidatePath(w http.ResponseWriter, r *http.Request, logger *log.Logger) (string, bool) {
 	path := r.PathValue("path")
 	if path == "" {

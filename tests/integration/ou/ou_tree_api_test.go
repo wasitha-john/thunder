@@ -49,14 +49,14 @@ func TestOUPathAPITestSuite(t *testing.T) {
 }
 
 func (suite *OUPathAPITestSuite) SetupSuite() {
-	id, err := createOUForPath(pathTestOU)
+	id, err := createOUForPath(suite, pathTestOU)
 	suite.Require().NoError(err, "Failed to create OU during setup: %v", err)
 	pathTestOUID = id
 }
 
 func (suite *OUPathAPITestSuite) TearDownSuite() {
 	if pathTestOUID != "" {
-		err := deleteOUForPath(pathTestOU.Handle)
+		err := deleteOUForPath(suite, pathTestOU.Handle)
 		if err != nil {
 			suite.T().Logf("Failed to delete OU during teardown: %v", err)
 		}
@@ -162,7 +162,12 @@ func (suite *OUPathAPITestSuite) TestUpdateOrganizationUnitByPath() {
 
 	resp, err := client.Do(req)
 	suite.Require().NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			// Log the error instead of returning it
+			suite.T().Logf("Failed to close response body: %v", closeErr)
+		}
+	}()
 
 	suite.Equal(http.StatusOK, resp.StatusCode)
 
@@ -206,7 +211,11 @@ func (suite *OUPathAPITestSuite) TestUpdateOrganizationUnitByInvalidPath() {
 
 	resp, err := client.Do(req)
 	suite.Require().NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
 
 	suite.Equal(http.StatusNotFound, resp.StatusCode)
 
@@ -248,7 +257,11 @@ func (suite *OUPathAPITestSuite) TestUpdateOrganizationUnitByPathWithInvalidData
 
 	resp, err := client.Do(req)
 	suite.Require().NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
 
 	suite.Equal(http.StatusBadRequest, resp.StatusCode)
 }
@@ -285,8 +298,313 @@ func (suite *OUPathAPITestSuite) TestDeleteOrganizationUnitByInvalidPath() {
 	suite.Equal("Organization unit not found", errorResp.Message)
 }
 
+// TestGetOrganizationUnitChildrenByPath tests retrieving child organization units by handle path
+func (suite *OUPathAPITestSuite) TestGetOrganizationUnitChildrenByPath() {
+	if pathTestOUID == "" {
+		suite.T().Fatal("OU ID is not available for children path-based retrieval")
+	}
+
+	// First create a child OU for testing
+	childOU := CreateOURequest{
+		Name:        "Child Engineering",
+		Handle:      "child-engineering",
+		Description: "Child of Engineering Unit",
+		Parent:      &pathTestOUID,
+	}
+
+	childID, err := createOUForPath(suite, childOU)
+	suite.Require().NoError(err, "Failed to create child OU for testing")
+	defer func() {
+		if childID != "" {
+			if err := deleteOUByID(suite, childID); err != nil {
+				suite.T().Logf("Failed to delete child OU with ID %s: %v", childID, err)
+			}
+		}
+	}()
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/tree/"+pathTestOU.Handle+"/ous", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err, "Failed to read response body: %v", err)
+
+	var ouListResponse OrganizationUnitListResponse
+	err = json.Unmarshal(body, &ouListResponse)
+	suite.Require().NoError(err)
+
+	// Verify the response structure
+	suite.GreaterOrEqual(ouListResponse.TotalResults, 1)
+	suite.GreaterOrEqual(ouListResponse.Count, 1)
+	suite.GreaterOrEqual(len(ouListResponse.OrganizationUnits), 1)
+
+	// Check if our child OU is in the list
+	found := false
+	for _, ou := range ouListResponse.OrganizationUnits {
+		if ou.ID == childID {
+			found = true
+			suite.Equal(childOU.Name, ou.Name)
+			suite.Equal(childOU.Handle, ou.Handle)
+			suite.Equal(childOU.Description, ou.Description)
+			break
+		}
+	}
+	suite.True(found, "Child OU should be found in the children list")
+}
+
+// TestGetOrganizationUnitChildrenByInvalidPath tests retrieving child organization units by invalid handle path
+func (suite *OUPathAPITestSuite) TestGetOrganizationUnitChildrenByInvalidPath() {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/tree/nonexistent/ous", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	suite.Equal(http.StatusNotFound, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp ErrorResponse
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("OU-1003", errorResp.Code)
+	suite.Equal("Organization unit not found", errorResp.Message)
+}
+
+// TestGetOrganizationUnitUsersByPath tests retrieving users by handle path
+func (suite *OUPathAPITestSuite) TestGetOrganizationUnitUsersByPath() {
+	if pathTestOUID == "" {
+		suite.T().Fatal("OU ID is not available for users path-based retrieval")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/tree/"+pathTestOU.Handle+"/users", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err, "Failed to read response body: %v", err)
+
+	var userListResponse UserListResponse
+	err = json.Unmarshal(body, &userListResponse)
+	suite.Require().NoError(err)
+
+	// Verify the response structure
+	suite.GreaterOrEqual(userListResponse.TotalResults, 0)
+	suite.Equal(userListResponse.StartIndex, 1)
+	suite.Equal(userListResponse.Count, len(userListResponse.Users))
+}
+
+// TestGetOrganizationUnitUsersByInvalidPath tests retrieving users by invalid handle path
+func (suite *OUPathAPITestSuite) TestGetOrganizationUnitUsersByInvalidPath() {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/tree/nonexistent/users", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	suite.Equal(http.StatusNotFound, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp ErrorResponse
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("OU-1003", errorResp.Code)
+	suite.Equal("Organization unit not found", errorResp.Message)
+}
+
+// TestGetOrganizationUnitGroupsByPath tests retrieving groups by handle path
+func (suite *OUPathAPITestSuite) TestGetOrganizationUnitGroupsByPath() {
+	if pathTestOUID == "" {
+		suite.T().Fatal("OU ID is not available for groups path-based retrieval")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/tree/"+pathTestOU.Handle+"/groups", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err, "Failed to read response body: %v", err)
+
+	var groupListResponse GroupListResponse
+	err = json.Unmarshal(body, &groupListResponse)
+	suite.Require().NoError(err)
+
+	// Verify the response structure
+	suite.GreaterOrEqual(groupListResponse.TotalResults, 0)
+	suite.Equal(groupListResponse.StartIndex, 1)
+	suite.Equal(groupListResponse.Count, len(groupListResponse.Groups))
+}
+
+// TestGetOrganizationUnitGroupsByInvalidPath tests retrieving groups by invalid handle path
+func (suite *OUPathAPITestSuite) TestGetOrganizationUnitGroupsByInvalidPath() {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/tree/nonexistent/groups", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	suite.Equal(http.StatusNotFound, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var errorResp ErrorResponse
+	err = json.Unmarshal(body, &errorResp)
+	suite.Require().NoError(err)
+
+	suite.Equal("OU-1003", errorResp.Code)
+	suite.Equal("Organization unit not found", errorResp.Message)
+}
+
+// TestGetOrganizationUnitChildrenByPathWithPagination tests pagination for child organization units by path
+func (suite *OUPathAPITestSuite) TestGetOrganizationUnitChildrenByPathWithPagination() {
+	if pathTestOUID == "" {
+		suite.T().Fatal("OU ID is not available for pagination test")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("GET", testServerURL+"/organization-units/tree/"+pathTestOU.Handle+"/ous?limit=5&offset=0", nil)
+	suite.Require().NoError(err)
+
+	resp, err := client.Do(req)
+	suite.Require().NoError(err)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	suite.Equal(http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	suite.Require().NoError(err)
+
+	var ouListResponse OrganizationUnitListResponse
+	err = json.Unmarshal(body, &ouListResponse)
+	suite.Require().NoError(err)
+
+	// Verify pagination parameters
+	suite.GreaterOrEqual(ouListResponse.TotalResults, 0)
+	suite.Equal(ouListResponse.StartIndex, 1)
+	suite.LessOrEqual(ouListResponse.Count, 5)
+}
+
+// deleteOUByID is a helper function to delete an OU by ID
+func deleteOUByID(suite *OUPathAPITestSuite, id string) error {
+	req, err := http.NewRequest("DELETE", testServerURL+"/organization-units/"+id, nil)
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
+
+	return nil
+}
+
 // createOUForPath is a helper function to create an OU for path tests
-func createOUForPath(ouRequest CreateOURequest) (string, error) {
+func createOUForPath(suite *OUPathAPITestSuite, ouRequest CreateOURequest) (string, error) {
 	jsonData, err := json.Marshal(ouRequest)
 	if err != nil {
 		return "", err
@@ -308,7 +626,11 @@ func createOUForPath(ouRequest CreateOURequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusCreated {
 		return "", err
@@ -324,7 +646,7 @@ func createOUForPath(ouRequest CreateOURequest) (string, error) {
 }
 
 // deleteOUForPath is a helper function to delete an OU for path tests
-func deleteOUForPath(path string) error {
+func deleteOUForPath(suite *OUPathAPITestSuite, path string) error {
 	req, err := http.NewRequest("DELETE", testServerURL+"/organization-units/tree/"+path, nil)
 	if err != nil {
 		return err
@@ -340,7 +662,11 @@ func deleteOUForPath(path string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			suite.T().Logf("Failed to close response body: %v", err)
+		}
+	}()
 
 	return nil
 }
