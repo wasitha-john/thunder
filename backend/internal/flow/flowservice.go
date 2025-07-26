@@ -81,6 +81,13 @@ func (s *FlowService) Execute(appID, flowID, actionID, flowType string, inputDat
 
 	if isNewFlow(flowID) {
 		context, loadErr = s.loadNewContext(appID, actionID, flowType, inputData, logger)
+		// Store initial context for new flows
+		if loadErr == nil {
+			if storeErr := s.storeContext(context, logger); storeErr != nil {
+				logger.Error("Failed to store initial flow context", log.String("flowID", context.FlowID), log.Error(storeErr))
+				return nil, &constants.ErrorUpdatingContextInStore
+			}
+		}
 	} else {
 		context, loadErr = s.loadPrevContext(flowID, actionID, inputData, logger)
 	}
@@ -91,12 +98,12 @@ func (s *FlowService) Execute(appID, flowID, actionID, flowType string, inputDat
 
 	flowStep, flowErr := engine.GetFlowEngine().Execute(context)
 	if flowErr != nil {
-		s.removeContext(flowID, logger)
+		s.removeContext(context.FlowID, logger)
 		return nil, flowErr
 	}
 
 	if isComplete(flowStep) {
-		s.removeContext(flowID, logger)
+		s.removeContext(context.FlowID, logger)
 	} else {
 		s.updateContext(context, &flowStep, logger)
 	}
@@ -159,7 +166,7 @@ func (s *FlowService) loadPrevContext(flowID, actionID string, inputData map[str
 }
 
 // loadContextFromStore retrieves the flow context from the store based on the given details.
-func (s *FlowService) loadContextFromStore(flowID string, logger *log.Logger) (*model.EngineContext,
+func (s *FlowService) loadContextFromStore(flowID string, _ *log.Logger) (*model.EngineContext,
 	*serviceerror.ServiceError) {
 	if flowID == "" {
 		return nil, &constants.ErrorInvalidFlowID
@@ -170,7 +177,6 @@ func (s *FlowService) loadContextFromStore(flowID string, logger *log.Logger) (*
 	if !exists {
 		return nil, &constants.ErrorInvalidFlowID
 	}
-	s.removeContext(flowID, logger)
 
 	return &ctx, nil
 }
@@ -191,16 +197,27 @@ func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.Fl
 	if flowStep.Status == constants.FlowStatusComplete {
 		s.removeContext(ctx.FlowID, logger)
 	} else {
-		logger.Debug("Flow execution is incomplete, storing the flow context",
+		logger.Debug("Flow execution is incomplete, updating the flow context",
 			log.String("flowID", ctx.FlowID))
 
 		flowDAO := dao.GetFlowDAO()
-		if err := flowDAO.StoreContextInStore(ctx.FlowID, *ctx); err != nil {
-			logger.Error("Failed to store flow context in the store", log.String("flowID", ctx.FlowID), log.Error(err))
+		if err := flowDAO.UpdateContextInStore(ctx.FlowID, *ctx); err != nil {
+			logger.Error("Failed to update flow context in the store", log.String("flowID", ctx.FlowID), log.Error(err))
 			return
 		}
-		logger.Debug("Flow context stored in the store", log.String("flowID", ctx.FlowID))
+		logger.Debug("Flow context updated in the store", log.String("flowID", ctx.FlowID))
 	}
+}
+
+// storeContext stores the flow context in the store.
+func (s *FlowService) storeContext(ctx *model.EngineContext, logger *log.Logger) error {
+	flowDAO := dao.GetFlowDAO()
+	if err := flowDAO.StoreContextInStore(ctx.FlowID, *ctx); err != nil {
+		logger.Error("Failed to store flow context in the store", log.String("flowID", ctx.FlowID), log.Error(err))
+		return err
+	}
+	logger.Debug("Flow context stored in the store", log.String("flowID", ctx.FlowID))
+	return nil
 }
 
 // validateFlowType validates the provided flow type string and returns the corresponding FlowType.
