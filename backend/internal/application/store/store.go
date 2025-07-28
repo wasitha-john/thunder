@@ -51,7 +51,7 @@ func CreateApplication(app model.Application) error {
 }
 
 // GetApplicationList retrieves a list of applications from the database.
-func GetApplicationList() ([]model.Application, error) {
+func GetApplicationList() ([]model.ReturnApplication, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationPersistence"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -72,7 +72,7 @@ func GetApplicationList() ([]model.Application, error) {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	applications := make([]model.Application, 0)
+	applications := make([]model.ReturnApplication, 0)
 
 	for _, row := range results {
 		application, err := buildApplicationFromResultRow(row)
@@ -87,13 +87,13 @@ func GetApplicationList() ([]model.Application, error) {
 }
 
 // GetApplication retrieves a specific application by its ID from the database.
-func GetApplication(id string) (model.Application, error) {
+func GetApplication(id string) (model.ReturnApplication, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
-		return model.Application{}, fmt.Errorf("failed to get database client: %w", err)
+		return model.ReturnApplication{}, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
 		if closeErr := dbClient.Close(); closeErr != nil {
@@ -105,17 +105,17 @@ func GetApplication(id string) (model.Application, error) {
 	results, err := dbClient.Query(QueryGetApplicationByAppID, id)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
-		return model.Application{}, fmt.Errorf("failed to execute query: %w", err)
+		return model.ReturnApplication{}, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
 		logger.Error("application not found")
-		return model.Application{}, fmt.Errorf("application not found")
+		return model.ReturnApplication{}, fmt.Errorf("application not found")
 	}
 
 	if len(results) != 1 {
 		logger.Error("unexpected number of results")
-		return model.Application{}, fmt.Errorf("unexpected number of results: %d", len(results))
+		return model.ReturnApplication{}, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
 	row := results[0]
@@ -123,9 +123,72 @@ func GetApplication(id string) (model.Application, error) {
 	application, err := buildApplicationFromResultRow(row)
 	if err != nil {
 		logger.Error("failed to build application from result row")
-		return model.Application{}, fmt.Errorf("failed to build application from result row: %w", err)
+		return model.ReturnApplication{}, fmt.Errorf("failed to build application from result row: %w", err)
 	}
 	return application, nil
+}
+
+// GetOAuthApplication retrieves an OAuth application by its client ID.
+func GetOAuthApplication(clientID string) (*model.OAuthApplication, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return nil, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
+
+	results, err := dbClient.Query(QueryGetOAuthApplicationByClientID, clientID)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, errors.New("OAuth application not found")
+	}
+
+	row := results[0]
+
+	appID, ok := row["app_id"].(string)
+	if !ok {
+		return nil, errors.New("failed to parse app_id as string")
+	}
+
+	clientSecret, ok := row["consumer_secret"].(string)
+	if !ok {
+		return nil, errors.New("failed to parse consumer_secret as string")
+	}
+
+	var redirectURIs []string
+	if row["callback_uris"] != nil {
+		if uris, ok := row["callback_uris"].(string); ok {
+			redirectURIs = utils.ParseStringArray(uris, ",")
+		} else {
+			return nil, errors.New("failed to parse callback_uris as string")
+		}
+	}
+
+	var allowedGrantTypes []string
+	if row["grant_types"] != nil {
+		if grants, ok := row["grant_types"].(string); ok {
+			allowedGrantTypes = utils.ParseStringArray(grants, ",")
+		} else {
+			return nil, errors.New("failed to parse grant_types as string")
+		}
+	}
+
+	return &model.OAuthApplication{
+		ID:                 appID,
+		ClientID:           clientID,
+		HashedClientSecret: clientSecret,
+		RedirectURIs:       redirectURIs,
+		AllowedGrantTypes:  allowedGrantTypes,
+	}, nil
 }
 
 // UpdateApplication updates an existing application in the database.
@@ -172,43 +235,43 @@ func DeleteApplication(id string) error {
 }
 
 // buildApplicationFromResultRow constructs an Application object from a database result row.
-func buildApplicationFromResultRow(row map[string]interface{}) (model.Application, error) {
+func buildApplicationFromResultRow(row map[string]interface{}) (model.ReturnApplication, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
 	appID, ok := row["app_id"].(string)
 	if !ok {
 		logger.Error("failed to parse app_id as string")
-		return model.Application{}, fmt.Errorf("failed to parse app_id as string")
+		return model.ReturnApplication{}, fmt.Errorf("failed to parse app_id as string")
 	}
 
 	appName, ok := row["app_name"].(string)
 	if !ok {
 		logger.Error("failed to parse app_name as string")
-		return model.Application{}, fmt.Errorf("failed to parse app_name as string")
+		return model.ReturnApplication{}, fmt.Errorf("failed to parse app_name as string")
 	}
 
 	description, ok := row["description"].(string)
 	if !ok {
 		logger.Error("failed to parse description as string")
-		return model.Application{}, fmt.Errorf("failed to parse description as string")
+		return model.ReturnApplication{}, fmt.Errorf("failed to parse description as string")
 	}
 
 	authFlowGraphID, ok := row["auth_flow_graph_id"].(string)
 	if !ok {
 		logger.Error("failed to parse auth_flow_graph_id as string")
-		return model.Application{}, fmt.Errorf("failed to parse auth_flow_graph_id as string")
+		return model.ReturnApplication{}, fmt.Errorf("failed to parse auth_flow_graph_id as string")
 	}
 
 	regisFlowGraphID, ok := row["registration_flow_graph_id"].(string)
 	if !ok {
 		logger.Error("failed to parse registration_flow_graph_id as string")
-		return model.Application{}, fmt.Errorf("failed to parse registration_flow_graph_id as string")
+		return model.ReturnApplication{}, fmt.Errorf("failed to parse registration_flow_graph_id as string")
 	}
 
 	clientID, ok := row["consumer_key"].(string)
 	if !ok {
 		logger.Error("failed to parse consumer_key as string")
-		return model.Application{}, fmt.Errorf("failed to parse consumer_key as string")
+		return model.ReturnApplication{}, fmt.Errorf("failed to parse consumer_key as string")
 	}
 
 	var redirectURIs []string
@@ -217,7 +280,7 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 			redirectURIs = utils.ParseStringArray(uris, ",")
 		} else {
 			logger.Error("failed to parse callback_uris as string")
-			return model.Application{}, fmt.Errorf("failed to parse callback_uris as string")
+			return model.ReturnApplication{}, fmt.Errorf("failed to parse callback_uris as string")
 		}
 	}
 
@@ -227,18 +290,17 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 			allowedGrantTypes = utils.ParseStringArray(grants, ",")
 		} else {
 			logger.Error("failed to parse grant_types as string")
-			return model.Application{}, fmt.Errorf("failed to parse grant_types as string")
+			return model.ReturnApplication{}, fmt.Errorf("failed to parse grant_types as string")
 		}
 	}
 
-	application := model.Application{
+	application := model.ReturnApplication{
 		ID:                      appID,
 		Name:                    appName,
 		Description:             description,
 		AuthFlowGraphID:         authFlowGraphID,
 		RegistrationFlowGraphID: regisFlowGraphID,
 		ClientID:                clientID,
-		ClientSecret:            "***",
 		CallbackURLs:            redirectURIs,
 		SupportedGrantTypes:     allowedGrantTypes,
 	}

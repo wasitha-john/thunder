@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
 	"github.com/asgardeo/thunder/internal/user/model"
@@ -79,13 +80,13 @@ func extractCredentials(user *model.User) (*model.Credentials, error) {
 
 	if pw, ok := attrsMap["password"].(string); ok {
 		// Generate a salt
-		pwSalt, err := utils.GenerateSalt()
+		pwSalt, err := hash.GenerateSalt()
 		if err != nil {
 			return nil, err
 		}
 
 		// Hash the password with the salt
-		pwHash, err := utils.HashStringWithSalt(pw, pwSalt)
+		pwHash, err := hash.HashStringWithSalt(pw, pwSalt)
 		if err != nil {
 			return nil, err
 		}
@@ -204,7 +205,7 @@ func (as *UserService) VerifyUser(userID, credType, credValue string) (*model.Us
 		return nil, errors.New("incomplete credentials for user " + userID)
 	}
 
-	hashToCompare, err := utils.HashStringWithSalt(credValue, credentials.Salt)
+	hashToCompare, err := hash.HashStringWithSalt(credValue, credentials.Salt)
 	if err != nil {
 		return nil, errors.New("failed to hash credential value")
 	}

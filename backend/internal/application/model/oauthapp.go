@@ -28,11 +28,11 @@ import (
 
 // OAuthApplication represents an OAuth application details.
 type OAuthApplication struct {
-	ID                string
-	ClientID          string
-	ClientSecret      string
-	RedirectURIs      []string
-	AllowedGrantTypes []string
+	ID                 string
+	ClientID           string
+	HashedClientSecret string
+	RedirectURIs       []string
+	AllowedGrantTypes  []string
 }
 
 // IsAllowedGrantType checks if the provided grant type is allowed.

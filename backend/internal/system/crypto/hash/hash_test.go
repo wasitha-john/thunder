@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package utils
+package hash
 
 import (
 	"encoding/base64"
@@ -26,15 +26,41 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type HashUtilTestSuite struct {
+type HashTestSuite struct {
 	suite.Suite
 }
 
-func TestHashUtilSuite(t *testing.T) {
-	suite.Run(t, new(HashUtilTestSuite))
+func TestHashSuite(t *testing.T) {
+	suite.Run(t, new(HashTestSuite))
 }
 
-func (suite *HashUtilTestSuite) TestHashStringWithSalt() {
+func (suite *HashTestSuite) TestHashString() {
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "EmptyString",
+			input:    "",
+			expected: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		},
+		{
+			name:     "NormalString",
+			input:    "hello world",
+			expected: "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			hash := HashString(tc.input)
+			suite.Equal(tc.expected, hash, "Hash should match expected value")
+		})
+	}
+}
+
+func (suite *HashTestSuite) TestHashStringWithSalt() {
 	testCases := []struct {
 		name     string
 		input    string
@@ -65,7 +91,7 @@ func (suite *HashUtilTestSuite) TestHashStringWithSalt() {
 	}
 }
 
-func (suite *HashUtilTestSuite) TestHashStringWithSaltDeterministic() {
+func (suite *HashTestSuite) TestHashStringWithSaltDeterministic() {
 	input := "test-input"
 	salt := "test-salt"
 
@@ -77,7 +103,7 @@ func (suite *HashUtilTestSuite) TestHashStringWithSaltDeterministic() {
 	assert.Equal(suite.T(), hash1, hash2, "Hash should be deterministic for the same input and salt")
 }
 
-func (suite *HashUtilTestSuite) TestHashStringWithDifferentInputs() {
+func (suite *HashTestSuite) TestHashStringWithDifferentInputs() {
 	salt := "common-salt"
 	input1 := "input-one"
 	input2 := "input-two"
@@ -90,7 +116,7 @@ func (suite *HashUtilTestSuite) TestHashStringWithDifferentInputs() {
 	assert.NotEqual(suite.T(), hash1, hash2, "Different inputs should produce different hashes")
 }
 
-func (suite *HashUtilTestSuite) TestHashStringWithDifferentSalts() {
+func (suite *HashTestSuite) TestHashStringWithDifferentSalts() {
 	input := "common-input"
 	salt1 := "salt-one"
 	salt2 := "salt-two"
@@ -103,13 +129,13 @@ func (suite *HashUtilTestSuite) TestHashStringWithDifferentSalts() {
 	assert.NotEqual(suite.T(), hash1, hash2, "Different salts should produce different hashes")
 }
 
-func (suite *HashUtilTestSuite) TestGenerateSalt() {
+func (suite *HashTestSuite) TestGenerateSalt() {
 	salt, err := GenerateSalt()
 	assert.NoError(suite.T(), err)
 	assert.NotEmpty(suite.T(), salt)
 }
 
-func (suite *HashUtilTestSuite) TestGenerateSaltUniqueness() {
+func (suite *HashTestSuite) TestGenerateSaltUniqueness() {
 	salt1, err1 := GenerateSalt()
 	salt2, err2 := GenerateSalt()
 
@@ -118,7 +144,7 @@ func (suite *HashUtilTestSuite) TestGenerateSaltUniqueness() {
 	assert.NotEqual(suite.T(), salt1, salt2, "Generated salts should be different")
 }
 
-func (suite *HashUtilTestSuite) TestGenerateSaltIsValidBase64() {
+func (suite *HashTestSuite) TestGenerateSaltIsValidBase64() {
 	salt, err := GenerateSalt()
 
 	assert.NoError(suite.T(), err)
@@ -126,7 +152,7 @@ func (suite *HashUtilTestSuite) TestGenerateSaltIsValidBase64() {
 	assert.NoError(suite.T(), err, "Salt should be valid base64")
 }
 
-func (suite *HashUtilTestSuite) TestGenerateSaltLength() {
+func (suite *HashTestSuite) TestGenerateSaltLength() {
 	salt, err := GenerateSalt()
 
 	assert.NoError(suite.T(), err)

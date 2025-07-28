@@ -31,3 +31,15 @@ type Application struct {
 	AuthFlowGraphID         string   `json:"auth_flow_graph_id,omitempty"`
 	RegistrationFlowGraphID string   `json:"registration_flow_graph_id,omitempty"`
 }
+
+// ReturnApplication represents the response structure for application details.
+type ReturnApplication struct {
+	ID                      string   `json:"id,omitempty"`
+	Name                    string   `json:"name"`
+	Description             string   `json:"description"`
+	ClientID                string   `json:"client_id"`
+	CallbackURLs            []string `json:"callback_url"`
+	SupportedGrantTypes     []string `json:"supported_grant_types"`
+	AuthFlowGraphID         string   `json:"auth_flow_graph_id,omitempty"`
+	RegistrationFlowGraphID string   `json:"registration_flow_graph_id,omitempty"`
+}
