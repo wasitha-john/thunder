@@ -28,6 +28,7 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	"github.com/asgardeo/thunder/internal/system/config"
+	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	jwtutils "github.com/asgardeo/thunder/internal/system/crypto/jwt/utils"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
@@ -64,7 +65,8 @@ func (h *RefreshTokenGrantHandler) ValidateGrant(tokenRequest *model.TokenReques
 	// Validate the client credentials.
 	// TODO: Authentication may not be required for public clients if not specified in the request.
 	//  Check the exact expectation from the OAuth 2.0 specification.
-	if tokenRequest.ClientID != oauthApp.ClientID || tokenRequest.ClientSecret != oauthApp.ClientSecret {
+	hashedClientSecret := hash.HashString(tokenRequest.ClientSecret)
+	if tokenRequest.ClientID != oauthApp.ClientID || hashedClientSecret != oauthApp.HashedClientSecret {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorInvalidClient,
 			ErrorDescription: "Invalid client credentials",

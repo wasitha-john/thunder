@@ -16,7 +16,8 @@
  * under the License.
  */
 
-package utils
+// Package hash provides generic hashing utilities for sensitive data.
+package hash
 
 import (
 	"crypto/rand"
@@ -24,6 +25,13 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 )
+
+// HashString returns a SHA-256 hash of the input string.
+func HashString(input string) string {
+	h := sha256.New()
+	h.Write([]byte(input))
+	return hex.EncodeToString(h.Sum(nil))
+}
 
 // HashStringWithSalt hashes the input string with the given salt and returns the hex-encoded hash.
 func HashStringWithSalt(input, salt string) (string, error) {

@@ -29,7 +29,7 @@ import (
 	"github.com/asgardeo/thunder/internal/application/store"
 	"github.com/asgardeo/thunder/internal/flow/graphservice"
 	"github.com/asgardeo/thunder/internal/system/config"
-	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
+	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
@@ -38,8 +38,8 @@ import (
 type ApplicationServiceInterface interface {
 	GetOAuthApplication(clientID string) (*model.OAuthApplication, error)
 	CreateApplication(app *model.Application) (*model.Application, error)
-	GetApplicationList() ([]model.Application, error)
-	GetApplication(appID string) (*model.Application, error)
+	GetApplicationList() ([]model.ReturnApplication, error)
+	GetApplication(appID string) (*model.ReturnApplication, error)
 	UpdateApplication(appID string, app *model.Application) (*model.Application, error)
 	DeleteApplication(appID string) error
 }
@@ -58,64 +58,13 @@ func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuth
 		return nil, errors.New("client ID cannot be empty")
 	}
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
-
-	dbClient, err := dbprovider.NewDBProvider().GetDBClient("identity")
+	oauthApp, err := store.GetOAuthApplication(clientID)
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
+		logger.Error("Failed to retrieve OAuth application", log.Error(err), log.String("clientID", clientID))
 		return nil, err
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
-	results, err := dbClient.Query(store.QueryGetApplicationByClientID, clientID)
-	if err != nil {
-		return nil, err
-	}
-	if len(results) == 0 {
-		return nil, errors.New("OAuth application not found")
-	}
-
-	row := results[0]
-
-	appID, ok := row["app_id"].(string)
-	if !ok {
-		return nil, errors.New("failed to parse app_id as string")
-	}
-
-	clientSecret, ok := row["consumer_secret"].(string)
-	if !ok {
-		return nil, errors.New("failed to parse consumer_secret as string")
-	}
-
-	var redirectURIs []string
-	if row["callback_uris"] != nil {
-		if uris, ok := row["callback_uris"].(string); ok {
-			redirectURIs = utils.ParseStringArray(uris, ",")
-		} else {
-			return nil, errors.New("failed to parse callback_uris as string")
-		}
-	}
-
-	var allowedGrantTypes []string
-	if row["grant_types"] != nil {
-		if grants, ok := row["grant_types"].(string); ok {
-			allowedGrantTypes = utils.ParseStringArray(grants, ",")
-		} else {
-			return nil, errors.New("failed to parse grant_types as string")
-		}
-	}
-
-	return &model.OAuthApplication{
-		ID:                appID,
-		ClientID:          clientID,
-		ClientSecret:      clientSecret,
-		RedirectURIs:      redirectURIs,
-		AllowedGrantTypes: allowedGrantTypes,
-	}, nil
+	return oauthApp, nil
 }
 
 // CreateApplication creates the application.
@@ -142,20 +91,33 @@ func (as *ApplicationService) CreateApplication(app *model.Application) (*model.
 		return nil, err
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 	app.ID = utils.GenerateUUID()
+	newApp := &model.Application{
+		ID:                      app.ID,
+		Name:                    app.Name,
+		Description:             app.Description,
+		ClientID:                app.ClientID,
+		ClientSecret:            hash.HashString(app.ClientSecret),
+		CallbackURLs:            app.CallbackURLs,
+		SupportedGrantTypes:     app.SupportedGrantTypes,
+		AuthFlowGraphID:         app.AuthFlowGraphID,
+		RegistrationFlowGraphID: app.RegistrationFlowGraphID,
+	}
 
-	// Create the application in the database.
-	err := store.CreateApplication(*app)
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
+
+	// Create the application.
+	err := store.CreateApplication(*newApp)
 	if err != nil {
 		logger.Error("Failed to create application", log.Error(err))
 		return nil, err
 	}
+
 	return app, nil
 }
 
 // GetApplicationList list the applications.
-func (as *ApplicationService) GetApplicationList() ([]model.Application, error) {
+func (as *ApplicationService) GetApplicationList() ([]model.ReturnApplication, error) {
 	applications, err := store.GetApplicationList()
 	if err != nil {
 		return nil, err
@@ -165,7 +127,7 @@ func (as *ApplicationService) GetApplicationList() ([]model.Application, error) 
 }
 
 // GetApplication get the application for given app id.
-func (as *ApplicationService) GetApplication(appID string) (*model.Application, error) {
+func (as *ApplicationService) GetApplication(appID string) (*model.ReturnApplication, error) {
 	if appID == "" {
 		return nil, errors.New("application ID is empty")
 	}
@@ -205,7 +167,19 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		return nil, err
 	}
 
-	err := store.UpdateApplication(app)
+	newApp := &model.Application{
+		ID:                      appID,
+		Name:                    app.Name,
+		Description:             app.Description,
+		ClientID:                app.ClientID,
+		ClientSecret:            hash.HashString(app.ClientSecret),
+		CallbackURLs:            app.CallbackURLs,
+		SupportedGrantTypes:     app.SupportedGrantTypes,
+		AuthFlowGraphID:         app.AuthFlowGraphID,
+		RegistrationFlowGraphID: app.RegistrationFlowGraphID,
+	}
+
+	err := store.UpdateApplication(newApp)
 	if err != nil {
 		return nil, err
 	}

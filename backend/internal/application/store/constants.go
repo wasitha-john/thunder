@@ -21,8 +21,8 @@ package store
 import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 
 var (
-	// QueryGetApplicationByClientID is the query to retrieve application details by client ID.
-	QueryGetApplicationByClientID = dbmodel.DBQuery{
+	// QueryGetOAuthApplicationByClientID is the query to retrieve oauth application details by client ID.
+	QueryGetOAuthApplicationByClientID = dbmodel.DBQuery{
 		ID: "ASQ-APP_MGT-00",
 		Query: "SELECT APP_ID, CONSUMER_KEY, CONSUMER_SECRET, CALLBACK_URIS, GRANT_TYPES " +
 			"FROM IDN_OAUTH_CONSUMER_APPS WHERE CONSUMER_KEY = $1",
