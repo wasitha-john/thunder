@@ -344,7 +344,7 @@ Open the sample app in your browser and enter the username and password you crea
               "value": "user:email,read:user",
               "is_secret": false
           }
-      ],
+      ]
   }'
   ```
 
@@ -394,7 +394,7 @@ curl -kL -H 'Content-Type: application/json' -H 'Accept: application/json' https
   "properties": [
     {
       "name": "url",
-      "value": "<custom_sms_provider_url>",
+      "value": "<custom_sms_provider_url>"
     },
     {
       "name": "http_method",
@@ -566,7 +566,7 @@ When you configure an authentication flow for an application, Thunder automatica
 - Create an application or update the existing system default application to use the basic auth login template. You can use the following cURL command to update the default application.
 
   ```bash
-  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000' \
+  curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
   --data '{
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "Test SPA",
@@ -891,7 +891,7 @@ When you configure an authentication flow for an application, Thunder automatica
     "properties": [
       {
         "name": "url",
-        "value": "<custom_sms_provider_url>",
+        "value": "<custom_sms_provider_url>"
       },
       {
         "name": "http_method",
