@@ -27,8 +27,8 @@ import (
 
 // AuthorizationValidatorInterface defines the interface for validating OAuth2 authorization requests.
 type AuthorizationValidatorInterface interface {
-	validateInitialAuthorizationRequest(msg *model.OAuthMessage,
-		app *appmodel.OAuthApplication) (bool, string, string)
+	validateInitialAuthorizationRequest(msg *model.OAuthMessage, oauthApp *appmodel.OAuthAppConfigProcessed) (
+		bool, string, string)
 }
 
 // AuthorizationValidator implements the AuthorizationValidatorInterface for validating OAuth2 authorization requests.
@@ -41,7 +41,7 @@ func NewAuthorizationValidator() AuthorizationValidatorInterface {
 
 // validateInitialAuthorizationRequest validates the initial authorization request parameters.
 func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model.OAuthMessage,
-	app *appmodel.OAuthApplication) (bool, string, string) {
+	oauthApp *appmodel.OAuthAppConfigProcessed) (bool, string, string) {
 	logger := log.GetLogger()
 
 	// Extract required parameters.
@@ -54,13 +54,13 @@ func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model
 	}
 
 	// Validate if the authorization code grant type is allowed for the app.
-	if !app.IsAllowedGrantType(constants.GrantTypeAuthorizationCode) {
+	if !oauthApp.IsAllowedGrantType(constants.GrantTypeAuthorizationCode) {
 		return false, constants.ErrorUnsupportedGrantType,
 			"Authorization code grant type is not allowed for the client"
 	}
 
 	// Validate the redirect URI against the registered application.
-	if err := app.ValidateRedirectURI(redirectURI); err != nil {
+	if err := oauthApp.ValidateRedirectURI(redirectURI); err != nil {
 		logger.Error("Validation failed for redirect URI", log.Error(err))
 		return false, constants.ErrorInvalidRequest, "Invalid redirect URI"
 	}
