@@ -25,3 +25,11 @@ const (
 	// RegistrationFlowGraphPrefix defines the prefix for registration flow graph IDs.
 	RegistrationFlowGraphPrefix = "registration_flow_config_"
 )
+
+// InboundAuthType represents the type of inbound authentication.
+type InboundAuthType string
+
+const (
+	// OAuthInboundAuthType represents the OAuth 2.0 inbound authentication type.
+	OAuthInboundAuthType InboundAuthType = "oauth2"
+)

@@ -36,7 +36,7 @@ var _ GrantHandler = (*ClientCredentialsGrantHandler)(nil)
 
 // ValidateGrant validates the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthApplication) *model.ErrorResponse {
+	oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse {
 	// Validate the grant type.
 	if tokenRequest.GrantType != constants.GrantTypeClientCredentials {
 		return &model.ErrorResponse{
@@ -67,7 +67,7 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 
 // HandleGrant handles the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthApplication, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
+	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	scopeString := strings.TrimSpace(tokenRequest.Scope)
 	scopes := []string{}
 	if scopeString != "" {

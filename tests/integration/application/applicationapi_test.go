@@ -36,30 +36,30 @@ const (
 
 var (
 	preCreatedApp = Application{
-		ID:                  "550e8400-e29b-41d4-a716-446655440000",
-		Name:                "Test SPA",
-		Description:         "Initial testing App",
-		ClientID:            "client123",
-		CallbackURL:         []string{"https://localhost:3000"},
-		SupportedGrantTypes: []string{"client_credentials", "authorization_code"},
+		ID:           "550e8400-e29b-41d4-a716-446655440000",
+		Name:         "Test SPA",
+		Description:  "Initial testing App",
+		ClientID:     "client123",
+		RedirectURIs: []string{"https://localhost:3000"},
+		GrantTypes:   []string{"client_credentials", "authorization_code"},
 	}
 
 	appToCreate = Application{
-		Name:                "My App",
-		Description:         "A demo application",
-		ClientID:            "abc1237",
-		ClientSecret:        "s3cret",
-		CallbackURL:         []string{"http://localhost/callback"},
-		SupportedGrantTypes: []string{"authorization_code", "client_credentials"},
+		Name:         "My App",
+		Description:  "A demo application",
+		ClientID:     "abc1237",
+		ClientSecret: "s3cret",
+		RedirectURIs: []string{"http://localhost/callback"},
+		GrantTypes:   []string{"authorization_code", "client_credentials"},
 	}
 
 	appToUpdate = Application{
-		Name:                "Updated App",
-		Description:         "Updated Description",
-		ClientID:            "Updated abc1237",
-		ClientSecret:        "Updated s3cret",
-		CallbackURL:         []string{"http://localhost/callback2"},
-		SupportedGrantTypes: []string{"authorization_code2", "client_credentials2"},
+		Name:         "Updated App",
+		Description:  "Updated Description",
+		ClientID:     "Updated abc1237",
+		ClientSecret: "Updated s3cret",
+		RedirectURIs: []string{"http://localhost/callback2"},
+		GrantTypes:   []string{"authorization_code2", "client_credentials2"},
 	}
 )
 
@@ -198,13 +198,13 @@ func (ts *ApplicationAPITestSuite) TestApplicationUpdate() {
 
 	// Validate the update by retrieving the application
 	retrieveAndValidateApplicationDetails(ts, Application{
-		ID:                  createdAppID,
-		Name:                appToUpdate.Name,
-		Description:         appToUpdate.Description,
-		ClientID:            appToUpdate.ClientID,
-		ClientSecret:        appToUpdate.ClientSecret,
-		CallbackURL:         appToUpdate.CallbackURL,
-		SupportedGrantTypes: appToUpdate.SupportedGrantTypes,
+		ID:           createdAppID,
+		Name:         appToUpdate.Name,
+		Description:  appToUpdate.Description,
+		ClientID:     appToUpdate.ClientID,
+		ClientSecret: appToUpdate.ClientSecret,
+		RedirectURIs: appToUpdate.RedirectURIs,
+		GrantTypes:   appToUpdate.GrantTypes,
 	})
 }
 
@@ -322,12 +322,12 @@ func deleteApplication(appID string) error {
 func buildCreatedApp() Application {
 
 	return Application{
-		ID:                  createdAppID,
-		Name:                appToCreate.Name,
-		Description:         appToCreate.Description,
-		ClientID:            appToCreate.ClientID,
-		ClientSecret:        appToCreate.ClientSecret,
-		CallbackURL:         appToCreate.CallbackURL,
-		SupportedGrantTypes: appToCreate.SupportedGrantTypes,
+		ID:           createdAppID,
+		Name:         appToCreate.Name,
+		Description:  appToCreate.Description,
+		ClientID:     appToCreate.ClientID,
+		ClientSecret: appToCreate.ClientSecret,
+		RedirectURIs: appToCreate.RedirectURIs,
+		GrantTypes:   appToCreate.GrantTypes,
 	}
 }

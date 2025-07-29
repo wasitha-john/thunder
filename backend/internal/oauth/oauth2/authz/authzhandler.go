@@ -171,7 +171,7 @@ func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(msg *model.OAuthMe
 	// Add required query parameters.
 	queryParams := make(map[string]string)
 	queryParams[oauth2const.SessionDataKey] = oauthParams.SessionDataKey
-	queryParams[oauth2const.AppID] = app.ID
+	queryParams[oauth2const.AppID] = app.AppID
 
 	// Add insecure warning if the redirect URI is not using TLS.
 	// TODO: May require another redirection to a warn consent page when it directly goes to a federated IDP.

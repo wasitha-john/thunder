@@ -36,29 +36,33 @@ import (
 
 // ApplicationServiceInterface defines the interface for the application service.
 type ApplicationServiceInterface interface {
-	GetOAuthApplication(clientID string) (*model.OAuthApplication, error)
-	CreateApplication(app *model.Application) (*model.Application, error)
-	GetApplicationList() ([]model.ReturnApplication, error)
-	GetApplication(appID string) (*model.ReturnApplication, error)
-	UpdateApplication(appID string, app *model.Application) (*model.Application, error)
+	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, error)
+	CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO, error)
+	GetApplicationList() ([]model.ApplicationProcessedDTO, error)
+	GetApplication(appID string) (*model.ApplicationProcessedDTO, error)
+	UpdateApplication(appID string, app *model.ApplicationDTO) (*model.ApplicationDTO, error)
 	DeleteApplication(appID string) error
 }
 
 // ApplicationService is the default implementation of the ApplicationServiceInterface.
-type ApplicationService struct{}
+type ApplicationService struct {
+	Store store.ApplicationStoreInterface
+}
 
 // GetApplicationService creates a new instance of ApplicationService.
 func GetApplicationService() ApplicationServiceInterface {
-	return &ApplicationService{}
+	return &ApplicationService{
+		Store: store.NewApplicationStore(),
+	}
 }
 
 // GetOAuthApplication retrieves the OAuth application based on the client id.
-func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuthApplication, error) {
+func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, error) {
 	if clientID == "" {
 		return nil, errors.New("client ID cannot be empty")
 	}
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
-	oauthApp, err := store.GetOAuthApplication(clientID)
+	oauthApp, err := as.Store.GetOAuthApplication(clientID)
 	if err != nil {
 		logger.Error("Failed to retrieve OAuth application", log.Error(err), log.String("clientID", clientID))
 		return nil, err
@@ -68,22 +72,32 @@ func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuth
 }
 
 // CreateApplication creates the application.
-func (as *ApplicationService) CreateApplication(app *model.Application) (*model.Application, error) {
+func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO, error) {
 	if app == nil {
 		return nil, errors.New("application is nil")
 	}
 	if app.Name == "" {
 		return nil, errors.New("application name cannot be empty")
 	}
-	if app.ClientID == "" {
+
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(app.InboundAuthConfig) == 0 || app.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		return nil, errors.New("invalid inbound authentication configuration")
+	}
+	inboundAuthConfig := app.InboundAuthConfig[0]
+	if inboundAuthConfig.OAuthAppConfig == nil {
+		return nil, errors.New("OAuth application configuration is nil")
+	}
+	if inboundAuthConfig.OAuthAppConfig.ClientID == "" {
 		return nil, errors.New("client ID cannot be empty")
 	}
-	if app.ClientSecret == "" {
+	if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" {
 		return nil, errors.New("client secret cannot be empty")
 	}
-	if len(app.CallbackURLs) == 0 {
+	if len(inboundAuthConfig.OAuthAppConfig.RedirectURIs) == 0 {
 		return nil, errors.New("at least one callback URL is required")
 	}
+
 	if err := validateAuthFlowGraphID(app); err != nil {
 		return nil, err
 	}
@@ -92,22 +106,29 @@ func (as *ApplicationService) CreateApplication(app *model.Application) (*model.
 	}
 
 	app.ID = utils.GenerateUUID()
-	newApp := &model.Application{
+	processedInboundAuthConfig := model.InboundAuthConfigProcessed{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfigProcessed{
+			AppID:              app.ID,
+			ClientID:           inboundAuthConfig.OAuthAppConfig.ClientID,
+			HashedClientSecret: hash.HashString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
+			RedirectURIs:       inboundAuthConfig.OAuthAppConfig.RedirectURIs,
+			GrantTypes:         inboundAuthConfig.OAuthAppConfig.GrantTypes,
+		},
+	}
+	processedDTO := &model.ApplicationProcessedDTO{
 		ID:                      app.ID,
 		Name:                    app.Name,
 		Description:             app.Description,
-		ClientID:                app.ClientID,
-		ClientSecret:            hash.HashString(app.ClientSecret),
-		CallbackURLs:            app.CallbackURLs,
-		SupportedGrantTypes:     app.SupportedGrantTypes,
 		AuthFlowGraphID:         app.AuthFlowGraphID,
 		RegistrationFlowGraphID: app.RegistrationFlowGraphID,
+		InboundAuthConfig:       []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
 	}
 
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 
 	// Create the application.
-	err := store.CreateApplication(*newApp)
+	err := as.Store.CreateApplication(*processedDTO)
 	if err != nil {
 		logger.Error("Failed to create application", log.Error(err))
 		return nil, err
@@ -117,8 +138,8 @@ func (as *ApplicationService) CreateApplication(app *model.Application) (*model.
 }
 
 // GetApplicationList list the applications.
-func (as *ApplicationService) GetApplicationList() ([]model.ReturnApplication, error) {
-	applications, err := store.GetApplicationList()
+func (as *ApplicationService) GetApplicationList() ([]model.ApplicationProcessedDTO, error) {
+	applications, err := as.Store.GetApplicationList()
 	if err != nil {
 		return nil, err
 	}
@@ -127,12 +148,12 @@ func (as *ApplicationService) GetApplicationList() ([]model.ReturnApplication, e
 }
 
 // GetApplication get the application for given app id.
-func (as *ApplicationService) GetApplication(appID string) (*model.ReturnApplication, error) {
+func (as *ApplicationService) GetApplication(appID string) (*model.ApplicationProcessedDTO, error) {
 	if appID == "" {
 		return nil, errors.New("application ID is empty")
 	}
 
-	application, err := store.GetApplication(appID)
+	application, err := as.Store.GetApplication(appID)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +162,8 @@ func (as *ApplicationService) GetApplication(appID string) (*model.ReturnApplica
 }
 
 // UpdateApplication update the application for given app id.
-func (as *ApplicationService) UpdateApplication(appID string, app *model.Application) (*model.Application, error) {
+func (as *ApplicationService) UpdateApplication(appID string, app *model.ApplicationDTO) (
+	*model.ApplicationDTO, error) {
 	if appID == "" {
 		return nil, errors.New("application ID is empty")
 	}
@@ -151,15 +173,25 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 	if app.Name == "" {
 		return nil, errors.New("application name cannot be empty")
 	}
-	if app.ClientID == "" {
+
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(app.InboundAuthConfig) == 0 || app.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		return nil, errors.New("invalid inbound authentication configuration")
+	}
+	inboundAuthConfig := app.InboundAuthConfig[0]
+	if inboundAuthConfig.OAuthAppConfig == nil {
+		return nil, errors.New("OAuth application configuration is nil")
+	}
+	if inboundAuthConfig.OAuthAppConfig.ClientID == "" {
 		return nil, errors.New("client ID cannot be empty")
 	}
-	if app.ClientSecret == "" {
+	if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" {
 		return nil, errors.New("client secret cannot be empty")
 	}
-	if len(app.CallbackURLs) == 0 {
+	if len(inboundAuthConfig.OAuthAppConfig.RedirectURIs) == 0 {
 		return nil, errors.New("at least one callback URL is required")
 	}
+
 	if err := validateAuthFlowGraphID(app); err != nil {
 		return nil, err
 	}
@@ -167,19 +199,27 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		return nil, err
 	}
 
-	newApp := &model.Application{
+	app.ID = appID
+	processedInboundAuthConfig := model.InboundAuthConfigProcessed{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfigProcessed{
+			AppID:              appID,
+			ClientID:           inboundAuthConfig.OAuthAppConfig.ClientID,
+			HashedClientSecret: hash.HashString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
+			RedirectURIs:       inboundAuthConfig.OAuthAppConfig.RedirectURIs,
+			GrantTypes:         inboundAuthConfig.OAuthAppConfig.GrantTypes,
+		},
+	}
+	processedDTO := &model.ApplicationProcessedDTO{
 		ID:                      appID,
 		Name:                    app.Name,
 		Description:             app.Description,
-		ClientID:                app.ClientID,
-		ClientSecret:            hash.HashString(app.ClientSecret),
-		CallbackURLs:            app.CallbackURLs,
-		SupportedGrantTypes:     app.SupportedGrantTypes,
 		AuthFlowGraphID:         app.AuthFlowGraphID,
 		RegistrationFlowGraphID: app.RegistrationFlowGraphID,
+		InboundAuthConfig:       []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
 	}
 
-	err := store.UpdateApplication(newApp)
+	err := as.Store.UpdateApplication(processedDTO)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +233,7 @@ func (as *ApplicationService) DeleteApplication(appID string) error {
 		return errors.New("application ID is empty")
 	}
 
-	err := store.DeleteApplication(appID)
+	err := as.Store.DeleteApplication(appID)
 	if err != nil {
 		return err
 	}
@@ -203,7 +243,7 @@ func (as *ApplicationService) DeleteApplication(appID string) error {
 
 // validateAuthFlowGraphID validates the auth flow graph ID for the application.
 // If the graph ID is not provided, it sets the default authentication flow graph ID.
-func validateAuthFlowGraphID(app *model.Application) error {
+func validateAuthFlowGraphID(app *model.ApplicationDTO) error {
 	if app.AuthFlowGraphID != "" {
 		isValidFlowGraphID := graphservice.GetGraphService().IsValidGraphID(app.AuthFlowGraphID)
 		if !isValidFlowGraphID {
@@ -218,7 +258,7 @@ func validateAuthFlowGraphID(app *model.Application) error {
 
 // validateRegistrationFlowGraphID validates the registration flow graph ID for the application.
 // If the graph ID is not provided, it attempts to infer it from the auth flow graph ID.
-func validateRegistrationFlowGraphID(app *model.Application) error {
+func validateRegistrationFlowGraphID(app *model.ApplicationDTO) error {
 	if app.RegistrationFlowGraphID != "" {
 		isValidFlowGraphID := graphservice.GetGraphService().IsValidGraphID(app.RegistrationFlowGraphID)
 		if !isValidFlowGraphID {

@@ -23,8 +23,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"sync"
 
+	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
 	appprovider "github.com/asgardeo/thunder/internal/application/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -42,15 +42,13 @@ import (
 // @host           localhost:8090
 // @BasePath       /
 type ApplicationHandler struct {
-	store map[string]model.Application
-	mu    *sync.RWMutex
+	ApplicationProvider appprovider.ApplicationProviderInterface
 }
 
 // NewApplicationHandler creates a new instance of ApplicationHandler.
 func NewApplicationHandler() *ApplicationHandler {
 	return &ApplicationHandler{
-		store: make(map[string]model.Application),
-		mu:    &sync.RWMutex{},
+		ApplicationProvider: appprovider.NewApplicationProvider(),
 	}
 }
 
@@ -69,32 +67,84 @@ func NewApplicationHandler() *ApplicationHandler {
 func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
-	var appInCreationRequest model.Application
-	if err := json.NewDecoder(r.Body).Decode(&appInCreationRequest); err != nil {
+	var appRequest model.ApplicationRequest
+	if err := json.NewDecoder(r.Body).Decode(&appRequest); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	inboundAuthConfig := model.InboundAuthConfig{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfig{
+			ClientID:     appRequest.ClientID,
+			ClientSecret: appRequest.ClientSecret,
+			RedirectURIs: appRequest.RedirectURIs,
+			GrantTypes:   appRequest.GrantTypes,
+		},
+	}
+	appDTO := model.ApplicationDTO{
+		Name:                    appRequest.Name,
+		Description:             appRequest.Description,
+		AuthFlowGraphID:         appRequest.AuthFlowGraphID,
+		RegistrationFlowGraphID: appRequest.RegistrationFlowGraphID,
+		InboundAuthConfig:       []model.InboundAuthConfig{inboundAuthConfig},
+	}
+
 	// Create the app using the application service.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-	createdApplication, err := appService.CreateApplication(&appInCreationRequest)
+	appService := ah.ApplicationProvider.GetApplicationService()
+	createdAppDTO, err := appService.CreateApplication(&appDTO)
 	if err != nil {
 		http.Error(w, "Failed to create application", http.StatusInternalServerError)
 		return
 	}
 
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(createdAppDTO.InboundAuthConfig) == 0 ||
+		createdAppDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		logger.Error("Unsupported inbound authentication type returned",
+			log.String("type", string(createdAppDTO.InboundAuthConfig[0].Type)))
+		http.Error(w, "Unsupported inbound authentication type", http.StatusInternalServerError)
+		return
+	}
+	returnInboundAuthConfig := createdAppDTO.InboundAuthConfig[0]
+	if returnInboundAuthConfig.OAuthAppConfig == nil {
+		logger.Error("OAuth application configuration is nil")
+		http.Error(w, "Something went wrong while creating the application", http.StatusInternalServerError)
+		return
+	}
+
+	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{}
+	}
+	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []string{}
+	}
+
+	returnApp := model.ApplicationResponse{
+		ID:                      createdAppDTO.ID,
+		Name:                    createdAppDTO.Name,
+		Description:             createdAppDTO.Description,
+		ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		ClientSecret:            returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
+		RedirectURIs:            redirectURIs,
+		GrantTypes:              grantTypes,
+		AuthFlowGraphID:         createdAppDTO.AuthFlowGraphID,
+		RegistrationFlowGraphID: createdAppDTO.RegistrationFlowGraphID,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	err = json.NewEncoder(w).Encode(createdApplication)
+	err = json.NewEncoder(w).Encode(returnApp)
 	if err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 
-	// Log the application creation response.
-	logger.Debug("Application POST response sent", log.String("app id", createdApplication.ID))
+	logger.Debug("Application POST response sent", log.String("appId", createdAppDTO.ID))
 }
 
 // HandleApplicationListRequest handles the application request.
@@ -111,23 +161,57 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
-	// Get the application list using the application service.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
+	appService := ah.ApplicationProvider.GetApplicationService()
 	applications, err := appService.GetApplicationList()
 	if err != nil {
 		http.Error(w, "Failed get application list", http.StatusInternalServerError)
 		return
 	}
 
+	returnAppList := make([]model.BasicApplicationResponse, len(applications))
+	for i, app := range applications {
+		// TODO: Need to refactor when supporting other/multiple inbound auth types.
+		if len(app.InboundAuthConfig) == 0 || app.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+			logger.Error("Unsupported inbound authentication type in application list",
+				log.String("type", string(app.InboundAuthConfig[0].Type)))
+			http.Error(w, "Unsupported inbound authentication type", http.StatusInternalServerError)
+			return
+		}
+		returnInboundAuthConfig := app.InboundAuthConfig[0]
+		if returnInboundAuthConfig.OAuthAppConfig == nil {
+			logger.Error("OAuth application configuration is nil in application list")
+			http.Error(w, "Something went wrong while retrieving the application list", http.StatusInternalServerError)
+			return
+		}
+
+		redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+		if len(redirectURIs) == 0 {
+			redirectURIs = []string{}
+		}
+		grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+		if len(grantTypes) == 0 {
+			grantTypes = []string{}
+		}
+
+		returnAppList[i] = model.BasicApplicationResponse{
+			ID:                      app.ID,
+			Name:                    app.Name,
+			Description:             app.Description,
+			ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
+			RedirectURIs:            redirectURIs,
+			GrantTypes:              grantTypes,
+			AuthFlowGraphID:         app.AuthFlowGraphID,
+			RegistrationFlowGraphID: app.RegistrationFlowGraphID,
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(applications)
+	err = json.NewEncoder(w).Encode(returnAppList)
 	if err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 
-	// Log the application response.
 	logger.Debug("Application GET (list) response sent")
 }
 
@@ -153,24 +237,55 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 		return
 	}
 
-	// Get the application using the application service.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-	application, err := appService.GetApplication(id)
+	appService := ah.ApplicationProvider.GetApplicationService()
+	appDTO, err := appService.GetApplication(id)
 	if err != nil {
 		http.Error(w, "Failed get application", http.StatusInternalServerError)
 		return
 	}
 
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(appDTO.InboundAuthConfig) == 0 || appDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		logger.Error("Unsupported inbound authentication type returned",
+			log.String("type", string(appDTO.InboundAuthConfig[0].Type)))
+		http.Error(w, "Unsupported inbound authentication type", http.StatusInternalServerError)
+		return
+	}
+	returnInboundAuthConfig := appDTO.InboundAuthConfig[0]
+	if returnInboundAuthConfig.OAuthAppConfig == nil {
+		logger.Error("OAuth application configuration is nil")
+		http.Error(w, "Something went wrong while retrieving the application", http.StatusInternalServerError)
+		return
+	}
+
+	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{}
+	}
+	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []string{}
+	}
+
+	returnApp := model.BasicApplicationResponse{
+		ID:                      appDTO.ID,
+		Name:                    appDTO.Name,
+		Description:             appDTO.Description,
+		ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		RedirectURIs:            redirectURIs,
+		GrantTypes:              grantTypes,
+		AuthFlowGraphID:         appDTO.AuthFlowGraphID,
+		RegistrationFlowGraphID: appDTO.RegistrationFlowGraphID,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(application)
+	err = json.NewEncoder(w).Encode(returnApp)
 	if err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 
-	// Log the application response.
-	logger.Debug("Application GET response sent", log.String("app id", id))
+	logger.Debug("Application GET response sent", log.String("appId", id))
 }
 
 // HandleApplicationPutRequest handles the application request.
@@ -196,31 +311,83 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		return
 	}
 
-	var updatedApp model.Application
-	if err := json.NewDecoder(r.Body).Decode(&updatedApp); err != nil {
+	var appRequest model.ApplicationRequest
+	if err := json.NewDecoder(r.Body).Decode(&appRequest); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	updatedApp.ID = id
+
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	inboundAuthConfig := model.InboundAuthConfig{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfig{
+			ClientID:     appRequest.ClientID,
+			ClientSecret: appRequest.ClientSecret,
+			RedirectURIs: appRequest.RedirectURIs,
+			GrantTypes:   appRequest.GrantTypes,
+		},
+	}
+	updateReqAppDTO := model.ApplicationDTO{
+		ID:                      id,
+		Name:                    appRequest.Name,
+		Description:             appRequest.Description,
+		AuthFlowGraphID:         appRequest.AuthFlowGraphID,
+		RegistrationFlowGraphID: appRequest.RegistrationFlowGraphID,
+		InboundAuthConfig:       []model.InboundAuthConfig{inboundAuthConfig},
+	}
 
 	// Update the application using the application service.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-	application, err := appService.UpdateApplication(id, &updatedApp)
+	appService := ah.ApplicationProvider.GetApplicationService()
+	updatedAppDTO, err := appService.UpdateApplication(id, &updateReqAppDTO)
 	if err != nil {
 		http.Error(w, "Failed get application", http.StatusInternalServerError)
 		return
 	}
 
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(updatedAppDTO.InboundAuthConfig) == 0 ||
+		updatedAppDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		logger.Error("Unsupported inbound authentication type returned",
+			log.String("type", string(updatedAppDTO.InboundAuthConfig[0].Type)))
+		http.Error(w, "Unsupported inbound authentication type", http.StatusInternalServerError)
+		return
+	}
+	returnInboundAuthConfig := updatedAppDTO.InboundAuthConfig[0]
+	if returnInboundAuthConfig.OAuthAppConfig == nil {
+		logger.Error("OAuth application configuration is nil")
+		http.Error(w, "Something went wrong while updating the application", http.StatusInternalServerError)
+		return
+	}
+
+	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{}
+	}
+	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []string{}
+	}
+
+	returnApp := model.ApplicationResponse{
+		ID:                      updatedAppDTO.ID,
+		Name:                    updatedAppDTO.Name,
+		Description:             updatedAppDTO.Description,
+		ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		ClientSecret:            returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
+		RedirectURIs:            redirectURIs,
+		GrantTypes:              grantTypes,
+		AuthFlowGraphID:         updatedAppDTO.AuthFlowGraphID,
+		RegistrationFlowGraphID: updatedAppDTO.RegistrationFlowGraphID,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(application)
+	err = json.NewEncoder(w).Encode(returnApp)
 	if err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 
-	// Log the application response.
-	logger.Debug("Application PUT response sent", log.String("app id", id))
+	logger.Debug("Application PUT response sent", log.String("appId", id))
 }
 
 // HandleApplicationDeleteRequest handles the application request.
@@ -246,8 +413,7 @@ func (ah *ApplicationHandler) HandleApplicationDeleteRequest(w http.ResponseWrit
 	}
 
 	// Delete the application using the application service.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
+	appService := ah.ApplicationProvider.GetApplicationService()
 	err := appService.DeleteApplication(id)
 	if err != nil {
 		http.Error(w, "Failed delete application", http.StatusInternalServerError)
@@ -257,5 +423,5 @@ func (ah *ApplicationHandler) HandleApplicationDeleteRequest(w http.ResponseWrit
 	w.WriteHeader(http.StatusNoContent)
 
 	// Log the application response.
-	logger.Debug("Application DELETE response sent", log.String("app id", id))
+	logger.Debug("Application DELETE response sent", log.String("appId", id))
 }
