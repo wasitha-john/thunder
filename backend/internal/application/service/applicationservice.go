@@ -79,15 +79,25 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 	if app.Name == "" {
 		return nil, errors.New("application name cannot be empty")
 	}
-	if app.ClientID == "" {
+
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(app.InboundAuthConfig) == 0 || app.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		return nil, errors.New("invalid inbound authentication configuration")
+	}
+	inboundAuthConfig := app.InboundAuthConfig[0]
+	if inboundAuthConfig.OAuthAppConfig == nil {
+		return nil, errors.New("OAuth application configuration is nil")
+	}
+	if inboundAuthConfig.OAuthAppConfig.ClientID == "" {
 		return nil, errors.New("client ID cannot be empty")
 	}
-	if app.ClientSecret == "" {
+	if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" {
 		return nil, errors.New("client secret cannot be empty")
 	}
-	if len(app.CallbackURLs) == 0 {
+	if len(inboundAuthConfig.OAuthAppConfig.RedirectURIs) == 0 {
 		return nil, errors.New("at least one callback URL is required")
 	}
+
 	if err := validateAuthFlowGraphID(app); err != nil {
 		return nil, err
 	}
@@ -96,16 +106,23 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 	}
 
 	app.ID = utils.GenerateUUID()
+	processedInboundAuthConfig := model.InboundAuthConfigProcessed{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfigProcessed{
+			AppID:              app.ID,
+			ClientID:           inboundAuthConfig.OAuthAppConfig.ClientID,
+			HashedClientSecret: hash.HashString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
+			RedirectURIs:       inboundAuthConfig.OAuthAppConfig.RedirectURIs,
+			GrantTypes:         inboundAuthConfig.OAuthAppConfig.GrantTypes,
+		},
+	}
 	processedDTO := &model.ApplicationProcessedDTO{
 		ID:                      app.ID,
 		Name:                    app.Name,
 		Description:             app.Description,
-		ClientID:                app.ClientID,
-		HashedClientSecret:      hash.HashString(app.ClientSecret),
-		CallbackURLs:            app.CallbackURLs,
-		SupportedGrantTypes:     app.SupportedGrantTypes,
 		AuthFlowGraphID:         app.AuthFlowGraphID,
 		RegistrationFlowGraphID: app.RegistrationFlowGraphID,
+		InboundAuthConfig:       []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
 	}
 
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
@@ -156,15 +173,25 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 	if app.Name == "" {
 		return nil, errors.New("application name cannot be empty")
 	}
-	if app.ClientID == "" {
+
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(app.InboundAuthConfig) == 0 || app.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		return nil, errors.New("invalid inbound authentication configuration")
+	}
+	inboundAuthConfig := app.InboundAuthConfig[0]
+	if inboundAuthConfig.OAuthAppConfig == nil {
+		return nil, errors.New("OAuth application configuration is nil")
+	}
+	if inboundAuthConfig.OAuthAppConfig.ClientID == "" {
 		return nil, errors.New("client ID cannot be empty")
 	}
-	if app.ClientSecret == "" {
+	if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" {
 		return nil, errors.New("client secret cannot be empty")
 	}
-	if len(app.CallbackURLs) == 0 {
+	if len(inboundAuthConfig.OAuthAppConfig.RedirectURIs) == 0 {
 		return nil, errors.New("at least one callback URL is required")
 	}
+
 	if err := validateAuthFlowGraphID(app); err != nil {
 		return nil, err
 	}
@@ -173,16 +200,23 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 	}
 
 	app.ID = appID
+	processedInboundAuthConfig := model.InboundAuthConfigProcessed{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfigProcessed{
+			AppID:              appID,
+			ClientID:           inboundAuthConfig.OAuthAppConfig.ClientID,
+			HashedClientSecret: hash.HashString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
+			RedirectURIs:       inboundAuthConfig.OAuthAppConfig.RedirectURIs,
+			GrantTypes:         inboundAuthConfig.OAuthAppConfig.GrantTypes,
+		},
+	}
 	processedDTO := &model.ApplicationProcessedDTO{
 		ID:                      appID,
 		Name:                    app.Name,
 		Description:             app.Description,
-		ClientID:                app.ClientID,
-		HashedClientSecret:      hash.HashString(app.ClientSecret),
-		CallbackURLs:            app.CallbackURLs,
-		SupportedGrantTypes:     app.SupportedGrantTypes,
 		AuthFlowGraphID:         app.AuthFlowGraphID,
 		RegistrationFlowGraphID: app.RegistrationFlowGraphID,
+		InboundAuthConfig:       []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
 	}
 
 	err := as.Store.UpdateApplication(processedDTO)

@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
 	appprovider "github.com/asgardeo/thunder/internal/application/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -72,20 +73,22 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		return
 	}
 
-	// inboundAuthConfig := model.InboundAuthConfig{
-	// 	Type: constants.OAuthInboundAuthType,
-	// 	OAuthAppConfig: &model.OAuthAppConfig{
-	// 		ClientID:           appRequest.ClientID,
-
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	inboundAuthConfig := model.InboundAuthConfig{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfig{
+			ClientID:     appRequest.ClientID,
+			ClientSecret: appRequest.ClientSecret,
+			RedirectURIs: appRequest.RedirectURIs,
+			GrantTypes:   appRequest.GrantTypes,
+		},
+	}
 	appDTO := model.ApplicationDTO{
 		Name:                    appRequest.Name,
 		Description:             appRequest.Description,
-		ClientID:                appRequest.ClientID,
-		ClientSecret:            appRequest.ClientSecret,
-		CallbackURLs:            appRequest.CallbackURLs,
-		SupportedGrantTypes:     appRequest.SupportedGrantTypes,
 		AuthFlowGraphID:         appRequest.AuthFlowGraphID,
 		RegistrationFlowGraphID: appRequest.RegistrationFlowGraphID,
+		InboundAuthConfig:       []model.InboundAuthConfig{inboundAuthConfig},
 	}
 
 	// Create the app using the application service.
@@ -96,14 +99,38 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		return
 	}
 
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(createdAppDTO.InboundAuthConfig) == 0 ||
+		createdAppDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		logger.Error("Unsupported inbound authentication type returned",
+			log.String("type", string(createdAppDTO.InboundAuthConfig[0].Type)))
+		http.Error(w, "Unsupported inbound authentication type", http.StatusInternalServerError)
+		return
+	}
+	returnInboundAuthConfig := createdAppDTO.InboundAuthConfig[0]
+	if returnInboundAuthConfig.OAuthAppConfig == nil {
+		logger.Error("OAuth application configuration is nil")
+		http.Error(w, "Something went wrong while creating the application", http.StatusInternalServerError)
+		return
+	}
+
+	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{}
+	}
+	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []string{}
+	}
+
 	returnApp := model.ApplicationResponse{
 		ID:                      createdAppDTO.ID,
 		Name:                    createdAppDTO.Name,
 		Description:             createdAppDTO.Description,
-		ClientID:                createdAppDTO.ClientID,
-		ClientSecret:            createdAppDTO.ClientSecret,
-		CallbackURLs:            createdAppDTO.CallbackURLs,
-		SupportedGrantTypes:     createdAppDTO.SupportedGrantTypes,
+		ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		ClientSecret:            returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
+		RedirectURIs:            redirectURIs,
+		GrantTypes:              grantTypes,
 		AuthFlowGraphID:         createdAppDTO.AuthFlowGraphID,
 		RegistrationFlowGraphID: createdAppDTO.RegistrationFlowGraphID,
 	}
@@ -143,13 +170,36 @@ func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter
 
 	returnAppList := make([]model.BasicApplicationResponse, len(applications))
 	for i, app := range applications {
+		// TODO: Need to refactor when supporting other/multiple inbound auth types.
+		if len(app.InboundAuthConfig) == 0 || app.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+			logger.Error("Unsupported inbound authentication type in application list",
+				log.String("type", string(app.InboundAuthConfig[0].Type)))
+			http.Error(w, "Unsupported inbound authentication type", http.StatusInternalServerError)
+			return
+		}
+		returnInboundAuthConfig := app.InboundAuthConfig[0]
+		if returnInboundAuthConfig.OAuthAppConfig == nil {
+			logger.Error("OAuth application configuration is nil in application list")
+			http.Error(w, "Something went wrong while retrieving the application list", http.StatusInternalServerError)
+			return
+		}
+
+		redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+		if len(redirectURIs) == 0 {
+			redirectURIs = []string{}
+		}
+		grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+		if len(grantTypes) == 0 {
+			grantTypes = []string{}
+		}
+
 		returnAppList[i] = model.BasicApplicationResponse{
 			ID:                      app.ID,
 			Name:                    app.Name,
 			Description:             app.Description,
-			ClientID:                app.ClientID,
-			CallbackURLs:            app.CallbackURLs,
-			SupportedGrantTypes:     app.SupportedGrantTypes,
+			ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
+			RedirectURIs:            redirectURIs,
+			GrantTypes:              grantTypes,
 			AuthFlowGraphID:         app.AuthFlowGraphID,
 			RegistrationFlowGraphID: app.RegistrationFlowGraphID,
 		}
@@ -194,13 +244,36 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 		return
 	}
 
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(appDTO.InboundAuthConfig) == 0 || appDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		logger.Error("Unsupported inbound authentication type returned",
+			log.String("type", string(appDTO.InboundAuthConfig[0].Type)))
+		http.Error(w, "Unsupported inbound authentication type", http.StatusInternalServerError)
+		return
+	}
+	returnInboundAuthConfig := appDTO.InboundAuthConfig[0]
+	if returnInboundAuthConfig.OAuthAppConfig == nil {
+		logger.Error("OAuth application configuration is nil")
+		http.Error(w, "Something went wrong while retrieving the application", http.StatusInternalServerError)
+		return
+	}
+
+	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{}
+	}
+	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []string{}
+	}
+
 	returnApp := model.BasicApplicationResponse{
 		ID:                      appDTO.ID,
 		Name:                    appDTO.Name,
 		Description:             appDTO.Description,
-		ClientID:                appDTO.ClientID,
-		CallbackURLs:            appDTO.CallbackURLs,
-		SupportedGrantTypes:     appDTO.SupportedGrantTypes,
+		ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		RedirectURIs:            redirectURIs,
+		GrantTypes:              grantTypes,
 		AuthFlowGraphID:         appDTO.AuthFlowGraphID,
 		RegistrationFlowGraphID: appDTO.RegistrationFlowGraphID,
 	}
@@ -244,16 +317,23 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		return
 	}
 
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	inboundAuthConfig := model.InboundAuthConfig{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfig{
+			ClientID:     appRequest.ClientID,
+			ClientSecret: appRequest.ClientSecret,
+			RedirectURIs: appRequest.RedirectURIs,
+			GrantTypes:   appRequest.GrantTypes,
+		},
+	}
 	updateReqAppDTO := model.ApplicationDTO{
 		ID:                      id,
 		Name:                    appRequest.Name,
 		Description:             appRequest.Description,
-		ClientID:                appRequest.ClientID,
-		ClientSecret:            appRequest.ClientSecret,
-		CallbackURLs:            appRequest.CallbackURLs,
-		SupportedGrantTypes:     appRequest.SupportedGrantTypes,
 		AuthFlowGraphID:         appRequest.AuthFlowGraphID,
 		RegistrationFlowGraphID: appRequest.RegistrationFlowGraphID,
+		InboundAuthConfig:       []model.InboundAuthConfig{inboundAuthConfig},
 	}
 
 	// Update the application using the application service.
@@ -264,14 +344,38 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		return
 	}
 
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(updatedAppDTO.InboundAuthConfig) == 0 ||
+		updatedAppDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		logger.Error("Unsupported inbound authentication type returned",
+			log.String("type", string(updatedAppDTO.InboundAuthConfig[0].Type)))
+		http.Error(w, "Unsupported inbound authentication type", http.StatusInternalServerError)
+		return
+	}
+	returnInboundAuthConfig := updatedAppDTO.InboundAuthConfig[0]
+	if returnInboundAuthConfig.OAuthAppConfig == nil {
+		logger.Error("OAuth application configuration is nil")
+		http.Error(w, "Something went wrong while updating the application", http.StatusInternalServerError)
+		return
+	}
+
+	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{}
+	}
+	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []string{}
+	}
+
 	returnApp := model.ApplicationResponse{
 		ID:                      updatedAppDTO.ID,
 		Name:                    updatedAppDTO.Name,
 		Description:             updatedAppDTO.Description,
-		ClientID:                updatedAppDTO.ClientID,
-		ClientSecret:            updatedAppDTO.ClientSecret,
-		CallbackURLs:            updatedAppDTO.CallbackURLs,
-		SupportedGrantTypes:     updatedAppDTO.SupportedGrantTypes,
+		ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		ClientSecret:            returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
+		RedirectURIs:            redirectURIs,
+		GrantTypes:              grantTypes,
 		AuthFlowGraphID:         updatedAppDTO.AuthFlowGraphID,
 		RegistrationFlowGraphID: updatedAppDTO.RegistrationFlowGraphID,
 	}

@@ -29,16 +29,16 @@ import (
 
 // OAuthAppConfig represents the configuration of an OAuth application.
 type OAuthAppConfig struct {
-	ID                string   `json:"id"`
-	ClientID          string   `json:"client_id"`
-	ClientSecret      string   `json:"client_secret"`
-	RedirectURIs      []string `json:"redirect_uris"`
-	AllowedGrantTypes []string `json:"allowed_grant_types"`
+	AppID        string
+	ClientID     string
+	ClientSecret string
+	RedirectURIs []string
+	GrantTypes   []string
 }
 
 // IsAllowedGrantType checks if the provided grant type is allowed.
 func (o *OAuthAppConfig) IsAllowedGrantType(grantType string) bool {
-	return isAllowedGrantType(o.AllowedGrantTypes, grantType)
+	return isAllowedGrantType(o.GrantTypes, grantType)
 }
 
 // ValidateRedirectURI validates the provided redirect URI against the registered redirect URIs.
@@ -48,16 +48,16 @@ func (o *OAuthAppConfig) ValidateRedirectURI(redirectURI string) error {
 
 // OAuthAppConfigProcessed represents the processed configuration of an OAuth application.
 type OAuthAppConfigProcessed struct {
-	ID                 string   `json:"id"`
-	ClientID           string   `json:"client_id"`
-	HashedClientSecret string   `json:"hashed_client_secret"`
-	RedirectURIs       []string `json:"redirect_uris"`
-	AllowedGrantTypes  []string `json:"allowed_grant_types"`
+	AppID              string
+	ClientID           string
+	HashedClientSecret string
+	RedirectURIs       []string
+	GrantTypes         []string
 }
 
 // IsAllowedGrantType checks if the provided grant type is allowed.
 func (o *OAuthAppConfigProcessed) IsAllowedGrantType(grantType string) bool {
-	return isAllowedGrantType(o.AllowedGrantTypes, grantType)
+	return isAllowedGrantType(o.GrantTypes, grantType)
 }
 
 // ValidateRedirectURI validates the provided redirect URI against the registered redirect URIs.

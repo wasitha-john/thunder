@@ -199,7 +199,7 @@ components:
           type: string
           items:
             type: string
-        callback_url:
+        redirect_uris:
           type: array
           items:
             type: string
@@ -213,7 +213,7 @@ components:
           type: string
         name:
           type: string
-        supported_grant_types:
+        grant_types:
           type: array
           items:
             type: string

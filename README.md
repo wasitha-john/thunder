@@ -292,10 +292,10 @@ Open the sample app in your browser and enter the username and password you crea
       "description": "Initial testing App",
       "client_id": "client123",
       "client_secret": "***",
-      "callback_url": [
+      "redirect_uris": [
           "https://localhost:3000"
       ],
-      "supported_grant_types": [
+      "grant_types": [
           "client_credentials",
           "authorization_code"
       ],
@@ -360,10 +360,10 @@ Open the sample app in your browser and enter the username and password you crea
       "description": "Initial testing App",
       "client_id": "client123",
       "client_secret": "***",
-      "callback_url": [
+      "redirect_uris": [
           "https://localhost:3000"
       ],
-      "supported_grant_types": [
+      "grant_types": [
           "client_credentials",
           "authorization_code"
       ],
@@ -426,10 +426,10 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
     "description": "Initial testing App",
     "client_id": "client123",
     "client_secret": "***",
-    "callback_url": [
+    "redirect_uris": [
         "https://localhost:3000"
     ],
-    "supported_grant_types": [
+    "grant_types": [
         "client_credentials",
         "authorization_code"
     ],
@@ -573,10 +573,10 @@ When you configure an authentication flow for an application, Thunder automatica
       "description": "Initial testing App",
       "client_id": "client123",
       "client_secret": "***",
-      "callback_url": [
+      "redirect_uris": [
           "https://localhost:3000"
       ],
-      "supported_grant_types": [
+      "grant_types": [
           "client_credentials",
           "authorization_code"
       ],
@@ -686,10 +686,10 @@ When you configure an authentication flow for an application, Thunder automatica
       "description": "Initial testing App",
       "client_id": "client123",
       "client_secret": "***",
-      "callback_url": [
+      "redirect_uris": [
           "https://localhost:3000"
       ],
-      "supported_grant_types": [
+      "grant_types": [
           "client_credentials",
           "authorization_code"
       ],
@@ -810,10 +810,10 @@ When you configure an authentication flow for an application, Thunder automatica
       "description": "Initial testing App",
       "client_id": "client123",
       "client_secret": "***",
-      "callback_url": [
+      "redirect_uris": [
           "https://localhost:3000"
       ],
-      "supported_grant_types": [
+      "grant_types": [
           "client_credentials",
           "authorization_code"
       ],
@@ -917,10 +917,10 @@ When you configure an authentication flow for an application, Thunder automatica
       "description": "Initial testing App",
       "client_id": "client123",
       "client_secret": "***",
-      "callback_url": [
+      "redirect_uris": [
           "https://localhost:3000"
       ],
-      "supported_grant_types": [
+      "grant_types": [
           "client_credentials",
           "authorization_code"
       ],

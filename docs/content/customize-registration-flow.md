@@ -290,10 +290,10 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
     "description": "Application with custom registration flow",
     "client_id": "<client_id>",
     "client_secret": "***",
-    "callback_url": [
+    "redirect_uris": [
         "https://localhost:3000"
     ],
-    "supported_grant_types": [
+    "grant_types": [
         "client_credentials",
         "authorization_code"
     ],

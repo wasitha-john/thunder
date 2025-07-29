@@ -19,52 +19,39 @@
 // Package model defines the data structures for the application module.
 package model
 
+import "github.com/asgardeo/thunder/internal/application/constants"
+
 // ApplicationDTO represents the data transfer object for application service operations.
 type ApplicationDTO struct {
-	ID          string `json:"id,omitempty"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-
-	ClientID            string   `json:"client_id"`
-	ClientSecret        string   `json:"client_secret"`
-	CallbackURLs        []string `json:"callback_url"`
-	SupportedGrantTypes []string `json:"supported_grant_types"`
-
-	AuthFlowGraphID         string `json:"auth_flow_graph_id,omitempty"`
-	RegistrationFlowGraphID string `json:"registration_flow_graph_id,omitempty"`
-
-	InboundAuthConfig InboundAuthConfig `json:"inbound_auth_config,omitempty"`
+	ID                      string
+	Name                    string
+	Description             string
+	AuthFlowGraphID         string
+	RegistrationFlowGraphID string
+	InboundAuthConfig       []InboundAuthConfig
 }
 
 // ApplicationProcessedDTO represents the processed data transfer object for application service operations.
 type ApplicationProcessedDTO struct {
-	ID          string `json:"id,omitempty"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-
-	ClientID            string   `json:"client_id"`
-	HashedClientSecret  string   `json:"hashed_client_secret,omitempty"`
-	CallbackURLs        []string `json:"callback_url"`
-	SupportedGrantTypes []string `json:"supported_grant_types"`
-
-	AuthFlowGraphID         string `json:"auth_flow_graph_id,omitempty"`
-	RegistrationFlowGraphID string `json:"registration_flow_graph_id,omitempty"`
-
-	InboundAuthConfig InboundAuthConfigProcessed `json:"inbound_auth_config,omitempty"`
+	ID                      string
+	Name                    string
+	Description             string
+	AuthFlowGraphID         string
+	RegistrationFlowGraphID string
+	InboundAuthConfig       []InboundAuthConfigProcessed
 }
 
-// TODO: Integrate InboundAuthConfig and InboundAuthConfigProcessed with the application service.
-
 // InboundAuthConfig represents the inbound authentication configuration for an application.
+// TODO: Need to refactor when supporting other/multiple inbound auth types.
 type InboundAuthConfig struct {
-	Type           string          `json:"type"`
-	OAuthAppConfig *OAuthAppConfig `json:"oauth_app_config,omitempty"`
+	Type           constants.InboundAuthType
+	OAuthAppConfig *OAuthAppConfig
 }
 
 // InboundAuthConfigProcessed represents the processed inbound authentication configuration for an application.
 type InboundAuthConfigProcessed struct {
-	Type           string                   `json:"type"`
-	OAuthAppConfig *OAuthAppConfigProcessed `json:"oauth_app_config,omitempty"`
+	Type           constants.InboundAuthType
+	OAuthAppConfig *OAuthAppConfigProcessed
 }
 
 // ApplicationRequest represents the request structure for creating or updating an application.
@@ -73,8 +60,8 @@ type ApplicationRequest struct {
 	Description             string   `json:"description"`
 	ClientID                string   `json:"client_id"`
 	ClientSecret            string   `json:"client_secret"`
-	CallbackURLs            []string `json:"callback_url"`
-	SupportedGrantTypes     []string `json:"supported_grant_types"`
+	RedirectURIs            []string `json:"redirect_uris"`
+	GrantTypes              []string `json:"grant_types"`
 	AuthFlowGraphID         string   `json:"auth_flow_graph_id,omitempty"`
 	RegistrationFlowGraphID string   `json:"registration_flow_graph_id,omitempty"`
 }
@@ -83,11 +70,11 @@ type ApplicationRequest struct {
 type ApplicationResponse struct {
 	ID                      string   `json:"id,omitempty"`
 	Name                    string   `json:"name"`
-	Description             string   `json:"description"`
+	Description             string   `json:"description,omitempty"`
 	ClientID                string   `json:"client_id"`
 	ClientSecret            string   `json:"client_secret"`
-	CallbackURLs            []string `json:"callback_url"`
-	SupportedGrantTypes     []string `json:"supported_grant_types"`
+	RedirectURIs            []string `json:"redirect_uris"`
+	GrantTypes              []string `json:"grant_types"`
 	AuthFlowGraphID         string   `json:"auth_flow_graph_id,omitempty"`
 	RegistrationFlowGraphID string   `json:"registration_flow_graph_id,omitempty"`
 }
@@ -96,10 +83,10 @@ type ApplicationResponse struct {
 type BasicApplicationResponse struct {
 	ID                      string   `json:"id,omitempty"`
 	Name                    string   `json:"name"`
-	Description             string   `json:"description"`
+	Description             string   `json:"description,omitempty"`
 	ClientID                string   `json:"client_id"`
-	CallbackURLs            []string `json:"callback_url"`
-	SupportedGrantTypes     []string `json:"supported_grant_types"`
+	RedirectURIs            []string `json:"redirect_uris"`
+	GrantTypes              []string `json:"grant_types"`
 	AuthFlowGraphID         string   `json:"auth_flow_graph_id,omitempty"`
 	RegistrationFlowGraphID string   `json:"registration_flow_graph_id,omitempty"`
 }

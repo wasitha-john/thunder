@@ -19,13 +19,13 @@
 package application
 
 type Application struct {
-	ID                  string   `json:"id"`
-	Name                string   `json:"name"`
-	Description         string   `json:"description"`
-	ClientID            string   `json:"client_id"`
-	ClientSecret        string   `json:"client_secret"`
-	CallbackURL         []string `json:"callback_url"`
-	SupportedGrantTypes []string `json:"supported_grant_types"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	ClientID     string   `json:"client_id"`
+	ClientSecret string   `json:"client_secret"`
+	RedirectURIs []string `json:"redirect_uris"`
+	GrantTypes   []string `json:"grant_types"`
 }
 
 func compareStringSlices(a, b []string) bool {
@@ -44,6 +44,6 @@ func compareStringSlices(a, b []string) bool {
 func (app *Application) equals(expectedApp Application) bool {
 
 	return app.ID == expectedApp.ID && app.Name == expectedApp.Name && app.Description == expectedApp.Description &&
-		app.ClientID == expectedApp.ClientID && compareStringSlices(app.CallbackURL, expectedApp.CallbackURL) &&
-		compareStringSlices(app.SupportedGrantTypes, expectedApp.SupportedGrantTypes)
+		app.ClientID == expectedApp.ClientID && compareStringSlices(app.RedirectURIs, expectedApp.RedirectURIs) &&
+		compareStringSlices(app.GrantTypes, expectedApp.GrantTypes)
 }

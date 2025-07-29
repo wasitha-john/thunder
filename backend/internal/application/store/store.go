@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/system/database/client"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
@@ -52,6 +53,10 @@ func NewApplicationStore() ApplicationStoreInterface {
 
 // CreateApplication creates a new application in the database.
 func (st *ApplicationStore) CreateApplication(app model.ApplicationProcessedDTO) error {
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	inboundAuthConfig := app.InboundAuthConfig[0]
+	callBackURIs, grantTypes := getCallbackURIsAndGrantTypes(inboundAuthConfig)
+
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
 			_, err := tx.Exec(QueryCreateApplication.Query, app.ID, app.Name, app.Description, app.AuthFlowGraphID,
@@ -59,8 +64,8 @@ func (st *ApplicationStore) CreateApplication(app model.ApplicationProcessedDTO)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryCreateOAuthApplication.Query, app.ID, app.ClientID, app.HashedClientSecret,
-				strings.Join(app.CallbackURLs, ","), strings.Join(app.SupportedGrantTypes, ","))
+			_, err := tx.Exec(QueryCreateOAuthApplication.Query, app.ID, inboundAuthConfig.OAuthAppConfig.ClientID,
+				inboundAuthConfig.OAuthAppConfig.HashedClientSecret, callBackURIs, grantTypes)
 			return err
 		},
 	}
@@ -191,26 +196,30 @@ func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAp
 		}
 	}
 
-	var allowedGrantTypes []string
+	var grantTypes []string
 	if row["grant_types"] != nil {
 		if grants, ok := row["grant_types"].(string); ok {
-			allowedGrantTypes = utils.ParseStringArray(grants, ",")
+			grantTypes = utils.ParseStringArray(grants, ",")
 		} else {
 			return nil, errors.New("failed to parse grant_types as string")
 		}
 	}
 
 	return &model.OAuthAppConfigProcessed{
-		ID:                 appID,
+		AppID:              appID,
 		ClientID:           clientID,
 		HashedClientSecret: hashedClientSecret,
 		RedirectURIs:       redirectURIs,
-		AllowedGrantTypes:  allowedGrantTypes,
+		GrantTypes:         grantTypes,
 	}, nil
 }
 
 // UpdateApplication updates an existing application in the database.
 func (st *ApplicationStore) UpdateApplication(app *model.ApplicationProcessedDTO) error {
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	inboundAuthConfig := app.InboundAuthConfig[0]
+	callBackURIs, grantTypes := getCallbackURIsAndGrantTypes(inboundAuthConfig)
+
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
 			_, err := tx.Exec(QueryUpdateApplicationByAppID.Query, app.ID, app.Name, app.Description,
@@ -218,8 +227,9 @@ func (st *ApplicationStore) UpdateApplication(app *model.ApplicationProcessedDTO
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryUpdateOAuthApplicationByAppID.Query, app.ID, app.ClientID, app.HashedClientSecret,
-				strings.Join(app.CallbackURLs, ","), strings.Join(app.SupportedGrantTypes, ","))
+			_, err := tx.Exec(QueryUpdateOAuthApplicationByAppID.Query, app.ID,
+				inboundAuthConfig.OAuthAppConfig.ClientID, inboundAuthConfig.OAuthAppConfig.HashedClientSecret,
+				callBackURIs, grantTypes)
 			return err
 		},
 	}
@@ -250,6 +260,19 @@ func (st *ApplicationStore) DeleteApplication(id string) error {
 	}
 
 	return nil
+}
+
+// getCallbackURIsAndGrantTypes extracts callback URIs and grant types from the inbound auth configuration.
+func getCallbackURIsAndGrantTypes(inboundAuthConfig model.InboundAuthConfigProcessed) (string, string) {
+	callBackURIs := ""
+	if len(inboundAuthConfig.OAuthAppConfig.RedirectURIs) > 0 {
+		callBackURIs = strings.Join(inboundAuthConfig.OAuthAppConfig.RedirectURIs, ",")
+	}
+	grantTypes := ""
+	if len(inboundAuthConfig.OAuthAppConfig.GrantTypes) > 0 {
+		grantTypes = strings.Join(inboundAuthConfig.OAuthAppConfig.GrantTypes, ",")
+	}
+	return callBackURIs, grantTypes
 }
 
 // buildApplicationFromResultRow constructs an Application object from a database result row.
@@ -292,6 +315,12 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse consumer_key as string")
 	}
 
+	hashedClientSecret, ok := row["consumer_secret"].(string)
+	if !ok {
+		logger.Error("failed to parse consumer_secret as string")
+		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse consumer_secret as string")
+	}
+
 	var redirectURIs []string
 	if row["callback_uris"] != nil {
 		if uris, ok := row["callback_uris"].(string); ok {
@@ -302,26 +331,36 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		}
 	}
 
-	var allowedGrantTypes []string
+	var grantTypes []string
 	if row["grant_types"] != nil {
 		if grants, ok := row["grant_types"].(string); ok {
-			allowedGrantTypes = utils.ParseStringArray(grants, ",")
+			grantTypes = utils.ParseStringArray(grants, ",")
 		} else {
 			logger.Error("failed to parse grant_types as string")
 			return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse grant_types as string")
 		}
 	}
 
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	inboundAuthConfig := model.InboundAuthConfigProcessed{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfigProcessed{
+			AppID:              appID,
+			ClientID:           clientID,
+			HashedClientSecret: hashedClientSecret,
+			RedirectURIs:       redirectURIs,
+			GrantTypes:         grantTypes,
+		},
+	}
 	application := model.ApplicationProcessedDTO{
 		ID:                      appID,
 		Name:                    appName,
 		Description:             description,
 		AuthFlowGraphID:         authFlowGraphID,
 		RegistrationFlowGraphID: regisFlowGraphID,
-		ClientID:                clientID,
-		CallbackURLs:            redirectURIs,
-		SupportedGrantTypes:     allowedGrantTypes,
+		InboundAuthConfig:       []model.InboundAuthConfigProcessed{inboundAuthConfig},
 	}
+
 	return application, nil
 }
 
