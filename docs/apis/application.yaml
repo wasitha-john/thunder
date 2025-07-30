@@ -29,7 +29,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/model.Application'
+                  $ref: '#/components/schemas/BasicApplicationResponse'
         "400":
           description: 'Bad Request: The request body is malformed or contains invalid data.'
           content:
@@ -45,6 +45,7 @@ paths:
       summary: List applications
       tags:
       - applications
+
     post:
       description: Creates a new application with the provided details.
       requestBody:
@@ -52,14 +53,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/model.Application'
+              $ref: '#/components/schemas/ApplicationRequest'
       responses:
         "201":
           description: Created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/model.Application'
+                $ref: '#/components/schemas/ApplicationCompleteResponse'
         "400":
           description: 'Bad Request: The request body is malformed or contains invalid data.'
           content:
@@ -75,6 +76,7 @@ paths:
       summary: Create an application
       tags:
       - applications
+
   /applications/{id}:
     delete:
       description: Delete an application using its ID.
@@ -109,6 +111,7 @@ paths:
       summary: Delete an application
       tags:
       - applications
+
     get:
       description: Retrieve a specific application using its ID.
       parameters:
@@ -124,7 +127,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/model.Application'
+                $ref: '#/components/schemas/ApplicationGetResponse'
         "400":
           description: 'Bad Request: The request body is malformed or contains invalid data.'
           content:
@@ -146,6 +149,7 @@ paths:
       summary: Get an application by ID
       tags:
       - applications
+
     put:
       description: Update the details of an existing application.
       parameters:
@@ -160,14 +164,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/model.Application'
+              $ref: '#/components/schemas/ApplicationRequest'
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/model.Application'
+                $ref: '#/components/schemas/ApplicationCompleteResponse'
         "400":
           description: 'Bad Request: The request body is malformed or contains invalid data.'
           content:
@@ -192,28 +196,252 @@ paths:
 
 components:
   schemas:
-    model.Application:
+    ApplicationRequest:
       type: object
       properties:
-        auth_flow_graph_id:
+        name:
           type: string
-          items:
-            type: string
+          description: The name of the application.
+          example: "My Application"
+        description:
+          type: string
+          description: A brief description of the application.
+          example: "This is a sample application."
+        client_id:
+          type: string
+          description: The client ID for the application.
+          example: "CLIENT123456"
+        client_secret:
+          type: string
+          description: The client secret for the application.
+          example: "SECRET123456"
         redirect_uris:
           type: array
           items:
             type: string
-        client_id:
-          type: string
-        client_secret:
-          type: string
-        description:
-          type: string
-        id:
-          type: string
-        name:
-          type: string
+          description: A list of redirect URIs for the application.
+          example: ["https://example.com/callback", "https://example.com/redirect"]
         grant_types:
           type: array
           items:
             type: string
+          description: A list of grant types supported by the application.
+          example: ["authorization_code", "client_credentials"]
+        auth_flow_graph_id:
+          type: string
+          description: The ID of the authentication flow graph.
+          example: "auth_flow_config_basic"
+        registration_flow_graph_id:
+          type: string
+          description: The ID of the registration flow graph.
+          example: "registration_flow_config_basic"
+        is_registration_flow_enabled:
+          type: boolean
+          description: Indicates if the registration flow is enabled for the application.
+          example: true
+        url:
+          type: string
+          description: The URL of the application.
+          example: "https://example.com"
+        logo_url:
+          type: string
+          description: The URL of the application's logo.
+          example: "https://example.com/logo.png"
+        certificate:
+          $ref: '#/components/schemas/Certificate'
+        properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationProperty'
+
+    ApplicationCompleteResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the application.
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: The name of the application.
+          example: "My Application"
+        description:
+          type: string
+          description: A brief description of the application.
+          example: "This is a sample application."
+        client_id:
+          type: string
+          description: The client ID for the application.
+          example: "CLIENT123456"
+        client_secret:
+          type: string
+          description: The client secret for the application.
+          example: "SECRET123456"
+        redirect_uris:
+          type: array
+          items:
+            type: string
+          description: A list of redirect URIs for the application.
+          example: ["https://example.com/callback", "https://example.com/redirect"]
+        grant_types:
+          type: array
+          items:
+            type: string
+          description: A list of grant types supported by the application.
+          example: ["authorization_code", "client_credentials"]
+        auth_flow_graph_id:
+          type: string
+          description: The ID of the authentication flow graph.
+          example: "auth_flow_config_basic"
+        registration_flow_graph_id:
+          type: string
+          description: The ID of the registration flow graph.
+          example: "registration_flow_config_basic"
+        is_registration_flow_enabled:
+          type: boolean
+          description: Indicates if the registration flow is enabled for the application.
+          example: true
+        url:
+          type: string
+          description: The URL of the application.
+          example: "https://example.com"
+        logo_url:
+          type: string
+          description: The URL of the application's logo.
+          example: "https://example.com/logo.png"
+        certificate:
+          $ref: '#/components/schemas/Certificate'
+        properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationProperty'
+
+    ApplicationGetResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the application.
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: The name of the application.
+          example: "My Application"
+        description:
+          type: string
+          description: A brief description of the application.
+          example: "This is a sample application."
+        client_id:
+          type: string
+          description: The client ID for the application.
+          example: "CLIENT123456"
+        redirect_uris:
+          type: array
+          items:
+            type: string
+          description: A list of redirect URIs for the application.
+          example: ["https://example.com/callback", "https://example.com/redirect"]
+        grant_types:
+          type: array
+          items:
+            type: string
+          description: A list of grant types supported by the application.
+          example: ["authorization_code", "client_credentials"]
+        auth_flow_graph_id:
+          type: string
+          description: The ID of the authentication flow graph.
+          example: "auth_flow_config_basic"
+        registration_flow_graph_id:
+          type: string
+          description: The ID of the registration flow graph.
+          example: "registration_flow_config_basic"
+        is_registration_flow_enabled:
+          type: boolean
+          description: Indicates if the registration flow is enabled for the application.
+          example: true
+        url:
+          type: string
+          description: The URL of the application.
+          example: "https://example.com"
+        logo_url:
+          type: string
+          description: The URL of the application's logo.
+          example: "https://example.com/logo.png"
+        certificate:
+          $ref: '#/components/schemas/Certificate'
+        properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationProperty'
+
+    BasicApplicationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the application.
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: The name of the application.
+          example: "My Application"
+        description:
+          type: string
+          description: A brief description of the application.
+          example: "This is a sample application."
+        client_id:
+          type: string
+          description: The client ID for the application.
+          example: "CLIENT123456"
+        auth_flow_graph_id:
+          type: string
+          description: The ID of the authentication flow graph.
+          example: "auth_flow_config_basic"
+        registration_flow_graph_id:
+          type: string
+          description: The ID of the registration flow graph.
+          example: "registration_flow_config_basic"
+        is_registration_flow_enabled:
+          type: boolean
+          description: Indicates if the registration flow is enabled for the application.
+          example: true
+        url:
+          type: string
+          description: The URL of the application.
+          example: "https://example.com"
+        logo_url:
+          type: string
+          description: The URL of the application's logo.
+          example: "https://example.com/logo.png"
+
+    Certificate:
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the certificate.
+          enum:
+            - "NONE"
+            - "JWKS"
+            - "JWKS_URI"
+          example: "JWKS"
+        value:
+          type: string
+          description: The value of the certificate.
+          example: "https://example.com/certificate.jwks"
+
+    ApplicationProperty:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the application property.
+          example: "property_name"
+        value:
+          type: string
+          description: The value of the application property.
+          example: "property_value"
+        is_secret:
+          type: boolean
+          description: Indicates if the property is secret.
+          example: false

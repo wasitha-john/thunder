@@ -86,6 +86,18 @@ func ParseURL(urlStr string) (*url.URL, error) {
 	return parsedURL, nil
 }
 
+// IsValidUri checks if the provided URI is valid.
+func IsValidUri(uri string) bool {
+	if uri == "" {
+		return false
+	}
+	parsed, err := url.Parse(uri)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return false
+	}
+	return true
+}
+
 // GetURIWithQueryParams constructs a URI with the given query parameters.
 func GetURIWithQueryParams(uri string, queryParams map[string]string) (string, error) {
 	// Parse the URI.

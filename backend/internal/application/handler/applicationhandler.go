@@ -84,11 +84,16 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		},
 	}
 	appDTO := model.ApplicationDTO{
-		Name:                    appRequest.Name,
-		Description:             appRequest.Description,
-		AuthFlowGraphID:         appRequest.AuthFlowGraphID,
-		RegistrationFlowGraphID: appRequest.RegistrationFlowGraphID,
-		InboundAuthConfig:       []model.InboundAuthConfig{inboundAuthConfig},
+		Name:                      appRequest.Name,
+		Description:               appRequest.Description,
+		AuthFlowGraphID:           appRequest.AuthFlowGraphID,
+		RegistrationFlowGraphID:   appRequest.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: appRequest.IsRegistrationFlowEnabled,
+		URL:                       appRequest.URL,
+		LogoURL:                   appRequest.LogoURL,
+		Certificate:               appRequest.Certificate,
+		Properties:                appRequest.Properties,
+		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
 	}
 
 	// Create the app using the application service.
@@ -123,16 +128,21 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		grantTypes = []string{}
 	}
 
-	returnApp := model.ApplicationResponse{
-		ID:                      createdAppDTO.ID,
-		Name:                    createdAppDTO.Name,
-		Description:             createdAppDTO.Description,
-		ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
-		ClientSecret:            returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
-		RedirectURIs:            redirectURIs,
-		GrantTypes:              grantTypes,
-		AuthFlowGraphID:         createdAppDTO.AuthFlowGraphID,
-		RegistrationFlowGraphID: createdAppDTO.RegistrationFlowGraphID,
+	returnApp := model.ApplicationCompleteResponse{
+		ID:                        createdAppDTO.ID,
+		Name:                      createdAppDTO.Name,
+		Description:               createdAppDTO.Description,
+		ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		ClientSecret:              returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
+		RedirectURIs:              redirectURIs,
+		GrantTypes:                grantTypes,
+		AuthFlowGraphID:           createdAppDTO.AuthFlowGraphID,
+		RegistrationFlowGraphID:   createdAppDTO.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: createdAppDTO.IsRegistrationFlowEnabled,
+		URL:                       createdAppDTO.URL,
+		LogoURL:                   createdAppDTO.LogoURL,
+		Certificate:               createdAppDTO.Certificate,
+		Properties:                createdAppDTO.Properties,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -194,14 +204,15 @@ func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter
 		}
 
 		returnAppList[i] = model.BasicApplicationResponse{
-			ID:                      app.ID,
-			Name:                    app.Name,
-			Description:             app.Description,
-			ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
-			RedirectURIs:            redirectURIs,
-			GrantTypes:              grantTypes,
-			AuthFlowGraphID:         app.AuthFlowGraphID,
-			RegistrationFlowGraphID: app.RegistrationFlowGraphID,
+			ID:                        app.ID,
+			Name:                      app.Name,
+			Description:               app.Description,
+			ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
+			AuthFlowGraphID:           app.AuthFlowGraphID,
+			RegistrationFlowGraphID:   app.RegistrationFlowGraphID,
+			IsRegistrationFlowEnabled: app.IsRegistrationFlowEnabled,
+			URL:                       app.URL,
+			LogoURL:                   app.LogoURL,
 		}
 	}
 
@@ -267,15 +278,20 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 		grantTypes = []string{}
 	}
 
-	returnApp := model.BasicApplicationResponse{
-		ID:                      appDTO.ID,
-		Name:                    appDTO.Name,
-		Description:             appDTO.Description,
-		ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
-		RedirectURIs:            redirectURIs,
-		GrantTypes:              grantTypes,
-		AuthFlowGraphID:         appDTO.AuthFlowGraphID,
-		RegistrationFlowGraphID: appDTO.RegistrationFlowGraphID,
+	returnApp := model.ApplicationGetResponse{
+		ID:                        appDTO.ID,
+		Name:                      appDTO.Name,
+		Description:               appDTO.Description,
+		ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		RedirectURIs:              redirectURIs,
+		GrantTypes:                grantTypes,
+		AuthFlowGraphID:           appDTO.AuthFlowGraphID,
+		RegistrationFlowGraphID:   appDTO.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: appDTO.IsRegistrationFlowEnabled,
+		URL:                       appDTO.URL,
+		LogoURL:                   appDTO.LogoURL,
+		Certificate:               appDTO.Certificate,
+		Properties:                appDTO.Properties,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -328,12 +344,17 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		},
 	}
 	updateReqAppDTO := model.ApplicationDTO{
-		ID:                      id,
-		Name:                    appRequest.Name,
-		Description:             appRequest.Description,
-		AuthFlowGraphID:         appRequest.AuthFlowGraphID,
-		RegistrationFlowGraphID: appRequest.RegistrationFlowGraphID,
-		InboundAuthConfig:       []model.InboundAuthConfig{inboundAuthConfig},
+		ID:                        id,
+		Name:                      appRequest.Name,
+		Description:               appRequest.Description,
+		AuthFlowGraphID:           appRequest.AuthFlowGraphID,
+		RegistrationFlowGraphID:   appRequest.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: appRequest.IsRegistrationFlowEnabled,
+		URL:                       appRequest.URL,
+		LogoURL:                   appRequest.LogoURL,
+		Certificate:               appRequest.Certificate,
+		Properties:                appRequest.Properties,
+		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
 	}
 
 	// Update the application using the application service.
@@ -368,16 +389,21 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		grantTypes = []string{}
 	}
 
-	returnApp := model.ApplicationResponse{
-		ID:                      updatedAppDTO.ID,
-		Name:                    updatedAppDTO.Name,
-		Description:             updatedAppDTO.Description,
-		ClientID:                returnInboundAuthConfig.OAuthAppConfig.ClientID,
-		ClientSecret:            returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
-		RedirectURIs:            redirectURIs,
-		GrantTypes:              grantTypes,
-		AuthFlowGraphID:         updatedAppDTO.AuthFlowGraphID,
-		RegistrationFlowGraphID: updatedAppDTO.RegistrationFlowGraphID,
+	returnApp := model.ApplicationCompleteResponse{
+		ID:                        updatedAppDTO.ID,
+		Name:                      updatedAppDTO.Name,
+		Description:               updatedAppDTO.Description,
+		ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		ClientSecret:              returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
+		RedirectURIs:              redirectURIs,
+		GrantTypes:                grantTypes,
+		AuthFlowGraphID:           updatedAppDTO.AuthFlowGraphID,
+		RegistrationFlowGraphID:   updatedAppDTO.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: updatedAppDTO.IsRegistrationFlowEnabled,
+		URL:                       updatedAppDTO.URL,
+		LogoURL:                   updatedAppDTO.LogoURL,
+		Certificate:               updatedAppDTO.Certificate,
+		Properties:                updatedAppDTO.Properties,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

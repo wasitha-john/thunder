@@ -31,6 +31,7 @@ import (
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
+	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // ApplicationStoreInterface defines the interface for application data persistence operations.
@@ -60,13 +61,29 @@ func (st *ApplicationStore) CreateApplication(app model.ApplicationProcessedDTO)
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
 			_, err := tx.Exec(QueryCreateApplication.Query, app.ID, app.Name, app.Description, app.AuthFlowGraphID,
-				app.RegistrationFlowGraphID)
+				app.RegistrationFlowGraphID, app.IsRegistrationFlowEnabled, app.URL, app.LogoURL)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
 			_, err := tx.Exec(QueryCreateOAuthApplication.Query, app.ID, inboundAuthConfig.OAuthAppConfig.ClientID,
 				inboundAuthConfig.OAuthAppConfig.HashedClientSecret, callBackURIs, grantTypes)
 			return err
+		},
+		func(tx dbmodel.TxInterface) error {
+			if len(app.Properties) > 0 {
+				query := prepareApplicationPropertyInsertQuery(app.ID, app.Properties)
+				_, err := tx.Exec(query.Query)
+				return err
+			}
+			return nil
+		},
+		func(tx dbmodel.TxInterface) error {
+			if app.Certificate != nil && app.Certificate.Type != constants.CertificateTypeNone {
+				_, err := tx.Exec(QueryInsertApplicationCertificate.Query, app.ID, app.Certificate.Type,
+					app.Certificate.Value)
+				return err
+			}
+			return nil
 		},
 	}
 
@@ -148,6 +165,23 @@ func (st *ApplicationStore) GetApplication(id string) (model.ApplicationProcesse
 		logger.Error("failed to build application from result row")
 		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to build application from result row: %w", err)
 	}
+
+	// Retrieve application properties.
+	properties, err := GetApplicationProperties(application.ID)
+	if err != nil {
+		logger.Error("failed to get application properties", log.Error(err))
+		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to get application properties: %w", err)
+	}
+	application.Properties = properties
+
+	// Retrieve application certificate.
+	certificate, err := GetApplicationCertificate(application.ID)
+	if err != nil {
+		logger.Error("failed to get application certificate", log.Error(err))
+		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to get application certificate: %w", err)
+	}
+	application.Certificate = certificate
+
 	return application, nil
 }
 
@@ -214,6 +248,69 @@ func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAp
 	}, nil
 }
 
+// GetApplicationProperties retrieves the properties of an application by its ID.
+func GetApplicationProperties(appID string) ([]model.ApplicationProperty, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return nil, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
+
+	results, err := dbClient.Query(QueryGetApplicationProperties, appID)
+	if err != nil {
+		logger.Error("Failed to execute query", log.Error(err))
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	return buildApplicationPropertiesFromResultSet(results)
+}
+
+// GetApplicationCertificate retrieves the certificate of an application by its ID.
+func GetApplicationCertificate(appID string) (*model.Certificate, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return nil, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+			err = fmt.Errorf("failed to close database client: %w", closeErr)
+		}
+	}()
+
+	results, err := dbClient.Query(QueryGetApplicationCertificate, appID)
+	if err != nil {
+		logger.Error("Failed to execute query", log.Error(err))
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	if len(results) == 0 {
+		return &model.Certificate{
+			Type:  constants.CertificateTypeNone,
+			Value: "",
+		}, nil
+	}
+
+	row := results[0]
+	certificate := &model.Certificate{
+		Type:  constants.CertificateType(row["certificate_type"].(string)),
+		Value: row["certificate_value"].(string),
+	}
+
+	return certificate, nil
+}
+
 // UpdateApplication updates an existing application in the database.
 func (st *ApplicationStore) UpdateApplication(app *model.ApplicationProcessedDTO) error {
 	// TODO: Need to refactor when supporting other/multiple inbound auth types.
@@ -223,7 +320,8 @@ func (st *ApplicationStore) UpdateApplication(app *model.ApplicationProcessedDTO
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
 			_, err := tx.Exec(QueryUpdateApplicationByAppID.Query, app.ID, app.Name, app.Description,
-				app.AuthFlowGraphID, app.RegistrationFlowGraphID)
+				app.AuthFlowGraphID, app.RegistrationFlowGraphID, app.IsRegistrationFlowEnabled,
+				app.URL, app.LogoURL)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
@@ -231,6 +329,28 @@ func (st *ApplicationStore) UpdateApplication(app *model.ApplicationProcessedDTO
 				inboundAuthConfig.OAuthAppConfig.ClientID, inboundAuthConfig.OAuthAppConfig.HashedClientSecret,
 				callBackURIs, grantTypes)
 			return err
+		},
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(QueryDeleteApplicationProperties.Query, app.ID)
+			return err
+		},
+		func(tx dbmodel.TxInterface) error {
+			if len(app.Properties) > 0 {
+				query := prepareApplicationPropertyInsertQuery(app.ID, app.Properties)
+				_, err := tx.Exec(query.Query)
+				return err
+			}
+			return nil
+		},
+		func(tx dbmodel.TxInterface) error {
+			if app.Certificate == nil || app.Certificate.Type == constants.CertificateTypeNone {
+				_, err := tx.Exec(QueryDeleteApplicationCertificate.Query, app.ID)
+				return err
+			} else {
+				_, err := tx.Exec(QueryUpdateApplicationCertificate.Query, app.ID, app.Certificate.Type,
+					app.Certificate.Value)
+				return err
+			}
 		},
 	}
 
@@ -291,8 +411,12 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse app_name as string")
 	}
 
-	description, ok := row["description"].(string)
-	if !ok {
+	var description string
+	if row["description"] == nil {
+		description = ""
+	} else if desc, ok := row["description"].(string); ok {
+		description = desc
+	} else {
 		logger.Error("failed to parse description as string")
 		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse description as string")
 	}
@@ -307,6 +431,33 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 	if !ok {
 		logger.Error("failed to parse registration_flow_graph_id as string")
 		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse registration_flow_graph_id as string")
+	}
+
+	isRegistrationFlowEnabledStr, ok := row["is_registration_flow_enabled"].(string)
+	if !ok {
+		logger.Error("failed to parse is_registration_flow_enabled as string")
+		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse is_registration_flow_enabled as string")
+	}
+	isRegistrationFlowEnabled := sysutils.NumStringToBool(isRegistrationFlowEnabledStr)
+
+	var url string
+	if row["url"] == nil {
+		url = ""
+	} else if u, ok := row["url"].(string); ok {
+		url = u
+	} else {
+		logger.Error("failed to parse url as string")
+		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse url as string")
+	}
+
+	var logoURL string
+	if row["logo_url"] == nil {
+		logoURL = ""
+	} else if l, ok := row["logo_url"].(string); ok {
+		logoURL = l
+	} else {
+		logger.Error("failed to parse logo_url as string")
+		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse logo_url as string")
 	}
 
 	clientID, ok := row["consumer_key"].(string)
@@ -353,15 +504,59 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		},
 	}
 	application := model.ApplicationProcessedDTO{
-		ID:                      appID,
-		Name:                    appName,
-		Description:             description,
-		AuthFlowGraphID:         authFlowGraphID,
-		RegistrationFlowGraphID: regisFlowGraphID,
-		InboundAuthConfig:       []model.InboundAuthConfigProcessed{inboundAuthConfig},
+		ID:                        appID,
+		Name:                      appName,
+		Description:               description,
+		AuthFlowGraphID:           authFlowGraphID,
+		RegistrationFlowGraphID:   regisFlowGraphID,
+		IsRegistrationFlowEnabled: isRegistrationFlowEnabled,
+		URL:                       url,
+		LogoURL:                   logoURL,
+		InboundAuthConfig:         []model.InboundAuthConfigProcessed{inboundAuthConfig},
 	}
 
 	return application, nil
+}
+
+// buildApplicationPropertiesFromResultSet constructs a slice of ApplicationProperty from the result set.
+func buildApplicationPropertiesFromResultSet(results []map[string]interface{}) ([]model.ApplicationProperty, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
+
+	properties := make([]model.ApplicationProperty, 0)
+
+	for _, row := range results {
+		propertyName, ok := row["property_name"].(string)
+		if !ok {
+			logger.Error("failed to parse property_name as string")
+			return nil, fmt.Errorf("failed to parse property_name as string")
+		}
+
+		var propertyValue string
+		if row["property_value"] == nil {
+			propertyValue = ""
+		} else if value, ok := row["property_value"].(string); ok {
+			propertyValue = value
+		} else {
+			logger.Error("failed to parse property_value as string")
+			return nil, fmt.Errorf("failed to parse property_value as string")
+		}
+
+		isSecretStr, ok := row["is_secret"].(string)
+		if !ok {
+			logger.Error("failed to parse is_secret as string")
+			return nil, fmt.Errorf("failed to parse is_secret as string")
+		}
+		isSecret := sysutils.NumStringToBool(isSecretStr)
+
+		property := model.ApplicationProperty{
+			Name:     propertyName,
+			Value:    propertyValue,
+			IsSecret: isSecret,
+		}
+		properties = append(properties, property)
+	}
+
+	return properties, nil
 }
 
 // executeTransaction is a helper function to handle database transactions.
@@ -399,4 +594,16 @@ func executeTransaction(queries []func(tx dbmodel.TxInterface) error) error {
 	}
 
 	return nil
+}
+
+// prepareApplicationPropertyInsertQuery prepares the query for inserting application properties.
+func prepareApplicationPropertyInsertQuery(appID string, appProperties []model.ApplicationProperty) dbmodel.DBQuery {
+	var values []string
+	for _, prop := range appProperties {
+		values = append(values, fmt.Sprintf("('%s', '%s', '%s', %s)", appID, prop.Name, prop.Value,
+			sysutils.BoolToNumString(prop.IsSecret)))
+	}
+	insertQuery := QueryInsertApplicationProperties
+	insertQuery.Query = fmt.Sprintf(insertQuery.Query, strings.Join(values, ", "))
+	return insertQuery
 }

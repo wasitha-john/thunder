@@ -23,17 +23,25 @@ import (
 	"net/url"
 	"slices"
 
+	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
+// TODO: Temporary comment.
+// New fields:
+// - ResponseTypes
+// - TokenEndpointAuthMethod
+
 // OAuthAppConfig represents the configuration of an OAuth application.
 type OAuthAppConfig struct {
-	AppID        string
-	ClientID     string
-	ClientSecret string
-	RedirectURIs []string
-	GrantTypes   []string
+	AppID                   string
+	ClientID                string
+	ClientSecret            string
+	RedirectURIs            []string
+	GrantTypes              []string
+	ResponseTypes           []string
+	TokenEndpointAuthMethod []constants.TokenEndpointAuthMethod
 }
 
 // IsAllowedGrantType checks if the provided grant type is allowed.
