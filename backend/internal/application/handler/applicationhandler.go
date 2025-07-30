@@ -92,7 +92,6 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		URL:                       appRequest.URL,
 		LogoURL:                   appRequest.LogoURL,
 		Certificate:               appRequest.Certificate,
-		Properties:                appRequest.Properties,
 		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
 	}
 
@@ -142,7 +141,6 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		URL:                       createdAppDTO.URL,
 		LogoURL:                   createdAppDTO.LogoURL,
 		Certificate:               createdAppDTO.Certificate,
-		Properties:                createdAppDTO.Properties,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -180,39 +178,14 @@ func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter
 
 	returnAppList := make([]model.BasicApplicationResponse, len(applications))
 	for i, app := range applications {
-		// TODO: Need to refactor when supporting other/multiple inbound auth types.
-		if len(app.InboundAuthConfig) == 0 || app.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
-			logger.Error("Unsupported inbound authentication type in application list",
-				log.String("type", string(app.InboundAuthConfig[0].Type)))
-			http.Error(w, "Unsupported inbound authentication type", http.StatusInternalServerError)
-			return
-		}
-		returnInboundAuthConfig := app.InboundAuthConfig[0]
-		if returnInboundAuthConfig.OAuthAppConfig == nil {
-			logger.Error("OAuth application configuration is nil in application list")
-			http.Error(w, "Something went wrong while retrieving the application list", http.StatusInternalServerError)
-			return
-		}
-
-		redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
-		if len(redirectURIs) == 0 {
-			redirectURIs = []string{}
-		}
-		grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
-		if len(grantTypes) == 0 {
-			grantTypes = []string{}
-		}
-
 		returnAppList[i] = model.BasicApplicationResponse{
 			ID:                        app.ID,
 			Name:                      app.Name,
 			Description:               app.Description,
-			ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
+			ClientID:                  app.ClientID,
 			AuthFlowGraphID:           app.AuthFlowGraphID,
 			RegistrationFlowGraphID:   app.RegistrationFlowGraphID,
 			IsRegistrationFlowEnabled: app.IsRegistrationFlowEnabled,
-			URL:                       app.URL,
-			LogoURL:                   app.LogoURL,
 		}
 	}
 
@@ -291,7 +264,6 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 		URL:                       appDTO.URL,
 		LogoURL:                   appDTO.LogoURL,
 		Certificate:               appDTO.Certificate,
-		Properties:                appDTO.Properties,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -353,7 +325,6 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		URL:                       appRequest.URL,
 		LogoURL:                   appRequest.LogoURL,
 		Certificate:               appRequest.Certificate,
-		Properties:                appRequest.Properties,
 		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
 	}
 
@@ -403,7 +374,6 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		URL:                       updatedAppDTO.URL,
 		LogoURL:                   updatedAppDTO.LogoURL,
 		Certificate:               updatedAppDTO.Certificate,
-		Properties:                updatedAppDTO.Properties,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

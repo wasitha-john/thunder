@@ -39,7 +39,7 @@ import (
 type ApplicationServiceInterface interface {
 	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, error)
 	CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO, error)
-	GetApplicationList() ([]model.ApplicationProcessedDTO, error)
+	GetApplicationList() ([]model.BasicApplicationDTO, error)
 	GetApplication(appID string) (*model.ApplicationProcessedDTO, error)
 	UpdateApplication(appID string, app *model.ApplicationDTO) (*model.ApplicationDTO, error)
 	DeleteApplication(appID string) error
@@ -106,19 +106,14 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		return nil, err
 	}
 
-	if app.URL != "" && !sysutils.IsValidUri(app.URL) {
+	if app.URL != "" && !sysutils.IsValidURI(app.URL) {
 		return nil, errors.New("application URL is not a valid URI")
 	}
-	if app.LogoURL != "" && !sysutils.IsValidUri(app.LogoURL) {
+	if app.LogoURL != "" && !sysutils.IsValidURI(app.LogoURL) {
 		return nil, errors.New("application logo URL is not a valid URI")
 	}
 
 	cert, err := getValidatedCertificate(app)
-	if err != nil {
-		return nil, err
-	}
-
-	properties, err := getValidatedProperties(app)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +139,6 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		URL:                       app.URL,
 		LogoURL:                   app.LogoURL,
 		Certificate:               cert,
-		Properties:                properties,
 		InboundAuthConfig:         []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
 	}
 
@@ -167,14 +161,13 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		URL:                       app.URL,
 		LogoURL:                   app.LogoURL,
 		Certificate:               cert,
-		Properties:                properties,
 		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
 	}
 	return returnApp, nil
 }
 
 // GetApplicationList list the applications.
-func (as *ApplicationService) GetApplicationList() ([]model.ApplicationProcessedDTO, error) {
+func (as *ApplicationService) GetApplicationList() ([]model.BasicApplicationDTO, error) {
 	applications, err := as.Store.GetApplicationList()
 	if err != nil {
 		return nil, err
@@ -235,19 +228,14 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		return nil, err
 	}
 
-	if app.URL != "" && !sysutils.IsValidUri(app.URL) {
+	if app.URL != "" && !sysutils.IsValidURI(app.URL) {
 		return nil, errors.New("application URL is not a valid URI")
 	}
-	if app.LogoURL != "" && !sysutils.IsValidUri(app.LogoURL) {
+	if app.LogoURL != "" && !sysutils.IsValidURI(app.LogoURL) {
 		return nil, errors.New("application logo URL is not a valid URI")
 	}
 
 	cert, err := getValidatedCertificate(app)
-	if err != nil {
-		return nil, err
-	}
-
-	properties, err := getValidatedProperties(app)
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +260,6 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		URL:                       app.URL,
 		LogoURL:                   app.LogoURL,
 		Certificate:               cert,
-		Properties:                properties,
 		InboundAuthConfig:         []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
 	}
 
@@ -291,7 +278,6 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		URL:                       app.URL,
 		LogoURL:                   app.LogoURL,
 		Certificate:               cert,
-		Properties:                properties,
 		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
 	}
 	return returnApp, nil
@@ -378,43 +364,20 @@ func getValidatedCertificate(app *model.ApplicationDTO) (*model.Certificate, err
 			return nil, errors.New("JWKS certificate value cannot be empty")
 		}
 		return &model.Certificate{
+			ID:    sysutils.GenerateUUID(),
 			Type:  constants.CertificateTypeJWKS,
 			Value: app.Certificate.Value,
 		}, nil
 	case constants.CertificateTypeJWKSURI:
-		if !sysutils.IsValidUri(app.Certificate.Value) {
+		if !sysutils.IsValidURI(app.Certificate.Value) {
 			return nil, errors.New("JWKS URI certificate value is not a valid URI")
 		}
 		return &model.Certificate{
+			ID:    sysutils.GenerateUUID(),
 			Type:  constants.CertificateTypeJWKSURI,
 			Value: app.Certificate.Value,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported certificate type: %s", app.Certificate.Type)
 	}
-}
-
-// getValidatedProperties validates and returns the properties for the application.
-func getValidatedProperties(app *model.ApplicationDTO) ([]model.ApplicationProperty, error) {
-	if app.Properties == nil {
-		return nil, nil
-	}
-
-	returnProperties := make([]model.ApplicationProperty, 0, len(app.Properties))
-	for _, property := range app.Properties {
-		if property.Name == "" {
-			return nil, errors.New("application property names cannot be empty")
-		}
-		prop := model.ApplicationProperty{
-			Name:     property.Name,
-			Value:    property.Value,
-			IsSecret: property.IsSecret,
-		}
-		if property.IsSecret && property.Value == "" {
-			prop.IsSecret = false
-		}
-		returnProperties = append(returnProperties, prop)
-	}
-
-	return app.Properties, nil
 }

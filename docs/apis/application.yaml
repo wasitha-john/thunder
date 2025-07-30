@@ -249,10 +249,6 @@ components:
           example: "https://example.com/logo.png"
         certificate:
           $ref: '#/components/schemas/Certificate'
-        properties:
-          type: array
-          items:
-            $ref: '#/components/schemas/ApplicationProperty'
 
     ApplicationCompleteResponse:
       type: object
@@ -311,10 +307,6 @@ components:
           example: "https://example.com/logo.png"
         certificate:
           $ref: '#/components/schemas/Certificate'
-        properties:
-          type: array
-          items:
-            $ref: '#/components/schemas/ApplicationProperty'
 
     ApplicationGetResponse:
       type: object
@@ -369,10 +361,6 @@ components:
           example: "https://example.com/logo.png"
         certificate:
           $ref: '#/components/schemas/Certificate'
-        properties:
-          type: array
-          items:
-            $ref: '#/components/schemas/ApplicationProperty'
 
     BasicApplicationResponse:
       type: object
@@ -405,14 +393,6 @@ components:
           type: boolean
           description: Indicates if the registration flow is enabled for the application.
           example: true
-        url:
-          type: string
-          description: The URL of the application.
-          example: "https://example.com"
-        logo_url:
-          type: string
-          description: The URL of the application's logo.
-          example: "https://example.com/logo.png"
 
     Certificate:
       type: object
@@ -424,24 +404,8 @@ components:
             - "NONE"
             - "JWKS"
             - "JWKS_URI"
-          example: "JWKS"
+          example: "JWKS_URI"
         value:
           type: string
           description: The value of the certificate.
           example: "https://example.com/certificate.jwks"
-
-    ApplicationProperty:
-      type: object
-      properties:
-        name:
-          type: string
-          description: The name of the application property.
-          example: "property_name"
-        value:
-          type: string
-          description: The value of the application property.
-          example: "property_value"
-        is_secret:
-          type: boolean
-          description: Indicates if the property is secret.
-          example: false

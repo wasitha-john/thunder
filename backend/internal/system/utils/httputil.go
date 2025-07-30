@@ -86,8 +86,8 @@ func ParseURL(urlStr string) (*url.URL, error) {
 	return parsedURL, nil
 }
 
-// IsValidUri checks if the provided URI is valid.
-func IsValidUri(uri string) bool {
+// IsValidURI checks if the provided URI is valid.
+func IsValidURI(uri string) bool {
 	if uri == "" {
 		return false
 	}

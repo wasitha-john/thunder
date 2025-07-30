@@ -28,11 +28,6 @@ import (
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
-// TODO: Temporary comment.
-// New fields:
-// - ResponseTypes
-// - TokenEndpointAuthMethod
-
 // OAuthAppConfig represents the configuration of an OAuth application.
 type OAuthAppConfig struct {
 	AppID                   string
