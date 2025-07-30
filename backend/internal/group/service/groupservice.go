@@ -22,6 +22,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/asgardeo/thunder/internal/group/constants"
 	"github.com/asgardeo/thunder/internal/group/model"
@@ -39,7 +40,9 @@ const loggerComponentName = "GroupMgtService"
 // GroupServiceInterface defines the interface for the group service.
 type GroupServiceInterface interface {
 	GetGroupList(limit, offset int) (*model.GroupListResponse, *serviceerror.ServiceError)
+	GetGroupsByPath(handlePath string, limit, offset int) (*model.GroupListResponse, *serviceerror.ServiceError)
 	CreateGroup(request model.CreateGroupRequest) (*model.Group, *serviceerror.ServiceError)
+	CreateGroupByPath(handlePath string, request model.CreateGroupByPathRequest) (*model.Group, *serviceerror.ServiceError)
 	GetGroup(groupID string) (*model.Group, *serviceerror.ServiceError)
 	UpdateGroup(groupID string, request model.UpdateGroupRequest) (*model.Group, *serviceerror.ServiceError)
 	DeleteGroup(groupID string) *serviceerror.ServiceError
@@ -72,6 +75,60 @@ func (gs *GroupService) GetGroupList(limit, offset int) (*model.GroupListRespons
 	groups, err := store.GetGroupList(limit, offset)
 	if err != nil {
 		logger.Error("Failed to list groups", log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	groupBasics := make([]model.GroupBasic, 0, len(groups))
+	for _, groupDAO := range groups {
+		groupBasics = append(groupBasics, buildGroupBasic(groupDAO))
+	}
+
+	response := &model.GroupListResponse{
+		TotalResults: totalCount,
+		Groups:       groupBasics,
+		StartIndex:   offset + 1,
+		Count:        len(groupBasics),
+		Links:        buildPaginationLinks("/groups", limit, offset, totalCount),
+	}
+
+	return response, nil
+}
+
+// GetGroupsByPath retrieves a list of groups by hierarchical handle path.
+func (gs *GroupService) GetGroupsByPath(
+	handlePath string, limit, offset int,
+) (*model.GroupListResponse, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Getting groups by path", log.String("path", handlePath))
+
+	serviceError := gs.validateAndProcessHandlePath(handlePath)
+	if serviceError != nil {
+		return nil, serviceError
+	}
+
+	ouService := ouservice.GetOrganizationUnitService()
+	ou, svcErr := ouService.GetOrganizationUnitByPath(handlePath)
+	if svcErr != nil {
+		if svcErr.Code == ouconstants.ErrorOrganizationUnitNotFound.Code {
+			return nil, &constants.ErrorGroupNotFound
+		}
+		return nil, svcErr
+	}
+	organizationUnitID := ou.ID
+
+	if err := validatePaginationParams(limit, offset); err != nil {
+		return nil, err
+	}
+
+	totalCount, err := store.GetGroupsByOrganizationUnitCount(organizationUnitID)
+	if err != nil {
+		logger.Error("Failed to get group count by organization unit", log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	groups, err := store.GetGroupsByOrganizationUnit(organizationUnitID, limit, offset)
+	if err != nil {
+		logger.Error("Failed to list groups by organization unit", log.Error(err))
 		return nil, &constants.ErrorInternalServerError
 	}
 
@@ -148,6 +205,38 @@ func (gs *GroupService) CreateGroup(request model.CreateGroupRequest) (*model.Gr
 	group := convertGroupDAOToGroup(groupDAO)
 	logger.Debug("Successfully created group", log.String("id", groupDAO.ID), log.String("name", groupDAO.Name))
 	return &group, nil
+}
+
+// CreateGroupByPath creates a new group under the organization unit specified by the handle path.
+func (gs *GroupService) CreateGroupByPath(
+	handlePath string, request model.CreateGroupByPathRequest,
+) (*model.Group, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Creating group by path", log.String("path", handlePath), log.String("name", request.Name))
+
+	serviceError := gs.validateAndProcessHandlePath(handlePath)
+	if serviceError != nil {
+		return nil, serviceError
+	}
+
+	ouService := ouservice.GetOrganizationUnitService()
+	ou, svcErr := ouService.GetOrganizationUnitByPath(handlePath)
+	if svcErr != nil {
+		if svcErr.Code == ouconstants.ErrorOrganizationUnitNotFound.Code {
+			return nil, &constants.ErrorGroupNotFound
+		}
+		return nil, svcErr
+	}
+
+	// Convert CreateGroupByPathRequest to CreateGroupRequest
+	createRequest := model.CreateGroupRequest{
+		Name:               request.Name,
+		Description:        request.Description,
+		OrganizationUnitID: ou.ID,
+		Members:            request.Members,
+	}
+
+	return gs.CreateGroup(createRequest)
 }
 
 // GetGroup retrieves a specific group by its id.
@@ -495,4 +584,23 @@ func buildPaginationLinks(base string, limit, offset, totalCount int) []model.Li
 	}
 
 	return links
+}
+
+// validateAndProcessHandlePath validates and processes the handle path.
+func (gs *GroupService) validateAndProcessHandlePath(handlePath string) *serviceerror.ServiceError {
+	if strings.TrimSpace(handlePath) == "" {
+		return &constants.ErrorInvalidRequestFormat
+	}
+
+	handles := strings.Split(strings.Trim(handlePath, "/"), "/")
+	if len(handles) == 0 {
+		return &constants.ErrorInvalidRequestFormat
+	}
+
+	for _, handle := range handles {
+		if strings.TrimSpace(handle) == "" {
+			return &constants.ErrorInvalidRequestFormat
+		}
+	}
+	return nil
 }

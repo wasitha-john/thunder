@@ -79,6 +79,44 @@ func (gh *GroupHandler) HandleGroupListRequest(w http.ResponseWriter, r *http.Re
 		log.Int("count", groupListResponse.Count))
 }
 
+// HandleGroupListByPathRequest handles the list groups by OU path request.
+func (gh *GroupHandler) HandleGroupListByPathRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	path, pathValidationFailed := extractAndValidatePath(w, r, logger)
+	if pathValidationFailed {
+		return
+	}
+
+	limit, offset, svcErr := parsePaginationParams(r.URL.Query())
+	if svcErr != nil {
+		gh.handleError(w, logger, svcErr)
+		return
+	}
+
+	groupProvider := provider.NewGroupProvider()
+	groupService := groupProvider.GetGroupService()
+	groupListResponse, svcErr := groupService.GetGroupsByPath(path, limit, offset)
+	if svcErr != nil {
+		gh.handleError(w, logger, svcErr)
+		return
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(groupListResponse); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	logger.Debug("Successfully listed groups by path", log.String("path", path),
+		log.Int("limit", limit), log.Int("offset", offset),
+		log.Int("totalResults", groupListResponse.TotalResults),
+		log.Int("count", groupListResponse.Count))
+}
+
 // HandleGroupPostRequest handles the create group request.
 func (gh *GroupHandler) HandleGroupPostRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
@@ -121,6 +159,53 @@ func (gh *GroupHandler) HandleGroupPostRequest(w http.ResponseWriter, r *http.Re
 	}
 
 	logger.Debug("Successfully created group", log.String("group id", createdGroup.ID))
+}
+
+// HandleGroupPostByPathRequest handles the create group by OU path request.
+func (gh *GroupHandler) HandleGroupPostByPathRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	path, pathValidationFailed := extractAndValidatePath(w, r, logger)
+	if pathValidationFailed {
+		return
+	}
+
+	createRequest, err := sysutils.DecodeJSONBody[model.CreateGroupByPathRequest](r)
+	if err != nil {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidRequestFormat.Code,
+			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Description: "Failed to parse request body: " + err.Error(),
+		}
+
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	groupProvider := provider.NewGroupProvider()
+	groupService := groupProvider.GetGroupService()
+	group, svcErr := groupService.CreateGroupByPath(path, *createRequest)
+	if svcErr != nil {
+		gh.handleError(w, logger, svcErr)
+		return
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusCreated)
+
+	if err := json.NewEncoder(w).Encode(group); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	logger.Debug("Successfully created group by path", log.String("path", path), log.String("groupName", group.Name))
 }
 
 // HandleGroupGetRequest handles the get group by id request.
@@ -412,4 +497,24 @@ func parsePaginationParams(query url.Values) (int, int, *serviceerror.ServiceErr
 	}
 
 	return limit, offset, nil
+}
+
+// extractAndValidatePath extracts and validates the path parameter from the request.
+func extractAndValidatePath(w http.ResponseWriter, r *http.Request, logger *log.Logger) (string, bool) {
+	path := r.PathValue("path")
+	if path == "" {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidRequestFormat.Code,
+			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Description: "Handle path is required",
+		}
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return "", true
+	}
+	return path, false
 }

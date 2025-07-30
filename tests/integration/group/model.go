@@ -85,3 +85,17 @@ type MemberListResponse struct {
 	Members      []Member `json:"members"`
 	Links        []Link   `json:"links"`
 }
+
+// CreateGroupByPathRequest represents the request body for creating a group under a specific OU path.
+type CreateGroupByPathRequest struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Members     []Member `json:"members,omitempty"`
+}
+
+// ErrorResponse represents an error response.
+type ErrorResponse struct {
+	Code        string `json:"code"`
+	Message     string `json:"message"`
+	Description string `json:"description,omitempty"`
+}

@@ -558,3 +558,70 @@ func checkGroupNameConflictForUpdate(
 
 	return nil
 }
+
+// GetGroupsByOrganizationUnitCount retrieves the total count of groups in a specific organization unit.
+func GetGroupsByOrganizationUnitCount(organizationUnitID string) (int, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		return 0, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	countResults, err := dbClient.Query(QueryGetGroupsByOrganizationUnitCount, organizationUnitID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get group count by organization unit: %w", err)
+	}
+
+	if len(countResults) == 0 {
+		return 0, nil
+	}
+
+	if count, ok := countResults[0]["total"].(int64); ok {
+		return int(count), nil
+	}
+
+	return 0, fmt.Errorf("unexpected response format for group count")
+}
+
+// GetGroupsByOrganizationUnit retrieves a list of groups in a specific organization unit with pagination.
+func GetGroupsByOrganizationUnit(organizationUnitID string, limit, offset int) ([]model.GroupBasicDAO, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	results, err := dbClient.Query(QueryGetGroupsByOrganizationUnit, organizationUnitID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get groups by organization unit: %w", err)
+	}
+
+	groups := make([]model.GroupBasicDAO, 0, len(results))
+	for _, result := range results {
+		group := model.GroupBasicDAO{
+			ID:                 result["group_id"].(string),
+			OrganizationUnitID: result["ou_id"].(string),
+			Name:               result["name"].(string),
+		}
+
+		if description, ok := result["description"].(string); ok {
+			group.Description = description
+		}
+
+		groups = append(groups, group)
+	}
+
+	return groups, nil
+}
