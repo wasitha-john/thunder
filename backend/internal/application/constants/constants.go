@@ -34,18 +34,6 @@ const (
 	OAuthInboundAuthType InboundAuthType = "oauth2"
 )
 
-// CertificateType represents the type of certificate used in the application.
-type CertificateType string
-
-const (
-	// CertificateTypeNone represents no certificate.
-	CertificateTypeNone CertificateType = "NONE"
-	// CertificateTypeJWKS represents a JSON Web Key Set (JWKS) certificate.
-	CertificateTypeJWKS CertificateType = "JWKS"
-	// CertificateTypeJWKSURI represents a JWKS URI certificate.
-	CertificateTypeJWKSURI CertificateType = "JWKS_URI"
-)
-
 // TokenEndpointAuthMethod represents the method used for token endpoint authentication.
 type TokenEndpointAuthMethod string
 

@@ -332,6 +332,7 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 	appService := ah.ApplicationProvider.GetApplicationService()
 	updatedAppDTO, err := appService.UpdateApplication(id, &updateReqAppDTO)
 	if err != nil {
+		logger.Error("Failed to update application", log.Error(err))
 		http.Error(w, "Failed get application", http.StatusInternalServerError)
 		return
 	}

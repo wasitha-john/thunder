@@ -73,27 +73,4 @@ var (
 		ID:    "ASQ-APP_MGT-08",
 		Query: "DELETE FROM SP_APP WHERE APP_ID = $1",
 	}
-
-	// TODO: Move into a separate certificate package.
-
-	// QueryInsertApplicationCertificate is the query to insert a certificate for a specific application.
-	QueryInsertApplicationCertificate = dbmodel.DBQuery{
-		ID:    "ASQ-APP_MGT-09",
-		Query: "INSERT INTO CERTIFICATE (CERT_ID, REF_TYPE, REF_ID, TYPE, VALUE) VALUES ($1, 'APP', $2, $3, $4)",
-	}
-	// QueryGetApplicationCertificate is the query to retrieve a certificate for a specific application.
-	QueryGetApplicationCertificate = dbmodel.DBQuery{
-		ID:    "ASQ-APP_MGT-10",
-		Query: "SELECT CERT_ID, TYPE, VALUE FROM CERTIFICATE WHERE REF_TYPE = 'APP' AND REF_ID = $1",
-	}
-	// QueryUpdateApplicationCertificate is the query to update a certificate for a specific application.
-	QueryUpdateApplicationCertificate = dbmodel.DBQuery{
-		ID:    "ASQ-APP_MGT-11",
-		Query: "UPDATE CERTIFICATE SET TYPE=$2, VALUE=$3, UPDATED_AT=NOW() WHERE REF_TYPE = 'APP' AND REF_ID=$1",
-	}
-	// QueryDeleteApplicationCertificate is the query to delete a certificate for a specific application.
-	QueryDeleteApplicationCertificate = dbmodel.DBQuery{
-		ID:    "ASQ-APP_MGT-12",
-		Query: "DELETE FROM CERTIFICATE WHERE REF_TYPE = 'APP' AND REF_ID = $1",
-	}
 )
