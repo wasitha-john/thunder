@@ -43,7 +43,7 @@ var _ GrantHandler = (*RefreshTokenGrantHandler)(nil)
 // ValidateGrant validates the refresh token grant request.
 func (h *RefreshTokenGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse {
-	if tokenRequest.GrantType != constants.GrantTypeRefreshToken {
+	if constants.GrantType(tokenRequest.GrantType) != constants.GrantTypeRefreshToken {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorUnsupportedGrantType,
 			ErrorDescription: "Unsupported grant type",

@@ -66,10 +66,16 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Validate the grant_type.
-	grantType := r.FormValue(constants.GrantType)
-	if grantType == "" {
+	grantTypeStr := r.FormValue(constants.RequestParamGrantType)
+	if grantTypeStr == "" {
 		utils.WriteJSONError(w, constants.ErrorInvalidRequest,
 			"Missing grant_type parameter", http.StatusBadRequest, nil)
+		return
+	}
+	grantType := constants.GrantType(grantTypeStr)
+	if !grantType.IsValid() {
+		utils.WriteJSONError(w, constants.ErrorInvalidRequest,
+			"Invalid grant_type parameter", http.StatusBadRequest, nil)
 		return
 	}
 
@@ -109,8 +115,8 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Check for client credentials in the request body.
-	clientIDFromBody := r.FormValue(constants.ClientID)
-	clientSecretFromBody := r.FormValue(constants.ClientSecret)
+	clientIDFromBody := r.FormValue(constants.RequestParamClientID)
+	clientSecretFromBody := r.FormValue(constants.RequestParamClientSecret)
 
 	if clientIDFromBody != "" && clientSecretFromBody != "" {
 		if clientID != "" && clientSecret != "" {
@@ -146,7 +152,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Validate grant type against the application.
-	if !oauthApp.IsAllowedGrantType(grantType) {
+	if !oauthApp.IsAllowedGrantType(grantTypeStr) {
 		utils.WriteJSONError(w, constants.ErrorUnauthorizedClient,
 			"The client is not authorized to use this grant type", http.StatusUnauthorized, nil)
 		return
@@ -154,7 +160,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 
 	// Construct the token request.
 	tokenRequest := &model.TokenRequest{
-		GrantType:    grantType,
+		GrantType:    grantTypeStr,
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Scope:        r.FormValue("scope"),
@@ -193,14 +199,14 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Generate and add refresh token if applicable.
-	if tokenRequest.GrantType == constants.GrantTypeAuthorizationCode &&
-		oauthApp.IsAllowedGrantType(constants.GrantTypeRefreshToken) {
+	if grantType == constants.GrantTypeAuthorizationCode &&
+		oauthApp.IsAllowedGrantType(string(constants.GrantTypeRefreshToken)) {
 		logger.Debug("Issuing refresh token for the token request", log.String("client_id", clientID),
-			log.String("grant_type", grantType))
+			log.String("grant_type", grantTypeStr))
 
 		refreshGrantHandler := &granthandlers.RefreshTokenGrantHandler{}
 		refreshTokenError := refreshGrantHandler.IssueRefreshToken(tokenRespDTO, ctx, oauthApp.ClientID,
-			grantType, tokenRespDTO.AccessToken.Scopes)
+			grantTypeStr, tokenRespDTO.AccessToken.Scopes)
 		if refreshTokenError != nil && refreshTokenError.Error != "" {
 			utils.WriteJSONError(w, refreshTokenError.Error, refreshTokenError.ErrorDescription,
 				http.StatusInternalServerError, nil)
@@ -218,7 +224,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	logger.Debug("Token generated successfully", log.String("client_id", clientID),
-		log.String("grant_type", grantType))
+		log.String("grant_type", grantTypeStr))
 
 	// Set the response headers.
 	w.Header().Set("Content-Type", "application/json")
@@ -233,5 +239,5 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Failed to write token response", http.StatusInternalServerError)
 		return
 	}
-	logger.Debug("Token response sent", log.String("client_id", clientID), log.String("grant_type", grantType))
+	logger.Debug("Token response sent", log.String("client_id", clientID), log.String("grant_type", grantTypeStr))
 }

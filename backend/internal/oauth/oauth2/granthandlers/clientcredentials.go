@@ -38,7 +38,7 @@ var _ GrantHandler = (*ClientCredentialsGrantHandler)(nil)
 func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse {
 	// Validate the grant type.
-	if tokenRequest.GrantType != constants.GrantTypeClientCredentials {
+	if constants.GrantType(tokenRequest.GrantType) != constants.GrantTypeClientCredentials {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorUnsupportedGrantType,
 			ErrorDescription: "Unsupported grant type",

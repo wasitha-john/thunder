@@ -46,7 +46,7 @@ func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 			ErrorDescription: "Missing grant type",
 		}
 	}
-	if tokenRequest.GrantType != constants.GrantTypeAuthorizationCode {
+	if constants.GrantType(tokenRequest.GrantType) != constants.GrantTypeAuthorizationCode {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorUnsupportedGrantType,
 			ErrorDescription: "Unsupported grant type",

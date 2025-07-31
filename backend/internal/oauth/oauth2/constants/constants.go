@@ -21,20 +21,20 @@ package constants
 
 // OAuth2 request parameters.
 const (
-	GrantType        = "grant_type"
-	ClientID         = "client_id"
-	ClientSecret     = "client_secret"
-	RedirectURI      = "redirect_uri"
-	Username         = "username"
-	Password         = "password"
-	Scope            = "scope"
-	Code             = "code"
-	CodeVerifier     = "code_verifier"
-	RefreshToken     = "refresh_token"
-	ResponseType     = "response_type"
-	State            = "state"
-	Error            = "error"
-	ErrorDescription = "error_description"
+	RequestParamGrantType        = "grant_type"
+	RequestParamClientID         = "client_id"
+	RequestParamClientSecret     = "client_secret"
+	RequestParamRedirectURI      = "redirect_uri"
+	RequestParamUsername         = "username"
+	RequestParamPassword         = "password"
+	RequestParamScope            = "scope"
+	RequestParamCode             = "code"
+	RequestParamCodeVerifier     = "code_verifier"
+	RequestParamRefreshToken     = "refresh_token"
+	RequestParamResponseType     = "response_type"
+	RequestParamState            = "state"
+	RequestParamError            = "error"
+	RequestParamErrorDescription = "error_description"
 )
 
 // Server OAuth constants.
@@ -64,19 +64,79 @@ const (
 	OAuth2LogoutEndpoint        = "/oauth2/logout"
 )
 
-// OAuth2 grant types.
+// GrantType defines a type for OAuth2 grant types.
+type GrantType string
+
 const (
-	GrantTypeAuthorizationCode = "authorization_code"
-	GrantTypeClientCredentials = "client_credentials"
-	GrantTypePassword          = "password"
-	GrantTypeImplicit          = "implicit"
-	GrantTypeRefreshToken      = "refresh_token"
+	// GrantTypeAuthorizationCode represents the authorization code grant type.
+	GrantTypeAuthorizationCode GrantType = "authorization_code"
+	// GrantTypeClientCredentials represents the client credentials grant type.
+	GrantTypeClientCredentials GrantType = "client_credentials"
+	// GrantTypePassword represents the resource owner password credentials grant type.
+	GrantTypePassword GrantType = "password"
+	// GrantTypeImplicit represents the implicit grant type.
+	GrantTypeImplicit GrantType = "implicit"
+	// GrantTypeRefreshToken represents the refresh token grant type.
+	GrantTypeRefreshToken GrantType = "refresh_token"
 )
 
-// OAuth2 response types.
+// IsValid checks if the GrantType is valid.
+func (gt GrantType) IsValid() bool {
+	switch gt {
+	case GrantTypeAuthorizationCode,
+		GrantTypeClientCredentials,
+		GrantTypePassword,
+		GrantTypeImplicit,
+		GrantTypeRefreshToken:
+		return true
+	default:
+		return false
+	}
+}
+
+// ResponseType defines a type for OAuth2 response types.
+type ResponseType string
+
 const (
-	ResponseTypeCode = "code"
+	// ResponseTypeCode represents the authorization code response type.
+	ResponseTypeCode ResponseType = "code"
+	// ResponseTypeToken represents the implicit token response type.
+	ResponseTypeToken ResponseType = "token"
 )
+
+// IsValid checks if the ResponseType is valid.
+func (rt ResponseType) IsValid() bool {
+	switch rt {
+	case ResponseTypeCode:
+		return true
+	default:
+		return false
+	}
+}
+
+// TokenEndpointAuthMethod defines a type for token endpoint authentication methods.
+type TokenEndpointAuthMethod string
+
+const (
+	// TokenEndpointAuthMethodClientSecretBasic represents the client secret basic authentication method.
+	TokenEndpointAuthMethodClientSecretBasic TokenEndpointAuthMethod = "client_secret_basic"
+	// TokenEndpointAuthMethodClientSecretPost represents the client secret post authentication method.
+	TokenEndpointAuthMethodClientSecretPost TokenEndpointAuthMethod = "client_secret_post"
+	// TokenEndpointAuthMethodNone represents no authentication method.
+	TokenEndpointAuthMethodNone TokenEndpointAuthMethod = "none"
+)
+
+// IsValid checks if the TokenEndpointAuthMethod is valid.
+func (tam TokenEndpointAuthMethod) IsValid() bool {
+	switch tam {
+	case TokenEndpointAuthMethodClientSecretBasic,
+		TokenEndpointAuthMethodClientSecretPost,
+		TokenEndpointAuthMethodNone:
+		return true
+	default:
+		return false
+	}
+}
 
 // OAuth2 token types.
 const (

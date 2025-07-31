@@ -45,16 +45,16 @@ func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model
 	logger := log.GetLogger()
 
 	// Extract required parameters.
-	responseType := msg.RequestQueryParams[constants.ResponseType]
-	clientID := msg.RequestQueryParams[constants.ClientID]
-	redirectURI := msg.RequestQueryParams[constants.RedirectURI]
+	responseType := msg.RequestQueryParams[constants.RequestParamResponseType]
+	clientID := msg.RequestQueryParams[constants.RequestParamClientID]
+	redirectURI := msg.RequestQueryParams[constants.RequestParamRedirectURI]
 
 	if clientID == "" {
 		return false, constants.ErrorInvalidRequest, "Missing client_id parameter"
 	}
 
 	// Validate if the authorization code grant type is allowed for the app.
-	if !oauthApp.IsAllowedGrantType(constants.GrantTypeAuthorizationCode) {
+	if !oauthApp.IsAllowedGrantType(string(constants.GrantTypeAuthorizationCode)) {
 		return false, constants.ErrorUnsupportedGrantType,
 			"Authorization code grant type is not allowed for the client"
 	}
@@ -69,7 +69,7 @@ func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model
 	if responseType == "" {
 		return true, constants.ErrorInvalidRequest, "Missing response_type parameter"
 	}
-	if responseType != constants.ResponseTypeCode {
+	if responseType != string(constants.ResponseTypeCode) {
 		return true, constants.ErrorUnsupportedResponseType, "Unsupported response type"
 	}
 
