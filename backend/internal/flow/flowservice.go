@@ -81,15 +81,8 @@ func (s *FlowService) Execute(appID, flowID, actionID, flowType string, inputDat
 
 	if isNewFlow(flowID) {
 		context, loadErr = s.loadNewContext(appID, actionID, flowType, inputData, logger)
-		// Store initial context for new flows
-		if loadErr == nil {
-			if storeErr := s.storeContext(context, logger); storeErr != nil {
-				logger.Error("Failed to store initial flow context", log.String("flowID", context.FlowID), log.Error(storeErr))
-				return nil, &constants.ErrorUpdatingContextInStore
-			}
-		}
 	} else {
-		context, loadErr = s.loadPrevContext(flowID, actionID, inputData, logger)
+		context, loadErr = s.loadPrevContext(flowID, actionID, inputData)
 	}
 
 	if loadErr != nil {
@@ -97,15 +90,38 @@ func (s *FlowService) Execute(appID, flowID, actionID, flowType string, inputDat
 	}
 
 	flowStep, flowErr := engine.GetFlowEngine().Execute(context)
+
 	if flowErr != nil {
-		s.removeContext(context.FlowID, logger)
+		if !isNewFlow(flowID) {
+			if removeErr := s.removeContext(context.FlowID, logger); removeErr != nil {
+				logger.Error("Failed to remove flow context after engine failure",
+					log.String("flowID", context.FlowID), log.Error(removeErr))
+				return nil, &constants.ErrorUpdatingContextInStore
+			}
+		}
 		return nil, flowErr
 	}
 
 	if isComplete(flowStep) {
-		s.removeContext(context.FlowID, logger)
+		if !isNewFlow(flowID) {
+			if removeErr := s.removeContext(context.FlowID, logger); removeErr != nil {
+				logger.Error("Failed to remove flow context after completion",
+					log.String("flowID", context.FlowID), log.Error(removeErr))
+				return nil, &constants.ErrorUpdatingContextInStore
+			}
+		}
 	} else {
-		s.updateContext(context, &flowStep, logger)
+		if isNewFlow(flowID) {
+			if storeErr := s.storeContext(context, logger); storeErr != nil {
+				logger.Error("Failed to store initial flow context", log.String("flowID", context.FlowID), log.Error(storeErr))
+				return nil, &constants.ErrorUpdatingContextInStore
+			}
+		} else {
+			if updateErr := s.updateContext(context, &flowStep, logger); updateErr != nil {
+				logger.Error("Failed to update flow context", log.String("flowID", context.FlowID), log.Error(updateErr))
+				return nil, &constants.ErrorUpdatingContextInStore
+			}
+		}
 	}
 
 	return &flowStep, nil
@@ -154,9 +170,9 @@ func (s *FlowService) initContext(appID string, flowType constants.FlowType,
 }
 
 // loadPrevContext retrieves the flow context from the store based on the given details.
-func (s *FlowService) loadPrevContext(flowID, actionID string, inputData map[string]string,
-	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
-	ctx, err := s.loadContextFromStore(flowID, logger)
+func (s *FlowService) loadPrevContext(flowID, actionID string, inputData map[string]string) (
+	*model.EngineContext, *serviceerror.ServiceError) {
+	ctx, err := s.loadContextFromStore(flowID)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +182,7 @@ func (s *FlowService) loadPrevContext(flowID, actionID string, inputData map[str
 }
 
 // loadContextFromStore retrieves the flow context from the store based on the given details.
-func (s *FlowService) loadContextFromStore(flowID string, _ *log.Logger) (*model.EngineContext,
+func (s *FlowService) loadContextFromStore(flowID string) (*model.EngineContext,
 	*serviceerror.ServiceError) {
 	if flowID == "" {
 		return nil, &constants.ErrorInvalidFlowID
@@ -182,30 +198,30 @@ func (s *FlowService) loadContextFromStore(flowID string, _ *log.Logger) (*model
 }
 
 // removeContext removes the flow context from the store.
-func (s *FlowService) removeContext(flowID string, logger *log.Logger) {
+func (s *FlowService) removeContext(flowID string, logger *log.Logger) error {
 	flowDAO := dao.GetFlowDAO()
 	err := flowDAO.RemoveContextFromStore(flowID)
 	if err != nil {
-		logger.Error("Failed to remove flow context from the store", log.String("flowID", flowID), log.Error(err))
-		return
+		return err
 	}
 	logger.Debug("Flow context removed from the store", log.String("flowID", flowID))
+	return nil
 }
 
 // updateContext updates the flow context in the store based on the flow step status.
-func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.FlowStep, logger *log.Logger) {
+func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.FlowStep, logger *log.Logger) error {
 	if flowStep.Status == constants.FlowStatusComplete {
-		s.removeContext(ctx.FlowID, logger)
+		return s.removeContext(ctx.FlowID, logger)
 	} else {
 		logger.Debug("Flow execution is incomplete, updating the flow context",
 			log.String("flowID", ctx.FlowID))
 
 		flowDAO := dao.GetFlowDAO()
 		if err := flowDAO.UpdateContextInStore(ctx.FlowID, *ctx); err != nil {
-			logger.Error("Failed to update flow context in the store", log.String("flowID", ctx.FlowID), log.Error(err))
-			return
+			return err
 		}
 		logger.Debug("Flow context updated in the store", log.String("flowID", ctx.FlowID))
+		return nil
 	}
 }
 
@@ -213,7 +229,6 @@ func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.Fl
 func (s *FlowService) storeContext(ctx *model.EngineContext, logger *log.Logger) error {
 	flowDAO := dao.GetFlowDAO()
 	if err := flowDAO.StoreContextInStore(ctx.FlowID, *ctx); err != nil {
-		logger.Error("Failed to store flow context in the store", log.String("flowID", ctx.FlowID), log.Error(err))
 		return err
 	}
 	logger.Debug("Flow context stored in the store", log.String("flowID", ctx.FlowID))

@@ -116,7 +116,8 @@ func (s *FlowStore) UpdateFlowContext(ctx model.EngineContext) error {
 
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryUpdateFlowContext.Query, dbModel.FlowID, dbModel.CurrentNodeID, dbModel.CurrentActionID, dbModel.RuntimeData)
+			_, err := tx.Exec(QueryUpdateFlowContext.Query, dbModel.FlowID,
+				dbModel.CurrentNodeID, dbModel.CurrentActionID, dbModel.RuntimeData)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
@@ -133,12 +134,10 @@ func (s *FlowStore) UpdateFlowContext(ctx model.EngineContext) error {
 func (s *FlowStore) DeleteFlowContext(flowID string) error {
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
-			// Delete flow user data first (due to foreign key constraint)
 			_, err := tx.Exec(QueryDeleteFlowUserData.Query, flowID)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
-			// Delete flow context
 			_, err := tx.Exec(QueryDeleteFlowContext.Query, flowID)
 			return err
 		},
@@ -169,10 +168,9 @@ func (s *FlowStore) executeTransaction(queries []func(tx dbmodel.TxInterface) er
 	for _, query := range queries {
 		if err := query(tx); err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
-				err = errors.Join(err, errors.New("failed to rollback transaction: "+rollbackErr.Error()))
+				return fmt.Errorf("failed to rollback transaction: %w", rollbackErr)
 			}
-			return err
+			return fmt.Errorf("transaction failed: %w", err)
 		}
 	}
 

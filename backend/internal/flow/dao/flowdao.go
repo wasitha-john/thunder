@@ -243,7 +243,6 @@ func (c *FlowDAO) StoreContextInStore(flowID string, context model.EngineContext
 	// Store flow context in database
 	err := c.flowStore.StoreFlowContext(context)
 	if err != nil {
-		logger.Error("Failed to store flow context in database", log.Error(err))
 		return fmt.Errorf("failed to store flow context in database: %w", err)
 	}
 
@@ -262,7 +261,6 @@ func (c *FlowDAO) UpdateContextInStore(flowID string, context model.EngineContex
 	// Update flow context in database
 	err := c.flowStore.UpdateFlowContext(context)
 	if err != nil {
-		logger.Error("Failed to update flow context in database", log.Error(err))
 		return fmt.Errorf("failed to update flow context in database: %w", err)
 	}
 
@@ -281,7 +279,6 @@ func (c *FlowDAO) RemoveContextFromStore(flowID string) error {
 	// Remove flow context from database
 	err := c.flowStore.DeleteFlowContext(flowID)
 	if err != nil {
-		logger.Error("Failed to remove flow context from database", log.Error(err))
 		return fmt.Errorf("failed to remove flow context from database: %w", err)
 	}
 
