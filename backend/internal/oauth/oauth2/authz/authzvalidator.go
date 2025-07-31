@@ -53,23 +53,23 @@ func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model
 		return false, constants.ErrorInvalidRequest, "Missing client_id parameter"
 	}
 
-	// Validate if the authorization code grant type is allowed for the app.
-	if !oauthApp.IsAllowedGrantType(string(constants.GrantTypeAuthorizationCode)) {
-		return false, constants.ErrorUnsupportedGrantType,
-			"Authorization code grant type is not allowed for the client"
-	}
-
 	// Validate the redirect URI against the registered application.
 	if err := oauthApp.ValidateRedirectURI(redirectURI); err != nil {
 		logger.Error("Validation failed for redirect URI", log.Error(err))
 		return false, constants.ErrorInvalidRequest, "Invalid redirect URI"
 	}
 
+	// Validate if the authorization code grant type is allowed for the app.
+	if !oauthApp.IsAllowedGrantType(string(constants.GrantTypeAuthorizationCode)) {
+		return true, constants.ErrorUnsupportedGrantType,
+			"Authorization code grant type is not allowed for the client"
+	}
+
 	// Validate the authorization request.
 	if responseType == "" {
 		return true, constants.ErrorInvalidRequest, "Missing response_type parameter"
 	}
-	if responseType != string(constants.ResponseTypeCode) {
+	if !oauthApp.IsAllowedResponseType(responseType) {
 		return true, constants.ErrorUnsupportedResponseType, "Unsupported response type"
 	}
 

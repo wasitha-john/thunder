@@ -50,7 +50,7 @@ func (o *OAuthAppConfig) IsAllowedResponseType(responseType string) bool {
 }
 
 // IsAllowedTokenEndpointAuthMethod checks if the provided token endpoint authentication method is allowed.
-func (o *OAuthAppConfig) IsAllowedTokenEndpointAuthMethod(method string) bool {
+func (o *OAuthAppConfig) IsAllowedTokenEndpointAuthMethod(method oauth2const.TokenEndpointAuthMethod) bool {
 	return isAllowedTokenEndpointAuthMethod(o.TokenEndpointAuthMethod, method)
 }
 
@@ -81,7 +81,7 @@ func (o *OAuthAppConfigProcessed) IsAllowedResponseType(responseType string) boo
 }
 
 // IsAllowedTokenEndpointAuthMethod checks if the provided token endpoint authentication method is allowed.
-func (o *OAuthAppConfigProcessed) IsAllowedTokenEndpointAuthMethod(method string) bool {
+func (o *OAuthAppConfigProcessed) IsAllowedTokenEndpointAuthMethod(method oauth2const.TokenEndpointAuthMethod) bool {
 	return isAllowedTokenEndpointAuthMethod(o.TokenEndpointAuthMethod, method)
 }
 
@@ -107,11 +107,12 @@ func isAllowedResponseType(responseTypes []oauth2const.ResponseType, responseTyp
 }
 
 // isAllowedTokenEndpointAuthMethod checks if the provided token authentication method is in the allowed list.
-func isAllowedTokenEndpointAuthMethod(methods []oauth2const.TokenEndpointAuthMethod, method string) bool {
+func isAllowedTokenEndpointAuthMethod(methods []oauth2const.TokenEndpointAuthMethod,
+	method oauth2const.TokenEndpointAuthMethod) bool {
 	if method == "" {
 		return false
 	}
-	return slices.Contains(methods, oauth2const.TokenEndpointAuthMethod(method))
+	return slices.Contains(methods, method)
 }
 
 // validateRedirectURI checks if the provided redirect URI is valid against the registered redirect URIs.

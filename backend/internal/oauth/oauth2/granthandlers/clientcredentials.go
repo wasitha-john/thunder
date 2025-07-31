@@ -26,7 +26,6 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
-	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 )
 
 // ClientCredentialsGrantHandler handles the client credentials grant type.
@@ -50,15 +49,6 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 		return &model.ErrorResponse{
 			Error:            constants.ErrorInvalidRequest,
 			ErrorDescription: "Client Id and secret are required",
-		}
-	}
-
-	// Validate the client credentials.
-	hashedClientSecret := hash.HashString(tokenRequest.ClientSecret)
-	if tokenRequest.ClientID != oauthApp.ClientID || hashedClientSecret != oauthApp.HashedClientSecret {
-		return &model.ErrorResponse{
-			Error:            constants.ErrorInvalidClient,
-			ErrorDescription: "Invalid client credentials",
 		}
 	}
 

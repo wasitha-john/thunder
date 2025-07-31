@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/utils"
 
 	appprovider "github.com/asgardeo/thunder/internal/application/provider"
@@ -94,6 +95,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Extract client credentials from the request.
+	tokenAuthMethod := constants.TokenEndpointAuthMethodNone
 	clientID := ""
 	clientSecret := ""
 	if r.Header.Get("Authorization") != "" {
@@ -112,6 +114,10 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 				"Invalid client credentials", http.StatusUnauthorized, nil)
 			return
 		}
+
+		if clientID != "" && clientSecret != "" {
+			tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretBasic
+		}
 	}
 
 	// Check for client credentials in the request body.
@@ -127,13 +133,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 
 		clientID = clientIDFromBody
 		clientSecret = clientSecretFromBody
-	} else {
-		if clientID == "" {
-			clientID = clientIDFromBody
-		}
-		if clientSecret == "" {
-			clientSecret = clientSecretFromBody
-		}
+		tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretPost
 	}
 
 	if clientID == "" {
@@ -149,6 +149,24 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		utils.WriteJSONError(w, constants.ErrorInvalidClient,
 			"Invalid client credentials", http.StatusUnauthorized, nil)
 		return
+	}
+
+	// Validate the token endpoint authentication method.
+	if !oauthApp.IsAllowedTokenEndpointAuthMethod(tokenAuthMethod) {
+		utils.WriteJSONError(w, constants.ErrorUnauthorizedClient,
+			"Client is not allowed to use the specified token endpoint authentication method",
+			http.StatusUnauthorized, nil)
+		return
+	}
+
+	// Validate the client credentials.
+	hashedClientSecret := hash.HashString(clientSecret)
+	if tokenAuthMethod != constants.TokenEndpointAuthMethodNone {
+		if clientID != oauthApp.ClientID || hashedClientSecret != oauthApp.HashedClientSecret {
+			utils.WriteJSONError(w, constants.ErrorInvalidClient,
+				"Invalid client credentials", http.StatusUnauthorized, nil)
+			return
+		}
 	}
 
 	// Validate grant type against the application.
