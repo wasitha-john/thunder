@@ -19,7 +19,10 @@
 // Package model defines the data structures for the application module.
 package model
 
-import "github.com/asgardeo/thunder/internal/application/constants"
+import (
+	"github.com/asgardeo/thunder/internal/application/constants"
+	certconst "github.com/asgardeo/thunder/internal/cert/constants"
+)
 
 // ApplicationDTO represents the data transfer object for application service operations.
 type ApplicationDTO struct {
@@ -33,7 +36,7 @@ type ApplicationDTO struct {
 	URL     string
 	LogoURL string
 
-	Certificate       *Certificate
+	Certificate       *ApplicationCertificate
 	InboundAuthConfig []InboundAuthConfig
 }
 
@@ -60,16 +63,8 @@ type ApplicationProcessedDTO struct {
 	URL     string
 	LogoURL string
 
-	Certificate       *Certificate
+	Certificate       *ApplicationCertificate
 	InboundAuthConfig []InboundAuthConfigProcessed
-}
-
-// Certificate represents a certificate used in the application.
-// TODO: Move Certificate to a separate package.
-type Certificate struct {
-	ID    string                    `json:"-"`
-	Type  constants.CertificateType `json:"type"`
-	Value string                    `json:"value"`
 }
 
 // InboundAuthConfig represents the inbound authentication configuration for an application.
@@ -85,53 +80,59 @@ type InboundAuthConfigProcessed struct {
 	OAuthAppConfig *OAuthAppConfigProcessed
 }
 
+// ApplicationCertificate represents the certificate structure in the application request response.
+type ApplicationCertificate struct {
+	Type  certconst.CertificateType `json:"type"`
+	Value string                    `json:"value"`
+}
+
 // ApplicationRequest represents the request structure for creating or updating an application.
 type ApplicationRequest struct {
-	Name                      string       `json:"name"`
-	Description               string       `json:"description"`
-	ClientID                  string       `json:"client_id"`
-	ClientSecret              string       `json:"client_secret"`
-	RedirectURIs              []string     `json:"redirect_uris"`
-	GrantTypes                []string     `json:"grant_types"`
-	AuthFlowGraphID           string       `json:"auth_flow_graph_id,omitempty"`
-	RegistrationFlowGraphID   string       `json:"registration_flow_graph_id,omitempty"`
-	IsRegistrationFlowEnabled bool         `json:"is_registration_flow_enabled,omitempty"`
-	URL                       string       `json:"url,omitempty"`
-	LogoURL                   string       `json:"logo_url,omitempty"`
-	Certificate               *Certificate `json:"certificate,omitempty"`
+	Name                      string                  `json:"name"`
+	Description               string                  `json:"description"`
+	ClientID                  string                  `json:"client_id"`
+	ClientSecret              string                  `json:"client_secret"`
+	RedirectURIs              []string                `json:"redirect_uris"`
+	GrantTypes                []string                `json:"grant_types"`
+	AuthFlowGraphID           string                  `json:"auth_flow_graph_id,omitempty"`
+	RegistrationFlowGraphID   string                  `json:"registration_flow_graph_id,omitempty"`
+	IsRegistrationFlowEnabled bool                    `json:"is_registration_flow_enabled,omitempty"`
+	URL                       string                  `json:"url,omitempty"`
+	LogoURL                   string                  `json:"logo_url,omitempty"`
+	Certificate               *ApplicationCertificate `json:"certificate,omitempty"`
 }
 
 // ApplicationCompleteResponse represents the complete response structure for an application.
 type ApplicationCompleteResponse struct {
-	ID                        string       `json:"id,omitempty"`
-	Name                      string       `json:"name"`
-	Description               string       `json:"description,omitempty"`
-	ClientID                  string       `json:"client_id"`
-	ClientSecret              string       `json:"client_secret"`
-	RedirectURIs              []string     `json:"redirect_uris"`
-	GrantTypes                []string     `json:"grant_types"`
-	AuthFlowGraphID           string       `json:"auth_flow_graph_id,omitempty"`
-	RegistrationFlowGraphID   string       `json:"registration_flow_graph_id,omitempty"`
-	IsRegistrationFlowEnabled bool         `json:"is_registration_flow_enabled,omitempty"`
-	URL                       string       `json:"url,omitempty"`
-	LogoURL                   string       `json:"logo_url,omitempty"`
-	Certificate               *Certificate `json:"certificate,omitempty"`
+	ID                        string                  `json:"id,omitempty"`
+	Name                      string                  `json:"name"`
+	Description               string                  `json:"description,omitempty"`
+	ClientID                  string                  `json:"client_id"`
+	ClientSecret              string                  `json:"client_secret"`
+	RedirectURIs              []string                `json:"redirect_uris"`
+	GrantTypes                []string                `json:"grant_types"`
+	AuthFlowGraphID           string                  `json:"auth_flow_graph_id,omitempty"`
+	RegistrationFlowGraphID   string                  `json:"registration_flow_graph_id,omitempty"`
+	IsRegistrationFlowEnabled bool                    `json:"is_registration_flow_enabled,omitempty"`
+	URL                       string                  `json:"url,omitempty"`
+	LogoURL                   string                  `json:"logo_url,omitempty"`
+	Certificate               *ApplicationCertificate `json:"certificate,omitempty"`
 }
 
 // ApplicationGetResponse represents the response structure for getting an application.
 type ApplicationGetResponse struct {
-	ID                        string       `json:"id,omitempty"`
-	Name                      string       `json:"name"`
-	Description               string       `json:"description,omitempty"`
-	ClientID                  string       `json:"client_id"`
-	RedirectURIs              []string     `json:"redirect_uris"`
-	GrantTypes                []string     `json:"grant_types"`
-	AuthFlowGraphID           string       `json:"auth_flow_graph_id,omitempty"`
-	RegistrationFlowGraphID   string       `json:"registration_flow_graph_id,omitempty"`
-	IsRegistrationFlowEnabled bool         `json:"is_registration_flow_enabled,omitempty"`
-	URL                       string       `json:"url,omitempty"`
-	LogoURL                   string       `json:"logo_url,omitempty"`
-	Certificate               *Certificate `json:"certificate,omitempty"`
+	ID                        string                  `json:"id,omitempty"`
+	Name                      string                  `json:"name"`
+	Description               string                  `json:"description,omitempty"`
+	ClientID                  string                  `json:"client_id"`
+	RedirectURIs              []string                `json:"redirect_uris"`
+	GrantTypes                []string                `json:"grant_types"`
+	AuthFlowGraphID           string                  `json:"auth_flow_graph_id,omitempty"`
+	RegistrationFlowGraphID   string                  `json:"registration_flow_graph_id,omitempty"`
+	IsRegistrationFlowEnabled bool                    `json:"is_registration_flow_enabled,omitempty"`
+	URL                       string                  `json:"url,omitempty"`
+	LogoURL                   string                  `json:"logo_url,omitempty"`
+	Certificate               *ApplicationCertificate `json:"certificate,omitempty"`
 }
 
 // BasicApplicationResponse represents a simplified response structure for an application.

@@ -55,42 +55,7 @@ func NewApplicationStore() ApplicationStoreInterface {
 
 // CreateApplication creates a new application in the database.
 func (st *ApplicationStore) CreateApplication(app model.ApplicationProcessedDTO) error {
-	// TODO: Need to refactor when supporting other/multiple inbound auth types.
-	inboundAuthConfig := app.InboundAuthConfig[0]
-	callBackURIs, grantTypes := getCallbackURIsAndGrantTypes(inboundAuthConfig)
-
-	// Construct the app JSON
-	jsonData := map[string]interface{}{
-		"url":      app.URL,
-		"logo_url": app.LogoURL,
-	}
-	jsonDataBytes, err := json.Marshal(jsonData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal application JSON: %w", err)
-	}
-
-	queries := []func(tx dbmodel.TxInterface) error{
-		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryCreateApplication.Query, app.ID, app.Name, app.Description, app.AuthFlowGraphID,
-				app.RegistrationFlowGraphID, app.IsRegistrationFlowEnabled, jsonDataBytes)
-			return err
-		},
-		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryCreateOAuthApplication.Query, app.ID, inboundAuthConfig.OAuthAppConfig.ClientID,
-				inboundAuthConfig.OAuthAppConfig.HashedClientSecret, callBackURIs, grantTypes)
-			return err
-		},
-		func(tx dbmodel.TxInterface) error {
-			if app.Certificate != nil && app.Certificate.Type != constants.CertificateTypeNone {
-				_, err := tx.Exec(QueryInsertApplicationCertificate.Query, app.Certificate.ID,
-					app.ID, app.Certificate.Type, app.Certificate.Value)
-				return err
-			}
-			return nil
-		},
-	}
-
-	return executeTransaction(queries)
+	return createOrUpdateApplication(&app, QueryCreateApplication, QueryCreateOAuthApplication)
 }
 
 // GetApplicationList retrieves a list of applications from the database.
@@ -155,27 +120,17 @@ func (st *ApplicationStore) GetApplication(id string) (model.ApplicationProcesse
 		logger.Error("application not found")
 		return model.ApplicationProcessedDTO{}, fmt.Errorf("application not found")
 	}
-
 	if len(results) != 1 {
 		logger.Error("unexpected number of results")
 		return model.ApplicationProcessedDTO{}, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
 	row := results[0]
-
 	application, err := buildApplicationFromResultRow(row)
 	if err != nil {
 		logger.Error("failed to build application from result row", log.Error(err))
 		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to build application from result row: %w", err)
 	}
-
-	// Retrieve application certificate.
-	certificate, err := GetApplicationCertificate(application.ID)
-	if err != nil {
-		logger.Error("failed to get application certificate", log.Error(err))
-		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to get application certificate: %w", err)
-	}
-	application.Certificate = certificate
 
 	return application, nil
 }
@@ -243,106 +198,9 @@ func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAp
 	}, nil
 }
 
-// GetApplicationCertificate retrieves the certificate of an application by its ID.
-func GetApplicationCertificate(appID string) (*model.Certificate, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
-	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
-		return nil, fmt.Errorf("failed to get database client: %w", err)
-	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
-
-	results, err := dbClient.Query(QueryGetApplicationCertificate, appID)
-	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
-		return nil, fmt.Errorf("failed to execute query: %w", err)
-	}
-
-	if len(results) == 0 {
-		return &model.Certificate{
-			Type:  constants.CertificateTypeNone,
-			Value: "",
-		}, nil
-	}
-
-	row := results[0]
-
-	certID, ok := row["cert_id"].(string)
-	if !ok {
-		logger.Error("failed to parse cert_id as string")
-		return nil, fmt.Errorf("failed to parse cert_id as string")
-	}
-
-	typeStr, ok := row["type"].(string)
-	if !ok {
-		logger.Error("failed to parse type as string")
-		return nil, fmt.Errorf("failed to parse type as string")
-	}
-	certificateType := constants.CertificateType(typeStr)
-
-	value, ok := row["value"].(string)
-	if !ok {
-		logger.Error("failed to parse value as string")
-		return nil, fmt.Errorf("failed to parse value as string")
-	}
-
-	certificate := &model.Certificate{
-		ID:    certID,
-		Type:  certificateType,
-		Value: value,
-	}
-
-	return certificate, nil
-}
-
 // UpdateApplication updates an existing application in the database.
 func (st *ApplicationStore) UpdateApplication(app *model.ApplicationProcessedDTO) error {
-	// TODO: Need to refactor when supporting other/multiple inbound auth types.
-	inboundAuthConfig := app.InboundAuthConfig[0]
-	callBackURIs, grantTypes := getCallbackURIsAndGrantTypes(inboundAuthConfig)
-
-	// Construct the app JSON
-	jsonData := map[string]interface{}{
-		"url":      app.URL,
-		"logo_url": app.LogoURL,
-	}
-	jsonDataBytes, err := json.Marshal(jsonData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal application JSON: %w", err)
-	}
-
-	queries := []func(tx dbmodel.TxInterface) error{
-		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryUpdateApplicationByAppID.Query, app.ID, app.Name, app.Description,
-				app.AuthFlowGraphID, app.RegistrationFlowGraphID, app.IsRegistrationFlowEnabled, jsonDataBytes)
-			return err
-		},
-		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryUpdateOAuthApplicationByAppID.Query, app.ID,
-				inboundAuthConfig.OAuthAppConfig.ClientID, inboundAuthConfig.OAuthAppConfig.HashedClientSecret,
-				callBackURIs, grantTypes)
-			return err
-		},
-		func(tx dbmodel.TxInterface) error {
-			if app.Certificate == nil || app.Certificate.Type == constants.CertificateTypeNone {
-				_, err := tx.Exec(QueryDeleteApplicationCertificate.Query, app.ID)
-				return err
-			} else {
-				_, err := tx.Exec(QueryUpdateApplicationCertificate.Query, app.ID, app.Certificate.Type,
-					app.Certificate.Value)
-				return err
-			}
-		},
-	}
-
-	return executeTransaction(queries)
+	return createOrUpdateApplication(app, QueryUpdateApplicationByAppID, QueryUpdateOAuthApplicationByAppID)
 }
 
 // DeleteApplication deletes an application from the database by its ID.
@@ -381,6 +239,40 @@ func getCallbackURIsAndGrantTypes(inboundAuthConfig model.InboundAuthConfigProce
 		grantTypes = strings.Join(inboundAuthConfig.OAuthAppConfig.GrantTypes, ",")
 	}
 	return callBackURIs, grantTypes
+}
+
+// createOrUpdateApplication creates or updates an application in the database.
+func createOrUpdateApplication(app *model.ApplicationProcessedDTO,
+	appMgtQuery dbmodel.DBQuery, oauthAppMgtQuery dbmodel.DBQuery) error {
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	inboundAuthConfig := app.InboundAuthConfig[0]
+	callBackURIs, grantTypes := getCallbackURIsAndGrantTypes(inboundAuthConfig)
+
+	// Construct the app JSON
+	jsonData := map[string]interface{}{
+		"url":      app.URL,
+		"logo_url": app.LogoURL,
+	}
+	jsonDataBytes, err := json.Marshal(jsonData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal application JSON: %w", err)
+	}
+
+	queries := []func(tx dbmodel.TxInterface) error{
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(appMgtQuery.Query, app.ID, app.Name, app.Description,
+				app.AuthFlowGraphID, app.RegistrationFlowGraphID, app.IsRegistrationFlowEnabled, jsonDataBytes)
+			return err
+		},
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(oauthAppMgtQuery.Query, app.ID,
+				inboundAuthConfig.OAuthAppConfig.ClientID, inboundAuthConfig.OAuthAppConfig.HashedClientSecret,
+				callBackURIs, grantTypes)
+			return err
+		},
+	}
+
+	return executeTransaction(queries)
 }
 
 // buildBasicApplicationFromResultRow constructs a BasicApplicationDTO from a database result row.
