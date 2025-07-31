@@ -23,6 +23,7 @@ package services
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/asgardeo/thunder/internal/group/handler"
 	"github.com/asgardeo/thunder/internal/system/server"
@@ -67,7 +68,20 @@ func (s *GroupService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	s.serverOpsService.WrapHandleFunction(mux, "GET /groups/{id}", &opts2, s.groupHandler.HandleGroupGetRequest)
+	s.serverOpsService.WrapHandleFunction(mux, "GET /groups/", &opts2,
+		func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/groups/")
+			segments := strings.Split(path, "/")
+			r.SetPathValue("id", segments[0])
+
+			if len(segments) == 1 {
+				s.groupHandler.HandleGroupGetRequest(w, r)
+			} else if len(segments) == 2 && segments[1] == "members" {
+				s.groupHandler.HandleGroupMembersGetRequest(w, r)
+			} else {
+				http.NotFound(w, r)
+			}
+		})
 	s.serverOpsService.WrapHandleFunction(mux, "PUT /groups/{id}", &opts2, s.groupHandler.HandleGroupPutRequest)
 	s.serverOpsService.WrapHandleFunction(mux, "DELETE /groups/{id}", &opts2, s.groupHandler.HandleGroupDeleteRequest)
 	s.serverOpsService.WrapHandleFunction(
@@ -81,16 +95,18 @@ func (s *GroupService) RegisterRoutes(mux *http.ServeMux) {
 
 	opts3 := server.RequestWrapOptions{
 		Cors: &server.Cors{
-			AllowedMethods:   "GET",
+			AllowedMethods:   "GET, POST",
 			AllowedHeaders:   "Content-Type, Authorization",
 			AllowCredentials: true,
 		},
 	}
-	s.serverOpsService.WrapHandleFunction(mux, "GET /groups/{id}/members", &opts3,
-		s.groupHandler.HandleGroupMembersGetRequest)
+	s.serverOpsService.WrapHandleFunction(mux, "GET /groups/tree/{path...}", &opts3,
+		s.groupHandler.HandleGroupListByPathRequest)
+	s.serverOpsService.WrapHandleFunction(mux, "POST /groups/tree/{path...}", &opts3,
+		s.groupHandler.HandleGroupPostByPathRequest)
 	s.serverOpsService.WrapHandleFunction(
 		mux,
-		"OPTIONS /groups/{id}/members",
+		"OPTIONS /groups/tree/{path...}",
 		&opts3,
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
