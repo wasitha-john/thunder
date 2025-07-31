@@ -33,3 +33,27 @@ const (
 	// OAuthInboundAuthType represents the OAuth 2.0 inbound authentication type.
 	OAuthInboundAuthType InboundAuthType = "oauth2"
 )
+
+// CertificateType represents the type of certificate used in the application.
+type CertificateType string
+
+const (
+	// CertificateTypeNone represents no certificate.
+	CertificateTypeNone CertificateType = "NONE"
+	// CertificateTypeJWKS represents a JSON Web Key Set (JWKS) certificate.
+	CertificateTypeJWKS CertificateType = "JWKS"
+	// CertificateTypeJWKSURI represents a JWKS URI certificate.
+	CertificateTypeJWKSURI CertificateType = "JWKS_URI"
+)
+
+// TokenEndpointAuthMethod represents the method used for token endpoint authentication.
+type TokenEndpointAuthMethod string
+
+const (
+	// TokenEndpointAuthMethodClientSecretBasic represents the client secret basic authentication method.
+	TokenEndpointAuthMethodClientSecretBasic TokenEndpointAuthMethod = "client_secret_basic"
+	// TokenEndpointAuthMethodClientSecretPost represents the client secret post authentication method.
+	TokenEndpointAuthMethodClientSecretPost TokenEndpointAuthMethod = "client_secret_post"
+	// TokenEndpointAuthMethodNone represents no authentication method.
+	TokenEndpointAuthMethodNone TokenEndpointAuthMethod = "none"
+)
