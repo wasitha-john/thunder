@@ -21,47 +21,47 @@ package constants
 
 // OAuth2 request parameters.
 const (
-	RequestParamGrantType        = "grant_type"
-	RequestParamClientID         = "client_id"
-	RequestParamClientSecret     = "client_secret"
-	RequestParamRedirectURI      = "redirect_uri"
-	RequestParamUsername         = "username"
-	RequestParamPassword         = "password"
-	RequestParamScope            = "scope"
-	RequestParamCode             = "code"
-	RequestParamCodeVerifier     = "code_verifier"
-	RequestParamRefreshToken     = "refresh_token"
-	RequestParamResponseType     = "response_type"
-	RequestParamState            = "state"
-	RequestParamError            = "error"
-	RequestParamErrorDescription = "error_description"
+	RequestParamGrantType        string = "grant_type"
+	RequestParamClientID         string = "client_id"
+	RequestParamClientSecret     string = "client_secret"
+	RequestParamRedirectURI      string = "redirect_uri"
+	RequestParamUsername         string = "username"
+	RequestParamPassword         string = "password"
+	RequestParamScope            string = "scope"
+	RequestParamCode             string = "code"
+	RequestParamCodeVerifier     string = "code_verifier"
+	RequestParamRefreshToken     string = "refresh_token"
+	RequestParamResponseType     string = "response_type"
+	RequestParamState            string = "state"
+	RequestParamError            string = "error"
+	RequestParamErrorDescription string = "error_description"
 )
 
 // Server OAuth constants.
 const (
-	SessionDataKey        = "sessionDataKey"
-	SessionDataKeyConsent = "sessionDataKeyConsent"
-	ShowInsecureWarning   = "showInsecureWarning"
-	AppID                 = "applicationId"
-	Assertion             = "assertion"
+	SessionDataKey        string = "sessionDataKey"
+	SessionDataKeyConsent string = "sessionDataKeyConsent"
+	ShowInsecureWarning   string = "showInsecureWarning"
+	AppID                 string = "applicationId"
+	Assertion             string = "assertion"
 )
 
 // Oauth message types.
 const (
-	TypeInitialAuthorizationRequest     = "initialAuthorizationRequest"
-	TypeAuthorizationResponseFromEngine = "authorizationResponseFromEngine"
-	TypeConsentResponseFromUser         = "consentResponseFromUser"
+	TypeInitialAuthorizationRequest     string = "initialAuthorizationRequest"
+	TypeAuthorizationResponseFromEngine string = "authorizationResponseFromEngine"
+	TypeConsentResponseFromUser         string = "consentResponseFromUser"
 )
 
 // OAuth2 endpoints.
 const (
-	OAuth2TokenEndpoint         = "/oauth2/token" // #nosec G101
-	OAuth2AuthorizationEndpoint = "/oauth2/authorize"
-	OAuth2IntrospectionEndpoint = "/oauth2/introspect"
-	OAuth2RevokeEndpoint        = "/oauth2/revoke"
-	OAuth2UserInfoEndpoint      = "/oauth2/userinfo"
-	OAuth2JWKSEndpoint          = "/oauth2/jwks"
-	OAuth2LogoutEndpoint        = "/oauth2/logout"
+	OAuth2TokenEndpoint         string = "/oauth2/token" // #nosec G101
+	OAuth2AuthorizationEndpoint string = "/oauth2/authorize"
+	OAuth2IntrospectionEndpoint string = "/oauth2/introspect"
+	OAuth2RevokeEndpoint        string = "/oauth2/revoke"
+	OAuth2UserInfoEndpoint      string = "/oauth2/userinfo"
+	OAuth2JWKSEndpoint          string = "/oauth2/jwks"
+	OAuth2LogoutEndpoint        string = "/oauth2/logout"
 )
 
 // GrantType defines a type for OAuth2 grant types.
@@ -145,13 +145,13 @@ const (
 
 // OAuth2 error codes.
 const (
-	ErrorInvalidRequest          = "invalid_request"
-	ErrorInvalidClient           = "invalid_client"
-	ErrorInvalidGrant            = "invalid_grant"
-	ErrorUnauthorizedClient      = "unauthorized_client"
-	ErrorUnsupportedGrantType    = "unsupported_grant_type"
-	ErrorInvalidScope            = "invalid_scope"
-	ErrorServerError             = "server_error"
-	ErrorUnsupportedResponseType = "unsupported_response_type"
-	ErrorAccessDenied            = "access_denied"
+	ErrorInvalidRequest          string = "invalid_request"
+	ErrorInvalidClient           string = "invalid_client"
+	ErrorInvalidGrant            string = "invalid_grant"
+	ErrorUnauthorizedClient      string = "unauthorized_client"
+	ErrorUnsupportedGrantType    string = "unsupported_grant_type"
+	ErrorInvalidScope            string = "invalid_scope"
+	ErrorServerError             string = "server_error"
+	ErrorUnsupportedResponseType string = "unsupported_response_type"
+	ErrorAccessDenied            string = "access_denied"
 )

@@ -75,7 +75,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 	grantType := constants.GrantType(grantTypeStr)
 	if !grantType.IsValid() {
-		utils.WriteJSONError(w, constants.ErrorInvalidRequest,
+		utils.WriteJSONError(w, constants.ErrorUnsupportedGrantType,
 			"Invalid grant_type parameter", http.StatusBadRequest, nil)
 		return
 	}
@@ -94,51 +94,8 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Extract client credentials from the request.
-	tokenAuthMethod := constants.TokenEndpointAuthMethodNone
-	clientID := ""
-	clientSecret := ""
-	if r.Header.Get("Authorization") != "" {
-		var err error
-		clientID, clientSecret, err = utils.ExtractBasicAuthCredentials(r)
-		if err != nil {
-			if err.Error() == "invalid authorization header" {
-				responseHeaders := []map[string]string{
-					{"WWW-Authenticate": "Basic"},
-				}
-				utils.WriteJSONError(w, constants.ErrorInvalidClient,
-					"Invalid client credentials", http.StatusUnauthorized, responseHeaders)
-				return
-			}
-			utils.WriteJSONError(w, constants.ErrorInvalidClient,
-				"Invalid client credentials", http.StatusUnauthorized, nil)
-			return
-		}
-
-		if clientID != "" && clientSecret != "" {
-			tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretBasic
-		}
-	}
-
-	// Check for client credentials in the request body.
-	clientIDFromBody := r.FormValue(constants.RequestParamClientID)
-	clientSecretFromBody := r.FormValue(constants.RequestParamClientSecret)
-
-	if clientIDFromBody != "" && clientSecretFromBody != "" {
-		if clientID != "" && clientSecret != "" {
-			utils.WriteJSONError(w, constants.ErrorInvalidRequest,
-				"Authorization information is provided in both header and body", http.StatusBadRequest, nil)
-			return
-		}
-
-		clientID = clientIDFromBody
-		clientSecret = clientSecretFromBody
-		tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretPost
-	}
-
-	if clientID == "" {
-		utils.WriteJSONError(w, constants.ErrorInvalidRequest, "Missing client_id parameter",
-			http.StatusBadRequest, nil)
+	clientID, clientSecret, tokenAuthMethod, ok := extractClientIDAndSecret(r, w)
+	if !ok {
 		return
 	}
 
@@ -170,7 +127,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Validate grant type against the application.
-	if !oauthApp.IsAllowedGrantType(grantTypeStr) {
+	if !oauthApp.IsAllowedGrantType(grantType) {
 		utils.WriteJSONError(w, constants.ErrorUnauthorizedClient,
 			"The client is not authorized to use this grant type", http.StatusUnauthorized, nil)
 		return
@@ -218,7 +175,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 
 	// Generate and add refresh token if applicable.
 	if grantType == constants.GrantTypeAuthorizationCode &&
-		oauthApp.IsAllowedGrantType(string(constants.GrantTypeRefreshToken)) {
+		oauthApp.IsAllowedGrantType(constants.GrantTypeRefreshToken) {
 		logger.Debug("Issuing refresh token for the token request", log.String("client_id", clientID),
 			log.String("grant_type", grantTypeStr))
 
@@ -258,4 +215,58 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	logger.Debug("Token response sent", log.String("client_id", clientID), log.String("grant_type", grantTypeStr))
+}
+
+// extractClientIDAndSecret extracts the client ID and secret from the request.
+// It returns the client ID, client secret, token authentication method, and a boolean indicating success.
+func extractClientIDAndSecret(r *http.Request, w http.ResponseWriter) (
+	string, string, constants.TokenEndpointAuthMethod, bool) {
+	tokenAuthMethod := constants.TokenEndpointAuthMethodNone
+	clientID := ""
+	clientSecret := ""
+	if r.Header.Get("Authorization") != "" {
+		var err error
+		clientID, clientSecret, err = utils.ExtractBasicAuthCredentials(r)
+		if err != nil {
+			if err.Error() == "invalid authorization header" {
+				responseHeaders := []map[string]string{
+					{"WWW-Authenticate": "Basic"},
+				}
+				utils.WriteJSONError(w, constants.ErrorInvalidClient,
+					"Invalid client credentials", http.StatusUnauthorized, responseHeaders)
+				return "", "", "", false
+			}
+			utils.WriteJSONError(w, constants.ErrorInvalidClient,
+				"Invalid client credentials", http.StatusUnauthorized, nil)
+			return "", "", "", false
+		}
+
+		if clientID != "" && clientSecret != "" {
+			tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretBasic
+		}
+	}
+
+	// Check for client credentials in the request body.
+	clientIDFromBody := r.FormValue(constants.RequestParamClientID)
+	clientSecretFromBody := r.FormValue(constants.RequestParamClientSecret)
+
+	if clientIDFromBody != "" && clientSecretFromBody != "" {
+		if clientID != "" && clientSecret != "" {
+			utils.WriteJSONError(w, constants.ErrorInvalidRequest,
+				"Authorization information is provided in both header and body", http.StatusBadRequest, nil)
+			return "", "", "", false
+		}
+
+		clientID = clientIDFromBody
+		clientSecret = clientSecretFromBody
+		tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretPost
+	}
+
+	if clientID == "" {
+		utils.WriteJSONError(w, constants.ErrorInvalidRequest, "Missing client_id parameter",
+			http.StatusBadRequest, nil)
+		return "", "", "", false
+	}
+
+	return clientID, clientSecret, tokenAuthMethod, true
 }

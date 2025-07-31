@@ -40,7 +40,7 @@ type OAuthAppConfig struct {
 }
 
 // IsAllowedGrantType checks if the provided grant type is allowed.
-func (o *OAuthAppConfig) IsAllowedGrantType(grantType string) bool {
+func (o *OAuthAppConfig) IsAllowedGrantType(grantType oauth2const.GrantType) bool {
 	return isAllowedGrantType(o.GrantTypes, grantType)
 }
 
@@ -71,7 +71,7 @@ type OAuthAppConfigProcessed struct {
 }
 
 // IsAllowedGrantType checks if the provided grant type is allowed.
-func (o *OAuthAppConfigProcessed) IsAllowedGrantType(grantType string) bool {
+func (o *OAuthAppConfigProcessed) IsAllowedGrantType(grantType oauth2const.GrantType) bool {
 	return isAllowedGrantType(o.GrantTypes, grantType)
 }
 
@@ -91,11 +91,11 @@ func (o *OAuthAppConfigProcessed) ValidateRedirectURI(redirectURI string) error 
 }
 
 // isAllowedGrantType checks if the provided grant type is in the allowed list.
-func isAllowedGrantType(grantTypes []oauth2const.GrantType, grantType string) bool {
+func isAllowedGrantType(grantTypes []oauth2const.GrantType, grantType oauth2const.GrantType) bool {
 	if grantType == "" {
 		return false
 	}
-	return slices.Contains(grantTypes, oauth2const.GrantType(grantType))
+	return slices.Contains(grantTypes, grantType)
 }
 
 // isAllowedResponseType checks if the provided response type is in the allowed list.

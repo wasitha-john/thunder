@@ -31,7 +31,6 @@ import (
 	certconst "github.com/asgardeo/thunder/internal/cert/constants"
 	certmodel "github.com/asgardeo/thunder/internal/cert/model"
 	"github.com/asgardeo/thunder/internal/flow/graphservice"
-	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
@@ -373,7 +372,7 @@ func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.In
 		return nil, errors.New("client secret cannot be empty")
 	}
 	if len(oauthAppConfig.RedirectURIs) == 0 {
-		return nil, errors.New("at least one callback URL is required")
+		return nil, errors.New("at least one Redirect URI is required")
 	}
 
 	// Validate the redirect URIs.
@@ -385,7 +384,6 @@ func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.In
 
 	// Validate the grant types.
 	for _, grantType := range oauthAppConfig.GrantTypes {
-		grantType := oauth2const.GrantType(grantType)
 		if !grantType.IsValid() {
 			return nil, fmt.Errorf("invalid grant type: %s", grantType)
 		}
@@ -393,7 +391,6 @@ func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.In
 
 	// Validate the response types.
 	for _, responseType := range oauthAppConfig.ResponseTypes {
-		responseType := oauth2const.ResponseType(responseType)
 		if !responseType.IsValid() {
 			return nil, fmt.Errorf("invalid response type: %s", responseType)
 		}
@@ -401,7 +398,6 @@ func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.In
 
 	// Validate the token endpoint authentication methods.
 	for _, authMethod := range oauthAppConfig.TokenEndpointAuthMethod {
-		authMethod := oauth2const.TokenEndpointAuthMethod(authMethod)
 		if !authMethod.IsValid() {
 			return nil, fmt.Errorf("invalid token endpoint authentication method: %s", authMethod)
 		}
@@ -518,10 +514,6 @@ func (as *ApplicationService) deleteApplicationCertificate(appID string) error {
 
 	if certErr := as.CertService.DeleteCertificateByReference(
 		certconst.CertificateReferenceTypeApplication, appID); certErr != nil {
-		if certErr.Code == certconst.ErrorCertificateNotFound.Code {
-			return nil
-		}
-
 		logger.Error("Failed to delete application certificate", log.Any("serviceError", certErr),
 			log.String("appID", appID))
 		return fmt.Errorf("error while deleting application certificate: %s", certErr.ErrorDescription)

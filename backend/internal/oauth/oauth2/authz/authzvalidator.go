@@ -60,7 +60,7 @@ func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model
 	}
 
 	// Validate if the authorization code grant type is allowed for the app.
-	if !oauthApp.IsAllowedGrantType(string(constants.GrantTypeAuthorizationCode)) {
+	if !oauthApp.IsAllowedGrantType(constants.GrantTypeAuthorizationCode) {
 		return true, constants.ErrorUnsupportedGrantType,
 			"Authorization code grant type is not allowed for the client"
 	}
