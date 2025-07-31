@@ -36,12 +36,10 @@ const (
 
 var (
 	preCreatedApp = Application{
-		ID:           "550e8400-e29b-41d4-a716-446655440000",
-		Name:         "Test SPA",
-		Description:  "Initial testing App",
-		ClientID:     "client123",
-		RedirectURIs: []string{"https://localhost:3000"},
-		GrantTypes:   []string{"client_credentials", "authorization_code"},
+		ID:          "550e8400-e29b-41d4-a716-446655440000",
+		Name:        "Test SPA",
+		Description: "Initial testing App",
+		ClientID:    "client123",
 	}
 
 	appToCreate = Application{
@@ -145,7 +143,7 @@ func (ts *ApplicationAPITestSuite) TestApplicationListing() {
 	}
 
 	app2 := applications[1]
-	createdApp := buildCreatedApp()
+	createdApp := buildCreatedAppBasic()
 	if !app2.equals(createdApp) {
 		ts.T().Fatalf("Application mismatch, expected %+v, got %+v", createdApp, app2)
 	}
@@ -329,5 +327,15 @@ func buildCreatedApp() Application {
 		ClientSecret: appToCreate.ClientSecret,
 		RedirectURIs: appToCreate.RedirectURIs,
 		GrantTypes:   appToCreate.GrantTypes,
+	}
+}
+
+func buildCreatedAppBasic() Application {
+
+	return Application{
+		ID:          createdAppID,
+		Name:        appToCreate.Name,
+		Description: appToCreate.Description,
+		ClientID:    appToCreate.ClientID,
 	}
 }

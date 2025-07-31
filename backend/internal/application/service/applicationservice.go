@@ -32,13 +32,14 @@ import (
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
+	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // ApplicationServiceInterface defines the interface for the application service.
 type ApplicationServiceInterface interface {
 	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, error)
 	CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO, error)
-	GetApplicationList() ([]model.ApplicationProcessedDTO, error)
+	GetApplicationList() ([]model.BasicApplicationDTO, error)
 	GetApplication(appID string) (*model.ApplicationProcessedDTO, error)
 	UpdateApplication(appID string, app *model.ApplicationDTO) (*model.ApplicationDTO, error)
 	DeleteApplication(appID string) error
@@ -105,11 +106,23 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		return nil, err
 	}
 
-	app.ID = utils.GenerateUUID()
+	if app.URL != "" && !sysutils.IsValidURI(app.URL) {
+		return nil, errors.New("application URL is not a valid URI")
+	}
+	if app.LogoURL != "" && !sysutils.IsValidURI(app.LogoURL) {
+		return nil, errors.New("application logo URL is not a valid URI")
+	}
+
+	cert, err := getValidatedCertificate(app)
+	if err != nil {
+		return nil, err
+	}
+
+	appID := utils.GenerateUUID()
 	processedInboundAuthConfig := model.InboundAuthConfigProcessed{
 		Type: constants.OAuthInboundAuthType,
 		OAuthAppConfig: &model.OAuthAppConfigProcessed{
-			AppID:              app.ID,
+			AppID:              appID,
 			ClientID:           inboundAuthConfig.OAuthAppConfig.ClientID,
 			HashedClientSecret: hash.HashString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
 			RedirectURIs:       inboundAuthConfig.OAuthAppConfig.RedirectURIs,
@@ -117,28 +130,44 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		},
 	}
 	processedDTO := &model.ApplicationProcessedDTO{
-		ID:                      app.ID,
-		Name:                    app.Name,
-		Description:             app.Description,
-		AuthFlowGraphID:         app.AuthFlowGraphID,
-		RegistrationFlowGraphID: app.RegistrationFlowGraphID,
-		InboundAuthConfig:       []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
+		ID:                        appID,
+		Name:                      app.Name,
+		Description:               app.Description,
+		AuthFlowGraphID:           app.AuthFlowGraphID,
+		RegistrationFlowGraphID:   app.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: app.IsRegistrationFlowEnabled,
+		URL:                       app.URL,
+		LogoURL:                   app.LogoURL,
+		Certificate:               cert,
+		InboundAuthConfig:         []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
 	}
 
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 
 	// Create the application.
-	err := as.Store.CreateApplication(*processedDTO)
+	err = as.Store.CreateApplication(*processedDTO)
 	if err != nil {
 		logger.Error("Failed to create application", log.Error(err))
 		return nil, err
 	}
 
-	return app, nil
+	returnApp := &model.ApplicationDTO{
+		ID:                        appID,
+		Name:                      app.Name,
+		Description:               app.Description,
+		AuthFlowGraphID:           app.AuthFlowGraphID,
+		RegistrationFlowGraphID:   app.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: app.IsRegistrationFlowEnabled,
+		URL:                       app.URL,
+		LogoURL:                   app.LogoURL,
+		Certificate:               cert,
+		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
+	}
+	return returnApp, nil
 }
 
 // GetApplicationList list the applications.
-func (as *ApplicationService) GetApplicationList() ([]model.ApplicationProcessedDTO, error) {
+func (as *ApplicationService) GetApplicationList() ([]model.BasicApplicationDTO, error) {
 	applications, err := as.Store.GetApplicationList()
 	if err != nil {
 		return nil, err
@@ -199,7 +228,18 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		return nil, err
 	}
 
-	app.ID = appID
+	if app.URL != "" && !sysutils.IsValidURI(app.URL) {
+		return nil, errors.New("application URL is not a valid URI")
+	}
+	if app.LogoURL != "" && !sysutils.IsValidURI(app.LogoURL) {
+		return nil, errors.New("application logo URL is not a valid URI")
+	}
+
+	cert, err := getValidatedCertificate(app)
+	if err != nil {
+		return nil, err
+	}
+
 	processedInboundAuthConfig := model.InboundAuthConfigProcessed{
 		Type: constants.OAuthInboundAuthType,
 		OAuthAppConfig: &model.OAuthAppConfigProcessed{
@@ -211,20 +251,36 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		},
 	}
 	processedDTO := &model.ApplicationProcessedDTO{
-		ID:                      appID,
-		Name:                    app.Name,
-		Description:             app.Description,
-		AuthFlowGraphID:         app.AuthFlowGraphID,
-		RegistrationFlowGraphID: app.RegistrationFlowGraphID,
-		InboundAuthConfig:       []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
+		ID:                        appID,
+		Name:                      app.Name,
+		Description:               app.Description,
+		AuthFlowGraphID:           app.AuthFlowGraphID,
+		RegistrationFlowGraphID:   app.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: app.IsRegistrationFlowEnabled,
+		URL:                       app.URL,
+		LogoURL:                   app.LogoURL,
+		Certificate:               cert,
+		InboundAuthConfig:         []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
 	}
 
-	err := as.Store.UpdateApplication(processedDTO)
+	err = as.Store.UpdateApplication(processedDTO)
 	if err != nil {
 		return nil, err
 	}
 
-	return app, nil
+	returnApp := &model.ApplicationDTO{
+		ID:                        appID,
+		Name:                      app.Name,
+		Description:               app.Description,
+		AuthFlowGraphID:           app.AuthFlowGraphID,
+		RegistrationFlowGraphID:   app.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: app.IsRegistrationFlowEnabled,
+		URL:                       app.URL,
+		LogoURL:                   app.LogoURL,
+		Certificate:               cert,
+		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
+	}
+	return returnApp, nil
 }
 
 // DeleteApplication delete the application for given app id.
@@ -281,4 +337,47 @@ func validateRegistrationFlowGraphID(app *model.ApplicationDTO) error {
 func getDefaultAuthFlowGraphID() string {
 	authFlowConfig := config.GetThunderRuntime().Config.Flow.Authn
 	return authFlowConfig.DefaultFlow
+}
+
+// getValidatedCertificate validates and returns the certificate for the application.
+func getValidatedCertificate(app *model.ApplicationDTO) (*model.Certificate, error) {
+	if app.Certificate == nil {
+		return &model.Certificate{
+			Type:  constants.CertificateTypeNone,
+			Value: "",
+		}, nil
+	}
+	if app.Certificate.Type == "" {
+		return &model.Certificate{
+			Type:  constants.CertificateTypeNone,
+			Value: "",
+		}, nil
+	}
+	switch app.Certificate.Type {
+	case constants.CertificateTypeNone:
+		return &model.Certificate{
+			Type:  constants.CertificateTypeNone,
+			Value: "",
+		}, nil
+	case constants.CertificateTypeJWKS:
+		if app.Certificate.Value == "" {
+			return nil, errors.New("JWKS certificate value cannot be empty")
+		}
+		return &model.Certificate{
+			ID:    sysutils.GenerateUUID(),
+			Type:  constants.CertificateTypeJWKS,
+			Value: app.Certificate.Value,
+		}, nil
+	case constants.CertificateTypeJWKSURI:
+		if !sysutils.IsValidURI(app.Certificate.Value) {
+			return nil, errors.New("JWKS URI certificate value is not a valid URI")
+		}
+		return &model.Certificate{
+			ID:    sysutils.GenerateUUID(),
+			Type:  constants.CertificateTypeJWKSURI,
+			Value: app.Certificate.Value,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported certificate type: %s", app.Certificate.Type)
+	}
 }
