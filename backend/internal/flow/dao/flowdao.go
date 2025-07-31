@@ -56,16 +56,18 @@ type FlowDAOInterface interface {
 
 // FlowDAO is the implementation of FlowDAOInterface.
 type FlowDAO struct {
-	graphs map[string]model.GraphInterface
-	mu     sync.Mutex
+	graphs    map[string]model.GraphInterface
+	mu        sync.Mutex
+	flowStore store.FlowStoreInterface
 }
 
 // GetFlowDAO returns a singleton instance of FlowDAOInterface.
 func GetFlowDAO() FlowDAOInterface {
 	once.Do(func() {
 		instance = &FlowDAO{
-			graphs: make(map[string]model.GraphInterface),
-			mu:     sync.Mutex{},
+			graphs:    make(map[string]model.GraphInterface),
+			mu:        sync.Mutex{},
+			flowStore: store.NewFlowStore(),
 		}
 	})
 	return instance
@@ -202,7 +204,7 @@ func (c *FlowDAO) GetContextFromStore(flowID string) (model.EngineContext, bool)
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowDAO"))
 
 	// Get flow context from database
-	dbModel, err := store.GetFlowContext(flowID)
+	dbModel, err := c.flowStore.GetFlowContext(flowID)
 	if err != nil {
 		logger.Error("Failed to get flow context from database", log.Error(err))
 		return model.EngineContext{}, false
@@ -239,7 +241,7 @@ func (c *FlowDAO) StoreContextInStore(flowID string, context model.EngineContext
 	}
 
 	// Store flow context in database
-	err := store.StoreFlowContext(context)
+	err := c.flowStore.StoreFlowContext(context)
 	if err != nil {
 		logger.Error("Failed to store flow context in database", log.Error(err))
 		return fmt.Errorf("failed to store flow context in database: %w", err)
@@ -258,7 +260,7 @@ func (c *FlowDAO) UpdateContextInStore(flowID string, context model.EngineContex
 	}
 
 	// Update flow context in database
-	err := store.UpdateFlowContext(context)
+	err := c.flowStore.UpdateFlowContext(context)
 	if err != nil {
 		logger.Error("Failed to update flow context in database", log.Error(err))
 		return fmt.Errorf("failed to update flow context in database: %w", err)
@@ -277,7 +279,7 @@ func (c *FlowDAO) RemoveContextFromStore(flowID string) error {
 	}
 
 	// Remove flow context from database
-	err := store.DeleteFlowContext(flowID)
+	err := c.flowStore.DeleteFlowContext(flowID)
 	if err != nil {
 		logger.Error("Failed to remove flow context from database", log.Error(err))
 		return fmt.Errorf("failed to remove flow context from database: %w", err)

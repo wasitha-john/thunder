@@ -24,68 +24,63 @@ import (
 	"fmt"
 
 	"github.com/asgardeo/thunder/internal/flow/model"
+	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 const loggerComponentName = "FlowStore"
 
-// StoreFlowContext stores the complete flow context in the database.
-func StoreFlowContext(ctx model.EngineContext) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+// FlowStoreInterface defines the methods for flow context storage operations.
+type FlowStoreInterface interface {
+	StoreFlowContext(ctx model.EngineContext) error
+	GetFlowContext(flowID string) (*FlowContextWithUserDataDB, error)
+	UpdateFlowContext(ctx model.EngineContext) error
+	DeleteFlowContext(flowID string) error
+}
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("runtime")
-	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
-		return fmt.Errorf("failed to get database client: %w", err)
+// FlowStore implements the FlowStoreInterface for managing flow contexts.
+type FlowStore struct {
+	DBProvider provider.DBProviderInterface
+}
+
+// NewFlowStore creates a new instance of FlowStore.
+func NewFlowStore() FlowStoreInterface {
+	return &FlowStore{
+		DBProvider: provider.NewDBProvider(),
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
+}
 
+// StoreFlowContext stores the complete flow context in the database.
+func (s *FlowStore) StoreFlowContext(ctx model.EngineContext) error {
 	// Convert engine context to database model
 	dbModel, err := FromEngineContext(ctx)
 	if err != nil {
-		logger.Error("Failed to convert engine context to database model", log.Error(err))
 		return fmt.Errorf("failed to convert engine context to database model: %w", err)
 	}
 
-	logger.Debug("Storing flow context to database",
-		log.String("flowID", dbModel.FlowID),
-		log.String("currentNodeID", getStringValue(dbModel.CurrentNodeID)),
-		log.Bool("isAuthenticated", dbModel.IsAuthenticated),
-		log.String("userID", getStringValue(dbModel.UserID)))
-
-	// Store flow context
-	_, err = dbClient.Execute(QueryCreateFlowContext,
-		dbModel.FlowID, dbModel.AppID,
-		dbModel.CurrentNodeID, dbModel.CurrentActionID, dbModel.GraphID, dbModel.RuntimeData)
-	if err != nil {
-		logger.Error("Failed to create flow context", log.Error(err))
-		return fmt.Errorf("failed to create flow context: %w", err)
+	queries := []func(tx dbmodel.TxInterface) error{
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(QueryCreateFlowContext.Query, dbModel.FlowID, dbModel.AppID,
+				dbModel.CurrentNodeID, dbModel.CurrentActionID, dbModel.GraphID, dbModel.RuntimeData)
+			return err
+		},
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(QueryCreateFlowUserData.Query, dbModel.FlowID, dbModel.IsAuthenticated, dbModel.UserID,
+				dbModel.UserInputs, dbModel.UserAttributes)
+			return err
+		},
 	}
 
-	// Store flow user data
-	_, err = dbClient.Execute(QueryCreateFlowUserData,
-		dbModel.FlowID, dbModel.IsAuthenticated, dbModel.UserID,
-		dbModel.UserInputs, dbModel.UserAttributes)
-	if err != nil {
-		logger.Error("Failed to create flow user data", log.Error(err))
-		return fmt.Errorf("failed to create flow user data: %w", err)
-	}
-
-	return nil
+	return s.executeTransaction(queries)
 }
 
 // GetFlowContext retrieves the flow context from the database.
-func GetFlowContext(flowID string) (*FlowContextWithUserDataDB, error) {
+func (s *FlowStore) GetFlowContext(flowID string) (*FlowContextWithUserDataDB, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("runtime")
+	dbClient, err := s.DBProvider.GetDBClient("runtime")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -96,17 +91,14 @@ func GetFlowContext(flowID string) (*FlowContextWithUserDataDB, error) {
 
 	results, err := dbClient.Query(QueryGetFlowContextWithUserData, flowID)
 	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
-		logger.Debug("Flow context not found", log.String("flowID", flowID))
 		return nil, nil
 	}
 
 	if len(results) != 1 {
-		logger.Error("Unexpected number of results", log.Int("resultCount", len(results)))
 		return nil, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
@@ -115,61 +107,52 @@ func GetFlowContext(flowID string) (*FlowContextWithUserDataDB, error) {
 }
 
 // UpdateFlowContext updates the flow context in the database.
-func UpdateFlowContext(ctx model.EngineContext) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("runtime")
-	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
-		return fmt.Errorf("failed to get database client: %w", err)
-	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
-
+func (s *FlowStore) UpdateFlowContext(ctx model.EngineContext) error {
 	// Convert engine context to database model
 	dbModel, err := FromEngineContext(ctx)
 	if err != nil {
-		logger.Error("Failed to convert engine context to database model", log.Error(err))
 		return fmt.Errorf("failed to convert engine context to database model: %w", err)
 	}
 
-	logger.Debug("Updating flow context in database",
-		log.String("flowID", dbModel.FlowID),
-		log.String("currentNodeID", getStringValue(dbModel.CurrentNodeID)),
-		log.String("currentActionID", getStringValue(dbModel.CurrentActionID)),
-		log.Bool("isAuthenticated", dbModel.IsAuthenticated),
-		log.String("userID", getStringValue(dbModel.UserID)))
-
-	// Update flow context
-	_, err = dbClient.Execute(QueryUpdateFlowContext,
-		dbModel.FlowID, dbModel.CurrentNodeID, dbModel.CurrentActionID, dbModel.RuntimeData)
-	if err != nil {
-		logger.Error("Failed to update flow context", log.Error(err))
-		return fmt.Errorf("failed to update flow context: %w", err)
+	queries := []func(tx dbmodel.TxInterface) error{
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(QueryUpdateFlowContext.Query, dbModel.FlowID, dbModel.CurrentNodeID, dbModel.CurrentActionID, dbModel.RuntimeData)
+			return err
+		},
+		func(tx dbmodel.TxInterface) error {
+			_, err := tx.Exec(QueryUpdateFlowUserData.Query, dbModel.FlowID, dbModel.IsAuthenticated, dbModel.UserID,
+				dbModel.UserInputs, dbModel.UserAttributes)
+			return err
+		},
 	}
 
-	// Update flow user data
-	_, err = dbClient.Execute(QueryUpdateFlowUserData,
-		dbModel.FlowID, dbModel.IsAuthenticated, dbModel.UserID,
-		dbModel.UserInputs, dbModel.UserAttributes)
-	if err != nil {
-		logger.Error("Failed to update flow user data", log.Error(err))
-		return fmt.Errorf("failed to update flow user data: %w", err)
-	}
-
-	return nil
+	return s.executeTransaction(queries)
 }
 
 // DeleteFlowContext removes the flow context from the database.
-func DeleteFlowContext(flowID string) error {
+func (s *FlowStore) DeleteFlowContext(flowID string) error {
+	queries := []func(tx dbmodel.TxInterface) error{
+		func(tx dbmodel.TxInterface) error {
+			// Delete flow user data first (due to foreign key constraint)
+			_, err := tx.Exec(QueryDeleteFlowUserData.Query, flowID)
+			return err
+		},
+		func(tx dbmodel.TxInterface) error {
+			// Delete flow context
+			_, err := tx.Exec(QueryDeleteFlowContext.Query, flowID)
+			return err
+		},
+	}
+
+	return s.executeTransaction(queries)
+}
+
+// executeTransaction is a helper function to handle database transactions.
+func (s *FlowStore) executeTransaction(queries []func(tx dbmodel.TxInterface) error) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("runtime")
+	dbClient, err := s.DBProvider.GetDBClient("runtime")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -178,23 +161,25 @@ func DeleteFlowContext(flowID string) error {
 		}
 	}()
 
-	logger.Debug("Deleting flow context from database", log.String("flowID", flowID))
-
-	// Delete flow user data first (due to foreign key constraint)
-	_, err = dbClient.Execute(QueryDeleteFlowUserData, flowID)
+	tx, err := dbClient.BeginTx()
 	if err != nil {
-		logger.Error("Failed to delete flow user data", log.Error(err))
-		return fmt.Errorf("failed to delete flow user data: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Delete flow context
-	_, err = dbClient.Execute(QueryDeleteFlowContext, flowID)
-	if err != nil {
-		logger.Error("Failed to delete flow context", log.Error(err))
-		return fmt.Errorf("failed to delete flow context: %w", err)
+	for _, query := range queries {
+		if err := query(tx); err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				logger.Error("Failed to rollback transaction", log.Error(rollbackErr))
+				err = errors.Join(err, errors.New("failed to rollback transaction: "+rollbackErr.Error()))
+			}
+			return err
+		}
 	}
 
-	logger.Debug("Successfully deleted flow context from database", log.String("flowID", flowID))
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
 	return nil
 }
 
@@ -267,12 +252,4 @@ func parseBoolean(value interface{}) bool {
 	}
 
 	return false
-}
-
-// getStringValue safely returns the string value of a pointer, or "nil" if the pointer is nil
-func getStringValue(s *string) string {
-	if s == nil {
-		return "nil"
-	}
-	return *s
 }
