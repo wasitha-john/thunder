@@ -297,7 +297,7 @@ func getFlowGraph(appID string, flowType constants.FlowType) (string, *serviceer
 	}
 
 	appSvc := appservice.GetApplicationService()
-	app, err := appSvc.GetApplication(appID)
+	app, err := appSvc.GetApplicationByID(appID)
 	if err != nil {
 		return "", &constants.ErrorInvalidAppID
 	}

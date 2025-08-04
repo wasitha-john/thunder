@@ -126,13 +126,23 @@ func (ts *ApplicationAPITestSuite) TestApplicationListing() {
 	}
 
 	// Parse the response body
-	var applications []Application
-	err = json.NewDecoder(resp.Body).Decode(&applications)
+	var appList ApplicationList
+	err = json.NewDecoder(resp.Body).Decode(&appList)
 	if err != nil {
 		ts.T().Fatalf("Failed to parse response body: %v", err)
 	}
 
-	applicationListLength := len(applications)
+	totalResults := appList.TotalResults
+	if totalResults == 0 {
+		ts.T().Fatalf("Response does not contain a valid total results count")
+	}
+
+	appCount := appList.Count
+	if appCount == 0 {
+		ts.T().Fatalf("Response does not contain a valid application count")
+	}
+
+	applicationListLength := len(appList.Applications)
 	if applicationListLength == 0 {
 		ts.T().Fatalf("Response does not contain any applications")
 	}
@@ -141,12 +151,12 @@ func (ts *ApplicationAPITestSuite) TestApplicationListing() {
 		ts.T().Fatalf("Expected 2 applications, got %d", applicationListLength)
 	}
 
-	app1 := applications[0]
+	app1 := appList.Applications[0]
 	if !app1.equals(preCreatedApp) {
 		ts.T().Fatalf("Application mismatch, expected %+v, got %+v", preCreatedApp, app1)
 	}
 
-	app2 := applications[1]
+	app2 := appList.Applications[1]
 	createdApp := buildCreatedAppBasic()
 	if !app2.equals(createdApp) {
 		ts.T().Fatalf("Application mismatch, expected %+v, got %+v", createdApp, app2)
