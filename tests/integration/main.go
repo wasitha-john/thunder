@@ -88,7 +88,18 @@ func initTests() {
 }
 
 func runTests() error {
-	cmd := exec.Command("go", "test", "-p=1", "-v", "./...")
+	// Clean the test cache to avoid getting results from previous runs.
+	// This is important to avoid false positives in test results as the
+	// server and integration test suite are two separate applications.
+	cmd := exec.Command("go", "clean", "-testcache")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to clean test cache: %w", err)
+	}
+
+	cmd = exec.Command("go", "test", "-p=1", "-v", "./...")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
