@@ -217,8 +217,6 @@ function seed_databases() {
 
     echo "Seeding SQLite databases with initial data..."
 
-    mkdir -p "$REPOSITORY_DB_DIR"
-
     db_files=("thunderdb.db")
     seed_script_paths=("thunderdb/seed_data_sqlite.sql")
 
@@ -232,7 +230,6 @@ function seed_databases() {
             if [[ -f "$db_path" ]]; then
                 echo " - Seeding $db_file using $seed_script_path"
                 
-                # Use our custom seeder script which handles idempotency
                 if $override; then
                     "$SERVER_SCRIPTS_DIR/seed_data.sh" -type sqlite -seed "$seed_script_path" -path "$db_path" -force
                 else
