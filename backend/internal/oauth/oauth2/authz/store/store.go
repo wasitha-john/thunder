@@ -16,7 +16,8 @@
  * under the License.
  */
 
-package authz
+// Package store provides functionality for handling authorization code persistence and retrieval.
+package store
 
 import (
 	"errors"
@@ -30,9 +31,28 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
+const loggerComponentName = "AuthorizationCodeStore"
+
+// AuthorizationCodeStoreInterface defines the interface for managing authorization codes.
+type AuthorizationCodeStoreInterface interface {
+	InsertAuthorizationCode(authzCode model.AuthorizationCode) error
+	GetAuthorizationCode(clientID, authCode string) (model.AuthorizationCode, error)
+	DeactivateAuthorizationCode(authzCode model.AuthorizationCode) error
+	RevokeAuthorizationCode(authzCode model.AuthorizationCode) error
+	ExpireAuthorizationCode(authzCode model.AuthorizationCode) error
+}
+
+// AuthorizationCodeStore implements the AuthorizationCodeStoreInterface for managing authorization codes.
+type AuthorizationCodeStore struct{}
+
+// NewAuthorizationCodeStore creates a new instance of AuthorizationCodeStore.
+func NewAuthorizationCodeStore() AuthorizationCodeStoreInterface {
+	return &AuthorizationCodeStore{}
+}
+
 // InsertAuthorizationCode inserts a new authorization code into the database.
-func InsertAuthorizationCode(authzCode model.AuthorizationCode) error {
-	logger := log.GetLogger()
+func (acs *AuthorizationCodeStore) InsertAuthorizationCode(authzCode model.AuthorizationCode) error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("runtime")
 	if err != nil {
@@ -87,8 +107,8 @@ func InsertAuthorizationCode(authzCode model.AuthorizationCode) error {
 }
 
 // GetAuthorizationCode retrieves an authorization code by client Id and authorization code.
-func GetAuthorizationCode(clientID, authCode string) (model.AuthorizationCode, error) {
-	logger := log.GetLogger()
+func (acs *AuthorizationCodeStore) GetAuthorizationCode(clientID, authCode string) (model.AuthorizationCode, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("runtime")
 	if err != nil {
@@ -117,13 +137,13 @@ func GetAuthorizationCode(clientID, authCode string) (model.AuthorizationCode, e
 	}
 
 	// Handle time_created field.
-	timeCreated, err := parseTimeField(row["time_created"], "time_created")
+	timeCreated, err := parseTimeField(row["time_created"], "time_created", logger)
 	if err != nil {
 		return model.AuthorizationCode{}, err
 	}
 
 	// Handle expiry_time field.
-	expiryTime, err := parseTimeField(row["expiry_time"], "expiry_time")
+	expiryTime, err := parseTimeField(row["expiry_time"], "expiry_time", logger)
 	if err != nil {
 		return model.AuthorizationCode{}, err
 	}
@@ -151,9 +171,25 @@ func GetAuthorizationCode(clientID, authCode string) (model.AuthorizationCode, e
 	}, nil
 }
 
+// DeactivateAuthorizationCode deactivates an authorization code.
+func (acs *AuthorizationCodeStore) DeactivateAuthorizationCode(authzCode model.AuthorizationCode) error {
+	return acs.updateAuthorizationCodeState(authzCode, constants.AuthCodeStateInactive)
+}
+
+// RevokeAuthorizationCode revokes an authorization code.
+func (acs *AuthorizationCodeStore) RevokeAuthorizationCode(authzCode model.AuthorizationCode) error {
+	return acs.updateAuthorizationCodeState(authzCode, constants.AuthCodeStateRevoked)
+}
+
+// ExpireAuthorizationCode expires an authorization code.
+func (acs *AuthorizationCodeStore) ExpireAuthorizationCode(authzCode model.AuthorizationCode) error {
+	return acs.updateAuthorizationCodeState(authzCode, constants.AuthCodeStateExpired)
+}
+
 // updateAuthorizationCodeState updates the state of an authorization code.
-func updateAuthorizationCodeState(authzCode model.AuthorizationCode, newState string) error {
-	logger := log.GetLogger()
+func (acs *AuthorizationCodeStore) updateAuthorizationCodeState(authzCode model.AuthorizationCode,
+	newState string) error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("runtime")
 	if err != nil {
@@ -171,23 +207,8 @@ func updateAuthorizationCodeState(authzCode model.AuthorizationCode, newState st
 	return err
 }
 
-// DeactivateAuthorizationCode deactivates an authorization code.
-func DeactivateAuthorizationCode(authzCode model.AuthorizationCode) error {
-	return updateAuthorizationCodeState(authzCode, constants.AuthCodeStateInactive)
-}
-
-// RevokeAuthorizationCode revokes an authorization code.
-func RevokeAuthorizationCode(authzCode model.AuthorizationCode) error {
-	return updateAuthorizationCodeState(authzCode, constants.AuthCodeStateRevoked)
-}
-
-// ExpireAuthorizationCode expires an authorization code.
-func ExpireAuthorizationCode(authzCode model.AuthorizationCode) error {
-	return updateAuthorizationCodeState(authzCode, constants.AuthCodeStateExpired)
-}
-
 // Helper function to parse a time field from the database.
-func parseTimeField(field interface{}, fieldName string) (time.Time, error) {
+func parseTimeField(field interface{}, fieldName string, logger *log.Logger) (time.Time, error) {
 	const customTimeFormat = "2006-01-02 15:04:05.999999999"
 
 	switch v := field.(type) {
@@ -195,14 +216,14 @@ func parseTimeField(field interface{}, fieldName string) (time.Time, error) {
 		trimmedTime := trimTimeString(v)
 		parsedTime, err := time.Parse(customTimeFormat, trimmedTime)
 		if err != nil {
-			log.GetLogger().Error(fmt.Sprintf("Error parsing %s", fieldName), log.Error(err))
+			logger.Error("Error parsing time field", log.String("field", fieldName), log.Error(err))
 			return time.Time{}, fmt.Errorf("error parsing %s: %w", fieldName, err)
 		}
 		return parsedTime, nil
 	case time.Time:
 		return v, nil
 	default:
-		log.GetLogger().Error(fmt.Sprintf("Unexpected type for %s", fieldName), log.String("type", fmt.Sprintf("%T", v)))
+		logger.Error("Unexpected type for time field", log.String("field", fieldName), log.Any("value", v))
 		return time.Time{}, fmt.Errorf("unexpected type for %s", fieldName)
 	}
 }

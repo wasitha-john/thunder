@@ -45,7 +45,6 @@ func NewClientCredentialsGrantHandler() *ClientCredentialsGrantHandler {
 // ValidateGrant validates the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse {
-	// Validate the grant type.
 	if constants.GrantType(tokenRequest.GrantType) != constants.GrantTypeClientCredentials {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorUnsupportedGrantType,
@@ -66,7 +65,8 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 
 // HandleGrant handles the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
+	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (
+	*model.TokenResponseDTO, *model.ErrorResponse) {
 	scopeString := strings.TrimSpace(tokenRequest.Scope)
 	scopes := []string{}
 	if scopeString != "" {
