@@ -29,9 +29,18 @@ import (
 )
 
 // ClientCredentialsGrantHandler handles the client credentials grant type.
-type ClientCredentialsGrantHandler struct{}
+type ClientCredentialsGrantHandler struct {
+	JWTService jwt.JWTServiceInterface
+}
 
 var _ GrantHandler = (*ClientCredentialsGrantHandler)(nil)
+
+// NewClientCredentialsGrantHandler creates a new instance of ClientCredentialsGrantHandler.
+func NewClientCredentialsGrantHandler() *ClientCredentialsGrantHandler {
+	return &ClientCredentialsGrantHandler{
+		JWTService: jwt.GetJWTService(),
+	}
+}
 
 // ValidateGrant validates the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
@@ -69,7 +78,7 @@ func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	if scopeString != "" {
 		jwtClaims["scope"] = scopeString
 	}
-	token, _, err := jwt.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID,
+	token, _, err := h.JWTService.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID,
 		jwt.GetJWTTokenValidityPeriod(), jwtClaims)
 	if err != nil {
 		return nil, &model.ErrorResponse{

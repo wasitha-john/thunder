@@ -31,21 +31,48 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
+	"sync"
 	"time"
 
-	"github.com/asgardeo/thunder/internal/system/cert"
+	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
 const defaultTokenValidity = 3600 // default validity period of 1 hour
 
-var privateKey *rsa.PrivateKey
+var (
+	instance *JWTService
+	once     sync.Once
+)
 
-// LoadPrivateKey loads the private key from the specified file path in the configuration.
-func LoadPrivateKey(cfg *config.Config, currentDirectory string) error {
-	keyFilePath := path.Join(currentDirectory, cfg.Security.KeyFile)
+// JWTServiceInterface defines the interface for JWT operations.
+type JWTServiceInterface interface {
+	Init() error
+	GetPublicKey() *rsa.PublicKey
+	GenerateJWT(sub, aud string, validityPeriod int64, claims map[string]string) (string, int64, error)
+}
+
+// JWTService implements the JWTServiceInterface for generating and managing JWT tokens.
+type JWTService struct {
+	privateKey               *rsa.PrivateKey
+	SystemCertificateService cert.SystemCertificateServiceInterface
+}
+
+// GetJWTService returns a singleton instance of JWTService.
+func GetJWTService() *JWTService {
+	once.Do(func() {
+		instance = &JWTService{
+			SystemCertificateService: cert.NewSystemCertificateService(),
+		}
+	})
+	return instance
+}
+
+// Init loads the private key from the configured file path.
+func (js *JWTService) Init() error {
+	thunderRuntime := config.GetThunderRuntime()
+	keyFilePath := path.Join(thunderRuntime.ThunderHome, thunderRuntime.Config.Security.KeyFile)
 	keyFilePath = filepath.Clean(keyFilePath)
 
 	// Check if the key file exists.
@@ -67,7 +94,7 @@ func LoadPrivateKey(cfg *config.Config, currentDirectory string) error {
 
 	// Handle PKCS1 and PKCS8 private keys.
 	if block.Type == "RSA PRIVATE KEY" {
-		privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		js.privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
 		if err != nil {
 			return err
 		}
@@ -77,7 +104,7 @@ func LoadPrivateKey(cfg *config.Config, currentDirectory string) error {
 			return err
 		}
 		var ok bool
-		privateKey, ok = key.(*rsa.PrivateKey)
+		js.privateKey, ok = key.(*rsa.PrivateKey)
 		if !ok {
 			return errors.New("not an RSA private key")
 		}
@@ -88,24 +115,25 @@ func LoadPrivateKey(cfg *config.Config, currentDirectory string) error {
 	return nil
 }
 
-// GetPublicKey returns the RSA public key corresponding to the loaded private key.
-func GetPublicKey() *rsa.PublicKey {
-	if privateKey == nil {
+// GetPublicKey returns the RSA public key corresponding to the server's private key.
+func (js *JWTService) GetPublicKey() *rsa.PublicKey {
+	if js.privateKey == nil {
 		return nil
 	}
-	return &privateKey.PublicKey
+	return &js.privateKey.PublicKey
 }
 
 // GenerateJWT generates a standard JWT signed with the server's private key.
-func GenerateJWT(sub, aud string, validityPeriod int64, claims map[string]string) (string, int64, error) {
-	if privateKey == nil {
+func (js *JWTService) GenerateJWT(sub, aud string, validityPeriod int64, claims map[string]string) (
+	string, int64, error) {
+	if js.privateKey == nil {
 		return "", 0, errors.New("private key not loaded")
 	}
 
 	thunderRuntime := config.GetThunderRuntime()
 
 	// Get the certificate kid (Key ID) for the JWT header.
-	kid, err := cert.GetCertificateKid()
+	kid, err := js.SystemCertificateService.GetCertificateKid()
 	if err != nil {
 		return "", 0, err
 	}
@@ -161,7 +189,7 @@ func GenerateJWT(sub, aud string, validityPeriod int64, claims map[string]string
 	hashed := sha256.Sum256([]byte(signingInput))
 
 	// Sign the hashed input with the private key.
-	signature, err := rsa.SignPKCS1v15(nil, privateKey, crypto.SHA256, hashed[:])
+	signature, err := rsa.SignPKCS1v15(nil, js.privateKey, crypto.SHA256, hashed[:])
 	if err != nil {
 		return "", 0, err
 	}
@@ -170,32 +198,4 @@ func GenerateJWT(sub, aud string, validityPeriod int64, claims map[string]string
 	signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
 
 	return signingInput + "." + signatureBase64, iat.Unix(), nil
-}
-
-// DecodeJWT decodes a JWT string and returns its header and payload as maps.
-func DecodeJWT(token string) (map[string]interface{}, map[string]interface{}, error) {
-	parts := strings.SplitN(token, ".", 3)
-	if len(parts) != 3 {
-		return nil, nil, errors.New("invalid JWT format")
-	}
-
-	headerBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
-	if err != nil {
-		return nil, nil, errors.New("failed to decode JWT header: " + err.Error())
-	}
-	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, nil, errors.New("failed to decode JWT payload: " + err.Error())
-	}
-
-	header := make(map[string]interface{})
-	if err := json.Unmarshal(headerBytes, &header); err != nil {
-		return nil, nil, errors.New("failed to unmarshal JWT header: " + err.Error())
-	}
-	payload := make(map[string]interface{})
-	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
-		return nil, nil, errors.New("failed to unmarshal JWT payload: " + err.Error())
-	}
-
-	return header, payload, nil
 }

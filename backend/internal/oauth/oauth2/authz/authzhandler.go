@@ -497,7 +497,8 @@ func getAuthorizationCode(oAuthMessage *model.OAuthMessage, authUserID string) (
 
 // verifyAssertionSignature verifies the signature of the JWT assertion.
 func verifyAssertionSignature(assertion string, logger *log.Logger) error {
-	pubKey := jwt.GetPublicKey()
+	jwtService := jwt.GetJWTService()
+	pubKey := jwtService.GetPublicKey()
 	if pubKey == nil {
 		logger.Error("Server public key is not available for JWT assertion verification")
 		return errors.New("Internal server error")

@@ -35,9 +35,18 @@ import (
 const defaultRefreshTokenValidity = 86400 // default validity period of 1 day
 
 // RefreshTokenGrantHandler handles the refresh token grant type.
-type RefreshTokenGrantHandler struct{}
+type RefreshTokenGrantHandler struct {
+	JWTService jwt.JWTServiceInterface
+}
 
 var _ GrantHandler = (*RefreshTokenGrantHandler)(nil)
+
+// NewRefreshTokenGrantHandler creates a new instance of RefreshTokenGrantHandler.
+func NewRefreshTokenGrantHandler() *RefreshTokenGrantHandler {
+	return &RefreshTokenGrantHandler{
+		JWTService: jwt.GetJWTService(),
+	}
+}
 
 // ValidateGrant validates the refresh token grant request.
 func (h *RefreshTokenGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
@@ -109,7 +118,7 @@ func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	if len(newTokenScopes) > 0 {
 		jwtClaims["scope"] = strings.Join(newTokenScopes, " ")
 	}
-	accessToken, iat, err := jwt.GenerateJWT(sub, aud, validityPeriod, jwtClaims)
+	accessToken, iat, err := h.JWTService.GenerateJWT(sub, aud, validityPeriod, jwtClaims)
 	if err != nil {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
@@ -205,7 +214,7 @@ func (h *RefreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 		claims["access_token_aud"] = aud
 	}
 
-	token, iat, err := jwt.GenerateJWT(clientID, clientID, validityPeriod, claims)
+	token, iat, err := h.JWTService.GenerateJWT(clientID, clientID, validityPeriod, claims)
 	if err != nil {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
@@ -230,7 +239,7 @@ func (h *RefreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 // verifyRefreshTokenSignature verifies the signature of the refresh token using the server's public key.
 func (h *RefreshTokenGrantHandler) verifyRefreshTokenSignature(refreshToken string,
 	logger *log.Logger) *model.ErrorResponse {
-	pubKey := jwt.GetPublicKey()
+	pubKey := h.JWTService.GetPublicKey()
 	if pubKey == nil {
 		logger.Error("Server public key is not available for JWT verification")
 		return &model.ErrorResponse{

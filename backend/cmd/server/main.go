@@ -28,8 +28,8 @@ import (
 	"path"
 	"time"
 
+	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/flow"
-	"github.com/asgardeo/thunder/internal/system/cert"
 	"github.com/asgardeo/thunder/internal/system/managers"
 
 	"github.com/asgardeo/thunder/internal/oauth/jwt"
@@ -93,14 +93,15 @@ func initThunderConfigurations(logger *log.Logger, thunderHome string) *config.C
 		logger.Fatal("Failed to load configurations", log.Error(err))
 	}
 
-	// Load the server's private key for signing JWTs.
-	if err := jwt.LoadPrivateKey(cfg, thunderHome); err != nil {
-		logger.Fatal("Failed to load private key", log.Error(err))
-	}
-
 	// Initialize runtime configurations.
 	if err := config.InitializeThunderRuntime(thunderHome, cfg); err != nil {
 		logger.Fatal("Failed to initialize thunder runtime", log.Error(err))
+	}
+
+	// Load the server's private key for signing JWTs.
+	jwtService := jwt.GetJWTService()
+	if err := jwtService.Init(); err != nil {
+		logger.Fatal("Failed to load private key", log.Error(err))
 	}
 
 	return cfg
@@ -133,7 +134,8 @@ func startTLSServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, 
 	server, serverAddr := createHTTPServer(logger, cfg, mux)
 
 	// Get TLS configuration from the certificate and key files.
-	tlsConfig, err := cert.GetTLSConfig(cfg, thunderHome)
+	sysCertSvc := cert.NewSystemCertificateService()
+	tlsConfig, err := sysCertSvc.GetTLSConfig(cfg, thunderHome)
 	if err != nil {
 		logger.Fatal("Failed to load TLS configuration", log.Error(err))
 	}
