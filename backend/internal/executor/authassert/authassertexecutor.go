@@ -32,7 +32,8 @@ const loggerComponentName = "AuthAssertExecutor"
 
 // AuthAssertExecutor is an executor that handles authentication assertions in the flow.
 type AuthAssertExecutor struct {
-	internal flowmodel.Executor
+	internal   flowmodel.Executor
+	JWTService jwt.JWTServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*AuthAssertExecutor)(nil)
@@ -40,7 +41,8 @@ var _ flowmodel.ExecutorInterface = (*AuthAssertExecutor)(nil)
 // NewAuthAssertExecutor creates a new instance of AuthAssertExecutor.
 func NewAuthAssertExecutor(id, name string, properties map[string]string) *AuthAssertExecutor {
 	return &AuthAssertExecutor{
-		internal: *flowmodel.NewExecutor(id, name, []flowmodel.InputData{}, []flowmodel.InputData{}, properties),
+		internal:   *flowmodel.NewExecutor(id, name, []flowmodel.InputData{}, []flowmodel.InputData{}, properties),
+		JWTService: jwt.GetJWTService(),
 	}
 }
 
@@ -77,7 +79,7 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 			tokenSub = ctx.AuthenticatedUser.UserID
 		}
 
-		token, _, err := jwt.GenerateJWT(tokenSub, ctx.AppID, jwt.GetJWTTokenValidityPeriod(),
+		token, _, err := a.JWTService.GenerateJWT(tokenSub, ctx.AppID, jwt.GetJWTTokenValidityPeriod(),
 			ctx.AuthenticatedUser.Attributes)
 		if err != nil {
 			logger.Error("Failed to generate JWT token", log.Error(err))

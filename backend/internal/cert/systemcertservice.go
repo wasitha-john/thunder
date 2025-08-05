@@ -16,7 +16,6 @@
  * under the License.
  */
 
-// Package cert provides utilities for managing TLS certificates.
 package cert
 
 import (
@@ -31,8 +30,22 @@ import (
 	"github.com/asgardeo/thunder/internal/system/config"
 )
 
+// SystemCertificateServiceInterface defines the interface for system certificate operations.
+type SystemCertificateServiceInterface interface {
+	GetTLSConfig(cfg *config.Config, currentDirectory string) (*tls.Config, error)
+	GetCertificateKid() (string, error)
+}
+
+// SystemCertificateService implements the SystemCertificateServiceInterface for managing system certificates.
+type SystemCertificateService struct{}
+
+// NewSystemCertificateService creates a new instance of SystemCertificateService.
+func NewSystemCertificateService() SystemCertificateServiceInterface {
+	return &SystemCertificateService{}
+}
+
 // GetTLSConfig loads the TLS configuration from the certificate and key files.
-func GetTLSConfig(cfg *config.Config, currentDirectory string) (*tls.Config, error) {
+func (c *SystemCertificateService) GetTLSConfig(cfg *config.Config, currentDirectory string) (*tls.Config, error) {
 	certFilePath := path.Join(currentDirectory, cfg.Security.CertFile)
 	keyFilePath := path.Join(currentDirectory, cfg.Security.KeyFile)
 
@@ -58,9 +71,9 @@ func GetTLSConfig(cfg *config.Config, currentDirectory string) (*tls.Config, err
 }
 
 // GetCertificateKid extracts the Key ID (kid) from the TLS certificate using SHA-256 thumbprint.
-func GetCertificateKid() (string, error) {
+func (c *SystemCertificateService) GetCertificateKid() (string, error) {
 	thunderRuntime := config.GetThunderRuntime()
-	tlsConfig, err := GetTLSConfig(&thunderRuntime.Config, thunderRuntime.ThunderHome)
+	tlsConfig, err := c.GetTLSConfig(&thunderRuntime.Config, thunderRuntime.ThunderHome)
 	if err != nil {
 		return "", err
 	}

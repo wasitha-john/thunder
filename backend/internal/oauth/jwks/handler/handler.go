@@ -31,19 +31,22 @@ import (
 )
 
 // JWKSHandler handles requests for the JSON Web Key Set (JWKS).
-type JWKSHandler struct{}
+type JWKSHandler struct {
+	jwksService jwks.JWKSServiceInterface
+}
 
 // NewJWKSHandler creates a new instance of JWKSHandler.
 func NewJWKSHandler() *JWKSHandler {
-	return &JWKSHandler{}
+	return &JWKSHandler{
+		jwksService: jwks.NewJWKSService(),
+	}
 }
 
 // HandleJWKSRequest handles the HTTP request to retrieve the JSON Web Key Set (JWKS).
 func (h *JWKSHandler) HandleJWKSRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "JWKSHandler"))
 
-	svc := jwks.NewJWKSService()
-	jwksResponse, svcErr := svc.GetJWKS()
+	jwksResponse, svcErr := h.jwksService.GetJWKS()
 	if svcErr != nil {
 		h.handleError(w, logger, svcErr)
 		return

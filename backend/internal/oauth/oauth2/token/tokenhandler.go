@@ -83,11 +83,11 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	var grantHandler granthandlers.GrantHandler
 	switch grantType {
 	case constants.GrantTypeClientCredentials:
-		grantHandler = &granthandlers.ClientCredentialsGrantHandler{}
+		grantHandler = granthandlers.NewClientCredentialsGrantHandler()
 	case constants.GrantTypeAuthorizationCode:
-		grantHandler = &granthandlers.AuthorizationCodeGrantHandler{}
+		grantHandler = granthandlers.NewAuthorizationCodeGrantHandler()
 	case constants.GrantTypeRefreshToken:
-		grantHandler = &granthandlers.RefreshTokenGrantHandler{}
+		grantHandler = granthandlers.NewRefreshTokenGrantHandler()
 	default:
 		utils.WriteJSONError(w, constants.ErrorUnsupportedGrantType,
 			"Unsupported grant type", http.StatusBadRequest, nil)
@@ -179,7 +179,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		logger.Debug("Issuing refresh token for the token request", log.String("client_id", clientID),
 			log.String("grant_type", grantTypeStr))
 
-		refreshGrantHandler := &granthandlers.RefreshTokenGrantHandler{}
+		refreshGrantHandler := granthandlers.NewRefreshTokenGrantHandler()
 		refreshTokenError := refreshGrantHandler.IssueRefreshToken(tokenRespDTO, ctx, oauthApp.ClientID,
 			grantTypeStr, tokenRespDTO.AccessToken.Scopes)
 		if refreshTokenError != nil && refreshTokenError.Error != "" {

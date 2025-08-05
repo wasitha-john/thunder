@@ -31,9 +31,9 @@ import (
 	// Use crypto/sha1 only for JWKS x5t as required by spec for thumbprint.
 	"crypto/sha1" //nolint:gosec
 
+	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/oauth/jwks/constants"
 	"github.com/asgardeo/thunder/internal/oauth/jwks/model"
-	"github.com/asgardeo/thunder/internal/system/cert"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 )
@@ -45,11 +45,14 @@ type JWKSServiceInterface interface {
 
 // JWKSService implements the JWKSServiceInterface.
 type JWKSService struct {
+	SystemCertService cert.SystemCertificateServiceInterface
 }
 
 // NewJWKSService creates a new instance of JWKSService.
 func NewJWKSService() JWKSServiceInterface {
-	return &JWKSService{}
+	return &JWKSService{
+		SystemCertService: cert.NewSystemCertificateService(),
+	}
 }
 
 // GetJWKS retrieves the JSON Web Key Set (JWKS) from the server's TLS certificate.
@@ -57,14 +60,14 @@ func (s *JWKSService) GetJWKS() (*model.JWKSResponse, *serviceerror.ServiceError
 	thunderRuntime := config.GetThunderRuntime()
 
 	// Get the certificate kid using the common utility function
-	kid, err := cert.GetCertificateKid()
+	kid, err := s.SystemCertService.GetCertificateKid()
 	if err != nil {
 		svcErr := constants.ErrorWhileRetrievingCertificateKid
 		svcErr.ErrorDescription = err.Error()
 		return nil, svcErr
 	}
 
-	tlsConfig, err := cert.GetTLSConfig(&thunderRuntime.Config, thunderRuntime.ThunderHome)
+	tlsConfig, err := s.SystemCertService.GetTLSConfig(&thunderRuntime.Config, thunderRuntime.ThunderHome)
 	if err != nil {
 		svcErr := constants.ErrorWhileRetrievingTLSConfig
 		svcErr.ErrorDescription = err.Error()

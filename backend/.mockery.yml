@@ -51,3 +51,11 @@ packages:
       structname: '{{.InterfaceName}}Mock'
       pkgname: providermock
       filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/cert:
+    config:
+      all: true
+      dir: tests/mocks/certmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: certmock
+      filename: "{{.InterfaceName}}_mock.go"

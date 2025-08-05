@@ -32,9 +32,18 @@ import (
 )
 
 // AuthorizationCodeGrantHandler handles the authorization code grant type.
-type AuthorizationCodeGrantHandler struct{}
+type AuthorizationCodeGrantHandler struct {
+	JWTService jwt.JWTServiceInterface
+}
 
 var _ GrantHandler = (*AuthorizationCodeGrantHandler)(nil)
+
+// NewAuthorizationCodeGrantHandler creates a new instance of AuthorizationCodeGrantHandler.
+func NewAuthorizationCodeGrantHandler() *AuthorizationCodeGrantHandler {
+	return &AuthorizationCodeGrantHandler{
+		JWTService: jwt.GetJWTService(),
+	}
+}
 
 // ValidateGrant validates the authorization code grant request.
 func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
@@ -86,7 +95,8 @@ func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 
 // HandleGrant processes the authorization code grant request and generates a token response.
 func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
+	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (
+	*model.TokenResponseDTO, *model.ErrorResponse) {
 	authCode, err := authz.GetAuthorizationCode(tokenRequest.ClientID, tokenRequest.Code)
 	if err != nil || authCode.Code == "" {
 		return nil, &model.ErrorResponse{
@@ -122,7 +132,7 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	if authorizedScopesStr != "" {
 		jwtClaims["scope"] = authorizedScopesStr
 	}
-	token, _, err := jwt.GenerateJWT(authCode.AuthorizedUserID, authCode.ClientID,
+	token, _, err := h.JWTService.GenerateJWT(authCode.AuthorizedUserID, authCode.ClientID,
 		jwt.GetJWTTokenValidityPeriod(), jwtClaims)
 	if err != nil {
 		return nil, &model.ErrorResponse{
