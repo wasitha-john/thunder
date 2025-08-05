@@ -31,6 +31,7 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/store"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	oauth2model "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	oauth2utils "github.com/asgardeo/thunder/internal/oauth/oauth2/utils"
@@ -45,6 +46,8 @@ import (
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
+const loggerComponentName = "AuthorizeHandler"
+
 // AuthorizeHandlerInterface defines the interface for handling OAuth2 authorization requests.
 type AuthorizeHandlerInterface interface {
 	HandleAuthorizeGetRequest(w http.ResponseWriter, r *http.Request)
@@ -53,21 +56,27 @@ type AuthorizeHandlerInterface interface {
 
 // AuthorizeHandler implements the AuthorizeHandlerInterface for handling OAuth2 authorization requests.
 type AuthorizeHandler struct {
-	AppProvider   appprovider.ApplicationProviderInterface
-	AuthValidator AuthorizationValidatorInterface
+	AppProvider    appprovider.ApplicationProviderInterface
+	AuthZValidator AuthorizationValidatorInterface
+	AuthZStore     store.AuthorizationCodeStoreInterface
+	SessionStore   sessionstore.SessionDataStoreInterface
+	JWTService     jwt.JWTServiceInterface
 }
 
 // NewAuthorizeHandler creates a new instance of AuthorizeHandler.
 func NewAuthorizeHandler() AuthorizeHandlerInterface {
 	return &AuthorizeHandler{
-		AppProvider:   appprovider.NewApplicationProvider(),
-		AuthValidator: NewAuthorizationValidator(),
+		AppProvider:    appprovider.NewApplicationProvider(),
+		AuthZValidator: NewAuthorizationValidator(),
+		AuthZStore:     store.NewAuthorizationCodeStore(),
+		SessionStore:   sessionstore.GetSessionDataStore(),
+		JWTService:     jwt.GetJWTService(),
 	}
 }
 
 // HandleAuthorizeGetRequest handles the GET request for OAuth2 authorization.
 func (ah *AuthorizeHandler) HandleAuthorizeGetRequest(w http.ResponseWriter, r *http.Request) {
-	oAuthMessage := getOAuthMessage(r, w)
+	oAuthMessage := ah.getOAuthMessage(r, w)
 	if oAuthMessage == nil {
 		return
 	}
@@ -76,7 +85,7 @@ func (ah *AuthorizeHandler) HandleAuthorizeGetRequest(w http.ResponseWriter, r *
 
 // HandleAuthorizePostRequest handles the POST request for OAuth2 authorization.
 func (ah *AuthorizeHandler) HandleAuthorizePostRequest(w http.ResponseWriter, r *http.Request) {
-	oAuthMessage := getOAuthMessage(r, w)
+	oAuthMessage := ah.getOAuthMessage(r, w)
 	if oAuthMessage == nil {
 		return
 	}
@@ -119,7 +128,7 @@ func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(msg *model.OAuthMe
 	}
 
 	// Validate the authorization request.
-	sendErrorToApp, errorCode, errorMessage := ah.AuthValidator.validateInitialAuthorizationRequest(msg, app)
+	sendErrorToApp, errorCode, errorMessage := ah.AuthZValidator.validateInitialAuthorizationRequest(msg, app)
 	if errorCode != "" {
 		if sendErrorToApp && redirectURI != "" {
 			// Redirect to the redirect URI with an error.
@@ -165,8 +174,7 @@ func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(msg *model.OAuthMe
 	}
 
 	// Store session data in the session store.
-	sessionDataStore := sessionstore.GetSessionDataStore()
-	sessionDataStore.AddSession(oauthParams.SessionDataKey, sessionData)
+	ah.SessionStore.AddSession(oauthParams.SessionDataKey, sessionData)
 
 	// Add required query parameters.
 	queryParams := make(map[string]string)
@@ -190,7 +198,7 @@ func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(msg *model.OAuthMe
 // handleAuthorizationResponseFromEngine handles the authorization response from the engine.
 func (ah *AuthorizeHandler) handleAuthorizationResponseFromEngine(msg *model.OAuthMessage,
 	w http.ResponseWriter) {
-	logger := log.GetLogger()
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	// Validate the session data.
 	sessionData := msg.SessionData
@@ -208,7 +216,7 @@ func (ah *AuthorizeHandler) handleAuthorizationResponseFromEngine(msg *model.OAu
 	}
 
 	// Verify the assertion signature.
-	err := verifyAssertionSignature(assertion, logger)
+	err := ah.verifyAssertionSignature(assertion, logger)
 	if err != nil {
 		ah.writeAuthZResponseToErrorPage(w, oauth2const.ErrorInvalidRequest, err.Error(), sessionData)
 		return
@@ -241,7 +249,7 @@ func (ah *AuthorizeHandler) handleAuthorizationResponseFromEngine(msg *model.OAu
 	}
 
 	// Persist the authorization code.
-	persistErr := InsertAuthorizationCode(authzCode)
+	persistErr := ah.AuthZStore.InsertAuthorizationCode(authzCode)
 	if persistErr != nil {
 		logger.Error("Failed to persist authorization code", log.Error(persistErr))
 		ah.writeAuthZResponseToErrorPage(w, oauth2const.ErrorServerError, "Failed to persist authorization code",
@@ -259,8 +267,9 @@ func (ah *AuthorizeHandler) handleAuthorizationResponseFromEngine(msg *model.OAu
 }
 
 // getOAuthMessage extracts the OAuth message from the request and response writer.
-func getOAuthMessage(r *http.Request, w http.ResponseWriter) *model.OAuthMessage {
-	logger := log.GetLogger()
+func (ah *AuthorizeHandler) getOAuthMessage(r *http.Request, w http.ResponseWriter) *model.OAuthMessage {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
 	if r == nil || w == nil {
 		logger.Error("Request or response writer is nil")
 		return nil
@@ -271,9 +280,9 @@ func getOAuthMessage(r *http.Request, w http.ResponseWriter) *model.OAuthMessage
 
 	switch r.Method {
 	case http.MethodGet:
-		msg, err = getOAuthMessageForGetRequest(r)
+		msg, err = ah.getOAuthMessageForGetRequest(r)
 	case http.MethodPost:
-		msg, err = getOAuthMessageForPostRequest(r)
+		msg, err = ah.getOAuthMessageForPostRequest(r)
 	default:
 		err = errors.New("unsupported request method: " + r.Method)
 	}
@@ -287,7 +296,7 @@ func getOAuthMessage(r *http.Request, w http.ResponseWriter) *model.OAuthMessage
 }
 
 // getOAuthMessageForGetRequest extracts the OAuth message from a authorization GET request.
-func getOAuthMessageForGetRequest(r *http.Request) (*model.OAuthMessage, error) {
+func (ah *AuthorizeHandler) getOAuthMessageForGetRequest(r *http.Request) (*model.OAuthMessage, error) {
 	if err := r.ParseForm(); err != nil {
 		return nil, errors.New("failed to parse form data: " + err.Error())
 	}
@@ -307,7 +316,7 @@ func getOAuthMessageForGetRequest(r *http.Request) (*model.OAuthMessage, error) 
 }
 
 // getOAuthMessageForPostRequest extracts the OAuth message from a authorization POST request.
-func getOAuthMessageForPostRequest(r *http.Request) (*model.OAuthMessage, error) {
+func (ah *AuthorizeHandler) getOAuthMessageForPostRequest(r *http.Request) (*model.OAuthMessage, error) {
 	authZReq, err := systemutils.DecodeJSONBody[model.AuthZPostRequest](r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode JSON body: %w", err)
@@ -322,14 +331,13 @@ func getOAuthMessageForPostRequest(r *http.Request) (*model.OAuthMessage, error)
 	requestType := oauth2const.TypeAuthorizationResponseFromEngine
 
 	sessionDataKey := authZReq.SessionDataKey
-	sessionDataStore := sessionstore.GetSessionDataStore()
-	ok, sessionData := sessionDataStore.GetSession(sessionDataKey)
+	ok, sessionData := ah.SessionStore.GetSession(sessionDataKey)
 	if !ok {
 		return nil, fmt.Errorf("session data not found for session data key: %s", sessionDataKey)
 	}
 
 	// Remove the session data after retrieval.
-	sessionDataStore.ClearSession(sessionDataKey)
+	ah.SessionStore.ClearSession(sessionDataKey)
 
 	bodyParams := map[string]string{
 		oauth2const.Assertion: authZReq.Assertion,
@@ -357,7 +365,8 @@ func getLoginPageRedirectURI(queryParams map[string]string) (string, error) {
 // redirectToLoginPage constructs the login page URL and redirects the user to it.
 func (ah *AuthorizeHandler) redirectToLoginPage(w http.ResponseWriter, r *http.Request,
 	queryParams map[string]string) {
-	logger := log.GetLogger()
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
 	if w == nil || r == nil {
 		logger.Error("Response writer or request is nil. Cannot redirect to login page.")
 		return
@@ -392,7 +401,7 @@ func getErrorPageRedirectURL(code, msg string) (string, error) {
 
 // redirectToErrorPage constructs the error page URL and redirects the user to it.
 func (ah *AuthorizeHandler) redirectToErrorPage(w http.ResponseWriter, r *http.Request, code, msg string) {
-	logger := log.GetLogger()
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	if w == nil || r == nil {
 		logger.Error("Response writer or request is nil. Cannot redirect to error page.")
@@ -412,7 +421,7 @@ func (ah *AuthorizeHandler) redirectToErrorPage(w http.ResponseWriter, r *http.R
 
 // writeAuthZResponse writes the authorization response to the HTTP response writer.
 func (ah *AuthorizeHandler) writeAuthZResponse(w http.ResponseWriter, redirectURI string) {
-	logger := log.GetLogger()
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	authZResp := model.AuthZPostResponse{
 		RedirectURI: redirectURI,
@@ -432,7 +441,7 @@ func (ah *AuthorizeHandler) writeAuthZResponse(w http.ResponseWriter, redirectUR
 // writeAuthZResponseToErrorPage writes the authorization response to the error page.
 func (ah *AuthorizeHandler) writeAuthZResponseToErrorPage(w http.ResponseWriter, code, msg string,
 	sessionData *sessionmodel.SessionData) {
-	logger := log.GetLogger()
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	redirectURI, err := getErrorPageRedirectURL(code, msg)
 	if err != nil {
@@ -496,9 +505,8 @@ func getAuthorizationCode(oAuthMessage *model.OAuthMessage, authUserID string) (
 }
 
 // verifyAssertionSignature verifies the signature of the JWT assertion.
-func verifyAssertionSignature(assertion string, logger *log.Logger) error {
-	jwtService := jwt.GetJWTService()
-	pubKey := jwtService.GetPublicKey()
+func (ah *AuthorizeHandler) verifyAssertionSignature(assertion string, logger *log.Logger) error {
+	pubKey := ah.JWTService.GetPublicKey()
 	if pubKey == nil {
 		logger.Error("Server public key is not available for JWT assertion verification")
 		return errors.New("Internal server error")

@@ -24,9 +24,9 @@ import (
 
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/oauth/jwt"
-	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz"
 	authzconstants "github.com/asgardeo/thunder/internal/oauth/oauth2/authz/constants"
 	authzmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/store"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
@@ -34,6 +34,7 @@ import (
 // AuthorizationCodeGrantHandler handles the authorization code grant type.
 type AuthorizationCodeGrantHandler struct {
 	JWTService jwt.JWTServiceInterface
+	AuthZStore store.AuthorizationCodeStoreInterface
 }
 
 var _ GrantHandler = (*AuthorizationCodeGrantHandler)(nil)
@@ -42,6 +43,7 @@ var _ GrantHandler = (*AuthorizationCodeGrantHandler)(nil)
 func NewAuthorizationCodeGrantHandler() *AuthorizationCodeGrantHandler {
 	return &AuthorizationCodeGrantHandler{
 		JWTService: jwt.GetJWTService(),
+		AuthZStore: store.NewAuthorizationCodeStore(),
 	}
 }
 
@@ -97,7 +99,7 @@ func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (
 	*model.TokenResponseDTO, *model.ErrorResponse) {
-	authCode, err := authz.GetAuthorizationCode(tokenRequest.ClientID, tokenRequest.Code)
+	authCode, err := h.AuthZStore.GetAuthorizationCode(tokenRequest.ClientID, tokenRequest.Code)
 	if err != nil || authCode.Code == "" {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorInvalidGrant,
@@ -112,7 +114,7 @@ func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 	}
 
 	// Invalidate the authorization code after use.
-	err = authz.DeactivateAuthorizationCode(authCode)
+	err = h.AuthZStore.DeactivateAuthorizationCode(authCode)
 	if err != nil {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,

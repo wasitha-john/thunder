@@ -42,7 +42,7 @@ func NewAuthorizationValidator() AuthorizationValidatorInterface {
 // validateInitialAuthorizationRequest validates the initial authorization request parameters.
 func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model.OAuthMessage,
 	oauthApp *appmodel.OAuthAppConfigProcessed) (bool, string, string) {
-	logger := log.GetLogger()
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "AuthorizationValidator"))
 
 	// Extract required parameters.
 	responseType := msg.RequestQueryParams[constants.RequestParamResponseType]

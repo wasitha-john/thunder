@@ -75,7 +75,8 @@ func (h *RefreshTokenGrantHandler) ValidateGrant(tokenRequest *model.TokenReques
 
 // HandleGrant processes the refresh token grant request and generates a new token response.
 func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
+	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (
+	*model.TokenResponseDTO, *model.ErrorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "RefreshTokenGrantHandler"))
 
 	if errResp := h.verifyRefreshTokenSignature(tokenRequest.RefreshToken, logger); errResp != nil {
