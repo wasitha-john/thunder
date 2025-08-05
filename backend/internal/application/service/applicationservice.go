@@ -29,7 +29,7 @@ import (
 	"github.com/asgardeo/thunder/internal/cert"
 	certconst "github.com/asgardeo/thunder/internal/cert/constants"
 	certmodel "github.com/asgardeo/thunder/internal/cert/model"
-	"github.com/asgardeo/thunder/internal/flow/graphservice"
+	"github.com/asgardeo/thunder/internal/flow/flowmgt"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
@@ -453,7 +453,7 @@ func (as *ApplicationService) DeleteApplication(appID string) *serviceerror.Serv
 // If the graph ID is not provided, it sets the default authentication flow graph ID.
 func validateAuthFlowGraphID(app *model.ApplicationDTO) *serviceerror.ServiceError {
 	if app.AuthFlowGraphID != "" {
-		isValidFlowGraphID := graphservice.GetGraphService().IsValidGraphID(app.AuthFlowGraphID)
+		isValidFlowGraphID := flowmgt.GetFlowMgtService().IsValidGraphID(app.AuthFlowGraphID)
 		if !isValidFlowGraphID {
 			return &constants.ErrorInvalidAuthFlowGraphID
 		}
@@ -468,7 +468,7 @@ func validateAuthFlowGraphID(app *model.ApplicationDTO) *serviceerror.ServiceErr
 // If the graph ID is not provided, it attempts to infer it from the auth flow graph ID.
 func validateRegistrationFlowGraphID(app *model.ApplicationDTO) *serviceerror.ServiceError {
 	if app.RegistrationFlowGraphID != "" {
-		isValidFlowGraphID := graphservice.GetGraphService().IsValidGraphID(app.RegistrationFlowGraphID)
+		isValidFlowGraphID := flowmgt.GetFlowMgtService().IsValidGraphID(app.RegistrationFlowGraphID)
 		if !isValidFlowGraphID {
 			return &constants.ErrorInvalidRegistrationFlowGraphID
 		}
