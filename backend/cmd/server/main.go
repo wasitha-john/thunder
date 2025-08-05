@@ -30,8 +30,6 @@ import (
 
 	"github.com/asgardeo/thunder/internal/flow"
 	"github.com/asgardeo/thunder/internal/system/cert"
-	"github.com/asgardeo/thunder/internal/system/database/provider"
-	"github.com/asgardeo/thunder/internal/system/database/seeder"
 	"github.com/asgardeo/thunder/internal/system/managers"
 
 	"github.com/asgardeo/thunder/internal/oauth/jwt"
@@ -55,8 +53,6 @@ func main() {
 	}
 
 	initFlowService(logger)
-	
-	initDatabaseSeeding(logger)
 
 	if cfg.Server.HTTPOnly {
 		logger.Info("TLS is not enabled, starting server without TLS")
@@ -132,28 +128,7 @@ func initFlowService(logger *log.Logger) {
 	}
 }
 
-// initDatabaseSeeding initializes the database seeding process.
-func initDatabaseSeeding(logger *log.Logger) {
-	logger.Info("Initializing database seeding")
-	
-	// Initialize database provider and seeder provider
-	dbProvider := provider.NewDBProvider()
-	seederProvider := seeder.NewSeederProvider(dbProvider)
-	seeder.SetSeederProvider(seederProvider)
-	
-	// Get seeder for identity database
-	identitySeeder, err := seederProvider.GetSeeder("identity")
-	if err != nil {
-		logger.Fatal("Failed to get identity database seeder", log.Error(err))
-	}
-	
-	// Seed initial data
-	if err := identitySeeder.SeedInitialData(); err != nil {
-		logger.Fatal("Failed to seed initial data", log.Error(err))
-	}
-	
-	logger.Info("Database seeding completed successfully")
-}
+
 
 // startTLSServer starts the HTTPS server with TLS configuration.
 func startTLSServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thunderHome string) {
