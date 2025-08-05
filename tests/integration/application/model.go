@@ -30,6 +30,12 @@ type Application struct {
 	TokenEndpointAuthMethod []string `json:"token_endpoint_auth_method,omitempty"`
 }
 
+type ApplicationList struct {
+	TotalResults int           `json:"totalResults"`
+	Count        int           `json:"count"`
+	Applications []Application `json:"applications"`
+}
+
 func compareStringSlices(a, b []string) bool {
 
 	if len(a) != len(b) {

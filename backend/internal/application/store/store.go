@@ -39,8 +39,10 @@ import (
 // ApplicationStoreInterface defines the interface for application data persistence operations.
 type ApplicationStoreInterface interface {
 	CreateApplication(app model.ApplicationProcessedDTO) error
+	GetTotalApplicationCount() (int, error)
 	GetApplicationList() ([]model.BasicApplicationDTO, error)
-	GetApplication(id string) (model.ApplicationProcessedDTO, error)
+	GetApplicationByID(id string) (*model.ApplicationProcessedDTO, error)
+	GetApplicationByName(name string) (*model.ApplicationProcessedDTO, error)
 	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, error)
 	UpdateApplication(app *model.ApplicationProcessedDTO) error
 	DeleteApplication(id string) error
@@ -57,6 +59,38 @@ func NewApplicationStore() ApplicationStoreInterface {
 // CreateApplication creates a new application in the database.
 func (st *ApplicationStore) CreateApplication(app model.ApplicationProcessedDTO) error {
 	return createOrUpdateApplication(&app, QueryCreateApplication, QueryCreateOAuthApplication)
+}
+
+// GetTotalApplicationCount retrieves the total count of applications from the database.
+func (st *ApplicationStore) GetTotalApplicationCount() (int, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		return 0, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func(dbc client.DBClientInterface) {
+		err := dbc.Close()
+		if err != nil {
+			logger.Error("Failed to close database client", log.Error(err))
+		}
+	}(dbClient)
+
+	results, err := dbClient.Query(QueryGetApplicationCount)
+	if err != nil {
+		return 0, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	totalCount := 0
+	if len(results) > 0 {
+		if total, ok := results[0]["total"].(int64); ok {
+			totalCount = int(total)
+		} else {
+			return 0, fmt.Errorf("failed to parse total count from query result")
+		}
+	}
+
+	return totalCount, nil
 }
 
 // GetApplicationList retrieves a list of applications from the database.
@@ -95,14 +129,25 @@ func (st *ApplicationStore) GetApplicationList() ([]model.BasicApplicationDTO, e
 	return applications, nil
 }
 
-// GetApplication retrieves a specific application by its ID from the database.
-func (st *ApplicationStore) GetApplication(id string) (model.ApplicationProcessedDTO, error) {
+// GetApplicationByID retrieves a specific application by its ID from the database.
+func (st *ApplicationStore) GetApplicationByID(id string) (*model.ApplicationProcessedDTO, error) {
+	return st.getApplicationByQuery(QueryGetApplicationByAppID, id)
+}
+
+// GetApplicationByName retrieves a specific application by its name from the database.
+func (st *ApplicationStore) GetApplicationByName(name string) (*model.ApplicationProcessedDTO, error) {
+	return st.getApplicationByQuery(QueryGetApplicationByName, name)
+}
+
+// getApplicationByQuery retrieves a specific application from the database using the provided query and parameter.
+func (st *ApplicationStore) getApplicationByQuery(query dbmodel.DBQuery, param string) (
+	*model.ApplicationProcessedDTO, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
-		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to get database client: %w", err)
+		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
 		if closeErr := dbClient.Close(); closeErr != nil {
@@ -111,29 +156,28 @@ func (st *ApplicationStore) GetApplication(id string) (model.ApplicationProcesse
 		}
 	}()
 
-	results, err := dbClient.Query(QueryGetApplicationByAppID, id)
+	results, err := dbClient.Query(query, param)
 	if err != nil {
 		logger.Error("Failed to execute query", log.Error(err))
-		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to execute query: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
-		logger.Error("application not found")
-		return model.ApplicationProcessedDTO{}, fmt.Errorf("application not found")
+		return nil, constants.ApplicationNotFoundError
 	}
 	if len(results) != 1 {
 		logger.Error("unexpected number of results")
-		return model.ApplicationProcessedDTO{}, fmt.Errorf("unexpected number of results: %d", len(results))
+		return nil, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
 	row := results[0]
 	application, err := buildApplicationFromResultRow(row)
 	if err != nil {
 		logger.Error("failed to build application from result row", log.Error(err))
-		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to build application from result row: %w", err)
+		return nil, fmt.Errorf("failed to build application from result row: %w", err)
 	}
 
-	return application, nil
+	return &application, nil
 }
 
 // GetOAuthApplication retrieves an OAuth application by its client ID.
@@ -157,7 +201,7 @@ func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAp
 		return nil, err
 	}
 	if len(results) == 0 {
-		return nil, errors.New("OAuth application not found")
+		return nil, constants.ApplicationNotFoundError
 	}
 
 	row := results[0]

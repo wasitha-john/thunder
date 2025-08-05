@@ -1,13 +1,11 @@
 openapi: 3.0.3
-
 info:
-  contact: {}
+  title: Application Management API
+  version: "1.0"
   description: This API is used to manage applications.
   license:
     name: Apache 2.0
-    url: http://www.apache.org/licenses/LICENSE-2.0.html
-  title: Application Management API
-  version: "1.0"
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
 
 servers:
   - url: https://{host}:{port}
@@ -17,36 +15,70 @@ servers:
       port:
         default: "8090"
 
+tags:
+  - name: applications
+    description: Operations related to application management
+
 paths:
   /applications:
     get:
+      tags:
+        - applications
+      summary: List applications
       description: Retrieve a list of all applications.
       responses:
         "200":
-          description: OK
+          description: List of applications
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BasicApplicationResponse'
+                $ref: '#/components/schemas/ApplicationListResponse'
+              example:
+                totalResults: 3
+                count: 3
+                applications:
+                  - id: "550e8400-e29b-41d4-a716-446655440000"
+                    name: "My Web Application"
+                    description: "Customer portal application"
+                    client_id: "myapp_client_id"
+                    auth_flow_graph_id: "auth_flow_config_basic"
+                    registration_flow_graph_id: "registration_flow_config_basic"
+                    is_registration_flow_enabled: true
+                  - id: "660e8400-e29b-41d4-a716-446655440001"
+                    name: "Mobile App"
+                    description: "Mobile application for customers"
+                    client_id: "mobile_client_id"
+                    auth_flow_graph_id: "auth_flow_config_basic"
+                    registration_flow_graph_id: "registration_flow_config_basic"
+                    is_registration_flow_enabled: false
         "400":
-          description: 'Bad Request: The request body is malformed or contains invalid data.'
+          description: Bad request
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid-limit:
+                  summary: Invalid limit parameter
+                  value:
+                    code: "APP-1001"
+                    message: "Invalid pagination parameter"
+                    description: "The limit parameter must be a positive integer"
         "500":
-          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
+          description: Internal server error
           content:
             application/json:
               schema:
-                type: string
-      summary: List applications
-      tags:
-      - applications
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "APP-5001"
+                message: "Internal server error"
+                description: "An unexpected error occurred while processing the request"
 
     post:
+      tags:
+        - applications
+      summary: Create an application
       description: Creates a new application with the provided details.
       requestBody:
         required: true
@@ -54,179 +86,401 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ApplicationRequest'
+            example:
+              name: "My Web Application"
+              description: "Customer portal application"
+              client_id: "myapp_client_id"
+              client_secret: "myapp_client_secret"
+              redirect_uris:
+                - "https://myapp.example.com/callback"
+                - "https://myapp.example.com/oauth/callback"
+              grant_types:
+                - "authorization_code"
+                - "refresh_token"
+              response_types:
+                - "code"
+              token_endpoint_auth_method:
+                - "client_secret_basic"
+              auth_flow_graph_id: "auth_flow_config_basic"
+              registration_flow_graph_id: "registration_flow_config_basic"
+              is_registration_flow_enabled: true
+              url: "https://myapp.example.com"
+              logo_url: "https://myapp.example.com/logo.png"
+              certificate:
+                type: "JWKS_URI"
+                value: "https://myapp.example.com/.well-known/jwks"
       responses:
         "201":
-          description: Created
+          description: Application created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApplicationCompleteResponse'
+              example:
+                id: "550e8400-e29b-41d4-a716-446655440000"
+                name: "My Web Application"
+                description: "Customer portal application"
+                client_id: "myapp_client_id"
+                client_secret: "myapp_client_secret"
+                redirect_uris:
+                  - "https://myapp.example.com/callback"
+                  - "https://myapp.example.com/oauth/callback"
+                grant_types:
+                  - "authorization_code"
+                  - "refresh_token"
+                response_types:
+                  - "code"
+                token_endpoint_auth_method:
+                  - "client_secret_basic"
+                auth_flow_graph_id: "auth_flow_config_basic"
+                registration_flow_graph_id: "registration_flow_config_basic"
+                is_registration_flow_enabled: true
+                url: "https://myapp.example.com"
+                logo_url: "https://myapp.example.com/logo.png"
+                certificate:
+                  type: "JWKS_URI"
+                  value: "https://myapp.example.com/.well-known/jwks"
         "400":
-          description: 'Bad Request: The request body is malformed or contains invalid data.'
+          description: Bad request
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid-request-format:
+                  summary: Invalid request format
+                  value:
+                    code: "APP-1001"
+                    message: "Invalid request format"
+                    description: "The request body is malformed or contains invalid data"
+                invalid-redirect-uri:
+                  summary: Invalid redirect URI
+                  value:
+                    code: "APP-1002"
+                    message: "Invalid redirect URI"
+                    description: "One or more redirect URIs are not valid"
+                invalid-grant-type:
+                  summary: Invalid grant type
+                  value:
+                    code: "APP-1003"
+                    message: "Invalid grant type"
+                    description: "One or more grant types are not supported"
         "500":
-          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
+          description: Internal server error
           content:
             application/json:
               schema:
-                type: string
-      summary: Create an application
-      tags:
-      - applications
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "APP-5001"
+                message: "Internal server error"
+                description: "An unexpected error occurred while processing the request"
 
   /applications/{id}:
-    delete:
-      description: Delete an application using its ID.
-      parameters:
-      - description: Application ID
-        in: path
-        name: id
-        required: true
-        schema:
-          type: string
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: 'Bad Request: The request body is malformed or contains invalid data.'
-          content:
-            application/json:
-              schema:
-                type: string
-        "404":
-          description: 'Not Found: The application with the specified ID does not exist.'
-          content:
-            application/json:
-              schema:
-                type: string
-        "500":
-          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
-          content:
-            application/json:
-              schema:
-                type: string
-      summary: Delete an application
-      tags:
-      - applications
-
     get:
+      tags:
+        - applications
+      summary: Get an application by ID
       description: Retrieve a specific application using its ID.
       parameters:
-      - description: Application ID
-        in: path
-        name: id
-        required: true
-        schema:
-          type: string
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Application ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
       responses:
         "200":
-          description: OK
+          description: Application details
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApplicationGetResponse'
+              example:
+                id: "550e8400-e29b-41d4-a716-446655440000"
+                name: "My Web Application"
+                description: "Customer portal application"
+                client_id: "myapp_client_id"
+                redirect_uris:
+                  - "https://myapp.example.com/callback"
+                  - "https://myapp.example.com/oauth/callback"
+                grant_types:
+                  - "authorization_code"
+                  - "refresh_token"
+                response_types:
+                  - "code"
+                token_endpoint_auth_method:
+                  - "client_secret_basic"
+                auth_flow_graph_id: "auth_flow_config_basic"
+                registration_flow_graph_id: "registration_flow_config_basic"
+                is_registration_flow_enabled: true
+                url: "https://myapp.example.com"
+                logo_url: "https://myapp.example.com/logo.png"
+                certificate:
+                  type: "JWKS_URI"
+                  value: "https://myapp.example.com/.well-known/jwks"
         "400":
-          description: 'Bad Request: The request body is malformed or contains invalid data.'
+          description: Bad request
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "APP-1001"
+                message: "Invalid request format"
+                description: "The request contains invalid data"
         "404":
-          description: 'Not Found: The application with the specified ID does not exist.'
+          description: Application not found
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "APP-1004"
+                message: "Application not found"
+                description: "The application with the specified ID does not exist"
         "500":
-          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
+          description: Internal server error
           content:
             application/json:
               schema:
-                type: string
-      summary: Get an application by ID
-      tags:
-      - applications
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "APP-5001"
+                message: "Internal server error"
+                description: "An unexpected error occurred while processing the request"
 
     put:
+      tags:
+        - applications
+      summary: Update an application
       description: Update the details of an existing application.
       parameters:
-      - description: Application ID
-        in: path
-        name: id
-        required: true
-        schema:
-          type: string
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Application ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ApplicationRequest'
+            example:
+              name: "Updated Web Application"
+              description: "Updated customer portal application"
+              client_id: "myapp_client_id"
+              client_secret: "myapp_updated_secret"
+              redirect_uris:
+                - "https://myapp.example.com/callback"
+                - "https://myapp.example.com/oauth/callback"
+                - "https://staging.myapp.example.com/callback"
+              grant_types:
+                - "authorization_code"
+                - "refresh_token"
+                - "client_credentials"
+              response_types:
+                - "code"
+              token_endpoint_auth_method:
+                - "client_secret_basic"
+              auth_flow_graph_id: "auth_flow_config_advanced"
+              registration_flow_graph_id: "registration_flow_config_advanced"
+              is_registration_flow_enabled: true
+              url: "https://myapp.example.com"
+              logo_url: "https://myapp.example.com/updated-logo.png"
+              certificate:
+                type: "JWKS_URI"
+                value: "https://myapp.example.com/.well-known/jwks"
       responses:
         "200":
-          description: OK
+          description: Application updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApplicationCompleteResponse'
+              example:
+                id: "550e8400-e29b-41d4-a716-446655440000"
+                name: "Updated Web Application"
+                description: "Updated customer portal application"
+                client_id: "myapp_client_id"
+                client_secret: "myapp_updated_secret"
+                redirect_uris:
+                  - "https://myapp.example.com/callback"
+                  - "https://myapp.example.com/oauth/callback"
+                  - "https://staging.myapp.example.com/callback"
+                grant_types:
+                  - "authorization_code"
+                  - "refresh_token"
+                  - "client_credentials"
+                response_types:
+                  - "code"
+                token_endpoint_auth_method:
+                  - "client_secret_basic"
+                auth_flow_graph_id: "auth_flow_config_advanced"
+                registration_flow_graph_id: "registration_flow_config_advanced"
+                is_registration_flow_enabled: true
+                url: "https://myapp.example.com"
+                logo_url: "https://myapp.example.com/updated-logo.png"
+                certificate:
+                  type: "JWKS_URI"
+                  value: "https://myapp.example.com/.well-known/jwks"
         "400":
-          description: 'Bad Request: The request body is malformed or contains invalid data.'
+          description: Bad request
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid-request-format:
+                  summary: Invalid request format
+                  value:
+                    code: "APP-1001"
+                    message: "Invalid request format"
+                    description: "The request body is malformed or contains invalid data"
+                invalid-redirect-uri:
+                  summary: Invalid redirect URI
+                  value:
+                    code: "APP-1002"
+                    message: "Invalid redirect URI"
+                    description: "One or more redirect URIs are not valid"
         "404":
-          description: 'Not Found: The application with the specified ID does not exist.'
+          description: Application not found
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "APP-1004"
+                message: "Application not found"
+                description: "The application with the specified ID does not exist"
         "500":
-          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
+          description: Internal server error
           content:
             application/json:
               schema:
-                type: string
-      summary: Update an application
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "APP-5001"
+                message: "Internal server error"
+                description: "An unexpected error occurred while processing the request"
+
+    delete:
       tags:
-      - applications
+        - applications
+      summary: Delete an application
+      description: Delete an application using its ID.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Application ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        "204":
+          description: Application deleted successfully
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "APP-1001"
+                message: "Invalid request format"
+                description: "The request contains invalid data"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "APP-5001"
+                message: "Internal server error"
+                description: "An unexpected error occurred while processing the request"
 
 components:
+  parameters:
+    limitQueryParam:
+      in: query
+      name: limit
+      required: false
+      description: |
+        Maximum number of records to return.
+      schema:
+        type: integer
+        minimum: 1
+        default: 30
+    offsetQueryParam:
+      in: query
+      name: offset
+      required: false
+      description: |
+        Number of records to skip for pagination.
+      schema:
+        type: integer
+        default: 0
+
   schemas:
     ApplicationRequest:
       type: object
+      required: [name, client_id, redirect_uris, grant_types]
       properties:
         name:
           type: string
           description: The name of the application.
-          example: "My Application"
+          example: "My Web Application"
         description:
           type: string
           description: A brief description of the application.
-          example: "This is a sample application."
+          example: "Customer portal application"
         client_id:
           type: string
           description: The client ID for the application.
-          example: "CLIENT123456"
+          example: "myapp_client_id"
         client_secret:
           type: string
           description: The client secret for the application.
-          example: "SECRET123456"
+          example: "myapp_client_secret"
         redirect_uris:
           type: array
           items:
             type: string
+            format: uri
           description: A list of redirect URIs for the application.
-          example: ["https://example.com/callback", "https://example.com/redirect"]
+          example: ["https://myapp.example.com/callback", "https://myapp.example.com/oauth/callback"]
+          minItems: 1
         grant_types:
           type: array
           items:
             type: string
+            enum: ["authorization_code", "client_credentials", "refresh_token", "implicit"]
           description: A list of grant types supported by the application.
-          example: ["authorization_code", "client_credentials"]
+          example: ["authorization_code", "refresh_token"]
+          minItems: 1
+        response_types:
+          type: array
+          items:
+            type: string
+            enum: ["code", "token", "id_token", "code token", "code id_token", "token id_token", "code token id_token"]
+          description: A list of response types supported by the application.
+          example: ["code"]
+        token_endpoint_auth_method:
+          type: array
+          items:
+            type: string
+            enum: ["client_secret_basic", "client_secret_post", "client_secret_jwt", "private_key_jwt", "none"]
+          description: A list of token endpoint authentication methods supported by the application.
+          example: ["client_secret_basic"]
         auth_flow_graph_id:
           type: string
           description: The ID of the authentication flow graph.
@@ -239,14 +493,17 @@ components:
           type: boolean
           description: Indicates if the registration flow is enabled for the application.
           example: true
+          default: false
         url:
           type: string
+          format: uri
           description: The URL of the application.
-          example: "https://example.com"
+          example: "https://myapp.example.com"
         logo_url:
           type: string
+          format: uri
           description: The URL of the application's logo.
-          example: "https://example.com/logo.png"
+          example: "https://myapp.example.com/logo.png"
         certificate:
           $ref: '#/components/schemas/Certificate'
 
@@ -255,36 +512,53 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           description: The unique identifier of the application.
           example: "550e8400-e29b-41d4-a716-446655440000"
         name:
           type: string
           description: The name of the application.
-          example: "My Application"
+          example: "My Web Application"
         description:
           type: string
           description: A brief description of the application.
-          example: "This is a sample application."
+          example: "Customer portal application"
         client_id:
           type: string
           description: The client ID for the application.
-          example: "CLIENT123456"
+          example: "myapp_client_id"
         client_secret:
           type: string
           description: The client secret for the application.
-          example: "SECRET123456"
+          example: "myapp_client_secret"
         redirect_uris:
           type: array
           items:
             type: string
+            format: uri
           description: A list of redirect URIs for the application.
-          example: ["https://example.com/callback", "https://example.com/redirect"]
+          example: ["https://myapp.example.com/callback", "https://myapp.example.com/oauth/callback"]
         grant_types:
           type: array
           items:
             type: string
+            enum: ["authorization_code", "client_credentials", "refresh_token", "implicit"]
           description: A list of grant types supported by the application.
-          example: ["authorization_code", "client_credentials"]
+          example: ["authorization_code", "refresh_token"]
+        response_types:
+          type: array
+          items:
+            type: string
+            enum: ["code", "token", "id_token", "code token", "code id_token", "token id_token", "code token id_token"]
+          description: A list of response types supported by the application.
+          example: ["code"]
+        token_endpoint_auth_method:
+          type: array
+          items:
+            type: string
+            enum: ["client_secret_basic", "client_secret_post", "client_secret_jwt", "private_key_jwt", "none"]
+          description: A list of token endpoint authentication methods supported by the application.
+          example: ["client_secret_basic"]
         auth_flow_graph_id:
           type: string
           description: The ID of the authentication flow graph.
@@ -299,12 +573,14 @@ components:
           example: true
         url:
           type: string
+          format: uri
           description: The URL of the application.
-          example: "https://example.com"
+          example: "https://myapp.example.com"
         logo_url:
           type: string
+          format: uri
           description: The URL of the application's logo.
-          example: "https://example.com/logo.png"
+          example: "https://myapp.example.com/logo.png"
         certificate:
           $ref: '#/components/schemas/Certificate'
 
@@ -313,32 +589,49 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           description: The unique identifier of the application.
           example: "550e8400-e29b-41d4-a716-446655440000"
         name:
           type: string
           description: The name of the application.
-          example: "My Application"
+          example: "My Web Application"
         description:
           type: string
           description: A brief description of the application.
-          example: "This is a sample application."
+          example: "Customer portal application"
         client_id:
           type: string
           description: The client ID for the application.
-          example: "CLIENT123456"
+          example: "myapp_client_id"
         redirect_uris:
           type: array
           items:
             type: string
+            format: uri
           description: A list of redirect URIs for the application.
-          example: ["https://example.com/callback", "https://example.com/redirect"]
+          example: ["https://myapp.example.com/callback", "https://myapp.example.com/oauth/callback"]
         grant_types:
           type: array
           items:
             type: string
+            enum: ["authorization_code", "client_credentials", "refresh_token", "implicit"]
           description: A list of grant types supported by the application.
-          example: ["authorization_code", "client_credentials"]
+          example: ["authorization_code", "refresh_token"]
+        response_types:
+          type: array
+          items:
+            type: string
+            enum: ["code", "token", "id_token", "code token", "code id_token", "token id_token", "code token id_token"]
+          description: A list of response types supported by the application.
+          example: ["code"]
+        token_endpoint_auth_method:
+          type: array
+          items:
+            type: string
+            enum: ["client_secret_basic", "client_secret_post", "client_secret_jwt", "private_key_jwt", "none"]
+          description: A list of token endpoint authentication methods supported by the application.
+          example: ["client_secret_basic"]
         auth_flow_graph_id:
           type: string
           description: The ID of the authentication flow graph.
@@ -353,12 +646,14 @@ components:
           example: true
         url:
           type: string
+          format: uri
           description: The URL of the application.
-          example: "https://example.com"
+          example: "https://myapp.example.com"
         logo_url:
           type: string
+          format: uri
           description: The URL of the application's logo.
-          example: "https://example.com/logo.png"
+          example: "https://myapp.example.com/logo.png"
         certificate:
           $ref: '#/components/schemas/Certificate'
 
@@ -367,20 +662,21 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           description: The unique identifier of the application.
           example: "550e8400-e29b-41d4-a716-446655440000"
         name:
           type: string
           description: The name of the application.
-          example: "My Application"
+          example: "My Web Application"
         description:
           type: string
           description: A brief description of the application.
-          example: "This is a sample application."
+          example: "Customer portal application"
         client_id:
           type: string
           description: The client ID for the application.
-          example: "CLIENT123456"
+          example: "myapp_client_id"
         auth_flow_graph_id:
           type: string
           description: The ID of the authentication flow graph.
@@ -393,6 +689,22 @@ components:
           type: boolean
           description: Indicates if the registration flow is enabled for the application.
           example: true
+
+    ApplicationListResponse:
+      type: object
+      properties:
+        totalResults:
+          type: integer
+          description: "Number of results that match the listing operation."
+          example: 25
+        count:
+          type: integer
+          description: "Number of elements in the returned page."
+          example: 10
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/BasicApplicationResponse'
 
     Certificate:
       type: object
@@ -408,4 +720,21 @@ components:
         value:
           type: string
           description: The value of the certificate.
-          example: "https://example.com/certificate.jwks"
+          example: "https://myapp.example.com/.well-known/jwks"
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: The error code.
+          example: "APP-1001"
+        message:
+          type: string
+          description: The error message.
+          example: "Invalid request format"
+        description:
+          type: string
+          description: A detailed description of the error.
+          example: "The request body is malformed or contains invalid data"

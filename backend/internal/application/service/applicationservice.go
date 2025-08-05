@@ -21,7 +21,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/asgardeo/thunder/internal/application/constants"
@@ -40,12 +39,13 @@ import (
 
 // ApplicationServiceInterface defines the interface for the application service.
 type ApplicationServiceInterface interface {
-	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, error)
-	CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO, error)
-	GetApplicationList() ([]model.BasicApplicationDTO, error)
-	GetApplication(appID string) (*model.ApplicationProcessedDTO, error)
-	UpdateApplication(appID string, app *model.ApplicationDTO) (*model.ApplicationDTO, error)
-	DeleteApplication(appID string) error
+	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, *serviceerror.ServiceError)
+	CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO, *serviceerror.ServiceError)
+	GetApplicationList() (*model.ApplicationListResponse, *serviceerror.ServiceError)
+	GetApplicationByID(appID string) (*model.ApplicationProcessedDTO, *serviceerror.ServiceError)
+	GetApplicationByName(appName string) (*model.ApplicationProcessedDTO, *serviceerror.ServiceError)
+	UpdateApplication(appID string, app *model.ApplicationDTO) (*model.ApplicationDTO, *serviceerror.ServiceError)
+	DeleteApplication(appID string) *serviceerror.ServiceError
 }
 
 // ApplicationService is the default implementation of the ApplicationServiceInterface.
@@ -63,34 +63,66 @@ func GetApplicationService() ApplicationServiceInterface {
 }
 
 // GetOAuthApplication retrieves the OAuth application based on the client id.
-func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, error) {
+func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed,
+	*serviceerror.ServiceError) {
 	if clientID == "" {
-		return nil, errors.New("client ID cannot be empty")
+		return nil, &constants.ErrorInvalidClientID
 	}
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 	oauthApp, err := as.AppStore.GetOAuthApplication(clientID)
 	if err != nil {
-		logger.Error("Failed to retrieve OAuth application", log.Error(err), log.String("clientID", clientID))
-		return nil, err
+		if errors.Is(err, constants.ApplicationNotFoundError) {
+			return nil, &constants.ErrorApplicationNotFound
+		}
+
+		logger.Error("Failed to retrieve OAuth application", log.Error(err),
+			log.String("clientID", log.MaskString(clientID)))
+		return nil, &constants.ErrorInternalServerError
 	}
 
 	return oauthApp, nil
 }
 
 // CreateApplication creates the application.
-func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO, error) {
+func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO,
+	*serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 
 	if app == nil {
-		return nil, errors.New("application is nil")
+		return nil, &constants.ErrorApplicationNil
 	}
 	if app.Name == "" {
-		return nil, errors.New("application name cannot be empty")
+		return nil, &constants.ErrorInvalidApplicationName
+	}
+
+	// Check if a application with the same name already exists.
+	existingApp, appCheckErr := as.AppStore.GetApplicationByName(app.Name)
+	if appCheckErr != nil && !errors.Is(appCheckErr, constants.ApplicationNotFoundError) {
+		logger.Error("Failed to check existing application by name", log.Error(appCheckErr),
+			log.String("appName", app.Name))
+		return nil, &constants.ErrorInternalServerError
+	}
+	if existingApp != nil {
+		return nil, &constants.ErrorApplicationAlreadyExistsWithName
 	}
 
 	inboundAuthConfig, err := validateOAuthParamsForCreateAndUpdate(app)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if a application with the same client ID already exists.
+	clientID := inboundAuthConfig.OAuthAppConfig.ClientID
+	if clientID != "" {
+		existingAppWithClientID, clientCheckErr := as.AppStore.GetOAuthApplication(clientID)
+		if clientCheckErr != nil && !errors.Is(clientCheckErr, constants.ApplicationNotFoundError) {
+			logger.Error("Failed to check existing application by client ID", log.Error(clientCheckErr),
+				log.String("clientID", clientID))
+			return nil, &constants.ErrorInternalServerError
+		}
+		if existingAppWithClientID != nil {
+			return nil, &constants.ErrorApplicationAlreadyExistsWithClientID
+		}
 	}
 
 	if err := validateAuthFlowGraphID(app); err != nil {
@@ -101,10 +133,10 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 	}
 
 	if app.URL != "" && !sysutils.IsValidURI(app.URL) {
-		return nil, errors.New("application URL is not a valid URI")
+		return nil, &constants.ErrorInvalidApplicationURL
 	}
 	if app.LogoURL != "" && !sysutils.IsValidURI(app.LogoURL) {
-		return nil, errors.New("application logo URL is not a valid URI")
+		return nil, &constants.ErrorInvalidLogoURL
 	}
 
 	appID := sysutils.GenerateUUID()
@@ -146,20 +178,19 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 	}
 
 	// Create the application.
-	err = as.AppStore.CreateApplication(*processedDTO)
-	if err != nil {
-		logger.Error("Failed to create application", log.Error(err), log.String("appID", appID))
+	storeErr := as.AppStore.CreateApplication(*processedDTO)
+	if storeErr != nil {
+		logger.Error("Failed to create application", log.Error(storeErr), log.String("appID", appID))
 
 		// Rollback the certificate creation if it was successful.
 		if cert != nil {
 			deleteErr := as.rollbackAppCertificateCreation(appID)
 			if deleteErr != nil {
-				logger.Error("Failed to delete application certificate after application creation failure",
-					log.Error(deleteErr), log.String("appID", appID))
+				return nil, deleteErr
 			}
 		}
 
-		return nil, err
+		return nil, &constants.ErrorInternalServerError
 	}
 
 	returnApp := &model.ApplicationDTO{
@@ -179,53 +210,153 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 }
 
 // GetApplicationList list the applications.
-func (as *ApplicationService) GetApplicationList() ([]model.BasicApplicationDTO, error) {
+func (as *ApplicationService) GetApplicationList() (*model.ApplicationListResponse, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
+
+	totalCount, err := as.AppStore.GetTotalApplicationCount()
+	if err != nil {
+		logger.Error("Failed to retrieve total application count", log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+
 	applications, err := as.AppStore.GetApplicationList()
 	if err != nil {
-		return nil, err
+		logger.Error("Failed to retrieve application list", log.Error(err))
+		return nil, &constants.ErrorInternalServerError
 	}
 
-	return applications, nil
+	applicationList := make([]model.BasicApplicationResponse, 0, len(applications))
+	for _, app := range applications {
+		applicationList = append(applicationList, buildBasicApplicationResponse(app))
+	}
+
+	response := &model.ApplicationListResponse{
+		TotalResults: totalCount,
+		Count:        len(applications),
+		Applications: applicationList,
+	}
+
+	return response, nil
 }
 
-// GetApplication get the application for given app id.
-func (as *ApplicationService) GetApplication(appID string) (*model.ApplicationProcessedDTO, error) {
+// buildBasicApplicationResponse builds a basic application response from the processed application DTO.
+func buildBasicApplicationResponse(app model.BasicApplicationDTO) model.BasicApplicationResponse {
+	return model.BasicApplicationResponse{
+		ID:                        app.ID,
+		Name:                      app.Name,
+		Description:               app.Description,
+		ClientID:                  app.ClientID,
+		AuthFlowGraphID:           app.AuthFlowGraphID,
+		RegistrationFlowGraphID:   app.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: app.IsRegistrationFlowEnabled,
+	}
+}
+
+// GetApplicationByID get the application for given app id.
+func (as *ApplicationService) GetApplicationByID(appID string) (*model.ApplicationProcessedDTO,
+	*serviceerror.ServiceError) {
 	if appID == "" {
-		return nil, errors.New("application ID is empty")
+		return nil, &constants.ErrorInvalidApplicationID
 	}
 
-	application, err := as.AppStore.GetApplication(appID)
+	application, err := as.AppStore.GetApplicationByID(appID)
 	if err != nil {
-		return nil, err
+		return nil, as.handleApplicationRetrievalError(err)
 	}
 
-	cert, certErr := as.getApplicationCertificate(appID)
+	return as.enrichApplicationWithCertificate(application)
+}
+
+// GetApplicationByName retrieves the application by its name.
+func (as *ApplicationService) GetApplicationByName(appName string) (*model.ApplicationProcessedDTO,
+	*serviceerror.ServiceError) {
+	if appName == "" {
+		return nil, &constants.ErrorInvalidApplicationName
+	}
+
+	application, err := as.AppStore.GetApplicationByName(appName)
+	if err != nil {
+		return nil, as.handleApplicationRetrievalError(err)
+	}
+
+	return as.enrichApplicationWithCertificate(application)
+}
+
+// handleApplicationRetrievalError handles common error scenarios when retrieving applications from the store.
+func (as *ApplicationService) handleApplicationRetrievalError(err error) *serviceerror.ServiceError {
+	if errors.Is(err, constants.ApplicationNotFoundError) {
+		return &constants.ErrorApplicationNotFound
+	}
+	return &constants.ErrorInternalServerError
+}
+
+// enrichApplicationWithCertificate retrieves and adds the certificate to the application.
+func (as *ApplicationService) enrichApplicationWithCertificate(application *model.ApplicationProcessedDTO) (
+	*model.ApplicationProcessedDTO, *serviceerror.ServiceError) {
+	cert, certErr := as.getApplicationCertificate(application.ID)
 	if certErr != nil {
 		return nil, certErr
 	}
 	application.Certificate = cert
 
-	return &application, nil
+	return application, nil
 }
 
 // UpdateApplication update the application for given app id.
 func (as *ApplicationService) UpdateApplication(appID string, app *model.ApplicationDTO) (
-	*model.ApplicationDTO, error) {
+	*model.ApplicationDTO, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 
 	if appID == "" {
-		return nil, errors.New("application ID is empty")
+		return nil, &constants.ErrorInvalidApplicationID
 	}
 	if app == nil {
-		return nil, errors.New("application is nil")
+		return nil, &constants.ErrorApplicationNil
 	}
 	if app.Name == "" {
-		return nil, errors.New("application name cannot be empty")
+		return nil, &constants.ErrorInvalidApplicationName
+	}
+
+	// Check if the application exists.
+	existingApp, appCheckErr := as.AppStore.GetApplicationByID(appID)
+	if appCheckErr != nil {
+		if errors.Is(appCheckErr, constants.ApplicationNotFoundError) {
+			return nil, &constants.ErrorApplicationNotFound
+		}
+		return nil, &constants.ErrorInternalServerError
+	}
+
+	// If the application name is changed, check if a application with the new name already exists.
+	if existingApp.Name != app.Name {
+		existingAppWithName, appCheckErr := as.AppStore.GetApplicationByName(app.Name)
+		if appCheckErr != nil && !errors.Is(appCheckErr, constants.ApplicationNotFoundError) {
+			logger.Error("Failed to check existing application by name", log.Error(appCheckErr),
+				log.String("appName", app.Name))
+			return nil, &constants.ErrorInternalServerError
+		}
+		if existingAppWithName != nil {
+			return nil, &constants.ErrorApplicationAlreadyExistsWithName
+		}
 	}
 
 	inboundAuthConfig, err := validateOAuthParamsForCreateAndUpdate(app)
 	if err != nil {
 		return nil, err
+	}
+
+	// If the client ID is changed, check if a application with the new client ID already exists.
+	newClientID := inboundAuthConfig.OAuthAppConfig.ClientID
+	existingClientID := existingApp.InboundAuthConfig[0].OAuthAppConfig.ClientID
+	if newClientID != existingClientID {
+		existingAppWithClientID, clientCheckErr := as.AppStore.GetOAuthApplication(newClientID)
+		if clientCheckErr != nil && !errors.Is(clientCheckErr, constants.ApplicationNotFoundError) {
+			logger.Error("Failed to check existing application by client ID", log.Error(clientCheckErr),
+				log.String("clientID", newClientID))
+			return nil, &constants.ErrorInternalServerError
+		}
+		if existingAppWithClientID != nil {
+			return nil, &constants.ErrorApplicationAlreadyExistsWithClientID
+		}
 	}
 
 	if err := validateAuthFlowGraphID(app); err != nil {
@@ -236,10 +367,10 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 	}
 
 	if app.URL != "" && !sysutils.IsValidURI(app.URL) {
-		return nil, errors.New("application URL is not a valid URI")
+		return nil, &constants.ErrorInvalidApplicationURL
 	}
 	if app.LogoURL != "" && !sysutils.IsValidURI(app.LogoURL) {
-		return nil, errors.New("application logo URL is not a valid URI")
+		return nil, &constants.ErrorInvalidLogoURL
 	}
 
 	existingCert, updatedCert, returnCert, err := as.updateApplicationCertificate(app)
@@ -271,16 +402,16 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		InboundAuthConfig:         []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
 	}
 
-	err = as.AppStore.UpdateApplication(processedDTO)
-	if err != nil {
-		logger.Error("Failed to update application", log.Error(err), log.String("appID", appID))
+	storeErr := as.AppStore.UpdateApplication(processedDTO)
+	if storeErr != nil {
+		logger.Error("Failed to update application", log.Error(storeErr), log.String("appID", appID))
 
 		rollbackErr := as.rollbackApplicationCertificateUpdate(appID, existingCert, updatedCert)
 		if rollbackErr != nil {
-			return nil, fmt.Errorf("failed to rollback application certificate update: %w", rollbackErr)
+			return nil, rollbackErr
 		}
 
-		return nil, err
+		return nil, &constants.ErrorInternalServerError
 	}
 
 	returnApp := &model.ApplicationDTO{
@@ -295,23 +426,24 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		Certificate:               returnCert,
 		InboundAuthConfig:         []model.InboundAuthConfig{*inboundAuthConfig},
 	}
+
 	return returnApp, nil
 }
 
 // DeleteApplication delete the application for given app id.
-func (as *ApplicationService) DeleteApplication(appID string) error {
+func (as *ApplicationService) DeleteApplication(appID string) *serviceerror.ServiceError {
 	if appID == "" {
-		return errors.New("application ID is empty")
+		return &constants.ErrorInvalidApplicationID
 	}
 
 	err := as.AppStore.DeleteApplication(appID)
 	if err != nil {
-		return err
+		return &constants.ErrorInternalServerError
 	}
 
-	err = as.deleteApplicationCertificate(appID)
-	if err != nil {
-		return err
+	svcErr := as.deleteApplicationCertificate(appID)
+	if svcErr != nil {
+		return svcErr
 	}
 
 	return nil
@@ -319,11 +451,11 @@ func (as *ApplicationService) DeleteApplication(appID string) error {
 
 // validateAuthFlowGraphID validates the auth flow graph ID for the application.
 // If the graph ID is not provided, it sets the default authentication flow graph ID.
-func validateAuthFlowGraphID(app *model.ApplicationDTO) error {
+func validateAuthFlowGraphID(app *model.ApplicationDTO) *serviceerror.ServiceError {
 	if app.AuthFlowGraphID != "" {
 		isValidFlowGraphID := graphservice.GetGraphService().IsValidGraphID(app.AuthFlowGraphID)
 		if !isValidFlowGraphID {
-			return fmt.Errorf("invalid auth flow graph ID: %s", app.AuthFlowGraphID)
+			return &constants.ErrorInvalidAuthFlowGraphID
 		}
 	} else {
 		app.AuthFlowGraphID = getDefaultAuthFlowGraphID()
@@ -334,19 +466,18 @@ func validateAuthFlowGraphID(app *model.ApplicationDTO) error {
 
 // validateRegistrationFlowGraphID validates the registration flow graph ID for the application.
 // If the graph ID is not provided, it attempts to infer it from the auth flow graph ID.
-func validateRegistrationFlowGraphID(app *model.ApplicationDTO) error {
+func validateRegistrationFlowGraphID(app *model.ApplicationDTO) *serviceerror.ServiceError {
 	if app.RegistrationFlowGraphID != "" {
 		isValidFlowGraphID := graphservice.GetGraphService().IsValidGraphID(app.RegistrationFlowGraphID)
 		if !isValidFlowGraphID {
-			return fmt.Errorf("invalid registration flow graph ID: %s", app.RegistrationFlowGraphID)
+			return &constants.ErrorInvalidRegistrationFlowGraphID
 		}
 	} else {
 		if strings.HasPrefix(app.AuthFlowGraphID, constants.AuthFlowGraphPrefix) {
 			suffix := strings.TrimPrefix(app.AuthFlowGraphID, constants.AuthFlowGraphPrefix)
 			app.RegistrationFlowGraphID = constants.RegistrationFlowGraphPrefix + suffix
 		} else {
-			return fmt.Errorf("cannot infer registration flow graph ID from auth flow graph ID: %s",
-				app.AuthFlowGraphID)
+			return &constants.ErrorInvalidRegistrationFlowGraphID
 		}
 	}
 
@@ -354,52 +485,53 @@ func validateRegistrationFlowGraphID(app *model.ApplicationDTO) error {
 }
 
 // validateOAuthParamsForCreateAndUpdate validates the OAuth parameters for creating or updating an application.
-func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.InboundAuthConfig, error) {
+func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.InboundAuthConfig,
+	*serviceerror.ServiceError) {
 	// TODO: Need to refactor when supporting other/multiple inbound auth types.
 	if len(app.InboundAuthConfig) == 0 || app.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
-		return nil, errors.New("invalid inbound authentication configuration")
+		return nil, &constants.ErrorInvalidInboundAuthConfig
 	}
 	inboundAuthConfig := app.InboundAuthConfig[0]
 	if inboundAuthConfig.OAuthAppConfig == nil {
-		return nil, errors.New("OAuth application configuration is nil")
+		return nil, &constants.ErrorInvalidInboundAuthConfig
 	}
 
 	oauthAppConfig := inboundAuthConfig.OAuthAppConfig
 	if oauthAppConfig.ClientID == "" {
-		return nil, errors.New("client ID cannot be empty")
+		return nil, &constants.ErrorInvalidClientID
 	}
 	if oauthAppConfig.ClientSecret == "" {
-		return nil, errors.New("client secret cannot be empty")
+		return nil, &constants.ErrorInvalidClientSecret
 	}
 	if len(oauthAppConfig.RedirectURIs) == 0 {
-		return nil, errors.New("at least one Redirect URI is required")
+		return nil, &constants.ErrorInvalidRedirectURIs
 	}
 
 	// Validate the redirect URIs.
 	for _, redirectURI := range oauthAppConfig.RedirectURIs {
 		if !sysutils.IsValidURI(redirectURI) {
-			return nil, fmt.Errorf("redirect URI is not a valid URI: %s", redirectURI)
+			return nil, &constants.ErrorInvalidRedirectURI
 		}
 	}
 
 	// Validate the grant types.
 	for _, grantType := range oauthAppConfig.GrantTypes {
 		if !grantType.IsValid() {
-			return nil, fmt.Errorf("invalid grant type: %s", grantType)
+			return nil, &constants.ErrorInvalidGrantType
 		}
 	}
 
 	// Validate the response types.
 	for _, responseType := range oauthAppConfig.ResponseTypes {
 		if !responseType.IsValid() {
-			return nil, fmt.Errorf("invalid response type: %s", responseType)
+			return nil, &constants.ErrorInvalidResponseType
 		}
 	}
 
 	// Validate the token endpoint authentication methods.
 	for _, authMethod := range oauthAppConfig.TokenEndpointAuthMethod {
 		if !authMethod.IsValid() {
-			return nil, fmt.Errorf("invalid token endpoint authentication method: %s", authMethod)
+			return nil, &constants.ErrorInvalidTokenEndpointAuthMethod
 		}
 	}
 
@@ -414,7 +546,7 @@ func getDefaultAuthFlowGraphID() string {
 
 // getValidatedCertificateForCreate validates and returns the certificate for the application during creation.
 func (as *ApplicationService) getValidatedCertificateForCreate(appID string, app *model.ApplicationDTO) (
-	*certmodel.Certificate, error) {
+	*certmodel.Certificate, *serviceerror.ServiceError) {
 	if app.Certificate == nil || app.Certificate.Type == "" || app.Certificate.Type == certconst.CertificateTypeNone {
 		return nil, nil
 	}
@@ -423,7 +555,7 @@ func (as *ApplicationService) getValidatedCertificateForCreate(appID string, app
 
 // getValidatedCertificateForUpdate validates and returns the certificate for the application during update.
 func (as *ApplicationService) getValidatedCertificateForUpdate(certID string, app *model.ApplicationDTO) (
-	*certmodel.Certificate, error) {
+	*certmodel.Certificate, *serviceerror.ServiceError) {
 	if app.Certificate == nil || app.Certificate.Type == "" || app.Certificate.Type == certconst.CertificateTypeNone {
 		return nil, nil
 	}
@@ -431,11 +563,12 @@ func (as *ApplicationService) getValidatedCertificateForUpdate(certID string, ap
 }
 
 // getValidatedCertificateInput is a helper method that validates and returns the certificate.
-func getValidatedCertificateInput(appID, certID string, app *model.ApplicationDTO) (*certmodel.Certificate, error) {
+func getValidatedCertificateInput(appID, certID string, app *model.ApplicationDTO) (*certmodel.Certificate,
+	*serviceerror.ServiceError) {
 	switch app.Certificate.Type {
 	case certconst.CertificateTypeJWKS:
 		if app.Certificate.Value == "" {
-			return nil, errors.New("JWKS certificate value cannot be empty")
+			return nil, &constants.ErrorInvalidCertificateValue
 		}
 		return &certmodel.Certificate{
 			ID:      certID,
@@ -446,7 +579,7 @@ func getValidatedCertificateInput(appID, certID string, app *model.ApplicationDT
 		}, nil
 	case certconst.CertificateTypeJWKSURI:
 		if !sysutils.IsValidURI(app.Certificate.Value) {
-			return nil, errors.New("JWKS URI certificate value is not a valid URI")
+			return nil, &constants.ErrorInvalidJWKSURI
 		}
 		return &certmodel.Certificate{
 			ID:      certID,
@@ -456,13 +589,13 @@ func getValidatedCertificateInput(appID, certID string, app *model.ApplicationDT
 			Value:   app.Certificate.Value,
 		}, nil
 	default:
-		return nil, fmt.Errorf("unsupported certificate type: %s", app.Certificate.Type)
+		return nil, &constants.ErrorInvalidCertificateType
 	}
 }
 
 // createApplicationCertificate creates a certificate for the application.
 func (as *ApplicationService) createApplicationCertificate(cert *certmodel.Certificate) (
-	*model.ApplicationCertificate, error) {
+	*model.ApplicationCertificate, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 
 	var returnCert *model.ApplicationCertificate
@@ -470,10 +603,16 @@ func (as *ApplicationService) createApplicationCertificate(cert *certmodel.Certi
 		_, svcErr := as.CertService.CreateCertificate(cert)
 		if svcErr != nil {
 			if svcErr.Type == serviceerror.ClientErrorType {
-				return nil, fmt.Errorf("failed to create application certificate: %s", svcErr.ErrorDescription)
+				retErr := serviceerror.ServiceError{
+					Type:             constants.ErrorCertificateClientError.Type,
+					Code:             constants.ErrorCertificateClientError.Code,
+					Error:            constants.ErrorCertificateClientError.Error,
+					ErrorDescription: "Failed to create application certificate: " + svcErr.ErrorDescription,
+				}
+				return nil, &retErr
 			}
 			logger.Error("Failed to create application certificate", log.Any("serviceError", svcErr))
-			return nil, fmt.Errorf("server error while creating application certificate")
+			return nil, &constants.ErrorCertificateServerError
 		}
 
 		returnCert = &model.ApplicationCertificate{
@@ -492,38 +631,57 @@ func (as *ApplicationService) createApplicationCertificate(cert *certmodel.Certi
 
 // rollbackAppCertificateCreation rolls back the application certificate creation in case of an error during
 // application creation.
-func (as *ApplicationService) rollbackAppCertificateCreation(appID string) error {
+func (as *ApplicationService) rollbackAppCertificateCreation(appID string) *serviceerror.ServiceError {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 
 	deleteErr := as.CertService.DeleteCertificateByReference(certconst.CertificateReferenceTypeApplication, appID)
 	if deleteErr != nil {
 		if deleteErr.Type == serviceerror.ClientErrorType {
-			return fmt.Errorf("failed to delete application certificate: %s", deleteErr.ErrorDescription)
+			retErr := serviceerror.ServiceError{
+				Type:             constants.ErrorCertificateClientError.Type,
+				Code:             constants.ErrorCertificateClientError.Code,
+				Error:            constants.ErrorCertificateClientError.Error,
+				ErrorDescription: "Failed to delete application certificate: " + deleteErr.ErrorDescription,
+			}
+			return &retErr
 		}
+
 		logger.Error("Failed to delete application certificate", log.String("appID", appID),
 			log.Any("serviceError", deleteErr))
-		return errors.New("server error while deleting application certificate")
+		return &constants.ErrorCertificateServerError
 	}
 
 	return nil
 }
 
 // deleteApplicationCertificate deletes the certificate associated with the application.
-func (as *ApplicationService) deleteApplicationCertificate(appID string) error {
+func (as *ApplicationService) deleteApplicationCertificate(appID string) *serviceerror.ServiceError {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 
 	if certErr := as.CertService.DeleteCertificateByReference(
 		certconst.CertificateReferenceTypeApplication, appID); certErr != nil {
-		logger.Error("Failed to delete application certificate", log.Any("serviceError", certErr),
-			log.String("appID", appID))
-		return fmt.Errorf("error while deleting application certificate: %s", certErr.ErrorDescription)
+		if certErr.Type == serviceerror.ClientErrorType {
+			retErr := serviceerror.ServiceError{
+				Type:             constants.ErrorCertificateClientError.Type,
+				Code:             constants.ErrorCertificateClientError.Code,
+				Error:            constants.ErrorCertificateClientError.Error,
+				ErrorDescription: "Failed to delete application certificate: " + certErr.ErrorDescription,
+			}
+			return &retErr
+		}
+		logger.Error("Failed to delete application certificate", log.String("appID", appID),
+			log.Any("serviceError", certErr))
+		return &constants.ErrorCertificateServerError
 	}
 
 	return nil
 }
 
 // getApplicationCertificate retrieves the certificate associated with the application.
-func (as *ApplicationService) getApplicationCertificate(appID string) (*model.ApplicationCertificate, error) {
+func (as *ApplicationService) getApplicationCertificate(appID string) (*model.ApplicationCertificate,
+	*serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
+
 	cert, certErr := as.CertService.GetCertificateByReference(
 		certconst.CertificateReferenceTypeApplication, appID)
 
@@ -535,7 +693,18 @@ func (as *ApplicationService) getApplicationCertificate(appID string) (*model.Ap
 			}, nil
 		}
 
-		return nil, fmt.Errorf("failed to get application certificate: %s", certErr.ErrorDescription)
+		if certErr.Type == serviceerror.ClientErrorType {
+			retErr := serviceerror.ServiceError{
+				Type:             constants.ErrorCertificateClientError.Type,
+				Code:             constants.ErrorCertificateClientError.Code,
+				Error:            constants.ErrorCertificateClientError.Error,
+				ErrorDescription: "Failed to retrieve application certificate: " + certErr.ErrorDescription,
+			}
+			return nil, &retErr
+		}
+		logger.Error("Failed to retrieve application certificate", log.Any("serviceError", certErr),
+			log.String("appID", appID))
+		return nil, &constants.ErrorCertificateServerError
 	}
 
 	if cert == nil {
@@ -554,7 +723,7 @@ func (as *ApplicationService) getApplicationCertificate(appID string) (*model.Ap
 // updateApplicationCertificate updates the certificate for the application.
 // It returns the existing certificate, the updated certificate, and the return application certificate details.
 func (as *ApplicationService) updateApplicationCertificate(app *model.ApplicationDTO) (
-	*certmodel.Certificate, *certmodel.Certificate, *model.ApplicationCertificate, error) {
+	*certmodel.Certificate, *certmodel.Certificate, *model.ApplicationCertificate, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 	appID := app.ID
 
@@ -562,16 +731,21 @@ func (as *ApplicationService) updateApplicationCertificate(app *model.Applicatio
 		certconst.CertificateReferenceTypeApplication, appID)
 	if certErr != nil && certErr.Code != certconst.ErrorCertificateNotFound.Code {
 		if certErr.Type == serviceerror.ClientErrorType {
-			return nil, nil, nil, fmt.Errorf("failed to get application certificate: %s", certErr.ErrorDescription)
+			retErr := serviceerror.ServiceError{
+				Type:             constants.ErrorCertificateClientError.Type,
+				Code:             constants.ErrorCertificateClientError.Code,
+				Error:            constants.ErrorCertificateClientError.Error,
+				ErrorDescription: "Failed to retrieve application certificate: " + certErr.ErrorDescription,
+			}
+			return nil, nil, nil, &retErr
 		}
 		logger.Error("Failed to retrieve application certificate", log.Any("serviceError", certErr),
 			log.String("appID", appID))
-		return nil, nil, nil, fmt.Errorf("server error while retrieving application certificate: %s",
-			certErr.ErrorDescription)
+		return nil, nil, nil, &constants.ErrorCertificateServerError
 	}
 
 	var updatedCert *certmodel.Certificate
-	var err error
+	var err *serviceerror.ServiceError
 	if existingCert != nil {
 		updatedCert, err = as.getValidatedCertificateForUpdate(existingCert.ID, app)
 	} else {
@@ -588,25 +762,33 @@ func (as *ApplicationService) updateApplicationCertificate(app *model.Applicatio
 			_, svcErr := as.CertService.UpdateCertificateByID(existingCert.ID, updatedCert)
 			if svcErr != nil {
 				if svcErr.Type == serviceerror.ClientErrorType {
-					return nil, nil, nil, fmt.Errorf("failed to update application certificate: %s",
-						svcErr.ErrorDescription)
+					retErr := serviceerror.ServiceError{
+						Type:             constants.ErrorCertificateClientError.Type,
+						Code:             constants.ErrorCertificateClientError.Code,
+						Error:            constants.ErrorCertificateClientError.Error,
+						ErrorDescription: "Failed to update application certificate: " + svcErr.ErrorDescription,
+					}
+					return nil, nil, nil, &retErr
 				}
 				logger.Error("Failed to update application certificate", log.Any("serviceError", svcErr),
 					log.String("appID", appID))
-				return nil, nil, nil, fmt.Errorf("server error while updating application certificate: %s",
-					svcErr.ErrorDescription)
+				return nil, nil, nil, &constants.ErrorCertificateServerError
 			}
 		} else {
 			_, svcErr := as.CertService.CreateCertificate(updatedCert)
 			if svcErr != nil {
 				if svcErr.Type == serviceerror.ClientErrorType {
-					return nil, nil, nil, fmt.Errorf("failed to create application certificate: %s",
-						svcErr.ErrorDescription)
+					retErr := serviceerror.ServiceError{
+						Type:             constants.ErrorCertificateClientError.Type,
+						Code:             constants.ErrorCertificateClientError.Code,
+						Error:            constants.ErrorCertificateClientError.Error,
+						ErrorDescription: "Failed to create application certificate: " + svcErr.ErrorDescription,
+					}
+					return nil, nil, nil, &retErr
 				}
 				logger.Error("Failed to create application certificate", log.Any("serviceError", svcErr),
 					log.String("appID", appID))
-				return nil, nil, nil, fmt.Errorf("server error while creating application certificate: %s",
-					svcErr.ErrorDescription)
+				return nil, nil, nil, &constants.ErrorCertificateServerError
 			}
 		}
 
@@ -621,13 +803,17 @@ func (as *ApplicationService) updateApplicationCertificate(app *model.Applicatio
 				certconst.CertificateReferenceTypeApplication, appID)
 			if deleteErr != nil {
 				if deleteErr.Type == serviceerror.ClientErrorType {
-					return nil, nil, nil, fmt.Errorf("failed to delete application certificate: %s",
-						deleteErr.ErrorDescription)
+					retErr := serviceerror.ServiceError{
+						Type:             constants.ErrorCertificateClientError.Type,
+						Code:             constants.ErrorCertificateClientError.Code,
+						Error:            constants.ErrorCertificateClientError.Error,
+						ErrorDescription: "Failed to delete application certificate: " + deleteErr.ErrorDescription,
+					}
+					return nil, nil, nil, &retErr
 				}
 				logger.Error("Failed to delete application certificate", log.Any("serviceError", deleteErr),
 					log.String("appID", appID))
-				return nil, nil, nil, fmt.Errorf("server error while deleting application certificate: %s",
-					deleteErr.ErrorDescription)
+				return nil, nil, nil, &constants.ErrorCertificateServerError
 			}
 		}
 
@@ -642,7 +828,7 @@ func (as *ApplicationService) updateApplicationCertificate(app *model.Applicatio
 
 // rollbackApplicationCertificateUpdate rolls back the certificate update for the application in case of an error.
 func (as *ApplicationService) rollbackApplicationCertificateUpdate(appID string,
-	existingCert, updatedCert *certmodel.Certificate) error {
+	existingCert, updatedCert *certmodel.Certificate) *serviceerror.ServiceError {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 
 	if updatedCert != nil {
@@ -651,42 +837,58 @@ func (as *ApplicationService) rollbackApplicationCertificateUpdate(appID string,
 			_, svcErr := as.CertService.UpdateCertificateByID(existingCert.ID, existingCert)
 			if svcErr != nil {
 				if svcErr.Type == serviceerror.ClientErrorType {
-					return fmt.Errorf("failed to revert application certificate update: %s",
-						svcErr.ErrorDescription)
+					retErr := serviceerror.ServiceError{
+						Type:  constants.ErrorCertificateClientError.Type,
+						Code:  constants.ErrorCertificateClientError.Code,
+						Error: constants.ErrorCertificateClientError.Error,
+						ErrorDescription: "Failed to revert application certificate update: " +
+							svcErr.ErrorDescription,
+					}
+					return &retErr
 				}
+
 				logger.Error("Failed to revert application certificate update", log.Any("serviceError", svcErr),
 					log.String("appID", appID))
-				return fmt.Errorf("server error while reverting application certificate update: %s",
-					svcErr.ErrorDescription)
+				return &constants.ErrorCertificateServerError
 			}
-		} else {
-			// Delete the newly created certificate.
+		} else { // Delete the newly created certificate.
 			deleteErr := as.CertService.DeleteCertificateByReference(
 				certconst.CertificateReferenceTypeApplication, appID)
 			if deleteErr != nil {
 				if deleteErr.Type == serviceerror.ClientErrorType {
-					return fmt.Errorf("failed to delete application certificate: %s",
-						deleteErr.ErrorDescription)
+					retErr := serviceerror.ServiceError{
+						Type:  constants.ErrorCertificateClientError.Type,
+						Code:  constants.ErrorCertificateClientError.Code,
+						Error: constants.ErrorCertificateClientError.Error,
+						ErrorDescription: "Failed to delete application certificate after update failure: " +
+							deleteErr.ErrorDescription,
+					}
+					return &retErr
 				}
+
 				logger.Error("Failed to delete application certificate after update failure",
 					log.Any("serviceError", deleteErr), log.String("appID", appID))
-				return fmt.Errorf("server error while deleting application certificate: %s",
-					deleteErr.ErrorDescription)
+				return &constants.ErrorCertificateServerError
 			}
 		}
 	} else {
-		if existingCert != nil {
-			// Create the previously existed certificate.
+		if existingCert != nil { // Create the previously existed certificate.
 			_, svcErr := as.CertService.CreateCertificate(existingCert)
 			if svcErr != nil {
 				if svcErr.Type == serviceerror.ClientErrorType {
-					return fmt.Errorf("failed to revert application certificate creation: %s",
-						svcErr.ErrorDescription)
+					retErr := serviceerror.ServiceError{
+						Type:  constants.ErrorCertificateClientError.Type,
+						Code:  constants.ErrorCertificateClientError.Code,
+						Error: constants.ErrorCertificateClientError.Error,
+						ErrorDescription: "Failed to revert application certificate creation: " +
+							svcErr.ErrorDescription,
+					}
+					return &retErr
 				}
+
 				logger.Error("Failed to revert application certificate creation", log.Any("serviceError", svcErr),
 					log.String("appID", appID))
-				return fmt.Errorf("server error while reverting application certificate creation: %s",
-					svcErr.ErrorDescription)
+				return &constants.ErrorCertificateServerError
 			}
 		}
 	}

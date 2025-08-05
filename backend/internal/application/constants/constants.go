@@ -19,6 +19,8 @@
 // Package constants defines the constants used across the application module.
 package constants
 
+import "errors"
+
 const (
 	// AuthFlowGraphPrefix defines the prefix for authentication flow graph IDs.
 	AuthFlowGraphPrefix = "auth_flow_config_"
@@ -33,3 +35,6 @@ const (
 	// OAuthInboundAuthType represents the OAuth 2.0 inbound authentication type.
 	OAuthInboundAuthType InboundAuthType = "oauth2"
 )
+
+// ApplicationNotFoundError is the error returned when an application is not found.
+var ApplicationNotFoundError error = errors.New("application not found")

@@ -152,3 +152,10 @@ type BasicApplicationResponse struct {
 	RegistrationFlowGraphID   string `json:"registration_flow_graph_id,omitempty"`
 	IsRegistrationFlowEnabled bool   `json:"is_registration_flow_enabled,omitempty"`
 }
+
+// ApplicationListResponse represents the response structure for listing applications.
+type ApplicationListResponse struct {
+	TotalResults int                        `json:"totalResults"`
+	Count        int                        `json:"count"`
+	Applications []BasicApplicationResponse `json:"applications"`
+}

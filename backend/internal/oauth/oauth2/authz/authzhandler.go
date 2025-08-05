@@ -112,8 +112,8 @@ func (ah *AuthorizeHandler) handleInitialAuthorizationRequest(msg *model.OAuthMe
 
 	// Retrieve the OAuth application based on the client Id.
 	appService := ah.AppProvider.GetApplicationService()
-	app, err := appService.GetOAuthApplication(clientID)
-	if err != nil || app == nil {
+	app, svcErr := appService.GetOAuthApplication(clientID)
+	if svcErr != nil || app == nil {
 		ah.redirectToErrorPage(w, r, oauth2const.ErrorInvalidClient, "Invalid client_id")
 		return
 	}
