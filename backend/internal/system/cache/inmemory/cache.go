@@ -20,6 +20,7 @@
 package inmemory
 
 import (
+	"container/heap"
 	"container/list"
 	"sync"
 	"time"
@@ -31,10 +32,56 @@ import (
 
 const loggerComponentName = "InMemoryCache"
 
+// lfuHeapItem represents an item in the LFU heap.
+type lfuHeapItem struct {
+	key         model.CacheKey
+	accessCount int64
+	lastAccess  time.Time
+	index       int // Index in the heap
+}
+
+// lfuHeap implements heap.Interface for LFU eviction.
+type lfuHeap []*lfuHeapItem
+
+func (h lfuHeap) Len() int { return len(h) }
+
+func (h lfuHeap) Less(i, j int) bool {
+	// Primary: fewer accesses come first
+	if h[i].accessCount != h[j].accessCount {
+		return h[i].accessCount < h[j].accessCount
+	}
+	// Tie-breaker: earlier access time comes first
+	return h[i].lastAccess.Before(h[j].lastAccess)
+}
+
+func (h lfuHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+	h[i].index = i
+	h[j].index = j
+}
+
+func (h *lfuHeap) Push(x any) {
+	n := len(*h)
+	item := x.(*lfuHeapItem)
+	item.index = n
+	*h = append(*h, item)
+}
+
+func (h *lfuHeap) Pop() any {
+	old := *h
+	n := len(old)
+	item := old[n-1]
+	old[n-1] = nil  // avoid memory leak
+	item.index = -1 // for safety
+	*h = old[0 : n-1]
+	return item
+}
+
 // InMemoryCacheEntry represents an entry in the in-memory cache with additional metadata.
 type InMemoryCacheEntry[T any] struct {
 	*model.CacheEntry[T]
 	listElement *list.Element
+	heapItem    *lfuHeapItem
 	lastAccess  time.Time
 	accessCount int64
 }
@@ -44,6 +91,7 @@ type InMemoryCache[T any] struct {
 	enabled        bool
 	cache          map[model.CacheKey]*InMemoryCacheEntry[T]
 	accessOrder    *list.List
+	lfuHeap        *lfuHeap
 	mu             sync.RWMutex
 	size           int
 	ttl            time.Duration
@@ -76,10 +124,14 @@ func NewInMemoryCache[T any](enabled bool, size int, ttl time.Duration,
 	logger.Debug("Initializing In-memory cache", log.String("evictionPolicy", string(evictionPolicy)),
 		log.Int("size", cacheSize), log.Any("ttl", cacheTTL))
 
+	lfuHeapInstance := &lfuHeap{}
+	heap.Init(lfuHeapInstance)
+
 	return &InMemoryCache[T]{
 		enabled:        true,
 		cache:          make(map[model.CacheKey]*InMemoryCacheEntry[T]),
 		accessOrder:    list.New(),
+		lfuHeap:        lfuHeapInstance,
 		size:           cacheSize,
 		ttl:            cacheTTL,
 		evictionPolicy: evictionPolicy,
@@ -107,6 +159,13 @@ func (c *InMemoryCache[T]) Set(key model.CacheKey, value T) error {
 		existingEntry.lastAccess = now
 		existingEntry.accessCount++
 		c.accessOrder.MoveToFront(existingEntry.listElement)
+
+		// Update the heap item for LFU eviction
+		if c.evictionPolicy == constants.EvictionPolicyLFU && existingEntry.heapItem != nil {
+			existingEntry.heapItem.accessCount = existingEntry.accessCount
+			existingEntry.heapItem.lastAccess = existingEntry.lastAccess
+			heap.Fix(c.lfuHeap, existingEntry.heapItem.index)
+		}
 		return nil
 	}
 
@@ -117,9 +176,22 @@ func (c *InMemoryCache[T]) Set(key model.CacheKey, value T) error {
 	}
 
 	listElement := c.accessOrder.PushFront(key)
+
+	// Create heap item for LFU eviction
+	var heapItem *lfuHeapItem
+	if c.evictionPolicy == constants.EvictionPolicyLFU {
+		heapItem = &lfuHeapItem{
+			key:         key,
+			accessCount: 1,
+			lastAccess:  now,
+		}
+		heap.Push(c.lfuHeap, heapItem)
+	}
+
 	inMemoryCacheEntry := &InMemoryCacheEntry[T]{
 		CacheEntry:  cacheEntry,
 		listElement: listElement,
+		heapItem:    heapItem,
 		lastAccess:  now,
 		accessCount: 1,
 	}
@@ -168,6 +240,13 @@ func (c *InMemoryCache[T]) Get(key model.CacheKey) (T, bool) {
 	c.accessOrder.MoveToFront(entry.listElement)
 	c.hitCount++
 
+	// Update the heap item for LFU eviction
+	if c.evictionPolicy == constants.EvictionPolicyLFU && entry.heapItem != nil {
+		entry.heapItem.accessCount = entry.accessCount
+		entry.heapItem.lastAccess = entry.lastAccess
+		heap.Fix(c.lfuHeap, entry.heapItem.index)
+	}
+
 	logger.Debug("Cache hit", log.String("key", key.ToString()))
 	return entry.Value, true
 }
@@ -201,6 +280,8 @@ func (c *InMemoryCache[T]) Clear() error {
 
 	c.cache = make(map[model.CacheKey]*InMemoryCacheEntry[T])
 	c.accessOrder.Init()
+	c.lfuHeap = &lfuHeap{}
+	heap.Init(c.lfuHeap)
 	c.hitCount = 0
 	c.missCount = 0
 	c.evictCount = 0
@@ -274,34 +355,18 @@ func (c *InMemoryCache[T]) evictOldest() {
 func (c *InMemoryCache[T]) evictLeastFrequent() {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	if len(c.cache) == 0 {
+	if c.lfuHeap.Len() == 0 {
 		return
 	}
 
-	var leastFrequentKey model.CacheKey
-	var leastFrequentEntry *InMemoryCacheEntry[T]
-	var minAccessCount int64 = -1
+	// Get the least frequently used item from the heap
+	leastFrequentItem := heap.Pop(c.lfuHeap).(*lfuHeapItem)
 
-	// Find the least frequently used entry
-	for key, entry := range c.cache {
-		if minAccessCount == -1 || entry.accessCount < minAccessCount {
-			minAccessCount = entry.accessCount
-			leastFrequentKey = key
-			leastFrequentEntry = entry
-		} else if entry.accessCount == minAccessCount {
-			// If access counts are equal, use LRU as tie-breaker
-			if entry.lastAccess.Before(leastFrequentEntry.lastAccess) {
-				leastFrequentKey = key
-				leastFrequentEntry = entry
-			}
-		}
-	}
-
-	if leastFrequentEntry != nil {
-		c.deleteEntry(leastFrequentKey, leastFrequentEntry)
+	if entry, exists := c.cache[leastFrequentItem.key]; exists {
+		c.deleteEntry(leastFrequentItem.key, entry)
 		c.evictCount++
-		logger.Debug("Cache entry evicted (LFU)", log.String("key", leastFrequentKey.ToString()),
-			log.Any("accessCount", minAccessCount))
+		logger.Debug("Cache entry evicted (LFU)", log.String("key", leastFrequentItem.key.ToString()),
+			log.Any("accessCount", leastFrequentItem.accessCount))
 	}
 }
 
@@ -309,6 +374,11 @@ func (c *InMemoryCache[T]) evictLeastFrequent() {
 func (c *InMemoryCache[T]) deleteEntry(key model.CacheKey, entry *InMemoryCacheEntry[T]) {
 	delete(c.cache, key)
 	c.accessOrder.Remove(entry.listElement)
+
+	// Remove from heap if using LFU eviction
+	if c.evictionPolicy == constants.EvictionPolicyLFU && entry.heapItem != nil && entry.heapItem.index >= 0 {
+		heap.Remove(c.lfuHeap, entry.heapItem.index)
+	}
 }
 
 // CleanupExpired removes all expired entries from the cache.
