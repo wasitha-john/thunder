@@ -21,11 +21,11 @@ package identify
 
 import (
 	"slices"
-	"strings"
 
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/system/log"
+	userconst "github.com/asgardeo/thunder/internal/user/constants"
 	userprovider "github.com/asgardeo/thunder/internal/user/provider"
 )
 
@@ -61,18 +61,21 @@ func (i *IdentifyingExecutor) IdentifyUser(filters map[string]interface{},
 
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	userID, err := userService.IdentifyUser(searchableFilter)
-	if err != nil {
-		if strings.Contains(err.Error(), "user not found") {
+	userID, svcErr := userService.IdentifyUser(searchableFilter)
+	if svcErr != nil {
+		if svcErr.Code == userconst.ErrorUserNotFound.Code {
 			logger.Debug("User not found for the provided filters")
 			execResp.Status = flowconst.ExecFailure
 			execResp.FailureReason = "User not found"
 			return nil, nil
+		} else {
+			logger.Debug("Failed to identify user due to error: " + svcErr.Error)
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "Failed to identify user"
+			return nil, nil
 		}
-
-		logger.Error("Error identifying user", log.Error(err))
-		return nil, err
 	}
+
 	if userID == nil || *userID == "" {
 		logger.Debug("User not found for the provided filter")
 		execResp.Status = flowconst.ExecFailure

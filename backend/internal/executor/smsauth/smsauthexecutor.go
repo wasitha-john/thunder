@@ -420,9 +420,9 @@ func (s *SMSOTPAuthExecutor) resolveUserIDFromAttribute(ctx *flowmodel.NodeConte
 		userProvider := userprovider.NewUserProvider()
 		userService := userProvider.GetUserService()
 		filters := map[string]interface{}{attributeName: attributeValue}
-		userID, err := userService.IdentifyUser(filters)
-		if err != nil {
-			return false, fmt.Errorf("failed to identify user by %s: %w", attributeName, err)
+		userID, svcErr := userService.IdentifyUser(filters)
+		if svcErr != nil {
+			return false, fmt.Errorf("failed to identify user by %s: %s", attributeName, svcErr.Error)
 		}
 		if userID != nil && *userID != "" {
 			logger.Debug("User ID resolved from attribute", log.String("attributeName", attributeName),
@@ -446,11 +446,12 @@ func (s *SMSOTPAuthExecutor) getUserMobileNumber(userID string, ctx *flowmodel.N
 		log.String("userID", userID))
 	logger.Debug("Retrieving user mobile number")
 
+	var err error
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	user, err := userService.GetUser(userID)
-	if err != nil {
-		return "", fmt.Errorf("failed to retrieve user details: %w", err)
+	user, svcErr := userService.GetUser(userID)
+	if svcErr != nil {
+		return "", fmt.Errorf("failed to retrieve user details: %s", svcErr.Error)
 	}
 
 	// Extract mobile number from user attributes
@@ -735,9 +736,9 @@ func (s *SMSOTPAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	user, err := userService.GetUser(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user details: %w", err)
+	user, svcErr := userService.GetUser(userID)
+	if svcErr != nil {
+		return nil, fmt.Errorf("failed to get user details: %s", svcErr.Error)
 	}
 
 	// Extract user attributes

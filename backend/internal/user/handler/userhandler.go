@@ -21,7 +21,6 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -56,22 +55,17 @@ func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 	// Create the user using the user service.
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	createdUser, err := userService.CreateUser(&userInCreationRequest)
-	if err != nil {
-		if errors.Is(err, model.ErrBadAttributesInRequest) {
-			http.Error(w, "Bad Request: The attributes element is malformed or contains invalid data.", http.StatusBadRequest)
-		} else {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		}
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	createdUser, svcErr := userService.CreateUser(&userInCreationRequest)
+	if svcErr != nil {
+		handleError(w, logger, svcErr)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	err = json.NewEncoder(w).Encode(createdUser)
-	if err != nil {
+	if err := json.NewEncoder(w).Encode(createdUser); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -97,9 +91,9 @@ func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Requ
 	// Get the user list using the user service.
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	userListResponse, err := userService.GetUserList(limit, offset)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	userListResponse, svcErr := userService.GetUserList(limit, offset)
+	if svcErr != nil {
+		handleError(w, logger, svcErr)
 		return
 	}
 
@@ -131,19 +125,15 @@ func (ah *UserHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Reque
 	// Get the user using the user service.
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	user, err := userService.GetUser(id)
-	if err != nil {
-		if errors.Is(err, model.ErrUserNotFound) {
-			http.Error(w, "Not Found: The user with the specified id does not exist.", http.StatusNotFound)
-		} else {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		}
+	user, svcErr := userService.GetUser(id)
+	if svcErr != nil {
+		handleError(w, logger, svcErr)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(user)
-	if err != nil {
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -172,21 +162,15 @@ func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 	// Update the user using the user service.
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	user, err := userService.UpdateUser(id, &updatedUser)
-	if err != nil {
-		if errors.Is(err, model.ErrUserNotFound) {
-			http.Error(w, "Not Found: The user with the specified id does not exist.", http.StatusNotFound)
-		} else if errors.Is(err, model.ErrBadAttributesInRequest) {
-			http.Error(w, "Bad Request: The attributes element is malformed or contains invalid data.", http.StatusBadRequest)
-		} else {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		}
+	user, svcErr := userService.UpdateUser(id, &updatedUser)
+	if svcErr != nil {
+		handleError(w, logger, svcErr)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(user)
-	if err != nil {
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -208,9 +192,9 @@ func (ah *UserHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Re
 	// Delete the user using the user service.
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	err := userService.DeleteUser(id)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	svcErr := userService.DeleteUser(id)
+	if svcErr != nil {
+		handleError(w, logger, svcErr)
 		return
 	}
 
@@ -252,14 +236,21 @@ func parsePaginationParams(query url.Values) (int, int, *serviceerror.ServiceErr
 func handleError(w http.ResponseWriter, logger *log.Logger, svcErr *serviceerror.ServiceError) {
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 
-	switch svcErr.Type {
-	case serviceerror.ClientErrorType:
-		w.WriteHeader(http.StatusBadRequest)
-	case serviceerror.ServerErrorType:
-		w.WriteHeader(http.StatusInternalServerError)
-	default:
-		w.WriteHeader(http.StatusInternalServerError)
+	var statusCode int
+	if svcErr.Type == serviceerror.ClientErrorType {
+		switch svcErr.Code {
+		case constants.ErrorMissingUserID.Code:
+			statusCode = http.StatusNotFound
+		case constants.ErrorUsernameConflict.Code:
+			statusCode = http.StatusConflict
+		default:
+			statusCode = http.StatusBadRequest
+		}
+	} else {
+		statusCode = http.StatusInternalServerError
 	}
+
+	w.WriteHeader(statusCode)
 
 	errResp := apierror.ErrorResponse{
 		Code:        svcErr.Code,

@@ -21,6 +21,7 @@ package basicauth
 
 import (
 	"encoding/json"
+	"fmt"
 
 	authndto "github.com/asgardeo/thunder/internal/authn/dto"
 	"github.com/asgardeo/thunder/internal/executor/identify"
@@ -211,10 +212,13 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
 
-	user, err := userService.VerifyUser(*userID, userAttributePassword, ctx.UserInputData[userAttributePassword])
-	if err != nil {
-		logger.Error("Failed to verify user credentials", log.String("userID", *userID), log.Error(err))
-		return nil, err
+	user, svcErr := userService.VerifyUser(*userID, userAttributePassword, ctx.UserInputData[userAttributePassword])
+	if svcErr != nil {
+		logger.Error("Failed to verify user credentials",
+			log.String("userID", *userID),
+			log.String("error", svcErr.Error),
+			log.String("code", svcErr.Code))
+		return nil, fmt.Errorf("failed to verify user credentials: %s", svcErr.Error)
 	}
 
 	var authenticatedUser authndto.AuthenticatedUser

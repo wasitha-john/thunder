@@ -25,8 +25,10 @@ import (
 	"fmt"
 
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
+	"github.com/asgardeo/thunder/internal/user/constants"
 	"github.com/asgardeo/thunder/internal/user/model"
 	"github.com/asgardeo/thunder/internal/user/store"
 )
@@ -35,14 +37,14 @@ const loggerComponentName = "UserService"
 
 // UserServiceInterface defines the interface for the user service.
 type UserServiceInterface interface {
-	CreateUser(user *model.User) (*model.User, error)
-	GetUserList(limit, offset int) (*model.UserListResponse, error)
-	GetUser(userID string) (*model.User, error)
-	UpdateUser(userID string, user *model.User) (*model.User, error)
-	DeleteUser(userID string) error
-	IdentifyUser(filters map[string]interface{}) (*string, error)
-	VerifyUser(userID, credType, credValue string) (*model.User, error)
-	ValidateUserIDs(userIDs []string) ([]string, error)
+	CreateUser(user *model.User) (*model.User, *serviceerror.ServiceError)
+	GetUserList(limit, offset int) (*model.UserListResponse, *serviceerror.ServiceError)
+	GetUser(userID string) (*model.User, *serviceerror.ServiceError)
+	UpdateUser(userID string, user *model.User) (*model.User, *serviceerror.ServiceError)
+	DeleteUser(userID string) *serviceerror.ServiceError
+	IdentifyUser(filters map[string]interface{}) (*string, *serviceerror.ServiceError)
+	VerifyUser(userID, credType, credValue string) (*model.User, *serviceerror.ServiceError)
+	ValidateUserIDs(userIDs []string) ([]string, *serviceerror.ServiceError)
 }
 
 // UserService is the default implementation of the UserServiceInterface.
@@ -54,23 +56,27 @@ func GetUserService() UserServiceInterface {
 }
 
 // CreateUser creates the user.
-func (as *UserService) CreateUser(user *model.User) (*model.User, error) {
+func (as *UserService) CreateUser(user *model.User) (*model.User, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	if user == nil {
+		return nil, &constants.ErrorInvalidRequestFormat
+	}
 
 	user.ID = utils.GenerateUUID()
 
 	credentials, err := extractCredentials(user)
 	if err != nil {
-		logger.Error("Failed to create user DTO", log.Error(err))
-		return nil, err
+		return nil, logErrorAndReturnServerError(logger, "Failed to create user DTO", err)
 	}
 
 	// Create the user in the database.
 	err = store.CreateUser(*user, *credentials)
 	if err != nil {
-		logger.Error("Failed to create user", log.Error(err))
-		return nil, err
+		return nil, logErrorAndReturnServerError(logger, "Failed to create user", err)
 	}
+
+	logger.Debug("Successfully created user", log.String("id", user.ID))
 	return user, nil
 }
 
@@ -116,19 +122,21 @@ func extractCredentials(user *model.User) (*model.Credentials, error) {
 }
 
 // GetUserList lists the users.
-func (as *UserService) GetUserList(limit, offset int) (*model.UserListResponse, error) {
+func (as *UserService) GetUserList(limit, offset int) (*model.UserListResponse, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	if err := validatePaginationParams(limit, offset); err != nil {
+		return nil, err
+	}
 
 	totalCount, err := store.GetUserListCount()
 	if err != nil {
-		logger.Error("Failed to get user list count", log.Error(err))
-		return nil, err
+		return nil, logErrorAndReturnServerError(logger, "Failed to get user list count", err)
 	}
 
 	users, err := store.GetUserList(limit, offset)
 	if err != nil {
-		logger.Error("Failed to get user list", log.Error(err))
-		return nil, err
+		return nil, logErrorAndReturnServerError(logger, "Failed to get user list", err)
 	}
 
 	var links []model.Link
@@ -151,107 +159,181 @@ func (as *UserService) GetUserList(limit, offset int) (*model.UserListResponse, 
 }
 
 // GetUser get the user for given user id.
-func (as *UserService) GetUser(userID string) (*model.User, error) {
+func (as *UserService) GetUser(userID string) (*model.User, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Retrieving user", log.String("id", userID))
+
 	if userID == "" {
-		return nil, errors.New("user ID is empty")
+		return nil, &constants.ErrorMissingUserID
 	}
 
 	user, err := store.GetUser(userID)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, constants.ErrUserNotFound) {
+			logger.Debug("User not found", log.String("id", userID))
+			return nil, &constants.ErrorUserNotFound
+		}
+		return nil, logErrorAndReturnServerError(logger, "Failed to retrieve user", err, log.String("id", userID))
 	}
 
+	logger.Debug("Successfully retrieved user", log.String("id", userID))
 	return &user, nil
 }
 
 // UpdateUser update the user for given user id.
-func (as *UserService) UpdateUser(userID string, user *model.User) (*model.User, error) {
+func (as *UserService) UpdateUser(userID string, user *model.User) (*model.User, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Updating user", log.String("id", userID))
+
 	if userID == "" {
-		return nil, errors.New("user ID is empty")
+		return nil, &constants.ErrorMissingUserID
+	}
+
+	if user == nil {
+		return nil, &constants.ErrorInvalidRequestFormat
 	}
 
 	err := store.UpdateUser(user)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, constants.ErrUserNotFound) {
+			logger.Debug("User not found", log.String("id", userID))
+			return nil, &constants.ErrorUserNotFound
+		}
+		return nil, logErrorAndReturnServerError(logger, "Failed to update user", err, log.String("id", userID))
 	}
 
+	logger.Debug("Successfully updated user", log.String("id", userID))
 	return user, nil
 }
 
 // DeleteUser delete the user for given user id.
-func (as *UserService) DeleteUser(userID string) error {
+func (as *UserService) DeleteUser(userID string) *serviceerror.ServiceError {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Deleting user", log.String("id", userID))
+
 	if userID == "" {
-		return errors.New("user ID is empty")
+		return &constants.ErrorMissingUserID
 	}
 
 	err := store.DeleteUser(userID)
 	if err != nil {
-		return err
+		if errors.Is(err, constants.ErrUserNotFound) {
+			logger.Debug("User not found", log.String("id", userID))
+			return &constants.ErrorUserNotFound
+		}
+		return logErrorAndReturnServerError(logger, "Failed to delete user", err, log.String("id", userID))
 	}
 
+	logger.Debug("Successfully deleted user", log.String("id", userID))
 	return nil
 }
 
 // IdentifyUser identifies a user with the given filters.
-func (as *UserService) IdentifyUser(filters map[string]interface{}) (*string, error) {
+func (as *UserService) IdentifyUser(filters map[string]interface{}) (*string, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
 	if len(filters) == 0 {
-		return nil, errors.New("filters map is empty")
+		return nil, &constants.ErrorInvalidRequestFormat
 	}
 
 	userID, err := store.IdentifyUser(filters)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, model.ErrUserNotFound) {
+			logger.Debug("User not found with provided filters")
+			return nil, &constants.ErrorUserNotFound
+		}
+		return nil, logErrorAndReturnServerError(logger, "Failed to identify user", err)
 	}
 
 	return userID, nil
 }
 
 // VerifyUser validate the specified user with the given credentials.
-func (as *UserService) VerifyUser(userID, credType, credValue string) (*model.User, error) {
+func (as *UserService) VerifyUser(userID, credType, credValue string) (*model.User, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
 	if userID == "" {
-		return nil, errors.New("user ID is empty")
+		return nil, &constants.ErrorMissingUserID
 	}
 
 	if credType == "" {
-		return nil, errors.New("credential type is empty")
+		return nil, &constants.ErrorInvalidRequestFormat
 	}
 
 	if credValue == "" {
-		return nil, errors.New("credential value is empty")
+		return nil, &constants.ErrorInvalidRequestFormat
 	}
 
 	user, credentials, err := store.VerifyUser(userID)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, constants.ErrUserNotFound) {
+			logger.Debug("User not found", log.String("id", userID))
+			return nil, &constants.ErrorUserNotFound
+		}
+		return nil, logErrorAndReturnServerError(logger, "Failed to verify user", err, log.String("id", userID))
 	}
 
 	// Fix the comparison to check for an empty Credentials struct instead of nil.
 	if credentials == (model.Credentials{}) {
-		return nil, errors.New("credentials not found for user " + userID)
+		return nil, logErrorAndReturnServerError(logger, "Credentials not found", nil, log.String("userID", userID))
 	}
 	if credentials.CredentialType == "" || credentials.Value == "" || credentials.Salt == "" {
-		return nil, errors.New("incomplete credentials for user " + userID)
+		return nil, logErrorAndReturnServerError(logger, "Incomplete credentials", nil, log.String("userID", userID))
 	}
 
 	hashToCompare, err := hash.HashStringWithSalt(credValue, credentials.Salt)
 	if err != nil {
-		return nil, errors.New("failed to hash credential value")
+		return nil, logErrorAndReturnServerError(logger, "Failed to hash credential value", err)
 	}
 	if credentials.CredentialType != credType {
-		return nil, errors.New("invalid credential type for user " + userID)
+		return nil, logErrorAndReturnServerError(logger, "Invalid credential type", nil, log.String("userID", userID))
 	}
 	if credentials.Value != hashToCompare {
-		return nil, errors.New("invalid credentials for user " + userID)
+		return nil, logErrorAndReturnServerError(logger, "Invalid credentials", nil, log.String("userID", userID))
 	}
 
+	logger.Debug("Successfully verified user", log.String("id", userID))
 	return &user, nil
 }
 
 // ValidateUserIDs validates that all provided user IDs exist.
-func (as *UserService) ValidateUserIDs(userIDs []string) ([]string, error) {
+func (as *UserService) ValidateUserIDs(userIDs []string) ([]string, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
 	if len(userIDs) == 0 {
 		return []string{}, nil
 	}
 
-	return store.ValidateUserIDs(userIDs)
+	invalidUserIDs, err := store.ValidateUserIDs(userIDs)
+	if err != nil {
+		return nil, logErrorAndReturnServerError(logger, "Failed to validate user IDs", err)
+	}
+
+	return invalidUserIDs, nil
+}
+
+// validatePaginationParams validates pagination parameters.
+func validatePaginationParams(limit, offset int) *serviceerror.ServiceError {
+	if limit < 1 || limit > 100 {
+		return &constants.ErrorInvalidLimit
+	}
+	if offset < 0 {
+		return &constants.ErrorInvalidOffset
+	}
+	return nil
+}
+
+// logErrorAndReturnServerError logs the error and returns a server error.
+func logErrorAndReturnServerError(
+	logger *log.Logger,
+	message string,
+	err error,
+	additionalFields ...log.Field,
+) *serviceerror.ServiceError {
+	fields := additionalFields
+	if err != nil {
+		fields = append(fields, log.Error(err))
+	}
+	logger.Error(message, fields...)
+	return &constants.ErrorInternalServerError
 }
