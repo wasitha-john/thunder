@@ -23,12 +23,21 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 
+	serverconst "github.com/asgardeo/thunder/internal/system/constants"
+	"github.com/asgardeo/thunder/internal/system/error/apierror"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
+	"github.com/asgardeo/thunder/internal/user/constants"
 	"github.com/asgardeo/thunder/internal/user/model"
 	userprovider "github.com/asgardeo/thunder/internal/user/provider"
 )
+
+const loggerComponentName = "UserHandler"
+const limitDefault = 30
 
 // UserHandler is the handler for user management operations.
 type UserHandler struct {
@@ -71,28 +80,42 @@ func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 	logger.Debug("User POST response sent", log.String("user id", createdUser.ID))
 }
 
-// HandleUserListRequest handles the user request.
+// HandleUserListRequest handles the user list request.
 func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Request) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	limit, offset, svcErr := parsePaginationParams(r.URL.Query())
+	if svcErr != nil {
+		handleError(w, logger, svcErr)
+		return
+	}
+
+	if limit == 0 {
+		limit = limitDefault
+	}
 
 	// Get the user list using the user service.
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	users, err := userService.GetUserList()
+	userListResponse, err := userService.GetUserList(limit, offset)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(users)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(userListResponse); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 
-	// Log the user response.
-	logger.Debug("User GET (list) response sent")
+	logger.Debug("Successfully listed users with pagination",
+		log.Int("limit", limit), log.Int("offset", offset),
+		log.Int("totalResults", userListResponse.TotalResults),
+		log.Int("count", userListResponse.Count))
 }
 
 // HandleUserGetRequest handles the user request.
@@ -195,4 +218,57 @@ func (ah *UserHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Re
 
 	// Log the user response.
 	logger.Debug("User DELETE response sent", log.String("user id", id))
+}
+
+// parsePaginationParams parses limit and offset query parameters from the request.
+func parsePaginationParams(query url.Values) (int, int, *serviceerror.ServiceError) {
+	limit := 0
+	offset := 0
+
+	if limitStr := query.Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err != nil {
+			return 0, 0, &constants.ErrorInvalidLimit
+		} else if parsedLimit <= 0 {
+			return 0, 0, &constants.ErrorInvalidLimit
+		} else {
+			limit = parsedLimit
+		}
+	}
+
+	if offsetStr := query.Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err != nil {
+			return 0, 0, &constants.ErrorInvalidOffset
+		} else if parsedOffset < 0 {
+			return 0, 0, &constants.ErrorInvalidOffset
+		} else {
+			offset = parsedOffset
+		}
+	}
+
+	return limit, offset, nil
+}
+
+// handleError handles service errors and writes appropriate HTTP responses.
+func handleError(w http.ResponseWriter, logger *log.Logger, svcErr *serviceerror.ServiceError) {
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+
+	switch svcErr.Type {
+	case serviceerror.ClientErrorType:
+		w.WriteHeader(http.StatusBadRequest)
+	case serviceerror.ServerErrorType:
+		w.WriteHeader(http.StatusInternalServerError)
+	default:
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	errResp := apierror.ErrorResponse{
+		Code:        svcErr.Code,
+		Message:     svcErr.Error,
+		Description: svcErr.ErrorDescription,
+	}
+
+	if err := json.NewEncoder(w).Encode(errResp); err != nil {
+		logger.Error("Error encoding error response", log.Error(err))
+		http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+	}
 }

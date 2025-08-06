@@ -41,6 +41,59 @@ type Credentials struct {
 	Salt           string `json:"salt"`
 }
 
+// Link represents a pagination link.
+type Link struct {
+	Href string `json:"href"`
+	Rel  string `json:"rel"`
+}
+
+// UserListResponse represents the response for listing users with pagination.
+type UserListResponse struct {
+	TotalResults int    `json:"totalResults"`
+	StartIndex   int    `json:"startIndex"`
+	Count        int    `json:"count"`
+	Users        []User `json:"users"`
+	Links        []Link `json:"links"`
+}
+
+// UserGroup represents a group with basic information for user endpoints.
+type UserGroup struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// UserGroupListResponse represents the response for listing groups that a user belongs to.
+type UserGroupListResponse struct {
+	TotalResults int         `json:"totalResults"`
+	StartIndex   int         `json:"startIndex"`
+	Count        int         `json:"count"`
+	Groups       []UserGroup `json:"groups"`
+	Links        []Link      `json:"links"`
+}
+
+// CreateUserRequest represents the request body for creating a user.
+type CreateUserRequest struct {
+	OrganizationUnit string          `json:"organizationUnit"`
+	Type             string          `json:"type"`
+	Groups           []string        `json:"groups,omitempty"`
+	Attributes       json.RawMessage `json:"attributes,omitempty"`
+}
+
+// UpdateUserRequest represents the request body for updating a user.
+type UpdateUserRequest struct {
+	OrganizationUnit string          `json:"organizationUnit,omitempty"`
+	Type             string          `json:"type,omitempty"`
+	Groups           []string        `json:"groups,omitempty"`
+	Attributes       json.RawMessage `json:"attributes,omitempty"`
+}
+
+// CreateUserByPathRequest represents the request body for creating a user under a handle path.
+type CreateUserByPathRequest struct {
+	Type       string          `json:"type"`
+	Groups     []string        `json:"groups,omitempty"`
+	Attributes json.RawMessage `json:"attributes,omitempty"`
+}
+
 // ErrUserNotFound is returned when the user is not found in the system.
 var ErrUserNotFound = errors.New("user not found")
 

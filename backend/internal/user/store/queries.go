@@ -28,6 +28,11 @@ import (
 )
 
 var (
+	// QueryGetUserCount is the query to get total count of users.
+	QueryGetUserCount = model.DBQuery{
+		ID:    "ASQ-USER_MGT-00",
+		Query: "SELECT COUNT(*) as total FROM \"USER\"",
+	}
 	// QueryCreateUser is the query to create a new user.
 	QueryCreateUser = model.DBQuery{
 		ID:    "ASQ-USER_MGT-01",
@@ -41,7 +46,7 @@ var (
 	// QueryGetUserList is the query to get a list of users.
 	QueryGetUserList = model.DBQuery{
 		ID:    "ASQ-USER_MGT-03",
-		Query: "SELECT USER_ID, OU_ID, TYPE, ATTRIBUTES FROM \"USER\"",
+		Query: "SELECT USER_ID, OU_ID, TYPE, ATTRIBUTES FROM \"USER\" ORDER BY USER_ID LIMIT $1 OFFSET $2",
 	}
 	// QueryUpdateUserByUserID is the query to update a user by user ID.
 	QueryUpdateUserByUserID = model.DBQuery{

@@ -22,6 +22,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -30,10 +31,12 @@ import (
 	"github.com/asgardeo/thunder/internal/user/store"
 )
 
+const loggerComponentName = "UserService"
+
 // UserServiceInterface defines the interface for the user service.
 type UserServiceInterface interface {
 	CreateUser(user *model.User) (*model.User, error)
-	GetUserList() ([]model.User, error)
+	GetUserList(limit, offset int) (*model.UserListResponse, error)
 	GetUser(userID string) (*model.User, error)
 	UpdateUser(userID string, user *model.User) (*model.User, error)
 	DeleteUser(userID string) error
@@ -52,7 +55,7 @@ func GetUserService() UserServiceInterface {
 
 // CreateUser creates the user.
 func (as *UserService) CreateUser(user *model.User) (*model.User, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserService"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	user.ID = utils.GenerateUUID()
 
@@ -112,14 +115,39 @@ func extractCredentials(user *model.User) (*model.Credentials, error) {
 	return &model.Credentials{}, nil
 }
 
-// GetUserList list the users.
-func (as *UserService) GetUserList() ([]model.User, error) {
-	users, err := store.GetUserList()
+// GetUserList lists the users.
+func (as *UserService) GetUserList(limit, offset int) (*model.UserListResponse, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	totalCount, err := store.GetUserListCount()
 	if err != nil {
+		logger.Error("Failed to get user list count", log.Error(err))
 		return nil, err
 	}
 
-	return users, nil
+	users, err := store.GetUserList(limit, offset)
+	if err != nil {
+		logger.Error("Failed to get user list", log.Error(err))
+		return nil, err
+	}
+
+	var links []model.Link
+	if offset+limit < totalCount {
+		links = append(links, model.Link{
+			Href: fmt.Sprintf("users?offset=%d&limit=%d", offset+limit, limit),
+			Rel:  "next",
+		})
+	}
+
+	response := &model.UserListResponse{
+		TotalResults: totalCount,
+		StartIndex:   offset + 1,
+		Count:        len(users),
+		Users:        users,
+		Links:        links,
+	}
+
+	return response, nil
 }
 
 // GetUser get the user for given user id.

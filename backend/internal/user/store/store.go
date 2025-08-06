@@ -80,8 +80,41 @@ func CreateUser(user model.User, credentials model.Credentials) error {
 	return nil
 }
 
+// GetUserListCount retrieves the total count of users.
+func GetUserListCount() (int, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
+
+	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	if err != nil {
+		logger.Error("Failed to get database client", log.Error(err))
+		return 0, fmt.Errorf("failed to get database client: %w", err)
+	}
+	defer func() {
+		if closeErr := dbClient.Close(); closeErr != nil {
+			logger.Error("Failed to close database client", log.Error(closeErr))
+		}
+	}()
+
+	countResults, err := dbClient.Query(QueryGetUserCount)
+	if err != nil {
+		logger.Error("Failed to execute count query", log.Error(err))
+		return 0, fmt.Errorf("failed to execute count query: %w", err)
+	}
+
+	var totalCount int
+	if len(countResults) > 0 {
+		if count, ok := countResults[0]["total"].(int64); ok {
+			totalCount = int(count)
+		} else {
+			return 0, fmt.Errorf("unexpected type for total: %T", countResults[0]["total"])
+		}
+	}
+
+	return totalCount, nil
+}
+
 // GetUserList retrieves a list of users from the database.
-func GetUserList() ([]model.User, error) {
+func GetUserList(limit, offset int) ([]model.User, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -96,10 +129,10 @@ func GetUserList() ([]model.User, error) {
 		}
 	}()
 
-	results, err := dbClient.Query(QueryGetUserList)
+	results, err := dbClient.Query(QueryGetUserList, limit, offset)
 	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
-		return nil, fmt.Errorf("failed to execute query: %w", err)
+		logger.Error("Failed to execute paginated query", log.Error(err))
+		return nil, fmt.Errorf("failed to execute paginated query: %w", err)
 	}
 
 	users := make([]model.User, 0)

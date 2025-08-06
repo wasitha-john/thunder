@@ -533,13 +533,13 @@ func FindUserByAttribute(key, value string) (*User, error) {
 		return nil, fmt.Errorf("failed to get user list, status: %d", resp.StatusCode)
 	}
 
-	var users []User
-	err = json.NewDecoder(resp.Body).Decode(&users)
+	var userListResponse UserListResponse
+	err = json.NewDecoder(resp.Body).Decode(&userListResponse)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse user list response: %w", err)
 	}
 
-	for _, user := range users {
+	for _, user := range userListResponse.Users {
 		attrs, err := GetUserAttributes(user)
 
 		if err != nil {

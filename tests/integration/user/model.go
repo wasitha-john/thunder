@@ -30,6 +30,36 @@ type User struct {
 	Attributes       json.RawMessage `json:"attributes"`
 }
 
+// Link represents a pagination link.
+type Link struct {
+	Href string `json:"href"`
+	Rel  string `json:"rel"`
+}
+
+// UserListResponse represents the response for listing users with pagination.
+type UserListResponse struct {
+	TotalResults int    `json:"totalResults"`
+	StartIndex   int    `json:"startIndex"`
+	Count        int    `json:"count"`
+	Users        []User `json:"users"`
+	Links        []Link `json:"links"`
+}
+
+// UserGroup represents a group with basic information for user endpoints.
+type UserGroup struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// UserGroupListResponse represents the response for listing groups that a user belongs to.
+type UserGroupListResponse struct {
+	TotalResults int         `json:"totalResults"`
+	StartIndex   int         `json:"startIndex"`
+	Count        int         `json:"count"`
+	Groups       []UserGroup `json:"groups"`
+	Links        []Link      `json:"links"`
+}
+
 func compareStringSlices(a, b []string) bool {
 
 	if len(a) != len(b) {
