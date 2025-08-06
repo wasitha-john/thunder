@@ -69,6 +69,25 @@ type DatabaseConfig struct {
 	Runtime  DataSource `yaml:"runtime"`
 }
 
+// CacheProperty defines the properties for individual caches.
+type CacheProperty struct {
+	Name            string `yaml:"name"`
+	Disabled        bool   `yaml:"disabled"`
+	Size            int    `yaml:"size"`
+	TTL             int    `yaml:"ttl"`
+	EvictionPolicy  string `yaml:"eviction_policy"`
+	CleanupInterval int    `yaml:"cleanup_interval"`
+}
+
+// CacheConfig holds the cache configuration details.
+type CacheConfig struct {
+	Disabled        bool            `yaml:"disabled"`
+	Type            string          `yaml:"type"`
+	EvictionPolicy  string          `yaml:"eviction_policy"`
+	CleanupInterval int             `yaml:"cleanup_interval"`
+	Properties      []CacheProperty `yaml:"properties,omitempty"`
+}
+
 // JWTConfig holds the JWT configuration details.
 type JWTConfig struct {
 	Issuer         string `yaml:"issuer"`
@@ -104,6 +123,7 @@ type Config struct {
 	GateClient GateClientConfig `yaml:"gate_client"`
 	Security   SecurityConfig   `yaml:"security"`
 	Database   DatabaseConfig   `yaml:"database"`
+	Cache      CacheConfig      `yaml:"cache"`
 	OAuth      OAuthConfig      `yaml:"oauth"`
 	Flow       FlowConfig       `yaml:"flow"`
 }
