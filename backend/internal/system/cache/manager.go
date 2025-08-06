@@ -92,6 +92,7 @@ func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
 	switch cacheType {
 	case constants.CacheTypeInMemory:
 		cache = inmemory.NewInMemoryCache[T](
+			cacheName,
 			!cacheProperty.Disabled,
 			size,
 			time.Duration(ttl)*time.Second,
@@ -100,6 +101,7 @@ func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
 	default:
 		logger.Warn("Unknown cache type, defaulting to in-memory cache")
 		cache = inmemory.NewInMemoryCache[T](
+			cacheName,
 			!cacheProperty.Disabled,
 			constants.DefaultCacheSize,
 			constants.DefaultCacheTTL*time.Second,

@@ -89,6 +89,7 @@ type InMemoryCacheEntry[T any] struct {
 // InMemoryCache implements the CacheInterface for an in-memory cache.
 type InMemoryCache[T any] struct {
 	enabled        bool
+	name           string
 	cache          map[model.CacheKey]*InMemoryCacheEntry[T]
 	accessOrder    *list.List
 	lfuHeap        *lfuHeap
@@ -102,13 +103,17 @@ type InMemoryCache[T any] struct {
 }
 
 // NewInMemoryCache creates a new instance of InMemoryCache.
-func NewInMemoryCache[T any](enabled bool, size int, ttl time.Duration,
+func NewInMemoryCache[T any](name string, enabled bool, size int, ttl time.Duration,
 	evictionPolicy constants.EvictionPolicy) model.CacheInterface[T] {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String("name", name))
 
 	if !enabled {
 		logger.Warn("In-memory cache is disabled, returning empty cache")
-		return &InMemoryCache[T]{enabled: false}
+		return &InMemoryCache[T]{
+			name:    name,
+			enabled: false,
+		}
 	}
 
 	cacheSize := size
@@ -129,6 +134,7 @@ func NewInMemoryCache[T any](enabled bool, size int, ttl time.Duration,
 
 	return &InMemoryCache[T]{
 		enabled:        true,
+		name:           name,
 		cache:          make(map[model.CacheKey]*InMemoryCacheEntry[T]),
 		accessOrder:    list.New(),
 		lfuHeap:        lfuHeapInstance,
@@ -144,7 +150,8 @@ func (c *InMemoryCache[T]) Set(key model.CacheKey, value T) error {
 		return nil
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String("name", c.GetName()))
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -214,7 +221,8 @@ func (c *InMemoryCache[T]) Get(key model.CacheKey) (T, bool) {
 		return zero, false
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String("name", c.GetName()))
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -273,7 +281,8 @@ func (c *InMemoryCache[T]) Clear() error {
 		return nil
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String("name", c.GetName()))
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -293,6 +302,11 @@ func (c *InMemoryCache[T]) Clear() error {
 // IsEnabled returns whether the cache is enabled.
 func (c *InMemoryCache[T]) IsEnabled() bool {
 	return c.enabled
+}
+
+// GetName returns the name of the cache.
+func (c *InMemoryCache[T]) GetName() string {
+	return c.name
 }
 
 // GetStats returns cache statistics.
@@ -333,7 +347,8 @@ func (c *InMemoryCache[T]) evict() {
 
 // evictOldest removes the oldest entry from the cache (LRU eviction).
 func (c *InMemoryCache[T]) evictOldest() {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String("name", c.GetName()))
 
 	if c.accessOrder.Len() == 0 {
 		return
@@ -353,7 +368,8 @@ func (c *InMemoryCache[T]) evictOldest() {
 
 // evictLeastFrequent removes the least frequently used entry from the cache (LFU eviction).
 func (c *InMemoryCache[T]) evictLeastFrequent() {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String("name", c.GetName()))
 
 	if c.lfuHeap.Len() == 0 {
 		return
@@ -387,7 +403,8 @@ func (c *InMemoryCache[T]) CleanupExpired() {
 		return
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String("name", c.GetName()))
 	logger.Debug("Cleaning up expired entries from the cache")
 
 	c.mu.Lock()

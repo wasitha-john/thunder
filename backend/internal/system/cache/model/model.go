@@ -48,6 +48,7 @@ type CacheInterface[T any] interface {
 	IsEnabled() bool
 	GetStats() CacheStat
 	CleanupExpired()
+	GetName() string
 }
 
 // CacheStat represents cache statistics.
