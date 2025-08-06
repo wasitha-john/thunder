@@ -34,7 +34,6 @@ func CreateUser(user model.User, credentials model.Credentials) error {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -47,7 +46,6 @@ func CreateUser(user model.User, credentials model.Credentials) error {
 	// Convert attributes to JSON string
 	attributes, err := json.Marshal(user.Attributes)
 	if err != nil {
-		logger.Error("Failed to marshal attributes", log.Error(err))
 		return model.ErrBadAttributesInRequest
 	}
 
@@ -58,7 +56,6 @@ func CreateUser(user model.User, credentials model.Credentials) error {
 	} else {
 		credentialsBytes, err := json.Marshal(credentials)
 		if err != nil {
-			logger.Error("Failed to marshal credentials", log.Error(err))
 			return model.ErrBadAttributesInRequest
 		}
 		credentialsJSON = string(credentialsBytes)
@@ -73,7 +70,6 @@ func CreateUser(user model.User, credentials model.Credentials) error {
 		credentialsJSON,
 	)
 	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
@@ -86,7 +82,6 @@ func GetUserListCount() (int, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -97,7 +92,6 @@ func GetUserListCount() (int, error) {
 
 	countResults, err := dbClient.Query(QueryGetUserCount)
 	if err != nil {
-		logger.Error("Failed to execute count query", log.Error(err))
 		return 0, fmt.Errorf("failed to execute count query: %w", err)
 	}
 
@@ -119,7 +113,6 @@ func GetUserList(limit, offset int) ([]model.User, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -131,7 +124,6 @@ func GetUserList(limit, offset int) ([]model.User, error) {
 
 	results, err := dbClient.Query(QueryGetUserList, limit, offset)
 	if err != nil {
-		logger.Error("Failed to execute paginated query", log.Error(err))
 		return nil, fmt.Errorf("failed to execute paginated query: %w", err)
 	}
 
@@ -140,7 +132,6 @@ func GetUserList(limit, offset int) ([]model.User, error) {
 	for _, row := range results {
 		user, err := buildUserFromResultRow(row)
 		if err != nil {
-			logger.Error("failed to build user from result row", log.Error(err))
 			return nil, fmt.Errorf("failed to build user from result row: %w", err)
 		}
 		users = append(users, user)
@@ -155,7 +146,6 @@ func GetUser(id string) (model.User, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return model.User{}, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -167,17 +157,14 @@ func GetUser(id string) (model.User, error) {
 
 	results, err := dbClient.Query(QueryGetUserByUserID, id)
 	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
 		return model.User{}, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
-		logger.Error("user not found with id: " + id)
 		return model.User{}, model.ErrUserNotFound
 	}
 
 	if len(results) != 1 {
-		logger.Error("unexpected number of results")
 		return model.User{}, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
@@ -185,7 +172,6 @@ func GetUser(id string) (model.User, error) {
 
 	user, err := buildUserFromResultRow(row)
 	if err != nil {
-		logger.Error("failed to build user from result row")
 		return model.User{}, fmt.Errorf("failed to build user from result row: %w", err)
 	}
 	return user, nil
@@ -197,7 +183,6 @@ func UpdateUser(user *model.User) error {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -210,19 +195,16 @@ func UpdateUser(user *model.User) error {
 	// Convert attributes to JSON string
 	attributes, err := json.Marshal(user.Attributes)
 	if err != nil {
-		logger.Error("Failed to marshal attributes", log.Error(err))
 		return model.ErrBadAttributesInRequest
 	}
 
 	rowsAffected, err := dbClient.Execute(
 		QueryUpdateUserByUserID, user.ID, user.OrganizationUnit, user.Type, string(attributes))
 	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if rowsAffected == 0 {
-		logger.Error("user not found with id: " + user.ID)
 		return model.ErrUserNotFound
 	}
 
@@ -235,7 +217,6 @@ func DeleteUser(id string) error {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -247,12 +228,11 @@ func DeleteUser(id string) error {
 
 	rowsAffected, err := dbClient.Execute(QueryDeleteUserByUserID, id)
 	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if rowsAffected == 0 {
-		logger.Error("user not found with id: " + id)
+		logger.Debug("user not found with id: " + id)
 	}
 
 	return nil
@@ -264,7 +244,6 @@ func IdentifyUser(filters map[string]interface{}) (*string, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -276,36 +255,37 @@ func IdentifyUser(filters map[string]interface{}) (*string, error) {
 
 	identifyUserQuery, args, err := buildIdentifyQuery(filters)
 	if err != nil {
-		logger.Error("Failed to build identify query", log.Error(err))
 		return nil, fmt.Errorf("failed to build identify query: %w", err)
 	}
 
 	results, err := dbClient.Query(identifyUserQuery, args...)
 	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
-		maskedFilters := maskMapValues(filters)
-		logger.Error("User not found with the provided filters", log.Any("filters", maskedFilters))
+		if logger.IsDebugEnabled() {
+			maskedFilters := maskMapValues(filters)
+			logger.Debug("User not found with the provided filters", log.Any("filters", maskedFilters))
+		}
 		return nil, model.ErrUserNotFound
 	}
 
 	if len(results) != 1 {
-		maskedFilters := maskMapValues(filters)
-		logger.Error(
-			"Unexpected number of results for the provided filters",
-			log.Any("filters", maskedFilters),
-			log.Int("result_count", len(results)),
-		)
+		if logger.IsDebugEnabled() {
+			maskedFilters := maskMapValues(filters)
+			logger.Debug(
+				"Unexpected number of results for the provided filters",
+				log.Any("filters", maskedFilters),
+				log.Int("result_count", len(results)),
+			)
+		}
 		return nil, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
 	row := results[0]
 	userID, ok := row["user_id"].(string)
 	if !ok {
-		logger.Error("failed to parse user_id as string")
 		return nil, fmt.Errorf("failed to parse user_id as string")
 	}
 
@@ -318,7 +298,6 @@ func VerifyUser(id string) (model.User, model.Credentials, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return model.User{}, model.Credentials{}, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -330,17 +309,14 @@ func VerifyUser(id string) (model.User, model.Credentials, error) {
 
 	results, err := dbClient.Query(QueryValidateUserWithCredentials, id)
 	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
 		return model.User{}, model.Credentials{}, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
-		logger.Error("user not found with id: " + id)
 		return model.User{}, model.Credentials{}, model.ErrUserNotFound
 	}
 
 	if len(results) != 1 {
-		logger.Error("unexpected number of results")
 		return model.User{}, model.Credentials{}, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
@@ -348,7 +324,6 @@ func VerifyUser(id string) (model.User, model.Credentials, error) {
 
 	user, err := buildUserFromResultRow(row)
 	if err != nil {
-		logger.Error("failed to build user from result row")
 		return model.User{}, model.Credentials{}, fmt.Errorf("failed to build user from result row: %w", err)
 	}
 
@@ -360,13 +335,11 @@ func VerifyUser(id string) (model.User, model.Credentials, error) {
 	case []byte:
 		credentialsJSON = string(v)
 	default:
-		logger.Error("failed to parse credentials", log.String("type", fmt.Sprintf("%T", row["credentials"])))
 		return model.User{}, model.Credentials{}, fmt.Errorf("failed to parse credentials as string")
 	}
 
 	var credentials model.Credentials
 	if err := json.Unmarshal([]byte(credentialsJSON), &credentials); err != nil {
-		logger.Error("Failed to unmarshal credentials", log.Error(err))
 		return model.User{}, model.Credentials{}, fmt.Errorf("failed to unmarshal credentials: %w", err)
 	}
 
@@ -383,7 +356,6 @@ func ValidateUserIDs(userIDs []string) ([]string, error) {
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
@@ -394,13 +366,11 @@ func ValidateUserIDs(userIDs []string) ([]string, error) {
 
 	query, args, err := buildBulkUserExistsQuery(userIDs)
 	if err != nil {
-		logger.Error("Failed to build bulk user exists query", log.Error(err))
 		return nil, fmt.Errorf("failed to build bulk user exists query: %w", err)
 	}
 
 	results, err := dbClient.Query(query, args...)
 	if err != nil {
-		logger.Error("Failed to execute bulk user exists query", log.Error(err))
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
@@ -422,23 +392,18 @@ func ValidateUserIDs(userIDs []string) ([]string, error) {
 }
 
 func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
-
 	userID, ok := row["user_id"].(string)
 	if !ok {
-		logger.Error("failed to parse user_id as string")
 		return model.User{}, fmt.Errorf("failed to parse user_id as string")
 	}
 
 	orgID, ok := row["ou_id"].(string)
 	if !ok {
-		logger.Error("failed to parse org_id as string")
 		return model.User{}, fmt.Errorf("failed to parse org_id as string")
 	}
 
 	userType, ok := row["type"].(string)
 	if !ok {
-		logger.Error("failed to parse type as string")
 		return model.User{}, fmt.Errorf("failed to parse type as string")
 	}
 
@@ -449,8 +414,6 @@ func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
 	case []byte:
 		attributes = string(v) // Convert byte slice to string
 	default:
-		logger.Error("failed to parse attributes", log.Any("raw_value", row["attributes"]), log.String("type",
-			fmt.Sprintf("%T", row["attributes"])))
 		return model.User{}, fmt.Errorf("failed to parse attributes as string")
 	}
 
@@ -462,7 +425,6 @@ func buildUserFromResultRow(row map[string]interface{}) (model.User, error) {
 
 	// Unmarshal JSON attributes
 	if err := json.Unmarshal([]byte(attributes), &user.Attributes); err != nil {
-		logger.Error("Failed to unmarshal attributes")
 		return model.User{}, fmt.Errorf("failed to unmarshal attributes")
 	}
 
