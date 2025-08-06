@@ -1068,6 +1068,47 @@ make run
   
 - Open your browser and navigate to `http://localhost:5173` to see the sample app in action.
 
+### Remote Debugging Setup
+
+Thunder supports remote debugging using Delve debugger, enabling debugging from any IDE that supports the Debug Adapter Protocol (DAP).
+
+#### Install Delve Debugger
+
+Install Delve using Go:
+
+```bash
+go install github.com/go-delve/delve/cmd/dlv@latest
+```
+
+Add Delve to your PATH:
+
+```bash
+export PATH=$PATH:$(go env GOPATH)/bin
+```
+
+#### Start Thunder in Debug Mode
+
+From the distribution directory:
+
+```bash
+./start.sh --debug
+```
+
+The debugger will listen on `localhost:2345` by default.
+
+#### Connect from IDE
+
+**VS Code:**
+- Use the provided `.vscode/launch.json` configuration
+- Press `F5` or go to `Run and Debug`
+
+**GoLand/IntelliJ:**
+- Go to `Run → Edit Configurations → + → Go Remote`
+- Set Host: `127.0.0.1`, Port: `2345`
+
+**Other IDEs:**
+- Configure DAP client to connect to `127.0.0.1:2345`
+
 </details>
 
 ---
