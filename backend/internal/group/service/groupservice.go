@@ -494,9 +494,9 @@ func (gs *GroupService) validateUserIDs(userIDs []string) *serviceerror.ServiceE
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	userService := userservice.GetUserService()
-	invalidUserIDs, err := userService.ValidateUserIDs(userIDs)
-	if err != nil {
-		logger.Error("Failed to validate user IDs", log.Error(err))
+	invalidUserIDs, svcErr := userService.ValidateUserIDs(userIDs)
+	if svcErr != nil {
+		logger.Error("Failed to validate user IDs", log.String("error", svcErr.Error), log.String("code", svcErr.Code))
 		return &constants.ErrorInternalServerError
 	}
 

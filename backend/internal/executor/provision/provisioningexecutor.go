@@ -320,9 +320,9 @@ func (p *ProvisioningExecutor) createUserInStore(flowID string,
 
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	retUser, err := userService.CreateUser(&user)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user in the store: %w", err)
+	retUser, svcErr := userService.CreateUser(&user)
+	if svcErr != nil {
+		return nil, fmt.Errorf("failed to create user in the store: %s", svcErr.Error)
 	}
 	logger.Debug("User account created successfully", log.String("userID", retUser.ID))
 

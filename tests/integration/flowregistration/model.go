@@ -54,6 +54,21 @@ type User struct {
 	Attributes       json.RawMessage `json:"attributes"`
 }
 
+// Link represents a pagination link
+type Link struct {
+	Rel  string `json:"rel"`
+	Href string `json:"href"`
+}
+
+// UserListResponse represents the paginated response for user listing
+type UserListResponse struct {
+	TotalResults int    `json:"totalResults"`
+	StartIndex   int    `json:"startIndex"`
+	Count        int    `json:"count"`
+	Users        []User `json:"users"`
+	Links        []Link `json:"links"`
+}
+
 type ErrorResponse struct {
 	Code        string `json:"code"`
 	Message     string `json:"message"`

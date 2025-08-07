@@ -328,8 +328,8 @@ func (a *AttributeCollector) updateUserInStore(ctx *flowmodel.NodeContext) error
 
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	if _, err := userService.UpdateUser(userID, updatedUser); err != nil {
-		return fmt.Errorf("failed to update user attributes: %w", err)
+	if _, svcErr := userService.UpdateUser(userID, updatedUser); svcErr != nil {
+		return fmt.Errorf("failed to update user attributes: %s", svcErr.Error)
 	}
 	logger.Debug("User attributes updated successfully", log.String("userID", userID))
 
@@ -348,9 +348,9 @@ func (a *AttributeCollector) getUserFromStore(ctx *flowmodel.NodeContext) (*user
 
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
-	user, err := userService.GetUser(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user by ID: %w", err)
+	user, svcErr := userService.GetUser(userID)
+	if svcErr != nil {
+		return nil, fmt.Errorf("failed to get user by ID: %s", svcErr.Error)
 	}
 
 	return user, nil
