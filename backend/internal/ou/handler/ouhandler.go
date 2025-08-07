@@ -36,7 +36,6 @@ import (
 )
 
 const loggerComponentName = "OrganizationUnitHandler"
-const limitDefault = 30
 
 // OrganizationUnitHandler is the handler for organization unit management operations.
 type OrganizationUnitHandler struct {
@@ -61,7 +60,7 @@ func (ouh *OrganizationUnitHandler) HandleOUListRequest(w http.ResponseWriter, r
 	}
 
 	if limit == 0 {
-		limit = limitDefault
+		limit = serverconst.DefaultPageSize
 	}
 
 	ouListResponse, svcErr := ouh.service.GetOrganizationUnitList(limit, offset)
@@ -367,7 +366,7 @@ func (ouh *OrganizationUnitHandler) handleResourceListRequest(
 	}
 
 	if limit == 0 {
-		limit = limitDefault
+		limit = serverconst.DefaultPageSize
 	}
 
 	response, svcErr := serviceFunc(id, limit, offset)
@@ -492,7 +491,7 @@ func (ouh *OrganizationUnitHandler) handleResourceListByPathRequest(
 	}
 
 	if limit == 0 {
-		limit = limitDefault
+		limit = serverconst.DefaultPageSize
 	}
 
 	response, svcErr := serviceFunc(path, limit, offset)

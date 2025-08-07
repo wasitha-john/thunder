@@ -36,7 +36,6 @@ import (
 )
 
 const loggerComponentName = "GroupHandler"
-const limitDefault = 30
 
 // GroupHandler is the handler for group management operations.
 type GroupHandler struct{}
@@ -493,7 +492,7 @@ func parsePaginationParams(query url.Values) (int, int, *serviceerror.ServiceErr
 	}
 
 	if limit == 0 {
-		limit = limitDefault
+		limit = serverconst.DefaultPageSize
 	}
 
 	return limit, offset, nil

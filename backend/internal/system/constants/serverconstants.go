@@ -43,3 +43,9 @@ const ContentTypeJSON = "application/json"
 
 // ContentTypeFormURLEncoded is the content type for form-urlencoded data.
 const ContentTypeFormURLEncoded = "application/x-www-form-urlencoded"
+
+// DefaultPageSize is the default limit for pagination when not specified.
+const DefaultPageSize = 30
+
+// MaxPageSize is the maximum allowed limit for pagination.
+const MaxPageSize = 100
