@@ -16,8 +16,8 @@
  * under the License.
  */
 
-// Package dao provides the dao layer for managing flow graphs.
-package dao
+// Package flowmgt provides the flow management service implementation.
+package flowmgt
 
 import (
 	"encoding/json"
@@ -30,7 +30,6 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
-	"github.com/asgardeo/thunder/internal/flow/store"
 	"github.com/asgardeo/thunder/internal/flow/utils"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -38,45 +37,39 @@ import (
 )
 
 var (
-	instance *FlowDAO
-	once     sync.Once
+	flowMgtInstance *FlowMgtService
+	flowMgtOnce     sync.Once
 )
 
-// FlowDAOInterface defines the interface for the flow data access object.
-type FlowDAOInterface interface {
+// FlowMgtServiceInterface defines the interface for the flow management service.
+type FlowMgtServiceInterface interface {
 	Init() error
 	RegisterGraph(graphID string, g model.GraphInterface)
 	GetGraph(graphID string) (model.GraphInterface, bool)
 	IsValidGraphID(graphID string) bool
-	GetContextFromStore(flowID string) (model.EngineContext, bool)
-	StoreContextInStore(flowID string, context model.EngineContext) error
-	UpdateContextInStore(flowID string, context model.EngineContext) error
-	RemoveContextFromStore(flowID string) error
 }
 
-// FlowDAO is the implementation of FlowDAOInterface.
-type FlowDAO struct {
-	graphs    map[string]model.GraphInterface
-	mu        sync.Mutex
-	flowStore store.FlowStoreInterface
+// FlowMgtService is the implementation of FlowMgtServiceInterface.
+type FlowMgtService struct {
+	graphs map[string]model.GraphInterface
+	mu     sync.Mutex
 }
 
-// GetFlowDAO returns a singleton instance of FlowDAOInterface.
-func GetFlowDAO() FlowDAOInterface {
-	once.Do(func() {
-		instance = &FlowDAO{
-			graphs:    make(map[string]model.GraphInterface),
-			mu:        sync.Mutex{},
-			flowStore: store.NewFlowStore(),
+// GetFlowMgtService returns a singleton instance of FlowMgtServiceInterface.
+func GetFlowMgtService() FlowMgtServiceInterface {
+	flowMgtOnce.Do(func() {
+		flowMgtInstance = &FlowMgtService{
+			graphs: make(map[string]model.GraphInterface),
+			mu:     sync.Mutex{},
 		}
 	})
-	return instance
+	return flowMgtInstance
 }
 
-// Init initializes the FlowDAO by loading graph configurations into runtime.
-func (c *FlowDAO) Init() error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowDAO"))
-	logger.Debug("Initializing the flow DAO layer")
+// Init initializes the FlowMgtService by loading graph configurations into runtime.
+func (s *FlowMgtService) Init() error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowMgtService"))
+	logger.Debug("Initializing the flow management service")
 
 	configDir := config.GetThunderRuntime().Config.Flow.GraphDirectory
 	if configDir == "" {
@@ -158,10 +151,10 @@ func (c *FlowDAO) Init() error {
 	inferredGraphCount := 0
 	for graphID, graph := range flowGraphs {
 		// Create and register the equivalent registration graph if not found already.
-		registrationGraphID := c.getRegistrationGraphID(graphID)
-		_, exists := c.graphs[registrationGraphID]
+		registrationGraphID := s.getRegistrationGraphID(graphID)
+		_, exists := s.graphs[registrationGraphID]
 		if !exists && graph.GetType() == constants.FlowTypeAuthentication {
-			if err := c.createAndRegisterRegistrationGraph(registrationGraphID, graph, logger); err != nil {
+			if err := s.createAndRegisterRegistrationGraph(registrationGraphID, graph, logger); err != nil {
 				logger.Error("Failed creating registration graph", log.String("graphID", graphID), log.Error(err))
 				continue
 			}
@@ -170,131 +163,44 @@ func (c *FlowDAO) Init() error {
 
 		logger.Debug("Registering graph", log.String("graphType", string(graph.GetType())),
 			log.String("graphID", graphID))
-		c.RegisterGraph(graphID, graph)
+		s.RegisterGraph(graphID, graph)
 	}
 
-	logger.Debug("Flow DAO initialized successfully", log.Int("configuredGraphCount", len(flowGraphs)),
+	logger.Debug("Flow management service initialized successfully", log.Int("configuredGraphCount", len(flowGraphs)),
 		log.Int("inferredGraphCount", inferredGraphCount))
 
 	return nil
 }
 
-// RegisterGraph registers a graph with the FlowDAO by its ID.
-func (c *FlowDAO) RegisterGraph(graphID string, g model.GraphInterface) {
-	c.graphs[graphID] = g
+// RegisterGraph registers a graph with the FlowMgtService by its ID.
+func (s *FlowMgtService) RegisterGraph(graphID string, g model.GraphInterface) {
+	s.graphs[graphID] = g
 }
 
 // GetGraph retrieves a graph by its ID
-func (c *FlowDAO) GetGraph(graphID string) (model.GraphInterface, bool) {
-	g, ok := c.graphs[graphID]
+func (s *FlowMgtService) GetGraph(graphID string) (model.GraphInterface, bool) {
+	g, ok := s.graphs[graphID]
 	return g, ok
 }
 
-// IsValidGraphID checks if the provided graph ID is valid and exists in the DAO.
-func (c *FlowDAO) IsValidGraphID(graphID string) bool {
+// IsValidGraphID checks if the provided graph ID is valid and exists in the service.
+func (s *FlowMgtService) IsValidGraphID(graphID string) bool {
 	if graphID == "" {
 		return false
 	}
-	_, exists := c.graphs[graphID]
+	_, exists := s.graphs[graphID]
 	return exists
 }
 
-// GetContextFromStore retrieves the flow context from the database based on the flow ID.
-func (c *FlowDAO) GetContextFromStore(flowID string) (model.EngineContext, bool) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowDAO"))
-
-	// Get flow context from database
-	dbModel, err := c.flowStore.GetFlowContext(flowID)
-	if err != nil {
-		logger.Error("Failed to get flow context from database", log.Error(err))
-		return model.EngineContext{}, false
-	}
-
-	if dbModel == nil {
-		logger.Debug("Flow context not found in database", log.String("flowID", flowID))
-		return model.EngineContext{}, false
-	}
-
-	// Get the graph from in-memory storage
-	graph, exists := c.GetGraph(dbModel.GraphID)
-	if !exists {
-		logger.Error("Graph not found for flow context", log.String("graphID", dbModel.GraphID))
-		return model.EngineContext{}, false
-	}
-
-	// Convert database model to engine context
-	engineContext, err := dbModel.ToEngineContext(graph)
-	if err != nil {
-		logger.Error("Failed to convert database model to engine context", log.Error(err))
-		return model.EngineContext{}, false
-	}
-
-	return engineContext, true
-}
-
-// StoreContextInStore stores the flow context in the database based on the flow ID.
-func (c *FlowDAO) StoreContextInStore(flowID string, context model.EngineContext) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowDAO"))
-
-	if flowID == "" {
-		return fmt.Errorf("flow ID cannot be empty")
-	}
-
-	// Store flow context in database
-	err := c.flowStore.StoreFlowContext(context)
-	if err != nil {
-		return fmt.Errorf("failed to store flow context in database: %w", err)
-	}
-
-	logger.Debug("Flow context stored successfully in database", log.String("flowID", flowID))
-	return nil
-}
-
-// UpdateContextInStore updates the flow context in the database based on the flow ID.
-func (c *FlowDAO) UpdateContextInStore(flowID string, context model.EngineContext) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowDAO"))
-
-	if flowID == "" {
-		return fmt.Errorf("flow ID cannot be empty")
-	}
-
-	// Update flow context in database
-	err := c.flowStore.UpdateFlowContext(context)
-	if err != nil {
-		return fmt.Errorf("failed to update flow context in database: %w", err)
-	}
-
-	logger.Debug("Flow context updated successfully in database", log.String("flowID", flowID))
-	return nil
-}
-
-// RemoveContextFromStore removes the flow context from the database based on the flow ID.
-func (c *FlowDAO) RemoveContextFromStore(flowID string) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowDAO"))
-
-	if flowID == "" {
-		return fmt.Errorf("flow ID cannot be empty")
-	}
-
-	// Remove flow context from database
-	err := c.flowStore.DeleteFlowContext(flowID)
-	if err != nil {
-		return fmt.Errorf("failed to remove flow context from database: %w", err)
-	}
-
-	logger.Debug("Flow context removed successfully from database", log.String("flowID", flowID))
-	return nil
-}
-
 // getRegistrationGraphID constructs the registration graph ID from the auth graph ID.
-func (c *FlowDAO) getRegistrationGraphID(authGraphID string) string {
+func (s *FlowMgtService) getRegistrationGraphID(authGraphID string) string {
 	return constants.RegistrationFlowGraphPrefix + strings.TrimPrefix(authGraphID, constants.AuthFlowGraphPrefix)
 }
 
 // createAndRegisterRegistrationGraph creates a registration graph from an authentication graph and registers it.
-func (c *FlowDAO) createAndRegisterRegistrationGraph(registrationGraphID string, authGraph model.GraphInterface,
+func (s *FlowMgtService) createAndRegisterRegistrationGraph(registrationGraphID string, authGraph model.GraphInterface,
 	logger *log.Logger) error {
-	registrationGraph, err := c.createRegistrationGraph(registrationGraphID, authGraph)
+	registrationGraph, err := s.createRegistrationGraph(registrationGraphID, authGraph)
 	if err != nil {
 		return fmt.Errorf("failed to infer registration graph: %w", err)
 	}
@@ -311,12 +217,12 @@ func (c *FlowDAO) createAndRegisterRegistrationGraph(registrationGraphID string,
 	}
 
 	logger.Debug("Registering inferred registration graph", log.String("graphID", registrationGraph.GetID()))
-	c.RegisterGraph(registrationGraph.GetID(), registrationGraph)
+	s.RegisterGraph(registrationGraph.GetID(), registrationGraph)
 	return nil
 }
 
 // createRegistrationGraph creates a registration graph from an authentication graph.
-func (c *FlowDAO) createRegistrationGraph(registrationGraphID string,
+func (s *FlowMgtService) createRegistrationGraph(registrationGraphID string,
 	authGraph model.GraphInterface) (model.GraphInterface, error) {
 	// Create a new graph from the authentication graph
 	registrationGraph := model.NewGraph(registrationGraphID, constants.FlowTypeRegistration)
@@ -347,7 +253,7 @@ func (c *FlowDAO) createRegistrationGraph(registrationGraphID string,
 	}
 
 	// Create and add provisioning node
-	provisioningNode, err := c.createProvisioningNode()
+	provisioningNode, err := s.createProvisioningNode()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create provisioning node: %w", err)
 	}
@@ -383,7 +289,7 @@ func (c *FlowDAO) createRegistrationGraph(registrationGraphID string,
 }
 
 // createProvisioningNode creates a provisioning node that leads to the specified auth success node
-func (c *FlowDAO) createProvisioningNode() (model.NodeInterface, error) {
+func (s *FlowMgtService) createProvisioningNode() (model.NodeInterface, error) {
 	provisioningNode, err := model.NewNode(
 		"provisioning",
 		string(constants.NodeTypeTaskExecution),

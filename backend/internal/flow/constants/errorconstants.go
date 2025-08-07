@@ -212,3 +212,11 @@ var ErrorRegisFlowNotConfiguredForApplication = serviceerror.ServiceError{
 	Error:            "Invalid configuration",
 	ErrorDescription: "No registration flow graph is configured for the application",
 }
+
+// ErrorFlowContextConversionFailed defines the error response for failed flow context conversion.
+var ErrorFlowContextConversionFailed = serviceerror.ServiceError{
+	Code:             "FES-5019",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Something went wrong",
+	ErrorDescription: "Failed to convert flow context from database format",
+}

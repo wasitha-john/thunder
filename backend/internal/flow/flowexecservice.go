@@ -16,18 +16,20 @@
  * under the License.
  */
 
-// Package flow provides the FlowService interface and its implementation.
+// Package flow provides the FlowExecService interface and its implementation.
 package flow
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	appservice "github.com/asgardeo/thunder/internal/application/service"
 	"github.com/asgardeo/thunder/internal/flow/constants"
-	"github.com/asgardeo/thunder/internal/flow/dao"
 	"github.com/asgardeo/thunder/internal/flow/engine"
+	"github.com/asgardeo/thunder/internal/flow/flowmgt"
 	"github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/flow/store"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -35,36 +37,40 @@ import (
 )
 
 var (
-	instance *FlowService
+	instance *FlowExecService
 	once     sync.Once
 )
 
-// FlowServiceInterface defines the interface for flow orchestration and acts as the entry point for flow execution
-type FlowServiceInterface interface {
+// FlowExecServiceInterface defines the interface for flow orchestration and acts as the entry point for flow execution
+type FlowExecServiceInterface interface {
 	Init() error
 	Execute(appID, flowID, actionID, flowType string, inputData map[string]string) (
 		*model.FlowStep, *serviceerror.ServiceError)
 }
 
-// FlowService is the implementation of FlowServiceInterface
-type FlowService struct{}
+// FlowExecService is the implementation of FlowExecServiceInterface
+type FlowExecService struct {
+	flowStore store.FlowStoreInterface
+}
 
-// GetFlowService returns a singleton instance of FlowService
-func GetFlowService() FlowServiceInterface {
+// GetFlowExecService returns a singleton instance of FlowExecService
+func GetFlowExecService() FlowExecServiceInterface {
 	once.Do(func() {
-		instance = &FlowService{}
+		instance = &FlowExecService{
+			flowStore: store.NewFlowStore(),
+		}
 	})
 	return instance
 }
 
-// Init initializes the FlowService by loading the necessary components.
-func (s *FlowService) Init() error {
-	flowDAO := dao.GetFlowDAO()
-	if err := flowDAO.Init(); err != nil {
+// Init initializes the FlowExecService by loading the necessary components.
+func (s *FlowExecService) Init() error {
+	flowMgt := flowmgt.GetFlowMgtService()
+	if err := flowMgt.Init(); err != nil {
 		return errors.New("failed to initialize flow service: " + err.Error())
 	}
 
-	if err := validateDefaultFlowConfigs(flowDAO); err != nil {
+	if err := validateDefaultFlowConfigs(flowMgt); err != nil {
 		return errors.New("default flow config validation failed: " + err.Error())
 	}
 
@@ -72,21 +78,30 @@ func (s *FlowService) Init() error {
 }
 
 // Execute executes a flow with the given data
-func (s *FlowService) Execute(appID, flowID, actionID, flowType string, inputData map[string]string) (
+func (s *FlowExecService) Execute(appID, flowID, actionID, flowType string, inputData map[string]string) (
 	*model.FlowStep, *serviceerror.ServiceError) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowService"))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowExecService"))
 
 	var context *model.EngineContext
 	var loadErr *serviceerror.ServiceError
 
 	if isNewFlow(flowID) {
-		context, loadErr = s.loadNewContext(appID, actionID, flowType, inputData, logger)
+		context, loadErr = s.loadNewContext(appID, actionID, flowType, inputData)
+		if loadErr != nil {
+			logger.Error("Failed to load new flow context",
+				log.String("appID", appID),
+				log.String("flowType", flowType),
+				log.String("error", loadErr.Error))
+			return nil, loadErr
+		}
 	} else {
 		context, loadErr = s.loadPrevContext(flowID, actionID, inputData)
-	}
-
-	if loadErr != nil {
-		return nil, loadErr
+		if loadErr != nil {
+			logger.Error("Failed to load previous flow context",
+				log.String("flowID", flowID),
+				log.String("error", loadErr.Error))
+			return nil, loadErr
+		}
 	}
 
 	flowStep, flowErr := engine.GetFlowEngine().Execute(context)
@@ -128,14 +143,14 @@ func (s *FlowService) Execute(appID, flowID, actionID, flowType string, inputDat
 }
 
 // initContext initializes a new flow context with the given details.
-func (s *FlowService) loadNewContext(appID, actionID, flowTypeStr string, inputData map[string]string,
-	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
+func (s *FlowExecService) loadNewContext(appID, actionID, flowTypeStr string,
+	inputData map[string]string) (*model.EngineContext, *serviceerror.ServiceError) {
 	flowType, err := validateFlowType(flowTypeStr)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx, err := s.initContext(appID, flowType, logger)
+	ctx, err := s.initContext(appID, flowType)
 	if err != nil {
 		return nil, err
 	}
@@ -145,8 +160,8 @@ func (s *FlowService) loadNewContext(appID, actionID, flowTypeStr string, inputD
 }
 
 // initContext initializes a new flow context with the given details.
-func (s *FlowService) initContext(appID string, flowType constants.FlowType,
-	logger *log.Logger) (*model.EngineContext, *serviceerror.ServiceError) {
+func (s *FlowExecService) initContext(appID string,
+	flowType constants.FlowType) (*model.EngineContext, *serviceerror.ServiceError) {
 	graphID, svcErr := getFlowGraph(appID, flowType)
 	if svcErr != nil {
 		return nil, svcErr
@@ -156,10 +171,9 @@ func (s *FlowService) initContext(appID string, flowType constants.FlowType,
 	flowID := sysutils.GenerateUUID()
 	ctx.FlowID = flowID
 
-	flowDAO := dao.GetFlowDAO()
-	graph, ok := flowDAO.GetGraph(graphID)
+	flowMgt := flowmgt.GetFlowMgtService()
+	graph, ok := flowMgt.GetGraph(graphID)
 	if !ok {
-		logger.Error("Graph not found for the graph id")
 		return nil, &constants.ErrorFlowGraphNotFound
 	}
 	ctx.FlowType = graph.GetType()
@@ -170,7 +184,7 @@ func (s *FlowService) initContext(appID string, flowType constants.FlowType,
 }
 
 // loadPrevContext retrieves the flow context from the store based on the given details.
-func (s *FlowService) loadPrevContext(flowID, actionID string, inputData map[string]string) (
+func (s *FlowExecService) loadPrevContext(flowID, actionID string, inputData map[string]string) (
 	*model.EngineContext, *serviceerror.ServiceError) {
 	ctx, err := s.loadContextFromStore(flowID)
 	if err != nil {
@@ -182,56 +196,84 @@ func (s *FlowService) loadPrevContext(flowID, actionID string, inputData map[str
 }
 
 // loadContextFromStore retrieves the flow context from the store based on the given details.
-func (s *FlowService) loadContextFromStore(flowID string) (*model.EngineContext,
+func (s *FlowExecService) loadContextFromStore(flowID string) (*model.EngineContext,
 	*serviceerror.ServiceError) {
 	if flowID == "" {
 		return nil, &constants.ErrorInvalidFlowID
 	}
 
-	flowDAO := dao.GetFlowDAO()
-	ctx, exists := flowDAO.GetContextFromStore(flowID)
-	if !exists {
+	dbModel, err := s.flowStore.GetFlowContext(flowID)
+	if err != nil {
+		return nil, &constants.ErrorUpdatingContextInStore
+	}
+
+	if dbModel == nil {
 		return nil, &constants.ErrorInvalidFlowID
 	}
 
-	return &ctx, nil
+	flowMgt := flowmgt.GetFlowMgtService()
+	graph, exists := flowMgt.GetGraph(dbModel.GraphID)
+	if !exists {
+		return nil, &constants.ErrorFlowGraphNotFound
+	}
+
+	engineContext, err := dbModel.ToEngineContext(graph)
+	if err != nil {
+		return nil, &constants.ErrorFlowContextConversionFailed
+	}
+
+	return &engineContext, nil
 }
 
 // removeContext removes the flow context from the store.
-func (s *FlowService) removeContext(flowID string, logger *log.Logger) error {
-	flowDAO := dao.GetFlowDAO()
-	err := flowDAO.RemoveContextFromStore(flowID)
-	if err != nil {
-		return err
+func (s *FlowExecService) removeContext(flowID string, logger *log.Logger) error {
+	if flowID == "" {
+		return fmt.Errorf("flow ID cannot be empty")
 	}
-	logger.Debug("Flow context removed from the store", log.String("flowID", flowID))
+
+	err := s.flowStore.DeleteFlowContext(flowID)
+	if err != nil {
+		return fmt.Errorf("failed to remove flow context from database: %w", err)
+	}
+
+	logger.Debug("Flow context removed successfully from database", log.String("flowID", flowID))
 	return nil
 }
 
 // updateContext updates the flow context in the store based on the flow step status.
-func (s *FlowService) updateContext(ctx *model.EngineContext, flowStep *model.FlowStep, logger *log.Logger) error {
+func (s *FlowExecService) updateContext(ctx *model.EngineContext, flowStep *model.FlowStep, logger *log.Logger) error {
 	if flowStep.Status == constants.FlowStatusComplete {
 		return s.removeContext(ctx.FlowID, logger)
 	} else {
 		logger.Debug("Flow execution is incomplete, updating the flow context",
 			log.String("flowID", ctx.FlowID))
 
-		flowDAO := dao.GetFlowDAO()
-		if err := flowDAO.UpdateContextInStore(ctx.FlowID, *ctx); err != nil {
-			return err
+		if ctx.FlowID == "" {
+			return fmt.Errorf("flow ID cannot be empty")
 		}
-		logger.Debug("Flow context updated in the store", log.String("flowID", ctx.FlowID))
+
+		err := s.flowStore.UpdateFlowContext(*ctx)
+		if err != nil {
+			return fmt.Errorf("failed to update flow context in database: %w", err)
+		}
+
+		logger.Debug("Flow context updated successfully in database", log.String("flowID", ctx.FlowID))
 		return nil
 	}
 }
 
 // storeContext stores the flow context in the store.
-func (s *FlowService) storeContext(ctx *model.EngineContext, logger *log.Logger) error {
-	flowDAO := dao.GetFlowDAO()
-	if err := flowDAO.StoreContextInStore(ctx.FlowID, *ctx); err != nil {
-		return err
+func (s *FlowExecService) storeContext(ctx *model.EngineContext, logger *log.Logger) error {
+	if ctx.FlowID == "" {
+		return fmt.Errorf("flow ID cannot be empty")
 	}
-	logger.Debug("Flow context stored in the store", log.String("flowID", ctx.FlowID))
+
+	err := s.flowStore.StoreFlowContext(*ctx)
+	if err != nil {
+		return fmt.Errorf("failed to store flow context in database: %w", err)
+	}
+
+	logger.Debug("Flow context stored successfully in database", log.String("flowID", ctx.FlowID))
 	return nil
 }
 
@@ -246,14 +288,14 @@ func validateFlowType(flowTypeStr string) (constants.FlowType, *serviceerror.Ser
 }
 
 // validateDefaultFlowConfigs validates the default flow configurations.
-func validateDefaultFlowConfigs(flowDAO dao.FlowDAOInterface) error {
+func validateDefaultFlowConfigs(flowMgt flowmgt.FlowMgtServiceInterface) error {
 	flowConfig := config.GetThunderRuntime().Config.Flow
 
 	// Validate auth flow.
 	if flowConfig.Authn.DefaultFlow == "" {
 		return errors.New("default authentication flow is not configured")
 	}
-	if !flowDAO.IsValidGraphID(flowConfig.Authn.DefaultFlow) {
+	if !flowMgt.IsValidGraphID(flowConfig.Authn.DefaultFlow) {
 		return errors.New("default authentication flow graph ID is invalid")
 	}
 

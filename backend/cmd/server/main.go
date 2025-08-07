@@ -123,7 +123,7 @@ func initMultiplexer(logger *log.Logger) *http.ServeMux {
 
 // initFlowService initializes the flow service.
 func initFlowService(logger *log.Logger) {
-	svc := flow.GetFlowService()
+	svc := flow.GetFlowExecService()
 	if err := svc.Init(); err != nil {
 		logger.Fatal("Failed to initialize flow service", log.Error(err))
 	}
