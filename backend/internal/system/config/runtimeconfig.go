@@ -50,3 +50,10 @@ func GetThunderRuntime() *ThunderRuntime {
 	}
 	return runtimeConfig
 }
+
+// ResetThunderRuntime resets the ThunderRuntime.
+// This should only be used in tests to reset the singleton state.
+func ResetThunderRuntime() {
+	runtimeConfig = nil
+	once = sync.Once{}
+}
