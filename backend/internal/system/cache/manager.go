@@ -23,21 +23,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/asgardeo/thunder/internal/system/cache/cache"
-	"github.com/asgardeo/thunder/internal/system/cache/constants"
-	"github.com/asgardeo/thunder/internal/system/cache/inmemory"
-	"github.com/asgardeo/thunder/internal/system/cache/model"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
-const loggerComponentName = "CacheManager"
-
 // CacheManagerInterface defines the interface for cache manager.
 type CacheManagerInterface[T any] interface {
-	Set(key model.CacheKey, value T) error
-	Get(key model.CacheKey) (T, bool)
-	Delete(key model.CacheKey) error
+	Set(key CacheKey, value T) error
+	Get(key CacheKey) (T, bool)
+	Delete(key CacheKey) error
 	Clear() error
 	IsEnabled() bool
 }
@@ -45,14 +39,14 @@ type CacheManagerInterface[T any] interface {
 // CacheManager implements the CacheManagerInterface for managing caches.
 type CacheManager[T any] struct {
 	enabled         bool
-	Cache           cache.CacheInterface[T]
+	Cache           cacheInterface[T]
 	cleanUpInterval time.Duration
 	mu              sync.RWMutex
 }
 
-// NewCacheManager creates a new cache manager instance.
-func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+// newCacheManager creates a new cache manager instance.
+func newCacheManager[T any](cacheName string) CacheManagerInterface[T] {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "CacheManager"))
 
 	cacheConfig := config.GetThunderRuntime().Config.Cache
 	if cacheConfig.Disabled {
@@ -81,18 +75,18 @@ func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
 
 	size := cacheProperty.Size
 	if size <= 0 {
-		size = constants.DefaultCacheSize
+		size = defaultCacheSize
 	}
 
 	ttl := cacheProperty.TTL
 	if ttl <= 0 {
-		ttl = constants.DefaultCacheTTL
+		ttl = defaultCacheTTL
 	}
 
-	var cache cache.CacheInterface[T]
+	var cache cacheInterface[T]
 	switch cacheType {
-	case constants.CacheTypeInMemory:
-		cache = inmemory.NewInMemoryCache[T](
+	case cacheTypeInMemory:
+		cache = newInMemoryCache[T](
 			cacheName,
 			!cacheProperty.Disabled,
 			size,
@@ -101,12 +95,12 @@ func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
 		)
 	default:
 		logger.Warn("Unknown cache type, defaulting to in-memory cache")
-		cache = inmemory.NewInMemoryCache[T](
+		cache = newInMemoryCache[T](
 			cacheName,
 			!cacheProperty.Disabled,
-			constants.DefaultCacheSize,
-			constants.DefaultCacheTTL*time.Second,
-			constants.EvictionPolicyLRU,
+			defaultCacheSize,
+			defaultCacheTTL*time.Second,
+			evictionPolicyLRU,
 		)
 	}
 
@@ -121,8 +115,8 @@ func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
 }
 
 // Set stores a value in the cache.
-func (cm *CacheManager[T]) Set(key model.CacheKey, value T) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+func (cm *CacheManager[T]) Set(key CacheKey, value T) error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "CacheManager"))
 
 	if cm.IsEnabled() && cm.Cache.IsEnabled() {
 		cm.mu.Lock()
@@ -137,7 +131,7 @@ func (cm *CacheManager[T]) Set(key model.CacheKey, value T) error {
 }
 
 // Get retrieves a value from the cache.
-func (cm *CacheManager[T]) Get(key model.CacheKey) (T, bool) {
+func (cm *CacheManager[T]) Get(key CacheKey) (T, bool) {
 	if cm.IsEnabled() && cm.Cache.IsEnabled() {
 		cm.mu.RLock()
 		defer cm.mu.RUnlock()
@@ -152,8 +146,8 @@ func (cm *CacheManager[T]) Get(key model.CacheKey) (T, bool) {
 }
 
 // Delete removes a value from the cache.
-func (cm *CacheManager[T]) Delete(key model.CacheKey) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+func (cm *CacheManager[T]) Delete(key CacheKey) error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "CacheManager"))
 
 	if cm.IsEnabled() && cm.Cache.IsEnabled() {
 		cm.mu.Lock()
@@ -169,7 +163,7 @@ func (cm *CacheManager[T]) Delete(key model.CacheKey) error {
 
 // Clear removes all entries in the cache.
 func (cm *CacheManager[T]) Clear() error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "CacheManager"))
 
 	if cm.IsEnabled() && cm.Cache.IsEnabled() {
 		logger.Debug("Clearing all entries in the cache")
@@ -192,7 +186,7 @@ func (cm *CacheManager[T]) IsEnabled() bool {
 
 // startCleanupRoutine starts a background routine to clean up expired entries.
 func (cm *CacheManager[T]) startCleanupRoutine() {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "CacheManager"))
 
 	if !cm.IsEnabled() || !cm.Cache.IsEnabled() {
 		return
@@ -213,16 +207,16 @@ func (cm *CacheManager[T]) startCleanupRoutine() {
 // getCacheType retrieves the cache type from the configuration.
 //
 //nolint:unparam // TODO: Ignoring linter check as we only support in-memory cache for now.
-func getCacheType(cacheConfig config.CacheConfig) constants.CacheType {
+func getCacheType(cacheConfig config.CacheConfig) cacheType {
 	if cacheConfig.Type == "" {
-		return constants.CacheTypeInMemory
+		return cacheTypeInMemory
 	}
 	switch cacheConfig.Type {
-	case string(constants.CacheTypeInMemory):
-		return constants.CacheTypeInMemory
+	case string(cacheTypeInMemory):
+		return cacheTypeInMemory
 	default:
 		log.GetLogger().Warn("Unknown cache type, defaulting to in-memory cache")
-		return constants.CacheTypeInMemory
+		return cacheTypeInMemory
 	}
 }
 
@@ -237,23 +231,23 @@ func getCacheProperty(cacheConfig config.CacheConfig, cacheName string) config.C
 }
 
 // getEvictionPolicy retrieves the eviction policy from the cache configuration.
-func getEvictionPolicy(cacheConfig config.CacheConfig, cacheProperty config.CacheProperty) constants.EvictionPolicy {
+func getEvictionPolicy(cacheConfig config.CacheConfig, cacheProperty config.CacheProperty) evictionPolicy {
 	evictionPolicy := cacheProperty.EvictionPolicy
 	if evictionPolicy == "" {
 		evictionPolicy = cacheConfig.EvictionPolicy
 	}
 	if evictionPolicy == "" {
-		return constants.EvictionPolicyLRU
+		return evictionPolicyLRU
 	}
 
 	switch evictionPolicy {
-	case string(constants.EvictionPolicyLRU):
-		return constants.EvictionPolicyLRU
-	case string(constants.EvictionPolicyLFU):
-		return constants.EvictionPolicyLFU
+	case string(evictionPolicyLRU):
+		return evictionPolicyLRU
+	case string(evictionPolicyLFU):
+		return evictionPolicyLFU
 	default:
 		log.GetLogger().Warn("Unknown eviction policy, defaulting to LRU")
-		return constants.EvictionPolicyLRU
+		return evictionPolicyLRU
 	}
 }
 
@@ -264,7 +258,7 @@ func getCleanupInterval(cacheConfig config.CacheConfig, cacheProperty config.Cac
 		cleanupIntervalInt = cacheConfig.CleanupInterval
 	}
 	if cleanupIntervalInt <= 0 {
-		cleanupIntervalInt = constants.DefaultCleanupInterval
+		cleanupIntervalInt = defaultCleanupInterval
 	}
 
 	return time.Duration(cleanupIntervalInt) * time.Second

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package inmemory
+package cache
 
 import (
 	"testing"
@@ -24,13 +24,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/asgardeo/thunder/internal/system/cache/constants"
-	"github.com/asgardeo/thunder/internal/system/cache/model"
-)
-
-const (
-	testValue = "testValue"
 )
 
 type InMemoryCacheTestSuite struct {
@@ -47,48 +40,48 @@ func (suite *InMemoryCacheTestSuite) TestNewInMemoryCache() {
 		enabled        bool
 		size           int
 		ttl            time.Duration
-		evictionPolicy constants.EvictionPolicy
+		evictionPolicy evictionPolicy
 	}{
 		{
 			name:           "EnabledCache",
 			enabled:        true,
 			size:           100,
 			ttl:            time.Second * 60,
-			evictionPolicy: constants.EvictionPolicyLRU,
+			evictionPolicy: evictionPolicyLRU,
 		},
 		{
 			name:           "DisabledCache",
 			enabled:        false,
 			size:           100,
 			ttl:            time.Second * 60,
-			evictionPolicy: constants.EvictionPolicyLRU,
+			evictionPolicy: evictionPolicyLRU,
 		},
 		{
 			name:           "LFUEvictionPolicy",
 			enabled:        true,
 			size:           100,
 			ttl:            time.Second * 60,
-			evictionPolicy: constants.EvictionPolicyLFU,
+			evictionPolicy: evictionPolicyLFU,
 		},
 		{
 			name:           "ZeroSize",
 			enabled:        true,
 			size:           0,
 			ttl:            time.Second * 60,
-			evictionPolicy: constants.EvictionPolicyLRU,
+			evictionPolicy: evictionPolicyLRU,
 		},
 		{
 			name:           "ZeroTTL",
 			enabled:        true,
 			size:           100,
 			ttl:            0,
-			evictionPolicy: constants.EvictionPolicyLRU,
+			evictionPolicy: evictionPolicyLRU,
 		},
 	}
 
 	for _, tc := range testCases {
 		suite.T().Run(tc.name, func(t *testing.T) {
-			cache := NewInMemoryCache[string](tc.name, tc.enabled, tc.size, tc.ttl, tc.evictionPolicy)
+			cache := newInMemoryCache[string](tc.name, tc.enabled, tc.size, tc.ttl, tc.evictionPolicy)
 
 			assert.NotNil(t, cache)
 			assert.Equal(t, tc.enabled, cache.IsEnabled())
@@ -104,7 +97,7 @@ func (suite *InMemoryCacheTestSuite) TestNewInMemoryCache() {
 				// Check if default values are set for zero inputs
 				expectedSize := tc.size
 				if expectedSize <= 0 {
-					expectedSize = constants.DefaultCacheSize
+					expectedSize = defaultCacheSize
 				}
 				assert.Equal(t, expectedSize, stats.MaxSize)
 			}
@@ -115,24 +108,24 @@ func (suite *InMemoryCacheTestSuite) TestNewInMemoryCache() {
 func (suite *InMemoryCacheTestSuite) TestSetAndGet() {
 	testCases := []struct {
 		name           string
-		evictionPolicy constants.EvictionPolicy
+		evictionPolicy evictionPolicy
 	}{
 		{
 			name:           "LRUCache",
-			evictionPolicy: constants.EvictionPolicyLRU,
+			evictionPolicy: evictionPolicyLRU,
 		},
 		{
 			name:           "LFUCache",
-			evictionPolicy: constants.EvictionPolicyLFU,
+			evictionPolicy: evictionPolicyLFU,
 		},
 	}
 
 	for _, tc := range testCases {
 		suite.T().Run(tc.name, func(t *testing.T) {
-			cache := NewInMemoryCache[string](tc.name, true, 100, time.Second*60, tc.evictionPolicy)
+			cache := newInMemoryCache[string](tc.name, true, 100, time.Second*60, tc.evictionPolicy)
 
 			// Test Set and Get operations
-			key := model.CacheKey{Key: "testKey"}
+			key := CacheKey{Key: "testKey"}
 
 			err := cache.Set(key, testValue)
 			assert.NoError(t, err)
@@ -149,7 +142,7 @@ func (suite *InMemoryCacheTestSuite) TestSetAndGet() {
 			assert.Equal(t, 1, stats.Size)
 
 			// Test getting a non-existent key
-			nonExistentKey := model.CacheKey{Key: "nonExistentKey"}
+			nonExistentKey := CacheKey{Key: "nonExistentKey"}
 			_, found = cache.Get(nonExistentKey)
 			assert.False(t, found)
 
@@ -163,10 +156,10 @@ func (suite *InMemoryCacheTestSuite) TestSetAndGet() {
 }
 
 func (suite *InMemoryCacheTestSuite) TestDelete() {
-	cache := NewInMemoryCache[string]("testCache", true, 100, time.Second*60, constants.EvictionPolicyLRU)
+	cache := newInMemoryCache[string]("testCache", true, 100, time.Second*60, evictionPolicyLRU)
 
 	// Add an entry and verify it exists
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	err := cache.Set(key, testValue)
 	assert.NoError(suite.T(), err)
@@ -187,11 +180,11 @@ func (suite *InMemoryCacheTestSuite) TestDelete() {
 }
 
 func (suite *InMemoryCacheTestSuite) TestClear() {
-	cache := NewInMemoryCache[string]("testCache", true, 100, time.Second*60, constants.EvictionPolicyLRU)
+	cache := newInMemoryCache[string]("testCache", true, 100, time.Second*60, evictionPolicyLRU)
 
 	// Add multiple entries
 	for i := 0; i < 5; i++ {
-		key := model.CacheKey{Key: "testKey" + string(rune('0'+i))}
+		key := CacheKey{Key: "testKey" + string(rune('0'+i))}
 		value := testValue + string(rune('0'+i))
 		err := cache.Set(key, value)
 		assert.NoError(suite.T(), err)
@@ -214,10 +207,10 @@ func (suite *InMemoryCacheTestSuite) TestClear() {
 
 func (suite *InMemoryCacheTestSuite) TestExpiry() {
 	// Create cache with very short TTL
-	cache := NewInMemoryCache[string]("testCache", true, 100, time.Millisecond*50, constants.EvictionPolicyLRU)
+	cache := newInMemoryCache[string]("testCache", true, 100, time.Millisecond*50, evictionPolicyLRU)
 
 	// Add an entry
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	err := cache.Set(key, testValue)
 	assert.NoError(suite.T(), err)
@@ -237,11 +230,11 @@ func (suite *InMemoryCacheTestSuite) TestExpiry() {
 
 func (suite *InMemoryCacheTestSuite) TestCleanupExpired() {
 	// Create cache with very short TTL
-	cache := NewInMemoryCache[string]("testCache", true, 100, time.Millisecond*50, constants.EvictionPolicyLRU)
+	cache := newInMemoryCache[string]("testCache", true, 100, time.Millisecond*50, evictionPolicyLRU)
 
 	// Add multiple entries
 	for i := 0; i < 5; i++ {
-		key := model.CacheKey{Key: "testKey" + string(rune('0'+i))}
+		key := CacheKey{Key: "testKey" + string(rune('0'+i))}
 		value := testValue + string(rune('0'+i))
 		err := cache.Set(key, value)
 		assert.NoError(suite.T(), err)
@@ -265,45 +258,45 @@ func (suite *InMemoryCacheTestSuite) TestCleanupExpired() {
 func (suite *InMemoryCacheTestSuite) TestEviction() {
 	testCases := []struct {
 		name           string
-		evictionPolicy constants.EvictionPolicy
+		evictionPolicy evictionPolicy
 	}{
 		{
 			name:           "LRUEviction",
-			evictionPolicy: constants.EvictionPolicyLRU,
+			evictionPolicy: evictionPolicyLRU,
 		},
 		{
 			name:           "LFUEviction",
-			evictionPolicy: constants.EvictionPolicyLFU,
+			evictionPolicy: evictionPolicyLFU,
 		},
 	}
 
 	for _, tc := range testCases {
 		suite.T().Run(tc.name, func(t *testing.T) {
 			// Create small cache (size 3)
-			cache := NewInMemoryCache[string](tc.name, true, 3, time.Second*60, tc.evictionPolicy)
+			cache := newInMemoryCache[string](tc.name, true, 3, time.Second*60, tc.evictionPolicy)
 
 			// Add 3 entries (fill the cache)
 			for i := 0; i < 3; i++ {
-				key := model.CacheKey{Key: "testKey" + string(rune('0'+i))}
+				key := CacheKey{Key: "testKey" + string(rune('0'+i))}
 				value := testValue + string(rune('0'+i))
 				err := cache.Set(key, value)
 				assert.NoError(t, err)
 			}
 
 			// If LFU, access key0 multiple times to increase its frequency
-			if tc.evictionPolicy == constants.EvictionPolicyLFU {
+			if tc.evictionPolicy == evictionPolicyLFU {
 				for i := 0; i < 3; i++ {
-					_, _ = cache.Get(model.CacheKey{Key: "testKey0"})
+					_, _ = cache.Get(CacheKey{Key: "testKey0"})
 				}
 			}
 
 			// For LRU, access key0 to make it most recently used
-			if tc.evictionPolicy == constants.EvictionPolicyLRU {
-				_, _ = cache.Get(model.CacheKey{Key: "testKey0"})
+			if tc.evictionPolicy == evictionPolicyLRU {
+				_, _ = cache.Get(CacheKey{Key: "testKey0"})
 			}
 
 			// Add a new entry to trigger eviction
-			newKey := model.CacheKey{Key: "testKey3"}
+			newKey := CacheKey{Key: "testKey3"}
 			newValue := testValue + "3"
 			err := cache.Set(newKey, newValue)
 			assert.NoError(t, err)
@@ -315,8 +308,8 @@ func (suite *InMemoryCacheTestSuite) TestEviction() {
 
 			// If LRU, key1 should be evicted as it was least recently used
 			// If LFU, key1 or key2 should be evicted as they have lower frequency than key0
-			if tc.evictionPolicy == constants.EvictionPolicyLRU {
-				_, found := cache.Get(model.CacheKey{Key: "testKey1"})
+			if tc.evictionPolicy == evictionPolicyLRU {
+				_, found := cache.Get(CacheKey{Key: "testKey1"})
 				assert.False(t, found, "Expected key1 to be evicted in LRU cache")
 			}
 
@@ -326,20 +319,20 @@ func (suite *InMemoryCacheTestSuite) TestEviction() {
 			assert.Equal(t, newValue, retrievedValue)
 
 			// Verify key0 still exists (it had higher frequency or was more recently used)
-			_, found = cache.Get(model.CacheKey{Key: "testKey0"})
+			_, found = cache.Get(CacheKey{Key: "testKey0"})
 			assert.True(t, found, "Expected key0 to remain in cache")
 		})
 	}
 }
 
 func (suite *InMemoryCacheTestSuite) TestDisabledCache() {
-	cache := NewInMemoryCache[string]("testCache", false, 100, time.Second*60, constants.EvictionPolicyLRU)
+	cache := newInMemoryCache[string]("testCache", false, 100, time.Second*60, evictionPolicyLRU)
 
 	// Verify cache is disabled
 	assert.False(suite.T(), cache.IsEnabled())
 
 	// Operations on disabled cache should be no-ops
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	// Set should not error but not actually store
 	err := cache.Set(key, testValue)
@@ -396,8 +389,8 @@ func (suite *InMemoryCacheTestSuite) TestGetName() {
 
 	for _, tc := range testCases {
 		suite.T().Run(tc.name, func(t *testing.T) {
-			cache := NewInMemoryCache[string](tc.cacheName, tc.enabled, 100, time.Second*60,
-				constants.EvictionPolicyLRU)
+			cache := newInMemoryCache[string](tc.cacheName, tc.enabled, 100, time.Second*60,
+				evictionPolicyLRU)
 
 			// Verify the cache name matches what was provided during creation
 			assert.Equal(t, tc.cacheName, cache.GetName())
@@ -408,8 +401,8 @@ func (suite *InMemoryCacheTestSuite) TestGetName() {
 func (suite *InMemoryCacheTestSuite) TestGetStats() {
 	// Test that GetStats returns the correct statistics for an enabled cache
 	suite.T().Run("EnabledCacheStats", func(t *testing.T) {
-		cache := NewInMemoryCache[string]("statsTestCache", true, 100, time.Second*60,
-			constants.EvictionPolicyLRU)
+		cache := newInMemoryCache[string]("statsTestCache", true, 100, time.Second*60,
+			evictionPolicyLRU)
 
 		// Initial stats should show an empty cache
 		initialStats := cache.GetStats()
@@ -423,20 +416,20 @@ func (suite *InMemoryCacheTestSuite) TestGetStats() {
 
 		// Add entries and perform operations to change stats
 		for i := 0; i < 5; i++ {
-			key := model.CacheKey{Key: "key" + string(rune('0'+i))}
+			key := CacheKey{Key: "key" + string(rune('0'+i))}
 			value := "value" + string(rune('0'+i))
 			err := cache.Set(key, value)
 			assert.NoError(t, err)
 		}
 
 		// Get some existing entries (hits)
-		_, _ = cache.Get(model.CacheKey{Key: "key0"})
-		_, _ = cache.Get(model.CacheKey{Key: "key1"})
-		_, _ = cache.Get(model.CacheKey{Key: "key2"})
+		_, _ = cache.Get(CacheKey{Key: "key0"})
+		_, _ = cache.Get(CacheKey{Key: "key1"})
+		_, _ = cache.Get(CacheKey{Key: "key2"})
 
 		// Get some non-existing entries (misses)
-		_, _ = cache.Get(model.CacheKey{Key: "nonexistent1"})
-		_, _ = cache.Get(model.CacheKey{Key: "nonexistent2"})
+		_, _ = cache.Get(CacheKey{Key: "nonexistent1"})
+		_, _ = cache.Get(CacheKey{Key: "nonexistent2"})
 
 		// Check updated stats
 		updatedStats := cache.GetStats()
@@ -450,7 +443,7 @@ func (suite *InMemoryCacheTestSuite) TestGetStats() {
 
 		// Fill the cache beyond capacity to trigger eviction
 		for i := 0; i < 100; i++ {
-			key := model.CacheKey{Key: "evictionKey" + string(rune('0'+i))}
+			key := CacheKey{Key: "evictionKey" + string(rune('0'+i))}
 			value := "evictionValue" + string(rune('0'+i))
 			err := cache.Set(key, value)
 			assert.NoError(t, err)
@@ -463,8 +456,8 @@ func (suite *InMemoryCacheTestSuite) TestGetStats() {
 
 	// Test GetStats with a disabled cache
 	suite.T().Run("DisabledCacheStats", func(t *testing.T) {
-		cache := NewInMemoryCache[string]("disabledStatsCache", false, 100, time.Second*60,
-			constants.EvictionPolicyLRU)
+		cache := newInMemoryCache[string]("disabledStatsCache", false, 100, time.Second*60,
+			evictionPolicyLRU)
 
 		stats := cache.GetStats()
 		assert.False(t, stats.Enabled)

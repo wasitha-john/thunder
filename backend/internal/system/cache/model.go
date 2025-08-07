@@ -16,8 +16,7 @@
  * under the License.
  */
 
-// Package model defines the data structures for the cache system.
-package model
+package cache
 
 import (
 	"time"

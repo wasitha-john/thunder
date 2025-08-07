@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package model
+package cache
 
 import (
 	"testing"

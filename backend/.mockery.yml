@@ -52,13 +52,13 @@ packages:
       pkgname: providermock
       filename: "{{.InterfaceName}}_mock.go"
   
-  github.com/asgardeo/thunder/internal/system/cache/cache:
+  github.com/asgardeo/thunder/internal/system/cache:
     config:
       all: true
-      dir: tests/mocks/cachemock
+      dir: internal/system/cache
       structname: '{{.InterfaceName}}Mock'
-      pkgname: cachemock
-      filename: "{{.InterfaceName}}_mock.go"
+      pkgname: cache
+      filename: "{{.InterfaceName}}_mock_test.go"
 
   github.com/asgardeo/thunder/internal/cert:
     config:

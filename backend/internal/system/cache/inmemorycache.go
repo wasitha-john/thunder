@@ -16,8 +16,7 @@
  * under the License.
  */
 
-// Package inmemory provides an in-memory cache implementation.
-package inmemory
+package cache
 
 import (
 	"container/heap"
@@ -25,17 +24,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/asgardeo/thunder/internal/system/cache/cache"
-	"github.com/asgardeo/thunder/internal/system/cache/constants"
-	"github.com/asgardeo/thunder/internal/system/cache/model"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
-const loggerComponentName = "InMemoryCache"
-
 // lfuHeapItem represents an item in the LFU heap.
 type lfuHeapItem struct {
-	key         model.CacheKey
+	key         CacheKey
 	accessCount int64
 	lastAccess  time.Time
 	index       int // Index in the heap
@@ -78,40 +72,40 @@ func (h *lfuHeap) Pop() any {
 	return item
 }
 
-// InMemoryCacheEntry represents an entry in the in-memory cache with additional metadata.
-type InMemoryCacheEntry[T any] struct {
-	*model.CacheEntry[T]
+// inMemoryCacheEntry represents an entry in the in-memory cache with additional metadata.
+type inMemoryCacheEntry[T any] struct {
+	*CacheEntry[T]
 	listElement *list.Element
 	heapItem    *lfuHeapItem
 	lastAccess  time.Time
 	accessCount int64
 }
 
-// InMemoryCache implements the CacheInterface for an in-memory cache.
-type InMemoryCache[T any] struct {
+// inMemoryCache implements the CacheInterface for an in-memory cache.
+type inMemoryCache[T any] struct {
 	enabled        bool
 	name           string
-	cache          map[model.CacheKey]*InMemoryCacheEntry[T]
+	cache          map[CacheKey]*inMemoryCacheEntry[T]
 	accessOrder    *list.List
 	lfuHeap        *lfuHeap
 	mu             sync.RWMutex
 	size           int
 	ttl            time.Duration
-	evictionPolicy constants.EvictionPolicy
+	evictionPolicy evictionPolicy
 	hitCount       int64
 	missCount      int64
 	evictCount     int64
 }
 
-// NewInMemoryCache creates a new instance of InMemoryCache.
-func NewInMemoryCache[T any](name string, enabled bool, size int, ttl time.Duration,
-	evictionPolicy constants.EvictionPolicy) cache.CacheInterface[T] {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+// newInMemoryCache creates a new instance of InMemoryCache.
+func newInMemoryCache[T any](name string, enabled bool, size int, ttl time.Duration,
+	evictionPolicy evictionPolicy) cacheInterface[T] {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "InMemoryCache"),
 		log.String("name", name))
 
 	if !enabled {
 		logger.Warn("In-memory cache is disabled, returning empty cache")
-		return &InMemoryCache[T]{
+		return &inMemoryCache[T]{
 			name:    name,
 			enabled: false,
 		}
@@ -119,12 +113,12 @@ func NewInMemoryCache[T any](name string, enabled bool, size int, ttl time.Durat
 
 	cacheSize := size
 	if cacheSize <= 0 {
-		cacheSize = constants.DefaultCacheSize
+		cacheSize = defaultCacheSize
 	}
 
 	cacheTTL := ttl
 	if cacheTTL <= 0 {
-		cacheTTL = constants.DefaultCacheTTL * time.Second
+		cacheTTL = defaultCacheTTL * time.Second
 	}
 
 	logger.Debug("Initializing In-memory cache", log.String("evictionPolicy", string(evictionPolicy)),
@@ -133,10 +127,10 @@ func NewInMemoryCache[T any](name string, enabled bool, size int, ttl time.Durat
 	lfuHeapInstance := &lfuHeap{}
 	heap.Init(lfuHeapInstance)
 
-	return &InMemoryCache[T]{
+	return &inMemoryCache[T]{
 		enabled:        true,
 		name:           name,
-		cache:          make(map[model.CacheKey]*InMemoryCacheEntry[T]),
+		cache:          make(map[CacheKey]*inMemoryCacheEntry[T]),
 		accessOrder:    list.New(),
 		lfuHeap:        lfuHeapInstance,
 		size:           cacheSize,
@@ -146,12 +140,12 @@ func NewInMemoryCache[T any](name string, enabled bool, size int, ttl time.Durat
 }
 
 // Set adds or updates an entry in the cache.
-func (c *InMemoryCache[T]) Set(key model.CacheKey, value T) error {
+func (c *inMemoryCache[T]) Set(key CacheKey, value T) error {
 	if !c.enabled {
 		return nil
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "InMemoryCache"),
 		log.String("name", c.GetName()))
 
 	c.mu.Lock()
@@ -169,7 +163,7 @@ func (c *InMemoryCache[T]) Set(key model.CacheKey, value T) error {
 		c.accessOrder.MoveToFront(existingEntry.listElement)
 
 		// Update the heap item for LFU eviction
-		if c.evictionPolicy == constants.EvictionPolicyLFU && existingEntry.heapItem != nil {
+		if c.evictionPolicy == evictionPolicyLFU && existingEntry.heapItem != nil {
 			existingEntry.heapItem.accessCount = existingEntry.accessCount
 			existingEntry.heapItem.lastAccess = existingEntry.lastAccess
 			heap.Fix(c.lfuHeap, existingEntry.heapItem.index)
@@ -178,7 +172,7 @@ func (c *InMemoryCache[T]) Set(key model.CacheKey, value T) error {
 	}
 
 	// Create new entry
-	cacheEntry := &model.CacheEntry[T]{
+	cacheEntry := &CacheEntry[T]{
 		Value:      value,
 		ExpiryTime: expiryTime,
 	}
@@ -187,7 +181,7 @@ func (c *InMemoryCache[T]) Set(key model.CacheKey, value T) error {
 
 	// Create heap item for LFU eviction
 	var heapItem *lfuHeapItem
-	if c.evictionPolicy == constants.EvictionPolicyLFU {
+	if c.evictionPolicy == evictionPolicyLFU {
 		heapItem = &lfuHeapItem{
 			key:         key,
 			accessCount: 1,
@@ -196,7 +190,7 @@ func (c *InMemoryCache[T]) Set(key model.CacheKey, value T) error {
 		heap.Push(c.lfuHeap, heapItem)
 	}
 
-	inMemoryCacheEntry := &InMemoryCacheEntry[T]{
+	inMemoryCacheEntry := &inMemoryCacheEntry[T]{
 		CacheEntry:  cacheEntry,
 		listElement: listElement,
 		heapItem:    heapItem,
@@ -216,13 +210,13 @@ func (c *InMemoryCache[T]) Set(key model.CacheKey, value T) error {
 }
 
 // Get retrieves a value from the cache.
-func (c *InMemoryCache[T]) Get(key model.CacheKey) (T, bool) {
+func (c *inMemoryCache[T]) Get(key CacheKey) (T, bool) {
 	if !c.enabled {
 		var zero T
 		return zero, false
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "InMemoryCache"),
 		log.String("name", c.GetName()))
 
 	c.mu.Lock()
@@ -250,7 +244,7 @@ func (c *InMemoryCache[T]) Get(key model.CacheKey) (T, bool) {
 	c.hitCount++
 
 	// Update the heap item for LFU eviction
-	if c.evictionPolicy == constants.EvictionPolicyLFU && entry.heapItem != nil {
+	if c.evictionPolicy == evictionPolicyLFU && entry.heapItem != nil {
 		entry.heapItem.accessCount = entry.accessCount
 		entry.heapItem.lastAccess = entry.lastAccess
 		heap.Fix(c.lfuHeap, entry.heapItem.index)
@@ -261,7 +255,7 @@ func (c *InMemoryCache[T]) Get(key model.CacheKey) (T, bool) {
 }
 
 // Delete removes an entry from the cache.
-func (c *InMemoryCache[T]) Delete(key model.CacheKey) error {
+func (c *inMemoryCache[T]) Delete(key CacheKey) error {
 	if !c.enabled {
 		return nil
 	}
@@ -277,18 +271,18 @@ func (c *InMemoryCache[T]) Delete(key model.CacheKey) error {
 }
 
 // Clear removes all entries from the cache.
-func (c *InMemoryCache[T]) Clear() error {
+func (c *inMemoryCache[T]) Clear() error {
 	if !c.enabled {
 		return nil
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "InMemoryCache"),
 		log.String("name", c.GetName()))
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.cache = make(map[model.CacheKey]*InMemoryCacheEntry[T])
+	c.cache = make(map[CacheKey]*inMemoryCacheEntry[T])
 	c.accessOrder.Init()
 	c.lfuHeap = &lfuHeap{}
 	heap.Init(c.lfuHeap)
@@ -301,19 +295,19 @@ func (c *InMemoryCache[T]) Clear() error {
 }
 
 // IsEnabled returns whether the cache is enabled.
-func (c *InMemoryCache[T]) IsEnabled() bool {
+func (c *inMemoryCache[T]) IsEnabled() bool {
 	return c.enabled
 }
 
 // GetName returns the name of the cache.
-func (c *InMemoryCache[T]) GetName() string {
+func (c *inMemoryCache[T]) GetName() string {
 	return c.name
 }
 
 // GetStats returns cache statistics.
-func (c *InMemoryCache[T]) GetStats() model.CacheStat {
+func (c *inMemoryCache[T]) GetStats() CacheStat {
 	if !c.enabled {
-		return model.CacheStat{Enabled: false}
+		return CacheStat{Enabled: false}
 	}
 
 	c.mu.RLock()
@@ -326,7 +320,7 @@ func (c *InMemoryCache[T]) GetStats() model.CacheStat {
 		hitRate = float64(c.hitCount) / float64(totalOps)
 	}
 
-	return model.CacheStat{
+	return CacheStat{
 		Enabled:    true,
 		Size:       size,
 		MaxSize:    c.size,
@@ -338,8 +332,8 @@ func (c *InMemoryCache[T]) GetStats() model.CacheStat {
 }
 
 // evict removes an entry based on the eviction policy.
-func (c *InMemoryCache[T]) evict() {
-	if c.evictionPolicy == constants.EvictionPolicyLFU {
+func (c *inMemoryCache[T]) evict() {
+	if c.evictionPolicy == evictionPolicyLFU {
 		c.evictLeastFrequent()
 	} else {
 		c.evictOldest()
@@ -347,8 +341,8 @@ func (c *InMemoryCache[T]) evict() {
 }
 
 // evictOldest removes the oldest entry from the cache (LRU eviction).
-func (c *InMemoryCache[T]) evictOldest() {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+func (c *inMemoryCache[T]) evictOldest() {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "InMemoryCache"),
 		log.String("name", c.GetName()))
 
 	if c.accessOrder.Len() == 0 {
@@ -358,7 +352,7 @@ func (c *InMemoryCache[T]) evictOldest() {
 	// Get the least recently used item
 	oldest := c.accessOrder.Back()
 	if oldest != nil {
-		key := oldest.Value.(model.CacheKey)
+		key := oldest.Value.(CacheKey)
 		if entry, exists := c.cache[key]; exists {
 			c.deleteEntry(key, entry)
 			c.evictCount++
@@ -368,8 +362,8 @@ func (c *InMemoryCache[T]) evictOldest() {
 }
 
 // evictLeastFrequent removes the least frequently used entry from the cache (LFU eviction).
-func (c *InMemoryCache[T]) evictLeastFrequent() {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+func (c *inMemoryCache[T]) evictLeastFrequent() {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "InMemoryCache"),
 		log.String("name", c.GetName()))
 
 	if c.lfuHeap.Len() == 0 {
@@ -388,23 +382,23 @@ func (c *InMemoryCache[T]) evictLeastFrequent() {
 }
 
 // deleteEntry removes an entry from both the map and the access order list.
-func (c *InMemoryCache[T]) deleteEntry(key model.CacheKey, entry *InMemoryCacheEntry[T]) {
+func (c *inMemoryCache[T]) deleteEntry(key CacheKey, entry *inMemoryCacheEntry[T]) {
 	delete(c.cache, key)
 	c.accessOrder.Remove(entry.listElement)
 
 	// Remove from heap if using LFU eviction
-	if c.evictionPolicy == constants.EvictionPolicyLFU && entry.heapItem != nil && entry.heapItem.index >= 0 {
+	if c.evictionPolicy == evictionPolicyLFU && entry.heapItem != nil && entry.heapItem.index >= 0 {
 		heap.Remove(c.lfuHeap, entry.heapItem.index)
 	}
 }
 
 // CleanupExpired removes all expired entries from the cache.
-func (c *InMemoryCache[T]) CleanupExpired() {
+func (c *inMemoryCache[T]) CleanupExpired() {
 	if !c.enabled {
 		return
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "InMemoryCache"),
 		log.String("name", c.GetName()))
 	logger.Debug("Cleaning up expired entries from the cache")
 

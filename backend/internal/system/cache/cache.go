@@ -16,19 +16,16 @@
  * under the License.
  */
 
-// Package cache provides the generic interface for the cache implementations.
 package cache
 
-import "github.com/asgardeo/thunder/internal/system/cache/model"
-
-// CacheInterface defines the common interface for all cache implementations.
-type CacheInterface[T any] interface {
-	Set(key model.CacheKey, value T) error
-	Get(key model.CacheKey) (T, bool)
-	Delete(key model.CacheKey) error
+// cacheInterface defines the common interface for all cache implementations.
+type cacheInterface[T any] interface {
+	Set(key CacheKey, value T) error
+	Get(key CacheKey) (T, bool)
+	Delete(key CacheKey) error
 	Clear() error
 	IsEnabled() bool
-	GetStats() model.CacheStat
+	GetStats() CacheStat
 	CleanupExpired()
 	GetName() string
 }

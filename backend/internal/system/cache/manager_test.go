@@ -26,10 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/asgardeo/thunder/internal/system/cache/constants"
-	"github.com/asgardeo/thunder/internal/system/cache/model"
 	"github.com/asgardeo/thunder/internal/system/config"
-	"github.com/asgardeo/thunder/tests/mocks/cachemock"
 )
 
 const (
@@ -48,7 +45,7 @@ func (suite *CacheManagerTestSuite) TestIsEnabled() {
 	t := suite.T()
 
 	// Test enabled cache manager
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 	enabledManager := &CacheManager[string]{
 		enabled:         true,
 		Cache:           mockCache,
@@ -68,7 +65,7 @@ func (suite *CacheManagerTestSuite) TestSet() {
 	t := suite.T()
 
 	// Test with enabled cache manager and cache
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 	mockCache.EXPECT().IsEnabled().Return(true)
 
 	manager := &CacheManager[string]{
@@ -77,7 +74,7 @@ func (suite *CacheManagerTestSuite) TestSet() {
 		cleanUpInterval: 60 * time.Second,
 	}
 
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	// Set up expectation for Set
 	mockCache.EXPECT().Set(key, testValue).Return(nil)
@@ -100,7 +97,7 @@ func (suite *CacheManagerTestSuite) TestSet() {
 func (suite *CacheManagerTestSuite) TestSetWithError() {
 	t := suite.T()
 
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 	mockCache.EXPECT().IsEnabled().Return(true)
 
 	manager := &CacheManager[string]{
@@ -109,7 +106,7 @@ func (suite *CacheManagerTestSuite) TestSetWithError() {
 		cleanUpInterval: 60 * time.Second,
 	}
 
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	// Set up expectation for Set to return error
 	mockCache.EXPECT().Set(key, testValue).Return(fmt.Errorf("set error"))
@@ -123,7 +120,7 @@ func (suite *CacheManagerTestSuite) TestGet() {
 	t := suite.T()
 
 	// Test 1: Test with enabled cache manager and value found
-	mockCache1 := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache1 := newCacheInterfaceMock[string](t)
 	mockCache1.EXPECT().IsEnabled().Return(true)
 
 	manager1 := &CacheManager[string]{
@@ -132,7 +129,7 @@ func (suite *CacheManagerTestSuite) TestGet() {
 		cleanUpInterval: 60 * time.Second,
 	}
 
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	mockCache1.EXPECT().Get(key).Return(testValue, true)
 	value, found := manager1.Get(key)
@@ -140,7 +137,7 @@ func (suite *CacheManagerTestSuite) TestGet() {
 	assert.Equal(t, testValue, value)
 
 	// Test 2: Test with enabled cache manager and value not found
-	mockCache2 := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache2 := newCacheInterfaceMock[string](t)
 	mockCache2.EXPECT().IsEnabled().Return(true)
 
 	manager2 := &CacheManager[string]{
@@ -170,7 +167,7 @@ func (suite *CacheManagerTestSuite) TestDelete() {
 	t := suite.T()
 
 	// Test with enabled cache manager and cache
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 	mockCache.EXPECT().IsEnabled().Return(true)
 
 	manager := &CacheManager[string]{
@@ -179,7 +176,7 @@ func (suite *CacheManagerTestSuite) TestDelete() {
 		cleanUpInterval: 60 * time.Second,
 	}
 
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	// Set up expectation for Delete
 	mockCache.EXPECT().Delete(key).Return(nil)
@@ -202,7 +199,7 @@ func (suite *CacheManagerTestSuite) TestDelete() {
 func (suite *CacheManagerTestSuite) TestDeleteWithError() {
 	t := suite.T()
 
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 	mockCache.EXPECT().IsEnabled().Return(true)
 
 	manager := &CacheManager[string]{
@@ -211,7 +208,7 @@ func (suite *CacheManagerTestSuite) TestDeleteWithError() {
 		cleanUpInterval: 60 * time.Second,
 	}
 
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	// Set up expectation for Delete to return error
 	mockCache.EXPECT().Delete(key).Return(fmt.Errorf("delete error"))
@@ -225,7 +222,7 @@ func (suite *CacheManagerTestSuite) TestClear() {
 	t := suite.T()
 
 	// Test with enabled cache manager and cache
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 	mockCache.EXPECT().IsEnabled().Return(true)
 
 	manager := &CacheManager[string]{
@@ -255,7 +252,7 @@ func (suite *CacheManagerTestSuite) TestClear() {
 func (suite *CacheManagerTestSuite) TestClearWithError() {
 	t := suite.T()
 
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 	mockCache.EXPECT().IsEnabled().Return(true)
 
 	manager := &CacheManager[string]{
@@ -329,31 +326,31 @@ func (suite *CacheManagerTestSuite) TestGetEvictionPolicy() {
 		name                   string
 		cacheConfig            config.CacheConfig
 		cacheProperty          config.CacheProperty
-		expectedEvictionPolicy constants.EvictionPolicy
+		expectedEvictionPolicy evictionPolicy
 	}{
 		{
 			name: "PropertyLFUEvictionPolicy",
 			cacheConfig: config.CacheConfig{
-				EvictionPolicy: string(constants.EvictionPolicyLRU),
+				EvictionPolicy: string(evictionPolicyLRU),
 			},
 			cacheProperty: config.CacheProperty{
-				EvictionPolicy: string(constants.EvictionPolicyLFU),
+				EvictionPolicy: string(evictionPolicyLFU),
 			},
-			expectedEvictionPolicy: constants.EvictionPolicyLFU,
+			expectedEvictionPolicy: evictionPolicyLFU,
 		},
 		{
 			name: "ConfigLRUEvictionPolicy",
 			cacheConfig: config.CacheConfig{
-				EvictionPolicy: string(constants.EvictionPolicyLRU),
+				EvictionPolicy: string(evictionPolicyLRU),
 			},
 			cacheProperty:          config.CacheProperty{},
-			expectedEvictionPolicy: constants.EvictionPolicyLRU,
+			expectedEvictionPolicy: evictionPolicyLRU,
 		},
 		{
 			name:                   "DefaultLRUEvictionPolicy",
 			cacheConfig:            config.CacheConfig{},
 			cacheProperty:          config.CacheProperty{},
-			expectedEvictionPolicy: constants.EvictionPolicyLRU,
+			expectedEvictionPolicy: evictionPolicyLRU,
 		},
 		{
 			name: "InvalidEvictionPolicy",
@@ -361,7 +358,7 @@ func (suite *CacheManagerTestSuite) TestGetEvictionPolicy() {
 				EvictionPolicy: "INVALID",
 			},
 			cacheProperty:          config.CacheProperty{},
-			expectedEvictionPolicy: constants.EvictionPolicyLRU,
+			expectedEvictionPolicy: evictionPolicyLRU,
 		},
 	}
 
@@ -377,26 +374,26 @@ func (suite *CacheManagerTestSuite) TestGetCacheType() {
 	testCases := []struct {
 		name              string
 		cacheConfig       config.CacheConfig
-		expectedCacheType constants.CacheType
+		expectedCacheType cacheType
 	}{
 		{
 			name: "InMemoryCacheType",
 			cacheConfig: config.CacheConfig{
-				Type: string(constants.CacheTypeInMemory),
+				Type: string(cacheTypeInMemory),
 			},
-			expectedCacheType: constants.CacheTypeInMemory,
+			expectedCacheType: cacheTypeInMemory,
 		},
 		{
 			name:              "DefaultCacheType",
 			cacheConfig:       config.CacheConfig{},
-			expectedCacheType: constants.CacheTypeInMemory,
+			expectedCacheType: cacheTypeInMemory,
 		},
 		{
 			name: "UnknownCacheType",
 			cacheConfig: config.CacheConfig{
 				Type: "unknown",
 			},
-			expectedCacheType: constants.CacheTypeInMemory,
+			expectedCacheType: cacheTypeInMemory,
 		},
 	}
 
@@ -437,7 +434,7 @@ func (suite *CacheManagerTestSuite) TestGetCleanupInterval() {
 			name:                    "DefaultCleanupInterval",
 			cacheConfig:             config.CacheConfig{},
 			cacheProperty:           config.CacheProperty{},
-			expectedCleanupInterval: constants.DefaultCleanupInterval * time.Second,
+			expectedCleanupInterval: defaultCleanupInterval * time.Second,
 		},
 	}
 
@@ -453,7 +450,7 @@ func (suite *CacheManagerTestSuite) TestCacheManagerWithFailingOperations() {
 	t := suite.T()
 
 	// Create a mock cache for testing error scenarios
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 
 	// Configure the mock
 	mockCache.EXPECT().IsEnabled().Return(true).Maybe()
@@ -467,7 +464,7 @@ func (suite *CacheManagerTestSuite) TestCacheManagerWithFailingOperations() {
 	}
 
 	// Test Set with error
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	// Configure mock to return error on Set
 	mockCache.EXPECT().Set(key, testValue).Return(fmt.Errorf("set error"))
@@ -497,7 +494,7 @@ func (suite *CacheManagerTestSuite) TestDisabledInnerCacheScenario() {
 	t := suite.T()
 
 	// Create a mock cache for testing
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 
 	// Configure the mock to indicate it's disabled
 	mockCache.EXPECT().IsEnabled().Return(false)
@@ -511,7 +508,7 @@ func (suite *CacheManagerTestSuite) TestDisabledInnerCacheScenario() {
 	}
 
 	// Test operations with disabled inner cache
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	// Set should be a no-op with disabled inner cache
 	err := cacheManager.Set(key, testValue)
@@ -535,7 +532,7 @@ func (suite *CacheManagerTestSuite) TestDisabledInnerCacheScenario() {
 func (suite *CacheManagerTestSuite) TestDisabledInnerCacheOnly() {
 	t := suite.T()
 
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 	mockCache.EXPECT().IsEnabled().Return(false)
 	// Since it's disabled, check IsEnabled multiple times for each operation
 	mockCache.EXPECT().IsEnabled().Return(false)
@@ -549,7 +546,7 @@ func (suite *CacheManagerTestSuite) TestDisabledInnerCacheOnly() {
 	}
 
 	// Test operations with disabled inner cache
-	key := model.CacheKey{Key: "testKey"}
+	key := CacheKey{Key: "testKey"}
 
 	// All operations should be no-ops when inner cache is disabled
 	err := manager.Set(key, testValue)
@@ -569,9 +566,9 @@ func (suite *CacheManagerTestSuite) TestDisabledInnerCacheOnly() {
 func (suite *CacheManagerTestSuite) TestGetStats() {
 	t := suite.T()
 
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 
-	expectedStats := model.CacheStat{
+	expectedStats := CacheStat{
 		Enabled:    true,
 		Size:       10,
 		MaxSize:    100,
@@ -595,17 +592,17 @@ func (suite *CacheManagerTestSuite) TestGetStats() {
 	}
 
 	// Should not panic with nil cache
-	var emptyStats model.CacheStat
+	var emptyStats CacheStat
 	if disabledManager.Cache != nil {
 		emptyStats = disabledManager.Cache.GetStats()
 	}
-	assert.Equal(t, model.CacheStat{}, emptyStats)
+	assert.Equal(t, CacheStat{}, emptyStats)
 }
 
 func (suite *CacheManagerTestSuite) TestMultipleValues() {
 	t := suite.T()
 
-	mockCache := cachemock.NewCacheInterfaceMock[string](t)
+	mockCache := newCacheInterfaceMock[string](t)
 	// Need to set multiple expectations for multiple IsEnabled calls
 	mockCache.EXPECT().IsEnabled().Return(true)
 	mockCache.EXPECT().IsEnabled().Return(true)
@@ -618,7 +615,7 @@ func (suite *CacheManagerTestSuite) TestMultipleValues() {
 	}
 
 	// Define test data
-	keys := []model.CacheKey{
+	keys := []CacheKey{
 		{Key: "key1"},
 		{Key: "key2"},
 		{Key: "key3"},
