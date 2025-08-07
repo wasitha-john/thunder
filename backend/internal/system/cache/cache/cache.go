@@ -16,36 +16,19 @@
  * under the License.
  */
 
-// Package model defines the data structures for the cache system.
-package model
+// Package cache provides the generic interface for the cache implementations.
+package cache
 
-import (
-	"time"
-)
+import "github.com/asgardeo/thunder/internal/system/cache/model"
 
-// CacheKey represents a key for the cache.
-type CacheKey struct {
-	Key string
-}
-
-// ToString returns the string representation of the CacheKey.
-func (key CacheKey) ToString() string {
-	return key.Key
-}
-
-// CacheEntry represents a cache entry.
-type CacheEntry[T any] struct {
-	Value      T
-	ExpiryTime time.Time
-}
-
-// CacheStat represents cache statistics.
-type CacheStat struct {
-	Enabled    bool
-	Size       int
-	MaxSize    int
-	HitCount   int64
-	MissCount  int64
-	HitRate    float64
-	EvictCount int64
+// CacheInterface defines the common interface for all cache implementations.
+type CacheInterface[T any] interface {
+	Set(key model.CacheKey, value T) error
+	Get(key model.CacheKey) (T, bool)
+	Delete(key model.CacheKey) error
+	Clear() error
+	IsEnabled() bool
+	GetStats() model.CacheStat
+	CleanupExpired()
+	GetName() string
 }

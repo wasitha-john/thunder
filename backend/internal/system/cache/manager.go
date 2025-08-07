@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/asgardeo/thunder/internal/system/cache/cache"
 	"github.com/asgardeo/thunder/internal/system/cache/constants"
 	"github.com/asgardeo/thunder/internal/system/cache/inmemory"
 	"github.com/asgardeo/thunder/internal/system/cache/model"
@@ -44,7 +45,7 @@ type CacheManagerInterface[T any] interface {
 // CacheManager implements the CacheManagerInterface for managing caches.
 type CacheManager[T any] struct {
 	enabled         bool
-	cache           model.CacheInterface[T]
+	Cache           cache.CacheInterface[T]
 	cleanUpInterval time.Duration
 	mu              sync.RWMutex
 }
@@ -58,7 +59,7 @@ func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
 		logger.Debug("Caching is disabled, returning empty cache manager")
 		return &CacheManager[T]{
 			enabled: false,
-			cache:   nil,
+			Cache:   nil,
 		}
 	}
 
@@ -68,7 +69,7 @@ func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
 		logger.Debug("Cache is disabled, returning empty cache manager")
 		return &CacheManager[T]{
 			enabled: false,
-			cache:   nil,
+			Cache:   nil,
 		}
 	}
 
@@ -88,7 +89,7 @@ func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
 		ttl = constants.DefaultCacheTTL
 	}
 
-	var cache model.CacheInterface[T]
+	var cache cache.CacheInterface[T]
 	switch cacheType {
 	case constants.CacheTypeInMemory:
 		cache = inmemory.NewInMemoryCache[T](
@@ -111,7 +112,7 @@ func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
 
 	cm := &CacheManager[T]{
 		enabled:         true,
-		cache:           cache,
+		Cache:           cache,
 		cleanUpInterval: cleanupInterval,
 	}
 	cm.startCleanupRoutine()
@@ -123,11 +124,11 @@ func NewCacheManager[T any](cacheName string) CacheManagerInterface[T] {
 func (cm *CacheManager[T]) Set(key model.CacheKey, value T) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	if cm.IsEnabled() && cm.cache.IsEnabled() {
+	if cm.IsEnabled() && cm.Cache.IsEnabled() {
 		cm.mu.Lock()
 		defer cm.mu.Unlock()
 
-		if err := cm.cache.Set(key, value); err != nil {
+		if err := cm.Cache.Set(key, value); err != nil {
 			logger.Warn("Failed to set value in the cache", log.String("key", key.ToString()), log.Error(err))
 		}
 	}
@@ -137,11 +138,11 @@ func (cm *CacheManager[T]) Set(key model.CacheKey, value T) error {
 
 // Get retrieves a value from the cache.
 func (cm *CacheManager[T]) Get(key model.CacheKey) (T, bool) {
-	if cm.IsEnabled() && cm.cache.IsEnabled() {
+	if cm.IsEnabled() && cm.Cache.IsEnabled() {
 		cm.mu.RLock()
 		defer cm.mu.RUnlock()
 
-		if value, found := cm.cache.Get(key); found {
+		if value, found := cm.Cache.Get(key); found {
 			return value, true
 		}
 	}
@@ -154,11 +155,11 @@ func (cm *CacheManager[T]) Get(key model.CacheKey) (T, bool) {
 func (cm *CacheManager[T]) Delete(key model.CacheKey) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	if cm.IsEnabled() && cm.cache.IsEnabled() {
+	if cm.IsEnabled() && cm.Cache.IsEnabled() {
 		cm.mu.Lock()
 		defer cm.mu.Unlock()
 
-		if err := cm.cache.Delete(key); err != nil {
+		if err := cm.Cache.Delete(key); err != nil {
 			logger.Warn("Failed to delete value from the cache", log.String("key", key.ToString()), log.Error(err))
 		}
 	}
@@ -170,13 +171,13 @@ func (cm *CacheManager[T]) Delete(key model.CacheKey) error {
 func (cm *CacheManager[T]) Clear() error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	if cm.IsEnabled() && cm.cache.IsEnabled() {
+	if cm.IsEnabled() && cm.Cache.IsEnabled() {
 		logger.Debug("Clearing all entries in the cache")
 
 		cm.mu.Lock()
 		defer cm.mu.Unlock()
 
-		if err := cm.cache.Clear(); err != nil {
+		if err := cm.Cache.Clear(); err != nil {
 			logger.Warn("Failed to clear the cache", log.Error(err))
 		}
 	}
@@ -193,7 +194,7 @@ func (cm *CacheManager[T]) IsEnabled() bool {
 func (cm *CacheManager[T]) startCleanupRoutine() {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	if !cm.IsEnabled() || !cm.cache.IsEnabled() {
+	if !cm.IsEnabled() || !cm.Cache.IsEnabled() {
 		return
 	}
 
@@ -202,7 +203,7 @@ func (cm *CacheManager[T]) startCleanupRoutine() {
 		defer ticker.Stop()
 
 		for range ticker.C {
-			cm.cache.CleanupExpired()
+			cm.Cache.CleanupExpired()
 		}
 	}()
 

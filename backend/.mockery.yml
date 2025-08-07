@@ -51,6 +51,14 @@ packages:
       structname: '{{.InterfaceName}}Mock'
       pkgname: providermock
       filename: "{{.InterfaceName}}_mock.go"
+  
+  github.com/asgardeo/thunder/internal/system/cache/cache:
+    config:
+      all: true
+      dir: tests/mocks/cachemock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: cachemock
+      filename: "{{.InterfaceName}}_mock.go"
 
   github.com/asgardeo/thunder/internal/cert:
     config:

@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/asgardeo/thunder/internal/system/cache/cache"
 	"github.com/asgardeo/thunder/internal/system/cache/constants"
 	"github.com/asgardeo/thunder/internal/system/cache/model"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -104,7 +105,7 @@ type InMemoryCache[T any] struct {
 
 // NewInMemoryCache creates a new instance of InMemoryCache.
 func NewInMemoryCache[T any](name string, enabled bool, size int, ttl time.Duration,
-	evictionPolicy constants.EvictionPolicy) model.CacheInterface[T] {
+	evictionPolicy constants.EvictionPolicy) cache.CacheInterface[T] {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String("name", name))
 
