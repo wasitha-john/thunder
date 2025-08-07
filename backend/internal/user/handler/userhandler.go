@@ -36,7 +36,6 @@ import (
 )
 
 const loggerComponentName = "UserHandler"
-const limitDefault = 30
 
 // UserHandler is the handler for user management operations.
 type UserHandler struct {
@@ -85,7 +84,7 @@ func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	if limit == 0 {
-		limit = limitDefault
+		limit = serverconst.DefaultPageSize
 	}
 
 	// Get the user list using the user service.
