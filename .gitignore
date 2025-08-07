@@ -96,6 +96,7 @@ tmp
 out
 out-tsc
 backend/bin
+backend/server
 frontend/packages/*/modules
 samples/apps/*/server/app
 
