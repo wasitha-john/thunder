@@ -28,6 +28,11 @@ import (
 	"github.com/asgardeo/thunder/internal/system/database/client"
 )
 
+const (
+	dataSourceTypePostgres = "postgres"
+	dataSourceTypeSQLite   = "sqlite"
+)
+
 // dbConfig represents the local database configuration.
 type dbConfig struct {
 	dsn        string
@@ -71,6 +76,14 @@ func (d *DBProvider) GetDBClient(dbName string) (client.DBClientInterface, error
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	// Enable foreign key constraints for SQLite databases
+	if dbConfig.driverName == dataSourceTypeSQLite {
+		_, err := db.Exec("PRAGMA foreign_keys = ON;")
+		if err != nil {
+			return nil, fmt.Errorf("failed to enable foreign key constraints: %w", err)
+		}
+	}
+
 	return client.NewDBClient(db, dbConfig.driverName), nil
 }
 
@@ -79,13 +92,13 @@ func getDBConfig(dataSource config.DataSource) dbConfig {
 	var dbConfig dbConfig
 
 	switch dataSource.Type {
-	case "postgres":
-		dbConfig.driverName = "postgres"
+	case dataSourceTypePostgres:
+		dbConfig.driverName = dataSourceTypePostgres
 		dbConfig.dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 			dataSource.Hostname, dataSource.Port, dataSource.Username, dataSource.Password,
 			dataSource.Name, dataSource.SSLMode)
-	case "sqlite":
-		dbConfig.driverName = "sqlite"
+	case dataSourceTypeSQLite:
+		dbConfig.driverName = dataSourceTypeSQLite
 		options := dataSource.Options
 		if options != "" && options[0] != '?' {
 			options = "?" + options
