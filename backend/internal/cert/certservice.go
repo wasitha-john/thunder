@@ -47,13 +47,13 @@ type CertificateServiceInterface interface {
 
 // CertificateService implements the CertificateServiceInterface for managing certificates.
 type CertificateService struct {
-	Store store.CertificateStoreInterface
+	Store store.CachedBackedCertificateStoreInterface
 }
 
 // NewCertificateService creates a new instance of CertificateService.
 func NewCertificateService() CertificateServiceInterface {
 	return &CertificateService{
-		Store: store.NewCertificateStore(),
+		Store: store.NewCachedBackedCertificateStore(),
 	}
 }
 
@@ -72,6 +72,10 @@ func (s *CertificateService) GetCertificateByID(id string) (*model.Certificate, 
 		}
 		logger.Error("Failed to get certificate by ID", log.String("id", id), log.Error(err))
 		return nil, &constants.ErrorInternalServerError
+	}
+	if certObj == nil {
+		logger.Debug("Certificate not found for ID", log.String("id", id))
+		return nil, &constants.ErrorCertificateNotFound
 	}
 
 	return certObj, nil
@@ -98,6 +102,11 @@ func (s *CertificateService) GetCertificateByReference(refType constants.Certifi
 			log.String("refID", refID), log.Error(err))
 		return nil, &constants.ErrorInternalServerError
 	}
+	if certObj == nil {
+		logger.Debug("Certificate not found for reference", log.String("refType", string(refType)),
+			log.String("refID", refID))
+		return nil, &constants.ErrorCertificateNotFound
+	}
 
 	return certObj, nil
 }
@@ -111,8 +120,19 @@ func (s *CertificateService) CreateCertificate(cert *model.Certificate) (*model.
 		return nil, err
 	}
 
+	// Check if a certificate with the same reference already exists
+	existingCert, err := s.Store.GetCertificateByReference(cert.RefType, cert.RefID)
+	if err != nil && !errors.Is(err, constants.ErrCertificateNotFound) {
+		logger.Error("Failed to check existing certificate", log.String("refType", string(cert.RefType)),
+			log.String("refID", cert.RefID), log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+	if existingCert != nil {
+		return nil, &constants.ErrorCertificateAlreadyExists
+	}
+
 	cert.ID = sysutils.GenerateUUID()
-	err := s.Store.CreateCertificate(cert)
+	err = s.Store.CreateCertificate(cert)
 	if err != nil {
 		logger.Error("Failed to create certificate", log.Error(err))
 		return nil, &constants.ErrorInternalServerError
@@ -133,7 +153,26 @@ func (s *CertificateService) UpdateCertificateByID(id string, cert *model.Certif
 		return nil, err
 	}
 
-	err := s.Store.UpdateCertificateByID(id, cert)
+	// Get the existing certificate to validate reference
+	existingCert, err := s.Store.GetCertificateByID(id)
+	if err != nil {
+		if errors.Is(err, constants.ErrCertificateNotFound) {
+			return nil, &constants.ErrorCertificateNotFound
+		}
+		logger.Error("Failed to get existing certificate", log.String("id", id), log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+	if existingCert == nil {
+		logger.Debug("Certificate not found for update", log.String("id", id))
+		return nil, &constants.ErrorCertificateNotFound
+	}
+
+	// Validate the reference is not changed
+	if existingCert.RefType != cert.RefType || existingCert.RefID != cert.RefID {
+		return nil, &constants.ErrorReferenceUpdateIsNotAllowed
+	}
+
+	err = s.Store.UpdateCertificateByID(existingCert, cert)
 	if err != nil {
 		if errors.Is(err, constants.ErrCertificateNotFound) {
 			return nil, &constants.ErrorCertificateNotFound
@@ -160,7 +199,29 @@ func (s *CertificateService) UpdateCertificateByReference(refType constants.Cert
 		return nil, err
 	}
 
-	err := s.Store.UpdateCertificateByReference(refType, refID, cert)
+	// Get the existing certificate to validate reference consistency
+	existingCert, err := s.Store.GetCertificateByReference(refType, refID)
+	if err != nil {
+		if errors.Is(err, constants.ErrCertificateNotFound) {
+			return nil, &constants.ErrorCertificateNotFound
+		}
+		logger.Error("Failed to get existing certificate", log.String("refType", string(refType)),
+			log.String("refID", refID), log.Error(err))
+		return nil, &constants.ErrorInternalServerError
+	}
+	if existingCert == nil {
+		logger.Debug("Certificate not found for update", log.String("refType", string(refType)),
+			log.String("refID", refID))
+		return nil, &constants.ErrorCertificateNotFound
+	}
+
+	// Validate the reference is not changed
+	if existingCert.RefType != cert.RefType || existingCert.RefID != cert.RefID {
+		return nil, &constants.ErrorReferenceUpdateIsNotAllowed
+	}
+
+	cert.ID = existingCert.ID
+	err = s.Store.UpdateCertificateByReference(existingCert, cert)
 	if err != nil {
 		if errors.Is(err, constants.ErrCertificateNotFound) {
 			return nil, &constants.ErrorCertificateNotFound
