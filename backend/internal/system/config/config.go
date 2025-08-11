@@ -71,12 +71,11 @@ type DatabaseConfig struct {
 
 // CacheProperty defines the properties for individual caches.
 type CacheProperty struct {
-	Name            string `yaml:"name"`
-	Disabled        bool   `yaml:"disabled"`
-	Size            int    `yaml:"size"`
-	TTL             int    `yaml:"ttl"`
-	EvictionPolicy  string `yaml:"eviction_policy"`
-	CleanupInterval int    `yaml:"cleanup_interval"`
+	Name           string `yaml:"name"`
+	Disabled       bool   `yaml:"disabled"`
+	Size           int    `yaml:"size"`
+	TTL            int    `yaml:"ttl"`
+	EvictionPolicy string `yaml:"eviction_policy"`
 }
 
 // CacheConfig holds the cache configuration details.

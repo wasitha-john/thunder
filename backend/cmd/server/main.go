@@ -30,6 +30,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/flow"
+	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/managers"
 
 	"github.com/asgardeo/thunder/internal/oauth/jwt"
@@ -98,6 +99,9 @@ func initThunderConfigurations(logger *log.Logger, thunderHome string) *config.C
 		logger.Fatal("Failed to initialize thunder runtime", log.Error(err))
 	}
 
+	// Initialize the cache manager.
+	initCacheManager(logger)
+
 	// Load the server's private key for signing JWTs.
 	jwtService := jwt.GetJWTService()
 	if err := jwtService.Init(); err != nil {
@@ -127,6 +131,15 @@ func initFlowService(logger *log.Logger) {
 	if err := svc.Init(); err != nil {
 		logger.Fatal("Failed to initialize flow service", log.Error(err))
 	}
+}
+
+// initCacheManager initializes the cache manager with centralized cleanup.
+func initCacheManager(logger *log.Logger) {
+	cm := cache.GetCacheManager()
+	if cm == nil {
+		logger.Fatal("Failed to get cache manager instance")
+	}
+	cm.Init()
 }
 
 // startTLSServer starts the HTTPS server with TLS configuration.
