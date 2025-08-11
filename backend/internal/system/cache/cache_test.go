@@ -608,8 +608,8 @@ func (suite *CacheTestSuite) TestCleanupExpired() {
 		InternalCache: mockCache,
 	}
 
-	// Call the cleanupExpired method
-	cache.cleanupExpired()
+	// Call the CleanupExpired method
+	cache.CleanupExpired()
 
 	// No additional assertions needed - the mock will verify that CleanupExpired was called once
 }
@@ -667,7 +667,7 @@ func (suite *CacheTestSuite) TestCacheWithNilInternalCache() {
 	assert.NoError(t, err)
 
 	// Should not panic
-	cache.cleanupExpired()
+	cache.CleanupExpired()
 }
 
 func (suite *CacheTestSuite) TestCacheWithEmptyKeyOperations() {

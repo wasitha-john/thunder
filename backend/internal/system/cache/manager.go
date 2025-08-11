@@ -134,11 +134,11 @@ func (cm *CacheManager) cleanupAllCaches() {
 		case interface {
 			IsEnabled() bool
 			GetName() string
-			cleanupExpired()
+			CleanupExpired()
 		}:
 			if cache.IsEnabled() {
 				logger.Debug("Cleaning up cache", log.String("cacheName", cache.GetName()))
-				cache.cleanupExpired()
+				cache.CleanupExpired()
 			}
 		default:
 			logger.Warn("Unknown cache type encountered", log.Any("type", reflect.TypeOf(cacheEntry)))
