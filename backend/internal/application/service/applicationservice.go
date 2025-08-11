@@ -42,8 +42,7 @@ type ApplicationServiceInterface interface {
 	CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO, *serviceerror.ServiceError)
 	GetApplicationList() (*model.ApplicationListResponse, *serviceerror.ServiceError)
 	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, *serviceerror.ServiceError)
-	GetApplicationByID(appID string) (*model.ApplicationProcessedDTO, *serviceerror.ServiceError)
-	GetApplicationByName(appName string) (*model.ApplicationProcessedDTO, *serviceerror.ServiceError)
+	GetApplication(appID string) (*model.ApplicationProcessedDTO, *serviceerror.ServiceError)
 	UpdateApplication(appID string, app *model.ApplicationDTO) (*model.ApplicationDTO, *serviceerror.ServiceError)
 	DeleteApplication(appID string) *serviceerror.ServiceError
 }
@@ -256,29 +255,14 @@ func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuth
 	return oauthApp, nil
 }
 
-// GetApplicationByID get the application for given app id.
-func (as *ApplicationService) GetApplicationByID(appID string) (*model.ApplicationProcessedDTO,
+// GetApplication get the application for given app id.
+func (as *ApplicationService) GetApplication(appID string) (*model.ApplicationProcessedDTO,
 	*serviceerror.ServiceError) {
 	if appID == "" {
 		return nil, &constants.ErrorInvalidApplicationID
 	}
 
 	application, err := as.AppStore.GetApplicationByID(appID)
-	if err != nil {
-		return nil, as.handleApplicationRetrievalError(err)
-	}
-
-	return as.enrichApplicationWithCertificate(application)
-}
-
-// GetApplicationByName retrieves the application by its name.
-func (as *ApplicationService) GetApplicationByName(appName string) (*model.ApplicationProcessedDTO,
-	*serviceerror.ServiceError) {
-	if appName == "" {
-		return nil, &constants.ErrorInvalidApplicationName
-	}
-
-	application, err := as.AppStore.GetApplicationByName(appName)
 	if err != nil {
 		return nil, as.handleApplicationRetrievalError(err)
 	}

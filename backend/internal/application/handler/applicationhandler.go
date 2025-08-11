@@ -227,7 +227,7 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 	}
 
 	appService := ah.ApplicationProvider.GetApplicationService()
-	appDTO, svcErr := appService.GetApplicationByID(id)
+	appDTO, svcErr := appService.GetApplication(id)
 	if svcErr != nil {
 		ah.handleError(w, logger, svcErr)
 		return
