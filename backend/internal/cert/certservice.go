@@ -47,7 +47,7 @@ type CertificateServiceInterface interface {
 
 // CertificateService implements the CertificateServiceInterface for managing certificates.
 type CertificateService struct {
-	Store store.CachedBackedCertificateStoreInterface
+	Store store.CertificateStoreInterface
 }
 
 // NewCertificateService creates a new instance of CertificateService.

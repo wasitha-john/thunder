@@ -29,19 +29,7 @@ import (
 
 const cachedStoreLoggerComponentName = "CachedBackedCertificateStore"
 
-// CachedBackedCertificateStoreInterface defines the interface for the cached backed certificate store
-// which provides methods to manage certificates with caching capabilities.
-type CachedBackedCertificateStoreInterface interface {
-	GetCertificateByID(id string) (*model.Certificate, error)
-	GetCertificateByReference(refType constants.CertificateReferenceType, refID string) (*model.Certificate, error)
-	CreateCertificate(cert *model.Certificate) error
-	UpdateCertificateByID(existingCert, updatedCert *model.Certificate) error
-	UpdateCertificateByReference(existingCert, updatedCert *model.Certificate) error
-	DeleteCertificateByID(id string) error
-	DeleteCertificateByReference(refType constants.CertificateReferenceType, refID string) error
-}
-
-// CachedBackedCertificateStore is the implementation of CachedBackedCertificateStoreInterface.
+// CachedBackedCertificateStore is the implementation of CertificateStoreInterface that uses caching.
 type CachedBackedCertificateStore struct {
 	CertByIDCacheManager        cache.CacheManagerInterface[*model.Certificate]
 	CertByReferenceCacheManager cache.CacheManagerInterface[*model.Certificate]
@@ -49,7 +37,7 @@ type CachedBackedCertificateStore struct {
 }
 
 // NewCachedBackedCertificateStore creates a new instance of CachedBackedCertificateStore.
-func NewCachedBackedCertificateStore() CachedBackedCertificateStoreInterface {
+func NewCachedBackedCertificateStore() CertificateStoreInterface {
 	return &CachedBackedCertificateStore{
 		CertByIDCacheManager:        cache.GetCacheManager[*model.Certificate]("CertificateByIDCache"),
 		CertByReferenceCacheManager: cache.GetCacheManager[*model.Certificate]("CertificateByReferenceCache"),
@@ -105,7 +93,7 @@ func (s *CachedBackedCertificateStore) CreateCertificate(cert *model.Certificate
 
 // UpdateCertificateByID updates an existing certificate by its ID and refreshes the cache.
 func (s *CachedBackedCertificateStore) UpdateCertificateByID(existingCert, updatedCert *model.Certificate) error {
-	if err := s.Store.UpdateCertificateByID(existingCert.ID, updatedCert); err != nil {
+	if err := s.Store.UpdateCertificateByID(existingCert, updatedCert); err != nil {
 		return err
 	}
 
@@ -119,7 +107,7 @@ func (s *CachedBackedCertificateStore) UpdateCertificateByID(existingCert, updat
 // UpdateCertificateByReference updates an existing certificate by its reference type and ID and refreshes the cache.
 func (s *CachedBackedCertificateStore) UpdateCertificateByReference(existingCert,
 	updatedCert *model.Certificate) error {
-	if err := s.Store.UpdateCertificateByReference(existingCert.RefType, existingCert.RefID, updatedCert); err != nil {
+	if err := s.Store.UpdateCertificateByReference(existingCert, updatedCert); err != nil {
 		return err
 	}
 
