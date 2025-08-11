@@ -24,6 +24,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/asgardeo/thunder/internal/system/config"
+	"github.com/asgardeo/thunder/tests/mocks/cachemock"
 	"github.com/asgardeo/thunder/tests/mocks/database/clientmock"
 	"github.com/asgardeo/thunder/tests/mocks/database/providermock"
 
@@ -43,6 +45,20 @@ func TestServerOperationServiceSuite(t *testing.T) {
 }
 
 func (suite *ServerOperationServiceTestSuite) SetupTest() {
+	mockConfig := &config.Config{
+		Cache: config.CacheConfig{
+			Disabled:        false,
+			Type:            "inmemory",
+			EvictionPolicy:  "LRU",
+			CleanupInterval: 300,
+		},
+	}
+	config.ResetThunderRuntime()
+	err := config.InitializeThunderRuntime("/test/thunder/home/server/ops", mockConfig)
+	if err != nil {
+		suite.T().Fatal("Failed to initialize ThunderRuntime:", err)
+	}
+
 	svc := NewServerOperationService()
 	suite.service = svc
 }
@@ -102,6 +118,11 @@ func (suite *ServerOperationServiceTestSuite) TestWrapHandleFunction() {
 			dbProvider.On("GetDBClient", "identity").Return(dbClient, nil)
 			suite.service.(*ServerOperationService).DBProvider = dbProvider
 
+			originCache := &cachemock.CacheInterfaceMock[[]string]{}
+			originCache.On("Get", mock.Anything).Return([]string{}, false)
+			originCache.On("Set", mock.Anything, mock.Anything).Return(nil)
+			suite.service.(*ServerOperationService).OriginCache = originCache
+
 			mux := http.NewServeMux()
 			reqOps := &RequestWrapOptions{
 				Cors: &Cors{
@@ -145,6 +166,11 @@ func (suite *ServerOperationServiceTestSuite) TestWrapHandleFunctionWithError() 
 	dbProvider.On("GetDBClient", "identity").Return(nil, errors.New("database connection error"))
 	suite.service.(*ServerOperationService).DBProvider = dbProvider
 
+	originCache := &cachemock.CacheInterfaceMock[[]string]{}
+	originCache.On("Get", mock.Anything).Return([]string{}, false)
+	originCache.On("Set", mock.Anything, mock.Anything).Return(nil)
+	suite.service.(*ServerOperationService).OriginCache = originCache
+
 	mux := http.NewServeMux()
 	reqOps := &RequestWrapOptions{
 		Cors: &Cors{
@@ -177,6 +203,11 @@ func (suite *ServerOperationServiceTestSuite) TestGetAllowedOriginsDBClientError
 	dbProvider.On("GetDBClient", "identity").Return(nil, errors.New("database connection error"))
 	suite.service.(*ServerOperationService).DBProvider = dbProvider
 
+	originCache := &cachemock.CacheInterfaceMock[[]string]{}
+	originCache.On("Get", mock.Anything).Return([]string{}, false)
+	originCache.On("Set", mock.Anything, mock.Anything).Return(nil)
+	suite.service.(*ServerOperationService).OriginCache = originCache
+
 	// Cast to access the private method
 	service := suite.service.(*ServerOperationService)
 	origins, err := service.getAllowedOrigins()
@@ -195,6 +226,11 @@ func (suite *ServerOperationServiceTestSuite) TestGetAllowedOriginsQueryError() 
 	dbProvider.On("GetDBClient", "identity").Return(dbClient, nil)
 	suite.service.(*ServerOperationService).DBProvider = dbProvider
 
+	originCache := &cachemock.CacheInterfaceMock[[]string]{}
+	originCache.On("Get", mock.Anything).Return([]string{}, false)
+	originCache.On("Set", mock.Anything, mock.Anything).Return(nil)
+	suite.service.(*ServerOperationService).OriginCache = originCache
+
 	// Cast to access the private method
 	service := suite.service.(*ServerOperationService)
 	origins, err := service.getAllowedOrigins()
@@ -212,6 +248,11 @@ func (suite *ServerOperationServiceTestSuite) TestGetAllowedOriginsEmptyResults(
 	dbProvider := &providermock.DBProviderInterfaceMock{}
 	dbProvider.On("GetDBClient", "identity").Return(dbClient, nil)
 	suite.service.(*ServerOperationService).DBProvider = dbProvider
+
+	originCache := &cachemock.CacheInterfaceMock[[]string]{}
+	originCache.On("Get", mock.Anything).Return([]string{}, false)
+	originCache.On("Set", mock.Anything, mock.Anything).Return(nil)
+	suite.service.(*ServerOperationService).OriginCache = originCache
 
 	// Cast to access the private method
 	service := suite.service.(*ServerOperationService)
@@ -295,8 +336,13 @@ func (suite *ServerOperationServiceTestSuite) TestAddAllowedOriginHeaders() {
 
 			dbProvider := &providermock.DBProviderInterfaceMock{}
 
+			originCache := &cachemock.CacheInterfaceMock[[]string]{}
+			originCache.On("Get", mock.Anything).Return([]string{}, false)
+			originCache.On("Set", mock.Anything, mock.Anything).Return(nil)
+
 			service := suite.service.(*ServerOperationService)
 			service.DBProvider = dbProvider
+			service.OriginCache = originCache
 
 			if tc.dbError {
 				dbProvider.On("GetDBClient", "identity").Return(nil, errors.New("database connection error"))

@@ -23,6 +23,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/asgardeo/thunder/internal/system/cache"
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
@@ -36,13 +37,15 @@ type ServerOperationServiceInterface interface {
 
 // ServerOperationService implements the ServerOperationServiceInterface.
 type ServerOperationService struct {
-	DBProvider dbprovider.DBProviderInterface
+	DBProvider  dbprovider.DBProviderInterface
+	OriginCache cache.CacheInterface[[]string]
 }
 
 // NewServerOperationService creates a new instance of ServerOperationService.
 func NewServerOperationService() ServerOperationServiceInterface {
 	return &ServerOperationService{
-		DBProvider: dbprovider.NewDBProvider(),
+		DBProvider:  dbprovider.NewDBProvider(),
+		OriginCache: cache.GetCache[[]string]("OriginCache"),
 	}
 }
 
@@ -64,36 +67,48 @@ func (ops *ServerOperationService) WrapHandleFunction(mux *http.ServeMux, patter
 func (ops *ServerOperationService) getAllowedOrigins() ([]string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ServerOperationService"))
 
-	dbClient, err := ops.DBProvider.GetDBClient("identity")
-	if err != nil {
-		logger.Error("Failed to get database client", log.Error(err))
-		return nil, err
+	// TODO: Revisit this when adding support for the organization concept.
+	cacheKey := cache.CacheKey{
+		Key: "origins",
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Error closing database client", log.Error(closeErr))
-		}
-	}()
+	originList, ok := ops.OriginCache.Get(cacheKey)
 
-	results, err := dbClient.Query(QueryAllowedOrigins)
-	if err != nil {
-		logger.Error("Failed to execute query", log.Error(err))
-		return nil, err
-	}
-
-	if len(results) == 0 {
-		logger.Debug("No allowed origins found")
-		return []string{}, nil
-	}
-
-	row := results[0]
-	allowedOrigins, ok := row["allowed_origins"].(string)
 	if !ok {
-		logger.Error("Failed to parse allowed_origins as string")
-		return nil, err
+		dbClient, err := ops.DBProvider.GetDBClient("identity")
+		if err != nil {
+			logger.Error("Failed to get database client", log.Error(err))
+			return nil, err
+		}
+		defer func() {
+			if closeErr := dbClient.Close(); closeErr != nil {
+				logger.Error("Error closing database client", log.Error(closeErr))
+			}
+		}()
+
+		results, err := dbClient.Query(QueryAllowedOrigins)
+		if err != nil {
+			logger.Error("Failed to execute query", log.Error(err))
+			return nil, err
+		}
+		if len(results) == 0 {
+			logger.Debug("No allowed origins found")
+			return []string{}, nil
+		}
+
+		row := results[0]
+		allowedOrigins, ok := row["allowed_origins"].(string)
+		if !ok {
+			logger.Error("Failed to parse allowed_origins as string")
+			return nil, err
+		}
+		originList = utils.ParseStringArray(allowedOrigins, ",")
+
+		if err := ops.OriginCache.Set(cacheKey, originList); err != nil {
+			logger.Error("Failed to cache allowed origins", log.Error(err))
+		}
 	}
 
-	return utils.ParseStringArray(allowedOrigins, ","), nil
+	return originList, nil
 }
 
 // addAllowedOriginHeaders sets the CORS headers for the response based on the configured allowed origins.

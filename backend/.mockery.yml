@@ -52,13 +52,22 @@ packages:
       pkgname: providermock
       filename: "{{.InterfaceName}}_mock.go"
   
+  # Uncomment to generate mocks in the cache package.
+  # github.com/asgardeo/thunder/internal/system/cache:
+  #   config:
+  #     all: true
+  #     dir: internal/system/cache
+  #     structname: '{{.InterfaceName}}Mock'
+  #     pkgname: cache
+  #     filename: "{{.InterfaceName}}_mock_test.go"
+
   github.com/asgardeo/thunder/internal/system/cache:
     config:
       all: true
-      dir: internal/system/cache
+      dir: tests/mocks/cachemock
       structname: '{{.InterfaceName}}Mock'
-      pkgname: cache
-      filename: "{{.InterfaceName}}_mock_test.go"
+      pkgname: cachemock
+      filename: "{{.InterfaceName}}_mock.go"
 
   github.com/asgardeo/thunder/internal/cert:
     config:

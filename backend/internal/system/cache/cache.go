@@ -47,7 +47,7 @@ type CacheInterface[T any] interface {
 	Delete(key CacheKey) error
 	Clear() error
 	IsEnabled() bool
-	cleanupExpired()
+	CleanupExpired()
 }
 
 // Cache implements the CacheInterface for individual caches.
@@ -207,8 +207,8 @@ func (c *Cache[T]) IsEnabled() bool {
 	return c.enabled
 }
 
-// cleanupExpired cleans up expired entries in the cache.
-func (c *Cache[T]) cleanupExpired() {
+// CleanupExpired cleans up expired entries in the cache.
+func (c *Cache[T]) CleanupExpired() {
 	if c.IsEnabled() && c.InternalCache.IsEnabled() {
 		c.mu.Lock()
 		defer c.mu.Unlock()

@@ -225,12 +225,12 @@ func (suite *CacheManagerTestSuite) TestCleanupAllCaches() {
 	mockCache1 := NewCacheInterfaceMock[any](t)
 	mockCache1.EXPECT().IsEnabled().Return(true)
 	mockCache1.EXPECT().GetName().Return(cacheName1)
-	mockCache1.EXPECT().cleanupExpired().Once()
+	mockCache1.EXPECT().CleanupExpired().Once()
 
 	mockCache2 := NewCacheInterfaceMock[any](t)
 	mockCache2.EXPECT().IsEnabled().Return(true)
 	mockCache2.EXPECT().GetName().Return(cacheName2)
-	mockCache2.EXPECT().cleanupExpired().Once()
+	mockCache2.EXPECT().CleanupExpired().Once()
 
 	// Add mocks to the manager
 	manager := &CacheManager{
@@ -443,7 +443,7 @@ func (suite *CacheManagerTestSuite) TestStartCleanupRoutine() {
 	mockCache := NewCacheInterfaceMock[any](t)
 	mockCache.EXPECT().IsEnabled().Return(true).Maybe()
 	mockCache.EXPECT().GetName().Return("testCache").Maybe()
-	mockCache.EXPECT().cleanupExpired().Maybe()
+	mockCache.EXPECT().CleanupExpired().Maybe()
 
 	// Add mock to manager
 	manager.caches["testkey"] = mockCache

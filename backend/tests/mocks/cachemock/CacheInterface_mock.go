@@ -2,9 +2,10 @@
 // github.com/vektra/mockery
 // template: testify
 
-package cache
+package cachemock
 
 import (
+	"github.com/asgardeo/thunder/internal/system/cache"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -113,7 +114,7 @@ func (_c *CacheInterfaceMock_Clear_Call[T]) RunAndReturn(run func() error) *Cach
 }
 
 // Delete provides a mock function for the type CacheInterfaceMock
-func (_mock *CacheInterfaceMock[T]) Delete(key CacheKey) error {
+func (_mock *CacheInterfaceMock[T]) Delete(key cache.CacheKey) error {
 	ret := _mock.Called(key)
 
 	if len(ret) == 0 {
@@ -121,7 +122,7 @@ func (_mock *CacheInterfaceMock[T]) Delete(key CacheKey) error {
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(CacheKey) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(cache.CacheKey) error); ok {
 		r0 = returnFunc(key)
 	} else {
 		r0 = ret.Error(0)
@@ -135,16 +136,16 @@ type CacheInterfaceMock_Delete_Call[T any] struct {
 }
 
 // Delete is a helper method to define mock.On call
-//   - key CacheKey
+//   - key cache.CacheKey
 func (_e *CacheInterfaceMock_Expecter[T]) Delete(key interface{}) *CacheInterfaceMock_Delete_Call[T] {
 	return &CacheInterfaceMock_Delete_Call[T]{Call: _e.mock.On("Delete", key)}
 }
 
-func (_c *CacheInterfaceMock_Delete_Call[T]) Run(run func(key CacheKey)) *CacheInterfaceMock_Delete_Call[T] {
+func (_c *CacheInterfaceMock_Delete_Call[T]) Run(run func(key cache.CacheKey)) *CacheInterfaceMock_Delete_Call[T] {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 CacheKey
+		var arg0 cache.CacheKey
 		if args[0] != nil {
-			arg0 = args[0].(CacheKey)
+			arg0 = args[0].(cache.CacheKey)
 		}
 		run(
 			arg0,
@@ -158,13 +159,13 @@ func (_c *CacheInterfaceMock_Delete_Call[T]) Return(err error) *CacheInterfaceMo
 	return _c
 }
 
-func (_c *CacheInterfaceMock_Delete_Call[T]) RunAndReturn(run func(key CacheKey) error) *CacheInterfaceMock_Delete_Call[T] {
+func (_c *CacheInterfaceMock_Delete_Call[T]) RunAndReturn(run func(key cache.CacheKey) error) *CacheInterfaceMock_Delete_Call[T] {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Get provides a mock function for the type CacheInterfaceMock
-func (_mock *CacheInterfaceMock[T]) Get(key CacheKey) (T, bool) {
+func (_mock *CacheInterfaceMock[T]) Get(key cache.CacheKey) (T, bool) {
 	ret := _mock.Called(key)
 
 	if len(ret) == 0 {
@@ -173,17 +174,17 @@ func (_mock *CacheInterfaceMock[T]) Get(key CacheKey) (T, bool) {
 
 	var r0 T
 	var r1 bool
-	if returnFunc, ok := ret.Get(0).(func(CacheKey) (T, bool)); ok {
+	if returnFunc, ok := ret.Get(0).(func(cache.CacheKey) (T, bool)); ok {
 		return returnFunc(key)
 	}
-	if returnFunc, ok := ret.Get(0).(func(CacheKey) T); ok {
+	if returnFunc, ok := ret.Get(0).(func(cache.CacheKey) T); ok {
 		r0 = returnFunc(key)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(T)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(CacheKey) bool); ok {
+	if returnFunc, ok := ret.Get(1).(func(cache.CacheKey) bool); ok {
 		r1 = returnFunc(key)
 	} else {
 		r1 = ret.Get(1).(bool)
@@ -197,16 +198,16 @@ type CacheInterfaceMock_Get_Call[T any] struct {
 }
 
 // Get is a helper method to define mock.On call
-//   - key CacheKey
+//   - key cache.CacheKey
 func (_e *CacheInterfaceMock_Expecter[T]) Get(key interface{}) *CacheInterfaceMock_Get_Call[T] {
 	return &CacheInterfaceMock_Get_Call[T]{Call: _e.mock.On("Get", key)}
 }
 
-func (_c *CacheInterfaceMock_Get_Call[T]) Run(run func(key CacheKey)) *CacheInterfaceMock_Get_Call[T] {
+func (_c *CacheInterfaceMock_Get_Call[T]) Run(run func(key cache.CacheKey)) *CacheInterfaceMock_Get_Call[T] {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 CacheKey
+		var arg0 cache.CacheKey
 		if args[0] != nil {
-			arg0 = args[0].(CacheKey)
+			arg0 = args[0].(cache.CacheKey)
 		}
 		run(
 			arg0,
@@ -220,7 +221,7 @@ func (_c *CacheInterfaceMock_Get_Call[T]) Return(v T, b bool) *CacheInterfaceMoc
 	return _c
 }
 
-func (_c *CacheInterfaceMock_Get_Call[T]) RunAndReturn(run func(key CacheKey) (T, bool)) *CacheInterfaceMock_Get_Call[T] {
+func (_c *CacheInterfaceMock_Get_Call[T]) RunAndReturn(run func(key cache.CacheKey) (T, bool)) *CacheInterfaceMock_Get_Call[T] {
 	_c.Call.Return(run)
 	return _c
 }
@@ -314,7 +315,7 @@ func (_c *CacheInterfaceMock_IsEnabled_Call[T]) RunAndReturn(run func() bool) *C
 }
 
 // Set provides a mock function for the type CacheInterfaceMock
-func (_mock *CacheInterfaceMock[T]) Set(key CacheKey, value T) error {
+func (_mock *CacheInterfaceMock[T]) Set(key cache.CacheKey, value T) error {
 	ret := _mock.Called(key, value)
 
 	if len(ret) == 0 {
@@ -322,7 +323,7 @@ func (_mock *CacheInterfaceMock[T]) Set(key CacheKey, value T) error {
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(CacheKey, T) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(cache.CacheKey, T) error); ok {
 		r0 = returnFunc(key, value)
 	} else {
 		r0 = ret.Error(0)
@@ -336,17 +337,17 @@ type CacheInterfaceMock_Set_Call[T any] struct {
 }
 
 // Set is a helper method to define mock.On call
-//   - key CacheKey
+//   - key cache.CacheKey
 //   - value T
 func (_e *CacheInterfaceMock_Expecter[T]) Set(key interface{}, value interface{}) *CacheInterfaceMock_Set_Call[T] {
 	return &CacheInterfaceMock_Set_Call[T]{Call: _e.mock.On("Set", key, value)}
 }
 
-func (_c *CacheInterfaceMock_Set_Call[T]) Run(run func(key CacheKey, value T)) *CacheInterfaceMock_Set_Call[T] {
+func (_c *CacheInterfaceMock_Set_Call[T]) Run(run func(key cache.CacheKey, value T)) *CacheInterfaceMock_Set_Call[T] {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 CacheKey
+		var arg0 cache.CacheKey
 		if args[0] != nil {
-			arg0 = args[0].(CacheKey)
+			arg0 = args[0].(cache.CacheKey)
 		}
 		var arg1 T
 		if args[1] != nil {
@@ -365,7 +366,7 @@ func (_c *CacheInterfaceMock_Set_Call[T]) Return(err error) *CacheInterfaceMock_
 	return _c
 }
 
-func (_c *CacheInterfaceMock_Set_Call[T]) RunAndReturn(run func(key CacheKey, value T) error) *CacheInterfaceMock_Set_Call[T] {
+func (_c *CacheInterfaceMock_Set_Call[T]) RunAndReturn(run func(key cache.CacheKey, value T) error) *CacheInterfaceMock_Set_Call[T] {
 	_c.Call.Return(run)
 	return _c
 }
