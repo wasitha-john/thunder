@@ -44,7 +44,7 @@ type ApplicationStoreInterface interface {
 	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, error)
 	GetApplicationByID(id string) (*model.ApplicationProcessedDTO, error)
 	GetApplicationByName(name string) (*model.ApplicationProcessedDTO, error)
-	UpdateApplication(app *model.ApplicationProcessedDTO) error
+	UpdateApplication(existingApp, updatedApp *model.ApplicationProcessedDTO) error
 	DeleteApplication(id string) error
 }
 
@@ -264,8 +264,8 @@ func (st *ApplicationStore) getApplicationByQuery(query dbmodel.DBQuery, param s
 }
 
 // UpdateApplication updates an existing application in the database.
-func (st *ApplicationStore) UpdateApplication(app *model.ApplicationProcessedDTO) error {
-	return createOrUpdateApplication(app, QueryUpdateApplicationByAppID, QueryUpdateOAuthApplicationByAppID)
+func (st *ApplicationStore) UpdateApplication(existingApp, updatedApp *model.ApplicationProcessedDTO) error {
+	return createOrUpdateApplication(updatedApp, QueryUpdateApplicationByAppID, QueryUpdateOAuthApplicationByAppID)
 }
 
 // DeleteApplication deletes an application from the database by its ID.

@@ -49,7 +49,7 @@ type ApplicationServiceInterface interface {
 
 // ApplicationService is the default implementation of the ApplicationServiceInterface.
 type ApplicationService struct {
-	AppStore    store.CachedBackedApplicationStoreInterface
+	AppStore    store.ApplicationStoreInterface
 	CertService cert.CertificateServiceInterface
 }
 

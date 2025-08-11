@@ -27,20 +27,7 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
-// CachedBackedApplicationStoreInterface defines the interface for the cached backed application store
-// which provides methods to manage applications with caching capabilities.
-type CachedBackedApplicationStoreInterface interface {
-	CreateApplication(app model.ApplicationProcessedDTO) error
-	GetTotalApplicationCount() (int, error)
-	GetApplicationList() ([]model.BasicApplicationDTO, error)
-	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, error)
-	GetApplicationByID(id string) (*model.ApplicationProcessedDTO, error)
-	GetApplicationByName(name string) (*model.ApplicationProcessedDTO, error)
-	UpdateApplication(existingApp, updatedApp *model.ApplicationProcessedDTO) error
-	DeleteApplication(id string) error
-}
-
-// CachedBackedApplicationStore is the implementation of CachedBackedApplicationStoreInterface.
+// CachedBackedApplicationStore is the implementation of ApplicationStoreInterface that uses caching.
 type CachedBackedApplicationStore struct {
 	AppByIDCacheManager   cache.CacheManagerInterface[*model.ApplicationProcessedDTO]
 	AppByNameCacheManager cache.CacheManagerInterface[*model.ApplicationProcessedDTO]
@@ -49,7 +36,7 @@ type CachedBackedApplicationStore struct {
 }
 
 // NewCachedBackedApplicationStore creates a new instance of CachedBackedApplicationStore.
-func NewCachedBackedApplicationStore() CachedBackedApplicationStoreInterface {
+func NewCachedBackedApplicationStore() ApplicationStoreInterface {
 	return &CachedBackedApplicationStore{
 		AppByIDCacheManager:   cache.GetCacheManager[*model.ApplicationProcessedDTO]("ApplicationByIDCache"),
 		AppByNameCacheManager: cache.GetCacheManager[*model.ApplicationProcessedDTO]("ApplicationByNameCache"),
@@ -137,7 +124,7 @@ func (as *CachedBackedApplicationStore) GetApplicationByName(name string) (*mode
 // UpdateApplication updates an existing application and caches the updated version.
 func (as *CachedBackedApplicationStore) UpdateApplication(existingApp,
 	updatedApp *model.ApplicationProcessedDTO) error {
-	if err := as.Store.UpdateApplication(updatedApp); err != nil {
+	if err := as.Store.UpdateApplication(existingApp, updatedApp); err != nil {
 		return err
 	}
 
