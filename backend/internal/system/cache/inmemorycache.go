@@ -99,7 +99,7 @@ type inMemoryCache[T any] struct {
 
 // newInMemoryCache creates a new instance of InMemoryCache.
 func newInMemoryCache[T any](name string, enabled bool, size int, ttl time.Duration,
-	evictionPolicy evictionPolicy) cacheInterface[T] {
+	evictionPolicy evictionPolicy) internalCacheInterface[T] {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "InMemoryCache"),
 		log.String("name", name))
 
