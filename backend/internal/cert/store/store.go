@@ -37,9 +37,8 @@ type CertificateStoreInterface interface {
 	GetCertificateByID(id string) (*model.Certificate, error)
 	GetCertificateByReference(refType constants.CertificateReferenceType, refID string) (*model.Certificate, error)
 	CreateCertificate(cert *model.Certificate) error
-	UpdateCertificateByID(id string, cert *model.Certificate) error
-	UpdateCertificateByReference(refType constants.CertificateReferenceType, refID string,
-		cert *model.Certificate) error
+	UpdateCertificateByID(existingCert, updatedCert *model.Certificate) error
+	UpdateCertificateByReference(existingCert, updatedCert *model.Certificate) error
 	DeleteCertificateByID(id string) error
 	DeleteCertificateByReference(refType constants.CertificateReferenceType, refID string) error
 }
@@ -163,14 +162,14 @@ func (s *CertificateStore) CreateCertificate(cert *model.Certificate) error {
 }
 
 // UpdateCertificateByID updates a certificate by its ID.
-func (s *CertificateStore) UpdateCertificateByID(id string, cert *model.Certificate) error {
-	return s.updateCertificate(QueryUpdateCertificateByID, id, cert.Type, cert.Value)
+func (s *CertificateStore) UpdateCertificateByID(existingCert, updatedCert *model.Certificate) error {
+	return s.updateCertificate(QueryUpdateCertificateByID, existingCert.ID, updatedCert.Type, updatedCert.Value)
 }
 
 // UpdateCertificateByReference updates a certificate by its reference type and ID.
-func (s *CertificateStore) UpdateCertificateByReference(refType constants.CertificateReferenceType,
-	refID string, cert *model.Certificate) error {
-	return s.updateCertificate(QueryUpdateCertificateByReference, refType, refID, cert.Type, cert.Value)
+func (s *CertificateStore) UpdateCertificateByReference(existingCert, updatedCert *model.Certificate) error {
+	return s.updateCertificate(QueryUpdateCertificateByReference, existingCert.RefType, existingCert.RefID,
+		updatedCert.Type, updatedCert.Value)
 }
 
 // updateCertificate updates a certificate based on a query and its arguments.

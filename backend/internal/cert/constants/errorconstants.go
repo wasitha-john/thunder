@@ -64,6 +64,20 @@ var (
 		Error:            "Certificate not found",
 		ErrorDescription: "The requested certificate could not be found",
 	}
+	// ErrorCertificateAlreadyExists is the error when a certificate already exists.
+	ErrorCertificateAlreadyExists = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "CES-1007",
+		Error:            "Certificate already exists",
+		ErrorDescription: "A certificate with the same reference type and ID already exists",
+	}
+	// ErrorReferenceUpdateIsNotAllowed is the error when trying to update a certificate's reference type or ID.
+	ErrorReferenceUpdateIsNotAllowed = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "CES-1008",
+		Error:            "Reference update is not allowed",
+		ErrorDescription: "Updating the reference type or ID of an existing certificate is not allowed",
+	}
 )
 
 // Server errors for the certificate service.
