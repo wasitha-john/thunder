@@ -39,11 +39,10 @@ import (
 
 // ApplicationServiceInterface defines the interface for the application service.
 type ApplicationServiceInterface interface {
-	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, *serviceerror.ServiceError)
 	CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO, *serviceerror.ServiceError)
 	GetApplicationList() (*model.ApplicationListResponse, *serviceerror.ServiceError)
-	GetApplicationByID(appID string) (*model.ApplicationProcessedDTO, *serviceerror.ServiceError)
-	GetApplicationByName(appName string) (*model.ApplicationProcessedDTO, *serviceerror.ServiceError)
+	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, *serviceerror.ServiceError)
+	GetApplication(appID string) (*model.ApplicationProcessedDTO, *serviceerror.ServiceError)
 	UpdateApplication(appID string, app *model.ApplicationDTO) (*model.ApplicationDTO, *serviceerror.ServiceError)
 	DeleteApplication(appID string) *serviceerror.ServiceError
 }
@@ -57,30 +56,9 @@ type ApplicationService struct {
 // GetApplicationService creates a new instance of ApplicationService.
 func GetApplicationService() ApplicationServiceInterface {
 	return &ApplicationService{
-		AppStore:    store.NewApplicationStore(),
+		AppStore:    store.NewCachedBackedApplicationStore(),
 		CertService: cert.NewCertificateService(),
 	}
-}
-
-// GetOAuthApplication retrieves the OAuth application based on the client id.
-func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed,
-	*serviceerror.ServiceError) {
-	if clientID == "" {
-		return nil, &constants.ErrorInvalidClientID
-	}
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
-	oauthApp, err := as.AppStore.GetOAuthApplication(clientID)
-	if err != nil {
-		if errors.Is(err, constants.ApplicationNotFoundError) {
-			return nil, &constants.ErrorApplicationNotFound
-		}
-
-		logger.Error("Failed to retrieve OAuth application", log.Error(err),
-			log.String("clientID", log.MaskString(clientID)))
-		return nil, &constants.ErrorInternalServerError
-	}
-
-	return oauthApp, nil
 }
 
 // CreateApplication creates the application.
@@ -95,7 +73,7 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		return nil, &constants.ErrorInvalidApplicationName
 	}
 
-	// Check if a application with the same name already exists.
+	// Check if an application with the same name already exists
 	existingApp, appCheckErr := as.AppStore.GetApplicationByName(app.Name)
 	if appCheckErr != nil && !errors.Is(appCheckErr, constants.ApplicationNotFoundError) {
 		logger.Error("Failed to check existing application by name", log.Error(appCheckErr),
@@ -111,7 +89,7 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		return nil, err
 	}
 
-	// Check if a application with the same client ID already exists.
+	// Check if an application with the same client ID already exists
 	clientID := inboundAuthConfig.OAuthAppConfig.ClientID
 	if clientID != "" {
 		existingAppWithClientID, clientCheckErr := as.AppStore.GetOAuthApplication(clientID)
@@ -252,29 +230,39 @@ func buildBasicApplicationResponse(app model.BasicApplicationDTO) model.BasicApp
 	}
 }
 
-// GetApplicationByID get the application for given app id.
-func (as *ApplicationService) GetApplicationByID(appID string) (*model.ApplicationProcessedDTO,
+// GetOAuthApplication retrieves the OAuth application based on the client id.
+func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed,
+	*serviceerror.ServiceError) {
+	if clientID == "" {
+		return nil, &constants.ErrorInvalidClientID
+	}
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
+
+	oauthApp, err := as.AppStore.GetOAuthApplication(clientID)
+	if err != nil {
+		if errors.Is(err, constants.ApplicationNotFoundError) {
+			return nil, &constants.ErrorApplicationNotFound
+		}
+
+		logger.Error("Failed to retrieve OAuth application", log.Error(err),
+			log.String("clientID", log.MaskString(clientID)))
+		return nil, &constants.ErrorInternalServerError
+	}
+	if oauthApp == nil {
+		return nil, &constants.ErrorApplicationNotFound
+	}
+
+	return oauthApp, nil
+}
+
+// GetApplication get the application for given app id.
+func (as *ApplicationService) GetApplication(appID string) (*model.ApplicationProcessedDTO,
 	*serviceerror.ServiceError) {
 	if appID == "" {
 		return nil, &constants.ErrorInvalidApplicationID
 	}
 
 	application, err := as.AppStore.GetApplicationByID(appID)
-	if err != nil {
-		return nil, as.handleApplicationRetrievalError(err)
-	}
-
-	return as.enrichApplicationWithCertificate(application)
-}
-
-// GetApplicationByName retrieves the application by its name.
-func (as *ApplicationService) GetApplicationByName(appName string) (*model.ApplicationProcessedDTO,
-	*serviceerror.ServiceError) {
-	if appName == "" {
-		return nil, &constants.ErrorInvalidApplicationName
-	}
-
-	application, err := as.AppStore.GetApplicationByName(appName)
 	if err != nil {
 		return nil, as.handleApplicationRetrievalError(err)
 	}
@@ -317,16 +305,20 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		return nil, &constants.ErrorInvalidApplicationName
 	}
 
-	// Check if the application exists.
 	existingApp, appCheckErr := as.AppStore.GetApplicationByID(appID)
 	if appCheckErr != nil {
 		if errors.Is(appCheckErr, constants.ApplicationNotFoundError) {
 			return nil, &constants.ErrorApplicationNotFound
 		}
+		logger.Error("Failed to get existing application", log.Error(appCheckErr), log.String("appID", appID))
 		return nil, &constants.ErrorInternalServerError
 	}
+	if existingApp == nil {
+		logger.Debug("Application not found for update", log.String("appID", appID))
+		return nil, &constants.ErrorApplicationNotFound
+	}
 
-	// If the application name is changed, check if a application with the new name already exists.
+	// If the application name is changed, check if an application with the new name already exists.
 	if existingApp.Name != app.Name {
 		existingAppWithName, appCheckErr := as.AppStore.GetApplicationByName(app.Name)
 		if appCheckErr != nil && !errors.Is(appCheckErr, constants.ApplicationNotFoundError) {
@@ -339,12 +331,12 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		}
 	}
 
-	inboundAuthConfig, err := validateOAuthParamsForCreateAndUpdate(app)
-	if err != nil {
-		return nil, err
+	inboundAuthConfig, svcErr := validateOAuthParamsForCreateAndUpdate(app)
+	if svcErr != nil {
+		return nil, svcErr
 	}
 
-	// If the client ID is changed, check if a application with the new client ID already exists.
+	// If the client ID is changed, check if an application with the new client ID already exists.
 	newClientID := inboundAuthConfig.OAuthAppConfig.ClientID
 	existingClientID := existingApp.InboundAuthConfig[0].OAuthAppConfig.ClientID
 	if newClientID != existingClientID {
@@ -359,11 +351,11 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		}
 	}
 
-	if err := validateAuthFlowGraphID(app); err != nil {
-		return nil, err
+	if svcErr := validateAuthFlowGraphID(app); svcErr != nil {
+		return nil, svcErr
 	}
-	if err := validateRegistrationFlowGraphID(app); err != nil {
-		return nil, err
+	if svcErr := validateRegistrationFlowGraphID(app); svcErr != nil {
+		return nil, svcErr
 	}
 
 	if app.URL != "" && !sysutils.IsValidURI(app.URL) {
@@ -373,9 +365,9 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		return nil, &constants.ErrorInvalidLogoURL
 	}
 
-	existingCert, updatedCert, returnCert, err := as.updateApplicationCertificate(app)
-	if err != nil {
-		return nil, err
+	existingCert, updatedCert, returnCert, svcErr := as.updateApplicationCertificate(app)
+	if svcErr != nil {
+		return nil, svcErr
 	}
 
 	processedInboundAuthConfig := model.InboundAuthConfigProcessed{
@@ -402,7 +394,7 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		InboundAuthConfig:         []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
 	}
 
-	storeErr := as.AppStore.UpdateApplication(processedDTO)
+	storeErr := as.AppStore.UpdateApplication(existingApp, processedDTO)
 	if storeErr != nil {
 		logger.Error("Failed to update application", log.Error(storeErr), log.String("appID", appID))
 
@@ -435,12 +427,20 @@ func (as *ApplicationService) DeleteApplication(appID string) *serviceerror.Serv
 	if appID == "" {
 		return &constants.ErrorInvalidApplicationID
 	}
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationService"))
 
-	err := as.AppStore.DeleteApplication(appID)
-	if err != nil {
+	// Delete the application from the store
+	appErr := as.AppStore.DeleteApplication(appID)
+	if appErr != nil {
+		if errors.Is(appErr, constants.ApplicationNotFoundError) {
+			logger.Debug("Application not found for the deletion", log.String("appID", appID))
+			return nil
+		}
+		logger.Error("Error while deleting the application", log.Error(appErr), log.String("appID", appID))
 		return &constants.ErrorInternalServerError
 	}
 
+	// Delete the application certificate
 	svcErr := as.deleteApplicationCertificate(appID)
 	if svcErr != nil {
 		return svcErr
@@ -865,7 +865,6 @@ func (as *ApplicationService) rollbackApplicationCertificateUpdate(appID string,
 					}
 					return &retErr
 				}
-
 				logger.Error("Failed to delete application certificate after update failure",
 					log.Any("serviceError", deleteErr), log.String("appID", appID))
 				return &constants.ErrorCertificateServerError
