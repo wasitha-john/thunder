@@ -99,7 +99,7 @@ type ApplicationRequest struct {
 	TokenEndpointAuthMethod   []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_method"`
 	AuthFlowGraphID           string                                `json:"auth_flow_graph_id,omitempty"`
 	RegistrationFlowGraphID   string                                `json:"registration_flow_graph_id,omitempty"`
-	IsRegistrationFlowEnabled bool                                  `json:"is_registration_flow_enabled,omitempty"`
+	IsRegistrationFlowEnabled bool                                  `json:"is_registration_flow_enabled"`
 	URL                       string                                `json:"url,omitempty"`
 	LogoURL                   string                                `json:"logo_url,omitempty"`
 	Certificate               *ApplicationCertificate               `json:"certificate,omitempty"`
@@ -118,7 +118,7 @@ type ApplicationCompleteResponse struct {
 	TokenEndpointAuthMethod   []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_method"`
 	AuthFlowGraphID           string                                `json:"auth_flow_graph_id,omitempty"`
 	RegistrationFlowGraphID   string                                `json:"registration_flow_graph_id,omitempty"`
-	IsRegistrationFlowEnabled bool                                  `json:"is_registration_flow_enabled,omitempty"`
+	IsRegistrationFlowEnabled bool                                  `json:"is_registration_flow_enabled"`
 	URL                       string                                `json:"url,omitempty"`
 	LogoURL                   string                                `json:"logo_url,omitempty"`
 	Certificate               *ApplicationCertificate               `json:"certificate,omitempty"`
@@ -136,7 +136,7 @@ type ApplicationGetResponse struct {
 	TokenEndpointAuthMethod   []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_method"`
 	AuthFlowGraphID           string                                `json:"auth_flow_graph_id,omitempty"`
 	RegistrationFlowGraphID   string                                `json:"registration_flow_graph_id,omitempty"`
-	IsRegistrationFlowEnabled bool                                  `json:"is_registration_flow_enabled,omitempty"`
+	IsRegistrationFlowEnabled bool                                  `json:"is_registration_flow_enabled"`
 	URL                       string                                `json:"url,omitempty"`
 	LogoURL                   string                                `json:"logo_url,omitempty"`
 	Certificate               *ApplicationCertificate               `json:"certificate,omitempty"`
@@ -150,7 +150,7 @@ type BasicApplicationResponse struct {
 	ClientID                  string `json:"client_id"`
 	AuthFlowGraphID           string `json:"auth_flow_graph_id,omitempty"`
 	RegistrationFlowGraphID   string `json:"registration_flow_graph_id,omitempty"`
-	IsRegistrationFlowEnabled bool   `json:"is_registration_flow_enabled,omitempty"`
+	IsRegistrationFlowEnabled bool   `json:"is_registration_flow_enabled"`
 }
 
 // ApplicationListResponse represents the response structure for listing applications.

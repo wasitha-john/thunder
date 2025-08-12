@@ -349,8 +349,9 @@ func createOrUpdateApplication(app *model.ApplicationProcessedDTO,
 
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
+			isRegistrationEnabledStr := utils.BoolToNumString(app.IsRegistrationFlowEnabled)
 			_, err := tx.Exec(appMgtQuery.Query, app.ID, app.Name, app.Description,
-				app.AuthFlowGraphID, app.RegistrationFlowGraphID, app.IsRegistrationFlowEnabled, jsonDataBytes)
+				app.AuthFlowGraphID, app.RegistrationFlowGraphID, isRegistrationEnabledStr, jsonDataBytes)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
@@ -395,9 +396,19 @@ func buildBasicApplicationFromResultRow(row map[string]interface{}) (model.Basic
 		return model.BasicApplicationDTO{}, fmt.Errorf("failed to parse registration_flow_graph_id as string")
 	}
 
-	isRegistrationFlowEnabledStr, ok := row["is_registration_flow_enabled"].(string)
-	if !ok {
-		return model.BasicApplicationDTO{}, fmt.Errorf("failed to parse is_registration_flow_enabled as string")
+	var isRegistrationFlowEnabledStr string
+	switch v := row["is_registration_flow_enabled"].(type) {
+	case string:
+		isRegistrationFlowEnabledStr = v
+	case []byte:
+		isRegistrationFlowEnabledStr = string(v)
+	default:
+		logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
+		logger.Debug("Failed to parse is_registration_flow_enabled",
+			log.String("type", fmt.Sprintf("%T", row["is_registration_flow_enabled"])),
+			log.String("value", fmt.Sprintf("%v", row["is_registration_flow_enabled"])))
+		return model.BasicApplicationDTO{},
+			fmt.Errorf("failed to parse is_registration_flow_enabled as string or []byte")
 	}
 	isRegistrationFlowEnabled := sysutils.NumStringToBool(isRegistrationFlowEnabledStr)
 
