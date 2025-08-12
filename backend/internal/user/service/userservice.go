@@ -23,7 +23,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
+	ouconstants "github.com/asgardeo/thunder/internal/ou/constants"
+	ouservice "github.com/asgardeo/thunder/internal/ou/service"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
@@ -39,7 +42,9 @@ const loggerComponentName = "UserService"
 // UserServiceInterface defines the interface for the user service.
 type UserServiceInterface interface {
 	GetUserList(limit, offset int) (*model.UserListResponse, *serviceerror.ServiceError)
+	GetUsersByPath(handlePath string, limit, offset int) (*model.UserListResponse, *serviceerror.ServiceError)
 	CreateUser(user *model.User) (*model.User, *serviceerror.ServiceError)
+	CreateUserByPath(handlePath string, request model.CreateUserByPathRequest) (*model.User, *serviceerror.ServiceError)
 	GetUser(userID string) (*model.User, *serviceerror.ServiceError)
 	UpdateUser(userID string, user *model.User) (*model.User, *serviceerror.ServiceError)
 	DeleteUser(userID string) *serviceerror.ServiceError
@@ -49,11 +54,15 @@ type UserServiceInterface interface {
 }
 
 // UserService is the default implementation of the UserServiceInterface.
-type UserService struct{}
+type UserService struct {
+	ouService ouservice.OrganizationUnitServiceInterface
+}
 
 // GetUserService creates a new instance of UserService.
 func GetUserService() UserServiceInterface {
-	return &UserService{}
+	return &UserService{
+		ouService: ouservice.GetOrganizationUnitService(),
+	}
 }
 
 // GetUserList lists the users.
@@ -93,6 +102,55 @@ func (as *UserService) GetUserList(limit, offset int) (*model.UserListResponse, 
 	return response, nil
 }
 
+// GetUsersByPath retrieves a list of users by hierarchical handle path.
+func (as *UserService) GetUsersByPath(
+	handlePath string, limit, offset int,
+) (*model.UserListResponse, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Getting users by path", log.String("path", handlePath))
+
+	serviceError := validateAndProcessHandlePath(handlePath)
+	if serviceError != nil {
+		return nil, serviceError
+	}
+
+	ou, svcErr := as.ouService.GetOrganizationUnitByPath(handlePath)
+	if svcErr != nil {
+		if svcErr.Code == ouconstants.ErrorOrganizationUnitNotFound.Code {
+			return nil, &constants.ErrorOrganizationUnitNotFound
+		}
+		return nil, logErrorAndReturnServerError(logger,
+			"Failed to get organization unit using the handle path from organization service", nil)
+	}
+	organizationUnitID := ou.ID
+
+	if err := validatePaginationParams(limit, offset); err != nil {
+		return nil, err
+	}
+
+	ouResponse, svcErr := as.ouService.GetOrganizationUnitUsers(organizationUnitID, limit, offset)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+
+	users := make([]model.User, len(ouResponse.Users))
+	for i, ouUser := range ouResponse.Users {
+		users[i] = model.User{
+			ID: ouUser.ID,
+		}
+	}
+
+	response := &model.UserListResponse{
+		TotalResults: ouResponse.TotalResults,
+		StartIndex:   ouResponse.StartIndex,
+		Count:        ouResponse.Count,
+		Users:        users,
+		Links:        buildPaginationLinks(handlePath, limit, offset, ouResponse.TotalResults),
+	}
+
+	return response, nil
+}
+
 // CreateUser creates the user.
 func (as *UserService) CreateUser(user *model.User) (*model.User, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
@@ -116,6 +174,36 @@ func (as *UserService) CreateUser(user *model.User) (*model.User, *serviceerror.
 
 	logger.Debug("Successfully created user", log.String("id", user.ID))
 	return user, nil
+}
+
+// CreateUserByPath creates a new user under the organization unit specified by the handle path.
+func (as *UserService) CreateUserByPath(
+	handlePath string, request model.CreateUserByPathRequest,
+) (*model.User, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Creating user by path", log.String("path", handlePath), log.String("type", request.Type))
+
+	serviceError := validateAndProcessHandlePath(handlePath)
+	if serviceError != nil {
+		return nil, serviceError
+	}
+
+	ou, svcErr := as.ouService.GetOrganizationUnitByPath(handlePath)
+	if svcErr != nil {
+		if svcErr.Code == ouconstants.ErrorOrganizationUnitNotFound.Code {
+			return nil, &constants.ErrorOrganizationUnitNotFound
+		}
+		return nil, logErrorAndReturnServerError(logger,
+			"Failed to get organization unit using the handle path from organization service", nil)
+	}
+
+	user := &model.User{
+		OrganizationUnit: ou.ID,
+		Type:             request.Type,
+		Attributes:       request.Attributes,
+	}
+
+	return as.CreateUser(user)
 }
 
 // extractCredentials extracts the credentials from the user attributes and returns a Credentials object.
@@ -313,6 +401,25 @@ func (as *UserService) ValidateUserIDs(userIDs []string) ([]string, *serviceerro
 	return invalidUserIDs, nil
 }
 
+// validateAndProcessHandlePath validates and processes the handle path.
+func validateAndProcessHandlePath(handlePath string) *serviceerror.ServiceError {
+	if strings.TrimSpace(handlePath) == "" {
+		return &constants.ErrorInvalidHandlePath
+	}
+
+	handles := strings.Split(strings.Trim(handlePath, "/"), "/")
+	if len(handles) == 0 {
+		return &constants.ErrorInvalidHandlePath
+	}
+
+	for _, handle := range handles {
+		if strings.TrimSpace(handle) == "" {
+			return &constants.ErrorInvalidHandlePath
+		}
+	}
+	return nil
+}
+
 // validatePaginationParams validates pagination parameters.
 func validatePaginationParams(limit, offset int) *serviceerror.ServiceError {
 	if limit < 1 || limit > serverconst.MaxPageSize {
@@ -337,4 +444,43 @@ func logErrorAndReturnServerError(
 	}
 	logger.Error(message, fields...)
 	return &constants.ErrorInternalServerError
+}
+
+// buildPaginationLinks builds pagination links for user responses.
+func buildPaginationLinks(handlePath string, limit, offset, totalResults int) []model.Link {
+	links := make([]model.Link, 0)
+
+	if offset > 0 {
+		links = append(links, model.Link{
+			Href: fmt.Sprintf("users/tree/%s?offset=0&limit=%d", handlePath, limit),
+			Rel:  "first",
+		})
+
+		prevOffset := offset - limit
+		if prevOffset < 0 {
+			prevOffset = 0
+		}
+		links = append(links, model.Link{
+			Href: fmt.Sprintf("users/tree/%s?offset=%d&limit=%d", handlePath, prevOffset, limit),
+			Rel:  "prev",
+		})
+	}
+
+	if offset+limit < totalResults {
+		nextOffset := offset + limit
+		links = append(links, model.Link{
+			Href: fmt.Sprintf("users/tree/%s?offset=%d&limit=%d", handlePath, nextOffset, limit),
+			Rel:  "next",
+		})
+	}
+
+	lastPageOffset := ((totalResults - 1) / limit) * limit
+	if offset < lastPageOffset {
+		links = append(links, model.Link{
+			Href: fmt.Sprintf("users/tree/%s?offset=%d&limit=%d", handlePath, lastPageOffset, limit),
+			Rel:  "last",
+		})
+	}
+
+	return links
 }

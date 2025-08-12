@@ -26,6 +26,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/system/server"
 	"github.com/asgardeo/thunder/internal/user/handler"
+	"github.com/asgardeo/thunder/internal/user/provider"
 )
 
 // UserService is the service for user management operations.
@@ -36,9 +37,10 @@ type UserService struct {
 
 // NewUserService creates a new instance of UserService.
 func NewUserService(mux *http.ServeMux) ServiceInterface {
+	userProvider := provider.NewUserProvider()
 	instance := &UserService{
 		ServerOpsService: server.NewServerOperationService(),
-		userHandler:      &handler.UserHandler{},
+		userHandler:      handler.NewUserHandler(userProvider),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -75,4 +77,24 @@ func (s *UserService) RegisterRoutes(mux *http.ServeMux) {
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 		})
+
+	opts3 := server.RequestWrapOptions{
+		Cors: &server.Cors{
+			AllowedMethods:   "GET, POST",
+			AllowedHeaders:   "Content-Type, Authorization",
+			AllowCredentials: true,
+		},
+	}
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /users/tree/{path...}", &opts3,
+		s.userHandler.HandleUserListByPathRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /users/tree/{path...}", &opts3,
+		s.userHandler.HandleUserPostByPathRequest)
+	s.ServerOpsService.WrapHandleFunction(
+		mux,
+		"OPTIONS /users/tree/{path...}",
+		&opts3,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		},
+	)
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/asgardeo/thunder/internal/system/error/apierror"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
+	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 	"github.com/asgardeo/thunder/internal/user/constants"
 	"github.com/asgardeo/thunder/internal/user/model"
 	userprovider "github.com/asgardeo/thunder/internal/user/provider"
@@ -39,6 +40,14 @@ const loggerComponentName = "UserHandler"
 
 // UserHandler is the handler for user management operations.
 type UserHandler struct {
+	userProvider userprovider.UserProviderInterface
+}
+
+// NewUserHandler creates a new instance of UserHandler with dependency injection.
+func NewUserHandler(userProvider userprovider.UserProviderInterface) *UserHandler {
+	return &UserHandler{
+		userProvider: userProvider,
+	}
 }
 
 // HandleUserListRequest handles the user list request.
@@ -56,8 +65,7 @@ func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Get the user list using the user service.
-	userProvider := userprovider.NewUserProvider()
-	userService := userProvider.GetUserService()
+	userService := ah.userProvider.GetUserService()
 	userListResponse, svcErr := userService.GetUserList(limit, offset)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
@@ -90,8 +98,7 @@ func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Create the user using the user service.
-	userProvider := userprovider.NewUserProvider()
-	userService := userProvider.GetUserService()
+	userService := ah.userProvider.GetUserService()
 	createdUser, svcErr := userService.CreateUser(&userInCreationRequest)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
@@ -122,8 +129,7 @@ func (ah *UserHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Get the user using the user service.
-	userProvider := userprovider.NewUserProvider()
-	userService := userProvider.GetUserService()
+	userService := ah.userProvider.GetUserService()
 	user, svcErr := userService.GetUser(id)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
@@ -159,8 +165,7 @@ func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 	updatedUser.ID = id
 
 	// Update the user using the user service.
-	userProvider := userprovider.NewUserProvider()
-	userService := userProvider.GetUserService()
+	userService := ah.userProvider.GetUserService()
 	user, svcErr := userService.UpdateUser(id, &updatedUser)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
@@ -189,8 +194,7 @@ func (ah *UserHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Re
 	}
 
 	// Delete the user using the user service.
-	userProvider := userprovider.NewUserProvider()
-	userService := userProvider.GetUserService()
+	userService := ah.userProvider.GetUserService()
 	svcErr := userService.DeleteUser(id)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
@@ -201,6 +205,93 @@ func (ah *UserHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Re
 
 	// Log the user response.
 	logger.Debug("User DELETE response sent", log.String("user id", id))
+}
+
+// HandleUserListByPathRequest handles the list users by OU path request.
+func (ah *UserHandler) HandleUserListByPathRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	path, pathValidationFailed := extractAndValidatePath(w, r, logger)
+	if pathValidationFailed {
+		return
+	}
+
+	limit, offset, svcErr := parsePaginationParams(r.URL.Query())
+	if svcErr != nil {
+		handleError(w, logger, svcErr)
+		return
+	}
+
+	if limit == 0 {
+		limit = serverconst.DefaultPageSize
+	}
+
+	userService := ah.userProvider.GetUserService()
+	userListResponse, svcErr := userService.GetUsersByPath(path, limit, offset)
+	if svcErr != nil {
+		handleError(w, logger, svcErr)
+		return
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(userListResponse); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	logger.Debug("Successfully listed users by path", log.String("path", path),
+		log.Int("limit", limit), log.Int("offset", offset),
+		log.Int("totalResults", userListResponse.TotalResults),
+		log.Int("count", userListResponse.Count))
+}
+
+// HandleUserPostByPathRequest handles the create user by OU path request.
+func (ah *UserHandler) HandleUserPostByPathRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	path, pathValidationFailed := extractAndValidatePath(w, r, logger)
+	if pathValidationFailed {
+		return
+	}
+
+	createRequest, err := sysutils.DecodeJSONBody[model.CreateUserByPathRequest](r)
+	if err != nil {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidRequestFormat.Code,
+			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Description: "Failed to parse request body: " + err.Error(),
+		}
+
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	userService := ah.userProvider.GetUserService()
+	user, svcErr := userService.CreateUserByPath(path, *createRequest)
+	if svcErr != nil {
+		handleError(w, logger, svcErr)
+		return
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusCreated)
+
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	logger.Debug("Successfully created user by path", log.String("path", path), log.String("userType", user.Type))
 }
 
 // parsePaginationParams parses limit and offset query parameters from the request.
@@ -240,8 +331,14 @@ func handleError(w http.ResponseWriter, logger *log.Logger, svcErr *serviceerror
 		switch svcErr.Code {
 		case constants.ErrorMissingUserID.Code:
 			statusCode = http.StatusNotFound
+		case constants.ErrorOrganizationUnitNotFound.Code:
+			statusCode = http.StatusNotFound
 		case constants.ErrorUsernameConflict.Code:
 			statusCode = http.StatusConflict
+		case constants.ErrorHandlePathRequired.Code:
+			statusCode = http.StatusBadRequest
+		case constants.ErrorInvalidHandlePath.Code:
+			statusCode = http.StatusBadRequest
 		default:
 			statusCode = http.StatusBadRequest
 		}
@@ -261,4 +358,24 @@ func handleError(w http.ResponseWriter, logger *log.Logger, svcErr *serviceerror
 		logger.Error("Error encoding error response", log.Error(err))
 		http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
 	}
+}
+
+// extractAndValidatePath extracts and validates the path parameter from the request.
+func extractAndValidatePath(w http.ResponseWriter, r *http.Request, logger *log.Logger) (string, bool) {
+	path := r.PathValue("path")
+	if path == "" {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorHandlePathRequired.Code,
+			Message:     constants.ErrorHandlePathRequired.Error,
+			Description: constants.ErrorHandlePathRequired.ErrorDescription,
+		}
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return "", true
+	}
+	return path, false
 }
