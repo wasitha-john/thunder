@@ -62,12 +62,19 @@ var (
 		Error:            "Invalid group ID",
 		ErrorDescription: "One or more group IDs in the request do not exist",
 	}
-	// ErrorInvalidHandlePath is the error returned when handle path is invalid.
-	ErrorInvalidHandlePath = serviceerror.ServiceError{
+	// ErrorHandlePathRequired is the error returned when handle path is missing.
+	ErrorHandlePathRequired = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
 		Code:             "USR-1008",
+		Error:            "Handle path required",
+		ErrorDescription: "Handle path is required for this operation",
+	}
+	// ErrorInvalidHandlePath is the error returned when handle path format is invalid.
+	ErrorInvalidHandlePath = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "USR-1009",
 		Error:            "Invalid handle path",
-		ErrorDescription: "The handle path does not represent a valid organizational hierarchy",
+		ErrorDescription: "Handle path must contain valid organizational unit identifiers separated by forward slashes",
 	}
 	// ErrorInvalidLimit is the error returned when limit parameter is invalid.
 	ErrorInvalidLimit = serviceerror.ServiceError{
