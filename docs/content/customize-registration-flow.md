@@ -285,17 +285,12 @@ To use a custom registration flow, specify both the authentication and registrat
 ```bash
 curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/<app_id> \
 --data '{
-    "id": "<app_id>",
     "name": "My Application",
     "description": "Application with custom registration flow",
     "client_id": "<client_id>",
-    "client_secret": "***",
+    "client_secret": "<client_secret>",
     "redirect_uris": [
         "https://localhost:3000"
-    ],
-    "grant_types": [
-        "client_credentials",
-        "authorization_code"
     ],
     "auth_flow_graph_id": "custom_auth_flow",
     "registration_flow_graph_id": "custom_registration_flow"

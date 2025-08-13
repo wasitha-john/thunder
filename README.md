@@ -13,17 +13,17 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 
 ## 🚀 Features
 
-- ✅ **Standards-Based**
+- **Standards-Based**
   - OAuth 2/ OpenID Connect (OIDC): Client Credentials, Authorization Code, Refresh Token
-- 🔗 **Login Options:**
+- **Login Options:**
   - Basic Authentication (Username/Password)
   - Social Logins: Google, Github
   - SMS OTP
-- 📝 **Registration Options:**
+- **Registration Options:**
   - Username/Password
   - Social Registration: Google, Github
   - SMS OTP
-- 🌐 **RESTful APIs:**
+- **RESTful APIs:**
   - App Native Login/Registration
   - User Management
   - Application Management
@@ -33,6 +33,8 @@ Designed for extensibility, scalability, and seamless containerized deployment, 
 ---
 
 ## ⚡ Quickstart
+
+This Quickstart guide will help you get started with WSO2 Thunder quickly. It walks you through downloading and running the product, trying out the sample app, and exploring registering a user, logging in, and using the Client Credentials flow.
 
 ### Download and Run WSO2 Thunder
 
@@ -227,12 +229,12 @@ To try out the Client Credentials flow, follow these steps:
 </br><p>This section provides a detailed walkthrough of the features supported by Thunder. You can try out these flows using the sample app provided with the product or by using the provided curl commands depending on the use case.</p>
 
 <details>
-<summary><h3>✅ Standards-Based Flows</h3></summary>
+<summary><h3>Standards-Based Flows</h3></summary>
 
 <p>Thunder supports OAuth 2.0 and OpenID Connect (OIDC) standards for authentication and authorization. The following flows are supported:</p>
 
 <details>
-<summary><h4>1️⃣ Client Credentials Flow</h4></summary>
+<summary><h4>Client Credentials Flow</h4></summary>
 
 <p>The Client Credentials flow is used to obtain an access token for machine-to-machine communication. This flow does not require user interaction and is typically used for server-to-server communication.</p>
 
@@ -285,7 +287,7 @@ To try out the Client Credentials flow, follow these steps:
 
 </details>
 <details>
-<summary><h4>2️⃣ Authorization Code Flow</h4></summary>
+<summary><h4>Authorization Code Flow</h4></summary>
 
 <p>The Authorization Code flow is used to obtain an access token after the user authenticates. This flow is typically used for web applications where a user redirection is required to complete the authentication process.</p>
 
@@ -402,7 +404,7 @@ To try out the Client Credentials flow, follow these steps:
 </details>
 
 <details>
-<summary><h4>3️⃣ Refresh Token Flow</h4></summary>
+<summary><h4>Refresh Token Flow</h4></summary>
 
 <p>The Refresh Token flow is used to obtain a new access token using a refresh token. This flow is typically used when the access token has expired and the user does not need to re-authenticate.</p>
 
@@ -439,7 +441,7 @@ To try out the Client Credentials flow, follow these steps:
 
 2. **Start the Authorization Code Flow**
 
-    Follow the steps in the [Authorization Code Flow](#2️⃣-authorization-code-flow) section to obtain an access token and a refresh token.
+    Follow the steps in the [Authorization Code Flow](#authorization-code-flow) section to obtain an access token and a refresh token.
 
     After successful authentication, you will receive a response containing the access token and the refresh token:
 
@@ -476,7 +478,7 @@ To try out the Client Credentials flow, follow these steps:
 
 </details>
 <details>
-<summary><h4>4️⃣ JWKS Endpoint</h4></summary>
+<summary><h4>JWKS Endpoint</h4></summary>
 
 <p>Thunder provides a JWKS (JSON Web Key Set) endpoint to retrieve the public keys used to verify the signatures of JWTs (JSON Web Tokens) issued by the server. This is useful for clients that need to validate the tokens.</p>
 
@@ -490,14 +492,14 @@ curl -kL https://localhost:8090/oauth2/jwks
 </details>
 
 <details>
-<summary><h3>🔐 App Native Authentication</h3></summary>
+<summary><h3>App Native Authentication</h3></summary>
 
 </br><p>Thunder supports app native authentication flows, allowing users to execute login flows via REST APIs. This is particularly useful for mobile and desktop applications that require a native login experience.</p>
 
   > Note: Refer [Authentication Flow Customization Guide](/docs/content/customize-auth-flow.md) for more details on customizing authentication flows.
 
 <details>
-<summary><h4>1️⃣ Login with Username and Password</h4></summary>
+<summary><h4>Login with Username and Password</h4></summary>
 
 1. **Create a User**
 
@@ -629,7 +631,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 </details>
 <details>
-<summary><h4>2️⃣ Login with Google</h4></summary>
+<summary><h4>Login with Google</h4></summary>
 
 1. **Create a Google OAuth Application**
 
@@ -825,7 +827,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 </details>
 <details>
-<summary><h4>3️⃣ Login with GitHub</h4></summary>
+<summary><h4>Login with GitHub</h4></summary>
 
 1. **Create a GitHub OAuth Application**
 
@@ -1017,7 +1019,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 </details>
 <details>
-<summary><h4>4️⃣ Login with SMS OTP</h4></summary>
+<summary><h4>Login with SMS OTP</h4></summary>
 
 1. **Configure a Message Provider**
 
@@ -1172,7 +1174,800 @@ curl -kL https://localhost:8090/oauth2/jwks
 </details>
 
 <details>
-<summary><h3>🌐 RESTful APIs</h3></summary>
+<summary><h3>Self Registration</h3></summary>
+
+<p>Thunder supports self-registration flows, allowing users to register themselves using various methods. The registration flows can be executed via the flow execution REST API similar to the authentication flows.</p>
+
+  > Note: Refer [Registration Flow Customization Guide](/docs/content/customize-registration-flow.md) for more details on customizing registration flows.
+
+<details>
+<summary><h4>Register with Username and Password</h4></summary>
+
+1. **Configure an Application with Username/Password Registration**
+
+    Create an application or update the existing system default application to use the username/password registration template. You can use the following cURL command to create a new application.
+
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
+    -d '{
+        "name": "App Native Login 1",
+        "description": "Sample application for App native login",
+        "client_id": "<client_id>",
+        "client_secret": "<client_secret>",
+        "redirect_uris": [
+            "https://localhost:3000"
+        ],
+        "auth_flow_graph_id": "auth_flow_config_basic",
+        "registration_flow_graph_id": "registration_flow_config_basic"
+    }'
+    ```
+
+    Alternatively, you can update the existing system default application with the following cURL command:
+
+    ```bash
+    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
+    -d '{
+        "name": "Test SPA",
+        "description": "Initial testing App",
+        "client_id": "<client_id>",
+        "client_secret": "<client_secret>",
+        "redirect_uris": [
+            "https://localhost:3000"
+        ],
+        "grant_types": [
+            "client_credentials",
+            "authorization_code",
+            "refresh_token"
+        ],
+        "response_types": [
+            "code"
+        ],
+        "token_endpoint_auth_method": [
+            "client_secret_basic",
+            "client_secret_post"
+        ],
+        "auth_flow_graph_id": "auth_flow_config_basic",
+        "registration_flow_graph_id": "registration_flow_config_basic"
+    }'
+    ```
+
+2. **Start the Registration Flow**
+
+    Start registration flow for the application with the following cURL command:
+
+    ```bash
+    curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "applicationId": "<application_id>",
+        "flowType": "REGISTRATION"
+    }'
+    ```
+
+    You'll receive a response similar to the following:
+
+    ```json
+    {
+        "flowId": "db93a19e-c23f-4cfc-a45f-0e0bc157f6d5",
+        "flowStatus": "PROMPT_ONLY",
+        "type": "VIEW",
+        "data": {
+        "inputs": [
+            {
+                "name": "username",
+                "type": "string",
+                "required": true
+            },
+            {
+                "name": "password",
+                "type": "string",
+                "required": true
+            }
+        ]
+        }
+    }
+    ```
+
+3. **Continue the Registration Flow**
+
+    Make the second cURL request to continue the registration flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response. Also, replace the `username` and `password` with the desired credentials for the new user.
+
+    ```bash
+    curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "flowId": "<flow_id>",
+        "inputs": {
+            "username": "thor",
+            "password": "<password>"
+        }
+    }'
+    ```
+
+    If the registration is successful, you will receive a response prompting for additional user attributes.
+
+    ```json
+    {
+        "flowId": "db93a19e-c23f-4cfc-a45f-0e0bc157f6d5",
+        "flowStatus": "PROMPT_ONLY",
+        "type": "VIEW",
+        "data": {
+        "inputs": [
+            {
+                "name": "email",
+                "type": "string",
+                "required": true
+            },
+            {
+                "name": "firstName",
+                "type": "string",
+                "required": true
+            },
+            {
+                "name": "lastName",
+                "type": "string",
+                "required": true
+            }
+        ]
+        }
+    }
+    ```
+
+4. **Complete the Registration Flow**
+
+    Make the third cURL request to complete the registration flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
+
+    ```bash
+    curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "flowId": "<flow_id>",
+        "inputs": {
+            "email": "thor@thunder.sky",
+            "firstName": "Thor",
+            "lastName": "Odinson"
+        }
+    }'
+    ```
+
+    If the registration is successful, you will be automatically logged in and receive a response with the auth assertion.
+
+</details>
+<details>
+<summary><h4>Google Sign Up</h4></summary>
+
+1. **Create a Google OAuth Application**
+
+    Create an OAuth application in your Google account following the instructions given in the [Google documentation](https://developers.google.com/identity/protocols/oauth2/web-server#creatingcred).
+    - Configure the Authorized origin and Redirect URI as per your application.
+    - Copy the **Client ID** and **Client Secret**.
+
+2. **Configure the Google Identity Provider**
+
+    Create a Google IDP or update the system created Google IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your Google OAuth application.
+
+    To create a new Google IDP, use the following cURL command:
+
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers \
+    -d '{
+        "name": "Google",
+        "description": "Login with Google",
+        "properties": [
+            {
+                "name": "client_id",
+                "value": "<client_id>",
+                "is_secret": false
+            },
+            {
+                "name": "client_secret",
+                "value": "<client_secret>",
+                "is_secret": true
+            },
+            {
+                "name": "redirect_uri",
+                "value": "<app_callback_url>",
+                "is_secret": false
+            },
+            {
+                "name": "scopes",
+                "value": "openid,email,profile",
+                "is_secret": false
+            }
+        ]
+    }'
+    ```
+
+    Alternatively, to update the existing Google IDP, use the following cURL command:
+
+    ```bash
+    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440002 \
+    -d '{
+        "name": "Google",
+        "description": "Login with Google",
+        "properties": [
+            {
+                "name": "client_id",
+                "value": "<client_id>",
+                "is_secret": false
+            },
+            {
+                "name": "client_secret",
+                "value": "<client_secret>",
+                "is_secret": true
+            },
+            {
+                "name": "redirect_uri",
+                "value": "<app_callback_url>",
+                "is_secret": false
+            },
+            {
+                "name": "scopes",
+                "value": "openid,email,profile",
+                "is_secret": false
+            }
+        ]
+    }'
+    ```
+
+    > Note: Refer [Identity Provider Configuration Guide](/docs/content/configure-identity-providers.md) for more details on configuring identity providers.
+
+3. **Update the Registration Flow Graph**
+
+    Update the registration flow graph to use the configured identity provider. To do so, open the `registration_flow_config_google.json` file in the `repository/resources/graph/` directory and update the `idpName` with the name of the identity provider you configured in the previous step.
+
+    If the file doesn't exist, that means the registration flow graph is automatically constructed from the equivalent authentication flow graph. In that case, you can update the `idpName` property in the `auth_flow_config_google.json` file or create a new `registration_flow_config_google.json` file and define the registration flow.
+
+    > Note: Refer [Registration Flow Customization Guide](/docs/content/customize-registration-flow.md) for more details on automatic registration flow creation.
+    
+    Make sure to restart the server after making this change.
+
+4. **Configure an Application with Google Sign Up**
+
+    Create an application or update the existing system default application to use the Google sign up template. You can use the following cURL command to create a new application.
+
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
+    -d '{
+        "name": "App Native Login 1",
+        "description": "Sample application for App native login",
+        "client_id": "<client_id>",
+        "client_secret": "<client_secret>",
+        "redirect_uris": [
+            "https://localhost:3000"
+        ],
+        "auth_flow_graph_id": "auth_flow_config_google",
+        "registration_flow_graph_id": "registration_flow_config_google"
+    }'
+    ```
+
+    Alternatively, you can update the existing system default application with the following cURL command:
+
+    ```bash
+    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
+    -d '{
+        "name": "Test SPA",
+        "description": "Initial testing App",
+        "client_id": "<client_id>",
+        "client_secret": "<client_secret>",
+        "redirect_uris": [
+            "https://localhost:3000"
+        ],
+        "grant_types": [
+            "client_credentials",
+            "authorization_code",
+            "refresh_token"
+        ],
+        "response_types": [
+            "code"
+        ],
+        "token_endpoint_auth_method": [
+            "client_secret_basic",
+            "client_secret_post"
+        ],
+        "auth_flow_graph_id": "auth_flow_config_google",
+        "registration_flow_graph_id": "registration_flow_config_google"
+    }'
+    ```
+
+5. **Start the Registration Flow**
+
+    Start registration flow for the application with the following cURL command:
+
+    ```bash
+    curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "applicationId": "<application_id>",
+        "flowType": "REGISTRATION"
+    }'
+    ```
+
+    You'll receive a response similar to the following:
+
+    ```json
+    {
+        "flowId": "db93a19e-c23f-4cfc-a45f-0e0bc157f6d5",
+        "flowStatus": "PROMPT_ONLY",
+        "type": "REDIRECTION",
+        "data": {
+            "redirectURL": "<google_auth_redirect_url>",
+            "inputs": [
+              {
+                  "name": "code",
+                  "type": "string",
+                  "required": true
+              },
+              {
+                  "name": "nonce",
+                  "type": "string",
+                  "required": false
+              }
+            ],
+            "additionalData": {
+              "idpName": "Google"
+            }
+        }
+    }
+    ```
+
+6. **Login with Google Account**
+
+    Open the `redirect_url` in your browser. You will be redirected to the Google login page. Enter your Google credentials and authorize the application.
+
+    After successful authentication, you will be redirected to the redirect URI with the authorization code, state and other parameters.
+
+    ```bash
+    https://localhost:3000/?code=<code>&state=db93a19e-c23f-4cfc-a45f-0e0bc157f6d5
+    ```
+
+7. **Complete the Registration Flow**
+
+    Copy the authorization code and make the second cURL request to complete the registration flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
+
+    ```bash
+    curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "flowId": "<flow_id>",
+        "inputs": {
+            "code": "<code>"
+        }
+    }'
+    ```
+
+    If the registration is successful, you will receive a response with the auth assertion.
+
+</details>
+
+<details>
+<summary><h4>GitHub Sign Up</h4></summary>
+
+1. **Create a GitHub OAuth Application**
+
+    Create an OAuth application in your Github account following the instructions given in the [Github documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app).
+      - Configure home page and callback URLs as per your application.
+      - Copy the **Client ID** and **Client Secret**.
+
+2. **Configure the GitHub Identity Provider**
+
+    Create a GitHub IDP or update the system created GitHub IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your GitHub OAuth application.
+
+    To create a new GitHub IDP, use the following cURL command:
+
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers \
+    -d '{
+        "name": "Github",
+        "description": "Login with Github",
+        "properties": [
+            {
+                "name": "client_id",
+                "value": "<client_id>",
+                "is_secret": false
+            },
+            {
+                "name": "client_secret",
+                "value": "<client_secret>",
+                "is_secret": true
+            },
+            {
+                "name": "redirect_uri",
+                "value": "<app_callback_url>",
+                "is_secret": false
+            },
+            {
+                "name": "scopes",
+                "value": "user:email,read:user",
+                "is_secret": false
+            }
+        ]
+    }'
+    ```
+
+    Alternatively, to update the existing GitHub IDP, use the following cURL command:
+
+    ```bash
+    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440001 \
+    -d '{
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "name": "Github",
+        "description": "Login with Github",
+        "properties": [
+            {
+                "name": "client_id",
+                "value": "<client_id>",
+                "is_secret": false
+            },
+            {
+                "name": "client_secret",
+                "value": "<client_secret>",
+                "is_secret": true
+            },
+            {
+                "name": "redirect_uri",
+                "value": "<app_callback_url>",
+                "is_secret": false
+            },
+            {
+                "name": "scopes",
+                "value": "user:email,read:user",
+                "is_secret": false
+            }
+        ]
+    }'
+    ```
+
+    > Note: Refer [Identity Provider Configuration Guide](/docs/content/configure-identity-providers.md) for more details on configuring identity providers.
+
+3. **Update the Registration Flow Graph**
+
+    Update the registration flow graph to use the configured identity provider. To do so, open the `registration_flow_config_github.json` file in the `repository/resources/graph/` directory and update the `idpName` with the name of the identity provider you configured in the previous step.
+
+    If the file doesn't exist, that means the registration flow graph is automatically constructed from the equivalent authentication flow graph. In that case, you can update the `idpName` property in the `auth_flow_config_github.json` file or create a new `registration_flow_config_github.json` file and define the registration flow.
+
+    > Note: Refer [Registration Flow Customization Guide](/docs/content/customize-registration-flow.md) for more details on automatic registration flow creation.
+    
+    Make sure to restart the server after making this change.
+
+4. **Configure an Application with GitHub Sign Up**
+
+    Create an application or update the existing system default application to use the GitHub sign up template. You can use the following cURL command to create a new application.
+
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
+    -d '{
+        "name": "App Native Login 1",
+        "description": "Sample application for App native login",
+        "client_id": "<client_id>",
+        "client_secret": "<client_secret>",
+        "redirect_uris": [
+            "https://localhost:3000"
+        ],
+        "auth_flow_graph_id": "auth_flow_config_github",
+        "registration_flow_graph_id": "registration_flow_config_github"
+    }'
+    ```
+
+    Alternatively, you can update the existing system default application with the following cURL command:
+
+    ```bash
+    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
+    -d '{
+        "name": "Test SPA",
+        "description": "Initial testing App",
+        "client_id": "<client_id>",
+        "client_secret": "<client_secret>",
+        "redirect_uris": [
+            "https://localhost:3000"
+        ],
+        "grant_types": [
+            "client_credentials",
+            "authorization_code",
+            "refresh_token"
+        ],
+        "response_types": [
+            "code"
+        ],
+        "token_endpoint_auth_method": [
+            "client_secret_basic",
+            "client_secret_post"
+        ],
+        "auth_flow_graph_id": "auth_flow_config_github",
+        "registration_flow_graph_id": "registration_flow_config_github"
+    }'
+    ```
+
+5. **Start the Registration Flow**
+
+    Start registration flow for the application with the following cURL command:
+
+    ```bash
+    curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "applicationId": "<application_id>",
+        "flowType": "REGISTRATION"
+    }'
+    ```
+
+    You'll receive a response similar to the following:
+
+    ```json
+    {
+        "flowId": "db93a19e-c23f-4cfc-a45f-0e0bc157f6d5",
+        "flowStatus": "PROMPT_ONLY",
+        "type": "REDIRECTION",
+        "data": {
+            "redirectURL": "<github_auth_redirect_url>",
+            "inputs": [
+              {
+                  "name": "code",
+                  "type": "string",
+                  "required": true
+              }
+            ],
+            "additionalData": {
+              "idpName": "Github"
+            }
+        }
+    }
+    ```
+
+6. **Login with GitHub Account**
+
+    Open the `redirect_url` in your browser. You will be redirected to the GitHub login page. Enter your GitHub credentials and authorize the application.
+
+    After successful authentication, you will be redirected to the redirect URI with the authorization code and state.
+
+    ```bash
+    https://localhost:3000/?code=<code>&state=db93a19e-c23f-4cfc-a45f-0e0bc157f6d5
+    ```
+
+7. **Complete the Registration Flow**
+
+    Copy the authorization code and make the second cURL request to complete the registration flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
+
+    ```bash
+    curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "flowId": "<flow_id>",
+        "inputs": {
+            "code": "<code>"
+        }
+    }'
+    ```
+
+    If the registration is successful, you will receive a response with the auth assertion.
+
+</details>
+<details>
+<summary><h4>Register with SMS OTP</h4></summary>
+
+1. **Configure a Message Provider**
+
+    Configure a message provider to send SMS messages. You can use services like Twilio, Vonage, or a custom service of your choice.
+
+2. **Create a Message Provider**
+
+    You can create a message provider using the following cURL command. Make sure to replace properties according to the configured message provider.
+
+    ```bash
+    curl -kL -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/notification-senders/message \
+    -d '{
+      "name": "Custom SMS Sender",
+      "description": "Sender for sending SMS messages",
+      "provider": "custom",
+      "properties": [
+        {
+          "name": "url",
+          "value": "<custom_sms_provider_url>"
+        },
+        {
+          "name": "http_method",
+          "value": "POST"
+        },
+        {
+          "name": "content_type",
+          "value": "JSON"
+        }
+      ]
+    }'
+    ```
+
+    > Note: Refer [Message Provider Configuration Guide](/docs/content/configure-message-providers.md) for more details on configuring message providers.
+
+3. **Update the Registration Flow Graph**
+
+    Update the registration flow graph to use the configured message provider. To do so, open the `registration_flow_config_sms.json` file in the `repository/resources/graph/` directory and update the `senderName` with the name of the message provider you configured in the previous step.
+
+    If the file doesn't exist, that means the registration flow graph is automatically constructed from the equivalent authentication flow graph. In that case, you can update the `senderName` property in the `auth_flow_config_sms.json` file or create a new `registration_flow_config_sms.json` file and define the registration flow.
+
+    > Note: Refer [Registration Flow Customization Guide](/docs/content/customize-registration-flow.md) for more details on automatic registration flow creation.
+
+    Make sure to restart the server after making this change.
+
+4. **Configure an Application with SMS OTP Registration**
+
+    Create an application or update the existing system default application to use the SMS OTP registration template. You can use the following cURL command to create a new application.
+
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
+    -d '{
+        "name": "App Native Login 1",
+        "description": "Sample application for App native login",
+        "client_id": "<client_id>",
+        "client_secret": "<client_secret>",
+        "redirect_uris": [
+            "https://localhost:3000"
+        ],
+        "auth_flow_graph_id": "auth_flow_config_sms",
+        "registration_flow_graph_id": "registration_flow_config_sms"
+    }'
+    ```
+
+    Alternatively, you can update the existing system default application with the following cURL command:
+
+    ```bash
+    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
+    -d '{
+        "name": "Test SPA",
+        "description": "Initial testing App",
+        "client_id": "<client_id>",
+        "client_secret": "<client_secret>",
+        "redirect_uris": [
+            "https://localhost:3000"
+        ],
+        "grant_types": [
+            "client_credentials",
+            "authorization_code",
+            "refresh_token"
+        ],
+        "response_types": [
+            "code"
+        ],
+        "token_endpoint_auth_method": [
+            "client_secret_basic",
+            "client_secret_post"
+        ],
+        "auth_flow_graph_id": "auth_flow_config_sms",
+        "registration_flow_graph_id": "registration_flow_config_sms"
+    }'
+    ```
+
+5. **Start the Registration Flow**
+
+    Start registration flow for the application with the following cURL command:
+
+    ```bash
+    curl -kL -H 'Accept: application/json' -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "applicationId": "<application_id>",
+        "flowType": "REGISTRATION"
+    }'
+    ```
+
+    You'll receive a response similar to the following:
+
+    ```json
+    {
+        "flowId": "db93a19e-c23f-4cfc-a45f-0e0bc157f6d5",
+        "flowStatus": "PROMPT_ONLY",
+        "type": "VIEW",
+        "data": {
+        "inputs": [
+            {
+                "name": "mobileNumber",
+                "type": "string",
+                "required": true
+            }
+        ]
+        }
+    }
+    ```
+
+6. **Continue the Registration Flow**
+
+    Make the second cURL request to continue the registration flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response. Also, replace the `mobileNumber` with the desired mobile number for the new user.
+
+    ```bash
+    curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "flowId": "<flow_id>",
+        "inputs": {
+            "mobileNumber": "+94xxxxxxxxx"
+        }
+    }'
+    ```
+
+    An OTP will be sent to the provided mobile number.
+
+7. **Verify the Mobile Number with OTP**
+
+    Continue the registration by providing the OTP received on the mobile number:
+
+    ```bash
+    curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "flowId": "<flow_id>",
+        "inputs": {
+            "otp": "696546"
+        }
+    }'
+    ```
+
+    If the verification is successful, you will receive a response prompting for additional user attributes.
+
+    ```json
+    {
+        "flowId": "db93a19e-c23f-4cfc-a45f-0e0bc157f6d5",
+        "flowStatus": "PROMPT_ONLY",
+        "type": "VIEW",
+        "data": {
+        "inputs": [
+            {
+                "name": "email",
+                "type": "string",
+                "required": true
+            },
+            {
+                "name": "firstName",
+                "type": "string",
+                "required": true
+            },
+            {
+                "name": "lastName",
+                "type": "string",
+                "required": true
+            }
+        ]
+        }
+    }
+    ```
+
+8. **Complete the Registration Flow**
+
+    Make the third cURL request to complete the registration flow. Make sure to replace `<flow_id>` with the `flowId` received in the previous response.
+
+    ```bash
+    curl -kL -H 'Content-Type: application/json' https://localhost:8090/flow/execute \
+    -d '{
+        "flowId": "<flow_id>",
+        "inputs": {
+            "email": "thor@thunder.sky",
+            "firstName": "Thor",
+            "lastName": "Odinson"
+        }
+    }'
+    ```
+
+    If the registration is successful, you will receive a response with the auth assertion.
+
+</details>
+
+<details>
+<summary><h4>Disabling Self Registration</h4></summary>
+
+<p>Thunder allows you to control whether users can self-register for your application using the application management API. By default, self-registration is enabled when you create an application.</p>
+
+<p>To disable self-registration, set the `is_registration_flow_enabled` property to `false`. This can be done using the following cURL command:</p>
+
+```bash
+curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
+-d '{
+    "name": "Test SPA",
+    "description": "Initial testing App",
+    "client_id": "<client_id>",
+    "client_secret": "<client_secret>",
+    "redirect_uris": [
+        "https://localhost:3000"
+    ],
+    "auth_flow_graph_id": "auth_flow_config_basic",
+    "registration_flow_graph_id": "registration_flow_config_basic",
+    "is_registration_flow_enabled": false
+}'
+```
+
+</details>
+
+</details>
+
+<details>
+<summary><h3>RESTful APIs</h3></summary>
 
 <p>Thunder provides a set of RESTful APIs to interact with the product. You can use these APIs to perform various operations such as user management, application management, and authentication flows.</p>
 
@@ -1193,9 +1988,9 @@ curl -kL https://localhost:8090/oauth2/jwks
 ---
 
 <details>
-<summary><h2>⚡ Build the Product from Source</h2></summary>
+<summary><h2>🛠️ Build the Product from Source</h2></summary>
 
-### ✅ Prerequisites
+### Prerequisites
 
 - Go 1.24+
 - Node.js 20+
@@ -1204,16 +1999,16 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 - Build the product with tests using the following command:
 
-```bash
-make all
-```
+    ```bash
+    make all
+    ```
 
 </details>
 
 ---
 
 <details>
-<summary><h2>🛠️ Development Setup</h2></summary>
+<summary><h2>⚙️ Development Setup</h2></summary>
 
 ### Prerequisites
 
@@ -1224,16 +2019,16 @@ make all
 
 - Clone the repository:
 
-```bash
-git clone https://github.com/asgardeo/thunder
-cd thunder
-```
+    ```bash
+    git clone https://github.com/asgardeo/thunder
+    cd thunder
+    ```
 
 - Run the following command to start the product in development mode:
 
-```bash
-make run
-```
+    ```bash
+    make run
+    ```
 
 - The product will start on `https://localhost:8090`.
 
@@ -1317,9 +2112,9 @@ The debugger will listen on `localhost:2345` by default.
 <summary><h2>🔧 Advanced Configurations</h2></summary>
 
 <details>
-<summary><h3>🗄️ Running with PostgreSQL Database</h3></summary>
+<summary><h3>Running with PostgreSQL Database</h3></summary>
 
-#### 🔧 Step 1: Start PostgreSQL
+#### Step 1: Start PostgreSQL
 
 - Create a Docker container for PostgreSQL with `thunderdb` database.
 
@@ -1337,7 +2132,7 @@ The debugger will listen on `localhost:2345` by default.
   docker exec -it postgres psql -U asgthunder -d thunderdb -c "CREATE DATABASE runtimedb;"
   ```
 
-#### 🗂 Step 2: Initialize the Database
+#### Step 2: Initialize the Database
 
 - Populate the `thunderdb` database with the required tables and data.
 
@@ -1351,31 +2146,32 @@ The debugger will listen on `localhost:2345` by default.
   docker exec -i postgres psql -U asgthunder -d thunderdb < backend/dbscripts/runtimedb/postgres.sql
   ```
 
-#### 🛠 Step 3: Configure Thunder to Use PostgreSQL
+#### Step 3: Configure Thunder to Use PostgreSQL
 
 1. Open the `backend/cmd/server/repository/conf/deployment.yaml` file.
 2. Update the `database` section to point to the PostgreSQL database:
-```yaml
-database:
-  identity:
-    type: "postgres"
-    hostname: "localhost"
-    port: 5432
-    name: "thunderdb"
-    username: "asgthunder"
-    password: "asgthunder"
-    sslmode: "disable"
-  runtime:
-    type: "postgres"
-    hostname: "localhost"
-    port: 5432
-    name: "runtimedb"
-    username: "asgthunder"
-    password: "asgthunder"
-    sslmode: "disable"
-```
 
-#### ▶️ Step 4: Run the Product
+    ```yaml
+    database:
+    identity:
+        type: "postgres"
+        hostname: "localhost"
+        port: 5432
+        name: "thunderdb"
+        username: "asgthunder"
+        password: "asgthunder"
+        sslmode: "disable"
+    runtime:
+        type: "postgres"
+        hostname: "localhost"
+        port: 5432
+        name: "runtimedb"
+        username: "asgthunder"
+        password: "asgthunder"
+        sslmode: "disable"
+    ```
+
+#### Step 4: Run the Product
 
    ```bash
    make run
