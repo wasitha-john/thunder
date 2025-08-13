@@ -64,7 +64,17 @@ Follow these steps to download the latest release of WSO2 Thunder and run it loc
     cd thunder-<version>-<os>-<arch>/
     ```
 
-3. **Start the product**
+3. **Seed the database with initial data**
+
+    Thunder uses an embedded sqlite database by default. To seed the database with initial data, run the following command:
+
+    ```bash
+    ./scripts/seed_data.sh -type sqlite -seed dbscripts/thunderdb/seed_data_sqlite.sql -path repository/database/thunderdb.db
+    ```
+
+    This will insert the initial data into the database, including the default user, application, and identity provider configurations.
+
+4. **Start the product**
 
     Start the product using the following command:
 
@@ -188,7 +198,7 @@ To try out the Client Credentials flow, follow these steps:
 
 1. Create a Client Application
 
-   Create a client application in the system to use for the Client Credentials flow. You can use the following cURL command to create a new application. Alternatively, you can use the system default application created during the product startup.
+   Create a client application in the system to use for the Client Credentials flow. You can use the following cURL command to create a new application. Alternatively, you can use the initial application created with the data seeding script.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -242,7 +252,7 @@ To try out the Client Credentials flow, follow these steps:
 
 1. **Create a Client Application**
 
-    Create a client application in the system to use for the Client Credentials flow. You can use the following cURL command to create a new application. Alternatively, you can use the system default application created during the product startup.
+    Create a client application in the system to use for the Client Credentials flow. You can use the following cURL command to create a new application. Alternatively, you can use the initial application created with the data seeding script.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -308,7 +318,7 @@ To try out the Client Credentials flow, follow these steps:
 
 2. **Create a Client Application**
 
-    Create a client application in the system to use for the Authorization Code flow. You can use the following cURL command to create a new application. Alternatively, you can use the system default application created during the product startup.
+    Create a client application in the system to use for the Authorization Code flow. You can use the following cURL command to create a new application. Alternatively, you can use the initial application created with the data seeding script.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -412,7 +422,7 @@ To try out the Client Credentials flow, follow these steps:
 
 1. **Create a Client Application**
 
-    Create a client application in the system to use for the Refresh Token flow. You can use the following cURL command to create a new application. Alternatively, you can use the system default application created during the product startup.
+    Create a client application in the system to use for the Refresh Token flow. You can use the following cURL command to create a new application. Alternatively, you can use the initial application created with the data seeding script.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -532,7 +542,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 2. **Configure an Application with Username/Password Login**
 
-    Create an application or update the existing system default application to use the username/password login template. You can use the following cURL command to create a new application.
+    Create an application or update the initial application created with the data seeding script to use the username/password login template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -548,7 +558,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the existing system default application with the following cURL command:
+    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
     ```bash
     curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
@@ -715,7 +725,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 4. **Configure an Application with Google Login**
 
-    Create an application or update the existing system default application to use the Google login template. You can use the following cURL command to create a new application.
+    Create an application or update the initial application created with the data seeding script to use the Google login template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -731,7 +741,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the existing system default application with the following cURL command:
+    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
     ```bash
     curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
@@ -912,7 +922,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 4. **Configure an Application with GitHub Login**
 
-    Create an application or update the existing system default application to use the Github login template. You can use the following cURL command to create a new application.
+    Create an application or update the initial application created with the data seeding script to use the Github login template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -928,7 +938,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the existing system default application with the following cURL command:
+    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
     ```bash
     curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
@@ -1060,7 +1070,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 4. **Configure an Application with SMS OTP Login**
 
-    Create an application or update the existing system default application to use the SMS OTP login template. You can use the following cURL command to create a new application.
+    Create an application or update the initial application created with the data seeding script to use the SMS OTP login template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -1076,7 +1086,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the existing system default application with the following cURL command:
+    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
     ```bash
     curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
@@ -1185,7 +1195,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 1. **Configure an Application with Username/Password Registration**
 
-    Create an application or update the existing system default application to use the username/password registration template. You can use the following cURL command to create a new application.
+    Create an application or update the initial application created with the data seeding script to use the username/password registration template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -1202,7 +1212,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the existing system default application with the following cURL command:
+    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
     ```bash
     curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
@@ -1421,7 +1431,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 4. **Configure an Application with Google Sign Up**
 
-    Create an application or update the existing system default application to use the Google sign up template. You can use the following cURL command to create a new application.
+    Create an application or update the initial application created with the data seeding script to use the Google sign up template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -1438,7 +1448,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the existing system default application with the following cURL command:
+    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
     ```bash
     curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
@@ -1627,7 +1637,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 4. **Configure an Application with GitHub Sign Up**
 
-    Create an application or update the existing system default application to use the GitHub sign up template. You can use the following cURL command to create a new application.
+    Create an application or update the initial application created with the data seeding script to use the GitHub sign up template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -1644,7 +1654,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the existing system default application with the following cURL command:
+    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
     ```bash
     curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
@@ -1783,7 +1793,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 4. **Configure an Application with SMS OTP Registration**
 
-    Create an application or update the existing system default application to use the SMS OTP registration template. You can use the following cURL command to create a new application.
+    Create an application or update the initial application created with the data seeding script to use the SMS OTP registration template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -1800,7 +1810,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the existing system default application with the following cURL command:
+    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
     ```bash
     curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
@@ -2109,7 +2119,7 @@ The debugger will listen on `localhost:2345` by default.
 ---
 
 <details>
-<summary><h2>🔧 Advanced Configurations</h2></summary>
+<summary><h2>🔧 Advanced Setup & Configuration</h2></summary>
 
 <details>
 <summary><h3>Running with PostgreSQL Database</h3></summary>
@@ -2178,6 +2188,31 @@ The debugger will listen on `localhost:2345` by default.
    ```
 
 The product will now use the PostgreSQL database for its operations.
+
+</details>
+
+<details>
+<summary><h3>Seeding the Database with Initial Data</h3></summary>
+
+Thunder provides a script to seed your database with initial data, including default users, applications, and identity provider configurations.
+
+#### For SQLite
+
+If you are using the default SQLite configuration, simply run the seed script from the distribution directory:
+
+```bash
+./scripts/seed_data.sh -type sqlite -seed dbscripts/thunderdb/seed_data_sqlite.sql -path repository/database/thunderdb.db
+```
+
+#### For PostgreSQL
+
+If you are using PostgreSQL, first ensure your database is set up and configured as described in the previous section. Then, run the seed script with the required flags:
+
+```bash
+./scripts/seed_data.sh -type postgres -seed dbscripts/thunderdb/seed_data_postgres.sql -host <host> -port <port> -name thunderdb -username <username> -password <password>
+```
+
+Replace `<host>`, `<port>`, `<username>`, and `<password>` with your PostgreSQL connection details.
 
 </details>
 </details>
