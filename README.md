@@ -2163,22 +2163,22 @@ The debugger will listen on `localhost:2345` by default.
 
     ```yaml
     database:
-    identity:
-        type: "postgres"
-        hostname: "localhost"
-        port: 5432
-        name: "thunderdb"
-        username: "asgthunder"
-        password: "asgthunder"
-        sslmode: "disable"
-    runtime:
-        type: "postgres"
-        hostname: "localhost"
-        port: 5432
-        name: "runtimedb"
-        username: "asgthunder"
-        password: "asgthunder"
-        sslmode: "disable"
+        identity:
+            type: "postgres"
+            hostname: "localhost"
+            port: 5432
+            name: "thunderdb"
+            username: "asgthunder"
+            password: "asgthunder"
+            sslmode: "disable"
+        runtime:
+            type: "postgres"
+            hostname: "localhost"
+            port: 5432
+            name: "runtimedb"
+            username: "asgthunder"
+            password: "asgthunder"
+            sslmode: "disable"
     ```
 
 #### Step 4: Run the Product
