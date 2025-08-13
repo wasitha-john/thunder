@@ -350,6 +350,8 @@ func getFlowGraph(appID string, flowType constants.FlowType) (string, *serviceer
 	if flowType == constants.FlowTypeRegistration {
 		if app.RegistrationFlowGraphID == "" {
 			return "", &constants.ErrorRegisFlowNotConfiguredForApplication
+		} else if !app.IsRegistrationFlowEnabled {
+			return "", &constants.ErrorRegistrationFlowDisabled
 		}
 		return app.RegistrationFlowGraphID, nil
 	}
