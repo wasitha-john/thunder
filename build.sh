@@ -160,9 +160,6 @@ function build_backend() {
 
     echo "Initializing databases..."
     initialize_databases true
-    
-    echo "Seeding databases with initial data..."
-    seed_databases true
     echo "================================================================"
 }
 
