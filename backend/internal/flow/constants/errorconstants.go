@@ -64,6 +64,14 @@ var ErrorInvalidFlowType = serviceerror.ServiceError{
 	ErrorDescription: "Invalid flow type provided in the request",
 }
 
+// ErrorRegistrationFlowDisabled defines the error response for registration flow disabled errors.
+var ErrorRegistrationFlowDisabled = serviceerror.ServiceError{
+	Code:             "FES-1006",
+	Type:             serviceerror.ClientErrorType,
+	Error:            "Registration not allowed",
+	ErrorDescription: "Registration flow is disabled for the application",
+}
+
 // Server error structs
 
 // ErrorFlowGraphNotInitialized defines the error response for uninitialized flow graph errors.
