@@ -104,12 +104,26 @@ var (
 		Error:            "Email conflict",
 		ErrorDescription: "A user with the same email already exists",
 	}
-	// ErrorInvalidCredentials is the error returned when provided credentials are invalid.
-	ErrorInvalidCredentials = serviceerror.ServiceError{
+	// ErrorMissingRequiredFields is the error returned when required fields are missing.
+	ErrorMissingRequiredFields = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
 		Code:             "USR-1016",
-		Error:            "Invalid credentials",
-		ErrorDescription: "The provided credentials are invalid",
+		Error:            "Missing required fields",
+		ErrorDescription: "At least one identifying attribute must be provided",
+	}
+	// ErrorMissingCredentials is the error returned when credentials are missing.
+	ErrorMissingCredentials = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "USR-1017",
+		Error:            "Missing credentials",
+		ErrorDescription: "At least one credential field must be provided",
+	}
+	// ErrorAuthenticationFailed is the error returned when authentication fails.
+	ErrorAuthenticationFailed = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "USR-1018",
+		Error:            "Authentication failed",
+		ErrorDescription: "Invalid credentials provided",
 	}
 )
 

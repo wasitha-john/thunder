@@ -294,6 +294,47 @@ func (ah *UserHandler) HandleUserPostByPathRequest(w http.ResponseWriter, r *htt
 	logger.Debug("Successfully created user by path", log.String("path", path), log.String("userType", user.Type))
 }
 
+// HandleUserAuthenticateRequest handles the user authentication request.
+func (ah *UserHandler) HandleUserAuthenticateRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	var authRequest model.AuthenticateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&authRequest); err != nil {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidRequestFormat.Code,
+			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Description: "The request body is malformed or contains invalid data",
+		}
+
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	userService := ah.userProvider.GetUserService()
+	authResponse, svcErr := userService.AuthenticateUser(authRequest)
+	if svcErr != nil {
+		handleError(w, logger, svcErr)
+		return
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(authResponse); err != nil {
+		logger.Error("Error encoding response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	logger.Debug("User authentication successful", log.String("userID", authResponse.ID))
+}
+
 // parsePaginationParams parses limit and offset query parameters from the request.
 func parsePaginationParams(query url.Values) (int, int, *serviceerror.ServiceError) {
 	limit := 0
@@ -329,16 +370,19 @@ func handleError(w http.ResponseWriter, logger *log.Logger, svcErr *serviceerror
 	var statusCode int
 	if svcErr.Type == serviceerror.ClientErrorType {
 		switch svcErr.Code {
-		case constants.ErrorMissingUserID.Code:
-			statusCode = http.StatusNotFound
-		case constants.ErrorOrganizationUnitNotFound.Code:
+		case constants.ErrorMissingUserID.Code,
+			constants.ErrorUserNotFound.Code,
+			constants.ErrorOrganizationUnitNotFound.Code:
 			statusCode = http.StatusNotFound
 		case constants.ErrorUsernameConflict.Code:
 			statusCode = http.StatusConflict
-		case constants.ErrorHandlePathRequired.Code:
+		case constants.ErrorHandlePathRequired.Code,
+			constants.ErrorInvalidHandlePath.Code,
+			constants.ErrorMissingRequiredFields.Code,
+			constants.ErrorMissingCredentials.Code:
 			statusCode = http.StatusBadRequest
-		case constants.ErrorInvalidHandlePath.Code:
-			statusCode = http.StatusBadRequest
+		case constants.ErrorAuthenticationFailed.Code:
+			statusCode = http.StatusUnauthorized
 		default:
 			statusCode = http.StatusBadRequest
 		}
