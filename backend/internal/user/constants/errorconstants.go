@@ -104,6 +104,13 @@ var (
 		Error:            "Email conflict",
 		ErrorDescription: "A user with the same email already exists",
 	}
+	// ErrorInvalidCredentials is the error returned when provided credentials are invalid.
+	ErrorInvalidCredentials = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "USR-1016",
+		Error:            "Invalid credentials",
+		ErrorDescription: "The provided credentials are invalid",
+	}
 )
 
 // Server errors for user management operations.

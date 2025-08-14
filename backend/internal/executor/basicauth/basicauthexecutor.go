@@ -212,7 +212,11 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 	userProvider := userprovider.NewUserProvider()
 	userService := userProvider.GetUserService()
 
-	user, svcErr := userService.VerifyUser(*userID, userAttributePassword, ctx.UserInputData[userAttributePassword])
+	credentials := map[string]interface{}{
+		userAttributePassword: ctx.UserInputData[userAttributePassword],
+	}
+
+	user, svcErr := userService.VerifyUser(*userID, credentials)
 	if svcErr != nil {
 		logger.Error("Failed to verify user credentials",
 			log.String("userID", *userID),

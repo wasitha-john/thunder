@@ -93,7 +93,7 @@ func GetUserList(limit, offset int) ([]model.User, error) {
 }
 
 // CreateUser handles the user creation in the database.
-func CreateUser(user model.User, credentials model.Credentials) error {
+func CreateUser(user model.User, credentials []model.Credential) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
@@ -113,10 +113,10 @@ func CreateUser(user model.User, credentials model.Credentials) error {
 		return model.ErrBadAttributesInRequest
 	}
 
-	// Correct the handling of credentialsJSON to convert []byte to string.
+	// Convert credentials array to JSON string
 	var credentialsJSON string
-	if (model.Credentials{}) == credentials {
-		credentialsJSON = "{}"
+	if len(credentials) == 0 {
+		credentialsJSON = "[]"
 	} else {
 		credentialsBytes, err := json.Marshal(credentials)
 		if err != nil {
@@ -293,12 +293,12 @@ func IdentifyUser(filters map[string]interface{}) (*string, error) {
 }
 
 // VerifyUser validate the user specified user using the given credentials from the database.
-func VerifyUser(id string) (model.User, model.Credentials, error) {
+func VerifyUser(id string) (model.User, []model.Credential, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
 	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
 	if err != nil {
-		return model.User{}, model.Credentials{}, fmt.Errorf("failed to get database client: %w", err)
+		return model.User{}, []model.Credential{}, fmt.Errorf("failed to get database client: %w", err)
 	}
 	defer func() {
 		if closeErr := dbClient.Close(); closeErr != nil {
@@ -309,22 +309,22 @@ func VerifyUser(id string) (model.User, model.Credentials, error) {
 
 	results, err := dbClient.Query(QueryValidateUserWithCredentials, id)
 	if err != nil {
-		return model.User{}, model.Credentials{}, fmt.Errorf("failed to execute query: %w", err)
+		return model.User{}, []model.Credential{}, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	if len(results) == 0 {
-		return model.User{}, model.Credentials{}, model.ErrUserNotFound
+		return model.User{}, []model.Credential{}, model.ErrUserNotFound
 	}
 
 	if len(results) != 1 {
-		return model.User{}, model.Credentials{}, fmt.Errorf("unexpected number of results: %d", len(results))
+		return model.User{}, []model.Credential{}, fmt.Errorf("unexpected number of results: %d", len(results))
 	}
 
 	row := results[0]
 
 	user, err := buildUserFromResultRow(row)
 	if err != nil {
-		return model.User{}, model.Credentials{}, fmt.Errorf("failed to build user from result row: %w", err)
+		return model.User{}, []model.Credential{}, fmt.Errorf("failed to build user from result row: %w", err)
 	}
 
 	// build the UserDTO with credentials.
@@ -335,12 +335,12 @@ func VerifyUser(id string) (model.User, model.Credentials, error) {
 	case []byte:
 		credentialsJSON = string(v)
 	default:
-		return model.User{}, model.Credentials{}, fmt.Errorf("failed to parse credentials as string")
+		return model.User{}, []model.Credential{}, fmt.Errorf("failed to parse credentials as string")
 	}
 
-	var credentials model.Credentials
+	var credentials []model.Credential
 	if err := json.Unmarshal([]byte(credentialsJSON), &credentials); err != nil {
-		return model.User{}, model.Credentials{}, fmt.Errorf("failed to unmarshal credentials: %w", err)
+		return model.User{}, []model.Credential{}, fmt.Errorf("failed to unmarshal credentials: %w", err)
 	}
 
 	return user, credentials, nil

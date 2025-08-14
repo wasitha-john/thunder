@@ -32,8 +32,8 @@ type User struct {
 	Attributes       json.RawMessage `json:"attributes,omitempty"`
 }
 
-// Credentials represents the credentials of a user.
-type Credentials struct {
+// Credential represents the credentials of a user.
+type Credential struct {
 	CredentialType string `json:"credentialType"`
 	StorageType    string `json:"storageType"`
 	StorageAlgo    string `json:"storageAlgo"`
