@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -19,6 +19,8 @@
 // Package constants defines constants related to OAuth2 authorization.
 package constants
 
+import "errors"
+
 // Authorization code states.
 const (
 	AuthCodeStateActive   = "ACTIVE"
@@ -26,3 +28,6 @@ const (
 	AuthCodeStateExpired  = "EXPIRED"
 	AuthCodeStateRevoked  = "REVOKED"
 )
+
+// ErrAuthorizationCodeNotFound is returned when an authorization code is not found in the database.
+var ErrAuthorizationCodeNotFound = errors.New("authorization code not found")

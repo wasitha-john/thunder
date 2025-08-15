@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -20,9 +20,11 @@
 package log
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/asgardeo/thunder/internal/system/constants"
@@ -85,6 +87,11 @@ func (l *Logger) With(fields ...Field) *Logger {
 	}
 }
 
+// IsDebugEnabled checks if the logger is set to debug level.
+func (l *Logger) IsDebugEnabled() bool {
+	return l.internal.Handler().Enabled(context.Background(), slog.LevelDebug)
+}
+
 // Info logs an informational message with custom fields.
 func (l *Logger) Info(msg string, fields ...Field) {
 	l.internal.Info(msg, convertFields(fields)...)
@@ -128,4 +135,12 @@ func convertFields(fields []Field) []any {
 		attrs[i] = slog.Any(field.Key, field.Value)
 	}
 	return attrs
+}
+
+// MaskString masks characters in a string except for the first and last characters.
+func MaskString(s string) string {
+	if len(s) <= 3 {
+		return strings.Repeat("*", len(s))
+	}
+	return s[:1] + strings.Repeat("*", len(s)-2) + s[len(s)-1:]
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -27,13 +27,15 @@ import (
 
 // TokenService defines the service for handling OAuth2 token requests.
 type TokenService struct {
-	tokenHandler *token.TokenHandler
+	ServerOpsService server.ServerOperationServiceInterface
+	tokenHandler     token.TokenHandlerInterface
 }
 
 // NewTokenService creates a new instance of TokenService.
-func NewTokenService(mux *http.ServeMux) *TokenService {
+func NewTokenService(mux *http.ServeMux) ServiceInterface {
 	instance := &TokenService{
-		tokenHandler: &token.TokenHandler{},
+		ServerOpsService: server.NewServerOperationService(),
+		tokenHandler:     token.NewTokenHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -49,5 +51,5 @@ func (s *TokenService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "POST /oauth2/token", &opts, s.tokenHandler.HandleTokenRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /oauth2/token", &opts, s.tokenHandler.HandleTokenRequest)
 }

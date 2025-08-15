@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -58,8 +58,15 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 		return
 	}
 
-	svc := flow.GetFlowService()
-	flowStep, flowErr := svc.Execute(flowR.ApplicationID, flowR.FlowID, flowR.ActionID, flowR.Inputs)
+	// Sanitize the input to prevent injection attacks
+	appID := sysutils.SanitizeString(flowR.ApplicationID)
+	flowID := sysutils.SanitizeString(flowR.FlowID)
+	actionID := sysutils.SanitizeString(flowR.ActionID)
+	inputs := sysutils.SanitizeStringMap(flowR.Inputs)
+	flowTypeStr := sysutils.SanitizeString(flowR.FlowType)
+
+	svc := flow.GetFlowExecService()
+	flowStep, flowErr := svc.Execute(appID, flowID, actionID, flowTypeStr, inputs)
 
 	if flowErr != nil {
 		handleFlowError(w, logger, flowErr)
@@ -67,14 +74,13 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 	}
 
 	flowResp := model.FlowResponse{
-		FlowID:         flowStep.FlowID,
-		StepID:         flowStep.StepID,
-		FlowStatus:     string(flowStep.Status),
-		Type:           string(flowStep.Type),
-		Actions:        flowStep.Actions,
-		Inputs:         flowStep.InputData,
-		AdditionalInfo: flowStep.AdditionalInfo,
-		Assertion:      flowStep.Assertion,
+		FlowID:        flowStep.FlowID,
+		StepID:        flowStep.StepID,
+		FlowStatus:    string(flowStep.Status),
+		Type:          string(flowStep.Type),
+		Data:          flowStep.Data,
+		Assertion:     flowStep.Assertion,
+		FailureReason: flowStep.FailureReason,
 	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)

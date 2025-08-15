@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -36,30 +36,32 @@ const (
 
 var (
 	preCreatedApp = Application{
-		ID:                  "550e8400-e29b-41d4-a716-446655440000",
-		Name:                "Test SPA",
-		Description:         "Initial testing App",
-		ClientID:            "client123",
-		CallbackURL:         []string{"https://localhost:3000"},
-		SupportedGrantTypes: []string{"client_credentials", "authorization_code"},
+		ID:          "550e8400-e29b-41d4-a716-446655440000",
+		Name:        "Test SPA",
+		Description: "Initial testing App",
+		ClientID:    "client123",
 	}
 
 	appToCreate = Application{
-		Name:                "My App",
-		Description:         "A demo application",
-		ClientID:            "abc1237",
-		ClientSecret:        "s3cret",
-		CallbackURL:         []string{"http://localhost/callback"},
-		SupportedGrantTypes: []string{"authorization_code", "client_credentials"},
+		Name:                    "My App",
+		Description:             "A demo application",
+		ClientID:                "abc1237",
+		ClientSecret:            "s3cret",
+		RedirectURIs:            []string{"http://localhost/callback"},
+		GrantTypes:              []string{"authorization_code", "client_credentials"},
+		ResponseTypes:           []string{"code"},
+		TokenEndpointAuthMethod: []string{"client_secret_basic", "client_secret_post"},
 	}
 
 	appToUpdate = Application{
-		Name:                "Updated App",
-		Description:         "Updated Description",
-		ClientID:            "Updated abc1237",
-		ClientSecret:        "Updated s3cret",
-		CallbackURL:         []string{"http://localhost/callback2"},
-		SupportedGrantTypes: []string{"authorization_code2", "client_credentials2"},
+		Name:                    "Updated App",
+		Description:             "Updated Description",
+		ClientID:                "Updated abc1237",
+		ClientSecret:            "Updated s3cret",
+		RedirectURIs:            []string{"http://localhost/callback2"},
+		GrantTypes:              []string{"authorization_code"},
+		ResponseTypes:           []string{"code"},
+		TokenEndpointAuthMethod: []string{"client_secret_basic"},
 	}
 )
 
@@ -124,13 +126,23 @@ func (ts *ApplicationAPITestSuite) TestApplicationListing() {
 	}
 
 	// Parse the response body
-	var applications []Application
-	err = json.NewDecoder(resp.Body).Decode(&applications)
+	var appList ApplicationList
+	err = json.NewDecoder(resp.Body).Decode(&appList)
 	if err != nil {
 		ts.T().Fatalf("Failed to parse response body: %v", err)
 	}
 
-	applicationListLength := len(applications)
+	totalResults := appList.TotalResults
+	if totalResults == 0 {
+		ts.T().Fatalf("Response does not contain a valid total results count")
+	}
+
+	appCount := appList.Count
+	if appCount == 0 {
+		ts.T().Fatalf("Response does not contain a valid application count")
+	}
+
+	applicationListLength := len(appList.Applications)
 	if applicationListLength == 0 {
 		ts.T().Fatalf("Response does not contain any applications")
 	}
@@ -139,13 +151,13 @@ func (ts *ApplicationAPITestSuite) TestApplicationListing() {
 		ts.T().Fatalf("Expected 2 applications, got %d", applicationListLength)
 	}
 
-	app1 := applications[0]
+	app1 := appList.Applications[0]
 	if !app1.equals(preCreatedApp) {
 		ts.T().Fatalf("Application mismatch, expected %+v, got %+v", preCreatedApp, app1)
 	}
 
-	app2 := applications[1]
-	createdApp := buildCreatedApp()
+	app2 := appList.Applications[1]
+	createdApp := buildCreatedAppBasic()
 	if !app2.equals(createdApp) {
 		ts.T().Fatalf("Application mismatch, expected %+v, got %+v", createdApp, app2)
 	}
@@ -198,13 +210,15 @@ func (ts *ApplicationAPITestSuite) TestApplicationUpdate() {
 
 	// Validate the update by retrieving the application
 	retrieveAndValidateApplicationDetails(ts, Application{
-		ID:                  createdAppID,
-		Name:                appToUpdate.Name,
-		Description:         appToUpdate.Description,
-		ClientID:            appToUpdate.ClientID,
-		ClientSecret:        appToUpdate.ClientSecret,
-		CallbackURL:         appToUpdate.CallbackURL,
-		SupportedGrantTypes: appToUpdate.SupportedGrantTypes,
+		ID:                      createdAppID,
+		Name:                    appToUpdate.Name,
+		Description:             appToUpdate.Description,
+		ClientID:                appToUpdate.ClientID,
+		ClientSecret:            appToUpdate.ClientSecret,
+		RedirectURIs:            appToUpdate.RedirectURIs,
+		GrantTypes:              appToUpdate.GrantTypes,
+		ResponseTypes:           appToUpdate.ResponseTypes,
+		TokenEndpointAuthMethod: appToUpdate.TokenEndpointAuthMethod,
 	})
 }
 
@@ -322,12 +336,24 @@ func deleteApplication(appID string) error {
 func buildCreatedApp() Application {
 
 	return Application{
-		ID:                  createdAppID,
-		Name:                appToCreate.Name,
-		Description:         appToCreate.Description,
-		ClientID:            appToCreate.ClientID,
-		ClientSecret:        appToCreate.ClientSecret,
-		CallbackURL:         appToCreate.CallbackURL,
-		SupportedGrantTypes: appToCreate.SupportedGrantTypes,
+		ID:                      createdAppID,
+		Name:                    appToCreate.Name,
+		Description:             appToCreate.Description,
+		ClientID:                appToCreate.ClientID,
+		ClientSecret:            appToCreate.ClientSecret,
+		RedirectURIs:            appToCreate.RedirectURIs,
+		GrantTypes:              appToCreate.GrantTypes,
+		ResponseTypes:           appToCreate.ResponseTypes,
+		TokenEndpointAuthMethod: appToCreate.TokenEndpointAuthMethod,
+	}
+}
+
+func buildCreatedAppBasic() Application {
+
+	return Application{
+		ID:          createdAppID,
+		Name:        appToCreate.Name,
+		Description: appToCreate.Description,
+		ClientID:    appToCreate.ClientID,
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -20,27 +20,52 @@
 package basicauth
 
 import (
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
+	"encoding/json"
+	"fmt"
+
+	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	"github.com/asgardeo/thunder/internal/executor/identify"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
-	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
+	userprovider "github.com/asgardeo/thunder/internal/user/provider"
+)
+
+const (
+	loggerComponentName    = "BasicAuthExecutor"
+	userAttributeUserID    = "userID"
+	userAttributeUsername  = "username"
+	userAttributePassword  = "password"
+	userAttributeEmail     = "email"
+	userAttributeFirstName = "firstName"
+	userAttributeLastName  = "lastName"
 )
 
 // BasicAuthExecutor implements the ExecutorInterface for basic authentication.
 type BasicAuthExecutor struct {
+	*identify.IdentifyingExecutor
 	internal flowmodel.Executor
 }
 
+var _ flowmodel.ExecutorInterface = (*BasicAuthExecutor)(nil)
+
 // NewBasicAuthExecutor creates a new instance of BasicAuthExecutor.
-func NewBasicAuthExecutor(id, name string) flowmodel.ExecutorInterface {
-	return &BasicAuthExecutor{
-		internal: flowmodel.Executor{
-			Properties: flowmodel.ExecutorProperties{
-				ID:   id,
-				Name: name,
-			},
+func NewBasicAuthExecutor(id, name string, properties map[string]string) *BasicAuthExecutor {
+	defaultInputs := []flowmodel.InputData{
+		{
+			Name:     userAttributeUsername,
+			Type:     "string",
+			Required: true,
 		},
+		{
+			Name:     userAttributePassword,
+			Type:     "string",
+			Required: true,
+		},
+	}
+	return &BasicAuthExecutor{
+		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
+		internal:            *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
 	}
 }
 
@@ -60,139 +85,190 @@ func (b *BasicAuthExecutor) GetProperties() flowmodel.ExecutorProperties {
 }
 
 // Execute executes the basic authentication logic.
-func (b *BasicAuthExecutor) Execute(ctx *flowmodel.FlowContext) (*flowmodel.ExecutorResponse, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "BasicAuthExecutor"))
-	logger.Debug("Executing basic authentication executor",
-		log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID))
+func (b *BasicAuthExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.ExecutorResponse, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, b.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+	logger.Debug("Executing basic authentication executor")
 
 	execResp := &flowmodel.ExecutorResponse{
-		Status: flowconst.ExecIncomplete,
+		AdditionalData: make(map[string]string),
+		RuntimeData:    make(map[string]string),
 	}
 
 	// Validate for the required input data.
-	if b.requiredInputData(ctx, execResp) {
+	if b.CheckInputData(ctx, execResp) {
 		// If required input data is not provided, return incomplete status.
-		logger.Debug("Required input data for basic authentication executor is not provided",
-			log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID))
+		logger.Debug("Required input data for basic authentication executor is not provided")
 		execResp.Status = flowconst.ExecUserInputRequired
-		execResp.Type = flowconst.ExecView
 		return execResp, nil
 	}
 
-	// Read the valid username and password from the configuration.
-	config := config.GetThunderRuntime().Config
-	validUsername := config.UserStore.DefaultUser.Username
-	validPassword := config.UserStore.DefaultUser.Password
-
-	username := ctx.UserInputData["username"]
-
-	if username == validUsername && ctx.UserInputData["password"] == validPassword {
-		ctx.AuthenticatedUser = &authnmodel.AuthenticatedUser{
-			IsAuthenticated:        true,
-			UserID:                 "143e87c1-ccfc-440d-b0a5-bb23c9a2f39e",
-			Username:               username,
-			Domain:                 "PRIMARY",
-			AuthenticatedSubjectID: username,
-			Attributes: map[string]string{
-				"email":     "admin@wso2.com",
-				"firstName": "Admin",
-				"lastName":  "User",
-			},
-		}
-	} else {
-		ctx.AuthenticatedUser = &authnmodel.AuthenticatedUser{
-			IsAuthenticated: false,
-		}
+	// TODO: Should handle client errors here. Service should return a ServiceError and
+	//  client errors should be appended as a failure.
+	//  For the moment handling returned error as a authentication failure.
+	authenticatedUser, err := b.getAuthenticatedUser(ctx, execResp)
+	if err != nil {
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Failed to authenticate user: " + err.Error()
+		return execResp, nil
+	}
+	if execResp.Status == flowconst.ExecFailure {
+		return execResp, nil
+	}
+	if authenticatedUser == nil {
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "Authenticated user not found."
+		return execResp, nil
+	}
+	if !authenticatedUser.IsAuthenticated && ctx.FlowType != flowconst.FlowTypeRegistration {
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "User authentication failed."
+		return execResp, nil
 	}
 
-	// Set the flow response status based on the authentication result.
-	if ctx.AuthenticatedUser.IsAuthenticated {
-		execResp.Status = flowconst.ExecComplete
-	} else {
-		execResp.Status = flowconst.ExecUserError
-		execResp.Type = flowconst.ExecView
-		execResp.Error = "Invalid credentials provided for basic authentication."
-	}
+	execResp.AuthenticatedUser = *authenticatedUser
+	execResp.Status = flowconst.ExecComplete
 
 	logger.Debug("Basic authentication executor execution completed",
-		log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID),
 		log.String("status", string(execResp.Status)),
-		log.Bool("isAuthenticated", ctx.AuthenticatedUser.IsAuthenticated))
+		log.Bool("isAuthenticated", execResp.AuthenticatedUser.IsAuthenticated))
 
 	return execResp, nil
 }
 
-// requiredInputData checks and adds the required input data for basic authentication.
-// Returns true if needed to request user input data.
-func (b *BasicAuthExecutor) requiredInputData(ctx *flowmodel.FlowContext, execResp *flowmodel.ExecutorResponse) bool {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "BasicAuthExecutor"))
+// GetDefaultExecutorInputs returns the default required input data for the BasicAuthExecutor.
+func (b *BasicAuthExecutor) GetDefaultExecutorInputs() []flowmodel.InputData {
+	return b.internal.DefaultExecutorInputs
+}
 
-	// TODO: Convert password to a secure type (i.e. byte_array)
-	basicReqData := []flowmodel.InputData{
-		{
-			Name:     "username",
-			Type:     "string",
-			Required: true,
-		},
-		{
-			Name:     "password",
-			Type:     "string",
-			Required: true,
-		},
+// GetPrerequisites returns the prerequisites for the BasicAuthExecutor.
+func (b *BasicAuthExecutor) GetPrerequisites() []flowmodel.InputData {
+	return b.internal.Prerequisites
+}
+
+// CheckInputData checks if the required input data is provided in the context.
+func (b *BasicAuthExecutor) CheckInputData(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse) bool {
+	return b.internal.CheckInputData(ctx, execResp)
+}
+
+// ValidatePrerequisites validates whether the prerequisites for the BasicAuthExecutor are met.
+func (b *BasicAuthExecutor) ValidatePrerequisites(ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse) bool {
+	return b.internal.ValidatePrerequisites(ctx, execResp)
+}
+
+// GetUserIDFromContext retrieves the user ID from the context.
+func (b *BasicAuthExecutor) GetUserIDFromContext(ctx *flowmodel.NodeContext) (string, error) {
+	return b.internal.GetUserIDFromContext(ctx)
+}
+
+// GetRequiredData returns the required input data for the BasicAuthExecutor.
+func (b *BasicAuthExecutor) GetRequiredData(ctx *flowmodel.NodeContext) []flowmodel.InputData {
+	return b.internal.GetRequiredData(ctx)
+}
+
+// getAuthenticatedUser perform authentication based on the provided username and password and return
+// authenticated user details.
+func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
+	execResp *flowmodel.ExecutorResponse) (*authndto.AuthenticatedUser, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, b.GetID()))
+
+	username := ctx.UserInputData[userAttributeUsername]
+	filters := map[string]interface{}{userAttributeUsername: username}
+	userID, err := b.IdentifyUser(filters, execResp)
+	if err != nil {
+		return nil, err
 	}
 
-	// Check for the required input data. Also appends the authenticator specific input data.
-	// TODO: This validation should be moved to the flow composer. Ideally the validation and appending
-	//  should happen during the flow definition creation.
-	requiredData := ctx.CurrentNode.GetInputData()
-	if len(requiredData) == 0 {
-		logger.Debug("No required input data defined for basic authentication executor",
-			log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID))
-		requiredData = basicReqData
+	// Handle registration flows.
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
+		if execResp.Status == flowconst.ExecFailure {
+			if execResp.FailureReason == "User not found" {
+				logger.Debug("User not found for the provided username. Proceeding with registration flow.")
+				execResp.Status = flowconst.ExecComplete
+
+				return &authndto.AuthenticatedUser{
+					IsAuthenticated: false,
+					Attributes: map[string]string{
+						userAttributeUsername: username,
+					},
+				}, nil
+			}
+			return nil, err
+		}
+
+		// At this point, a unique user is found in the system. Hence fail the execution.
+		execResp.Status = flowconst.ExecFailure
+		execResp.FailureReason = "User already exists with the provided username."
+		return nil, nil
+	}
+
+	if execResp.Status == flowconst.ExecFailure {
+		return nil, nil
+	}
+
+	userProvider := userprovider.NewUserProvider()
+	userService := userProvider.GetUserService()
+
+	credentials := map[string]interface{}{
+		userAttributePassword: ctx.UserInputData[userAttributePassword],
+	}
+
+	user, svcErr := userService.VerifyUser(*userID, credentials)
+	if svcErr != nil {
+		logger.Error("Failed to verify user credentials",
+			log.String("userID", *userID),
+			log.String("error", svcErr.Error),
+			log.String("code", svcErr.Code))
+		return nil, fmt.Errorf("failed to verify user credentials: %s", svcErr.Error)
+	}
+
+	var authenticatedUser authndto.AuthenticatedUser
+	if user == nil {
+		authenticatedUser = authndto.AuthenticatedUser{
+			IsAuthenticated: false,
+		}
 	} else {
-		// Append the default required data if not already present.
-		for _, inputData := range basicReqData {
-			exists := false
-			for _, existingInputData := range requiredData {
-				if existingInputData.Name == inputData.Name {
-					exists = true
-					break
-				}
-			}
-			// If the input data already exists, skip adding it again.
-			if !exists {
-				requiredData = append(requiredData, inputData)
-			}
+		var attrs map[string]interface{}
+		if err := json.Unmarshal(user.Attributes, &attrs); err != nil {
+			logger.Error("Failed to unmarshal user attributes", log.Error(err))
+			return nil, err
+		}
+
+		email := ""
+		emailAttr := attrs[userAttributeEmail]
+		if emailAttr != nil {
+			email = emailAttr.(string)
+		}
+
+		firstName := ""
+		firstNameAttr := attrs[userAttributeFirstName]
+		if firstNameAttr != nil {
+			firstName = firstNameAttr.(string)
+		}
+
+		lastName := ""
+		lastNameAttr := attrs[userAttributeLastName]
+		if lastNameAttr != nil {
+			lastName = lastNameAttr.(string)
+		}
+
+		authenticatedUser = authndto.AuthenticatedUser{
+			IsAuthenticated: true,
+			UserID:          user.ID,
+			Attributes:      map[string]string{},
+		}
+		if firstName != "" {
+			authenticatedUser.Attributes[userAttributeFirstName] = firstName
+		}
+		if lastName != "" {
+			authenticatedUser.Attributes[userAttributeLastName] = lastName
+		}
+		if email != "" {
+			authenticatedUser.Attributes[userAttributeEmail] = email
 		}
 	}
-
-	requireData := false
-
-	if execResp.RequiredData == nil {
-		execResp.RequiredData = make([]flowmodel.InputData, 0)
-	}
-
-	if len(ctx.UserInputData) == 0 {
-		execResp.RequiredData = append(execResp.RequiredData, requiredData...)
-		return true
-	}
-
-	// Check if the required input data is provided by the user.
-	for _, inputData := range requiredData {
-		if _, ok := ctx.UserInputData[inputData.Name]; !ok {
-			if !inputData.Required {
-				logger.Debug("Skipping optional input data that is not provided by user",
-					log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID),
-					log.String("inputDataName", inputData.Name))
-				continue
-			}
-			execResp.RequiredData = append(execResp.RequiredData, inputData)
-			requireData = true
-			logger.Debug("Required input data not provided by user",
-				log.String("executorID", b.GetID()), log.String("flowID", ctx.FlowID),
-				log.String("inputDataName", inputData.Name))
-		}
-	}
-
-	return requireData
+	return &authenticatedUser, nil
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -17,8 +17,12 @@
  */
 
 import { createTheme } from '@mui/material/styles';
+import type { Shadows } from '@mui/material/styles';
+
+const noShadows = Array(25).fill('none') as Shadows;
 
 const theme = createTheme({
+  shadows: noShadows,
   cssVariables: {
     colorSchemeSelector: 'data-color-scheme',
   },

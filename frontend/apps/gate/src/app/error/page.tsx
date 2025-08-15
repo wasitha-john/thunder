@@ -32,8 +32,8 @@ export default function ErrorPage(): ReactElement {
   useEffect(() => {
     const params: URLSearchParams = new URLSearchParams(window.location.search);
 
-    setErrorCode(params.get('oauthErrorCode') || '');
-    setErrorMsg(params.get('oauthErrorMsg') || FallbackErrorMessage);
+    setErrorCode(params.get('errorCode') || '');
+    setErrorMsg(params.get('errorMessage') || FallbackErrorMessage);
   }, []);
 
   return (

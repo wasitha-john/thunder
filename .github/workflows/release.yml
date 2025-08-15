@@ -13,9 +13,10 @@ on:
         required: true
         type: string
 
-# Add permissions to allow pushing tags
+# Add permissions to allow pushing tags and packages
 permissions:
   contents: write
+  packages: write
 
 env:
   GOFLAGS: "-mod=readonly"
@@ -30,7 +31,7 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for tagging
 
-      - name: ✅ Validate Version
+      - name: ✅ Validate Release Version
         run: |
           if ! [[ ${{ github.event.inputs.version }} =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then
             echo "❌ Error: Version '${{ github.event.inputs.version }}' does not follow format vX.Y[.Z][-PRERELEASE][+BUILD]"
@@ -43,7 +44,20 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: 📝 Update Version File
+      - name: ✅ Set Sample Apps Version
+        run: |
+          # Get the product version input
+          SAMPLE_VERSION="${{ github.event.inputs.version }}"
+          
+          # Remove 'v' prefix if present
+          if [[ $SAMPLE_VERSION == v* ]]; then
+            SAMPLE_VERSION="${SAMPLE_VERSION#v}"
+          fi
+          
+          echo "✅ Sample version set to '$SAMPLE_VERSION'"
+          echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
+
+      - name: 📝 Update Product Version
         run: |
           # Store version with v prefix in version.txt
           VERSION="${{ env.VERSION }}"
@@ -75,18 +89,92 @@ jobs:
             set -e
             make all OS=$(go env GOOS) ARCH=$(go env GOARCH)
 
-      - name: 🔨 Build Release Artifact
-        run: make clean build
+      - name: 🧹 Clean Previous Builds
+        run: make clean_all
+
+      - name: 🔨 Build Thunder Release Artifacts
+        run: |
+          # Define platform matrix as arrays
+          PLATFORMS=(
+            "windows:amd64"
+            "linux:amd64"
+            "linux:arm"
+            "darwin:amd64"
+            "darwin:arm64"
+          )
+          
+          echo "🏗️ Building Thunder for ${#PLATFORMS[@]} platforms..."
+          
+          # Loop through the platform matrix
+          for platform in "${PLATFORMS[@]}"; do
+            # Split the platform string into OS and ARCH
+            OS="${platform%%:*}"
+            ARCH="${platform#*:}"
+            
+            echo "🔨 Building Thunder backend for $OS/$ARCH..."
+            make build_backend OS=$OS ARCH=$ARCH
+            
+            # Optional: Add a small delay to prevent resource contention
+            sleep 1
+          done
+          
+          echo "✅ Thunder built for all platforms successfully!"
+
+      - name: 📝 Update Sample Apps Version
+        run: |
+          # Get the clean sample version without v prefix
+          SAMPLE_VERSION="${{ env.SAMPLE_VERSION }}"
+          echo "📝 Setting sample apps version to $SAMPLE_VERSION"
+          
+          # Update the main sample app package.json
+          cd samples/apps/oauth
+          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+          
+          # Update the server package.json
+          cd server
+          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+          
+          cd ../../../..
+          echo "✅ Updated sample apps version to $SAMPLE_VERSION"
+
+      - name: 🔨 Build Sample Release Artifacts
+        run: |
+          make build_samples
+
+          # Define platform matrix as arrays
+          PLATFORMS=(
+            "win:x64"
+            "linux:x64"
+            "linux:arm64"
+            "macos:x64"
+            "macos:arm64"
+          )
+
+          # Loop through the platform matrix
+          for platform in "${PLATFORMS[@]}"; do
+            # Split the platform string into OS and ARCH
+            OS="${platform%%:*}"
+            ARCH="${platform#*:}"
+            
+            echo "🔨 Building Samples for $OS/$ARCH..."
+            make package_samples OS=$OS ARCH=$ARCH
+            
+            # Optional: Add a small delay to prevent resource contention
+            sleep 1
+          done
+
+          echo "✅ Sample built for all platforms successfully!"
 
       - name: 📝 Read Updated Version
         id: version
         run: echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
 
-      - name: 📦 Upload Artifact to Workflow
+      - name: 📦 Upload All Distribution Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: thunder-${{ steps.version.outputs.version }}
-          path: target/thunder-${{ steps.version.outputs.version }}.zip
+          name: thunder-distribution
+          path: target/dist/*.zip
+          if-no-files-found: error
 
       - name: 🏷️ Create Git Tag
         run: |
@@ -127,6 +215,42 @@ jobs:
           echo "$LICENSE" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔐 Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐳 Build and Push Multi-Arch Docker Image
+        run: |
+          # Convert repository name to lowercase for GHCR
+          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_NAME="ghcr.io/${REPO_NAME}"
+          
+          # Get version without 'v' prefix for Docker tags
+          DOCKER_VERSION="${{ env.VERSION }}"
+          if [[ $DOCKER_VERSION == v* ]]; then
+            DOCKER_VERSION="${DOCKER_VERSION#v}"
+          fi
+          
+          echo "🐳 Building and pushing Docker image: ${IMAGE_NAME}:${DOCKER_VERSION}"
+          
+          # Build and push multi-arch image with version and latest tags
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --tag "${IMAGE_NAME}:${DOCKER_VERSION}" \
+            --tag "${IMAGE_NAME}:latest" \
+            --push \
+            .
+          
+          echo "✅ Docker image pushed successfully!"
+          echo "📦 Image available at: ${IMAGE_NAME}:${DOCKER_VERSION}"
+          echo "📦 Image available at: ${IMAGE_NAME}:latest"
+
       - name: 📦 Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
@@ -135,6 +259,22 @@ jobs:
           name: Thunder ${{ env.VERSION }}
           draft: false
           prerelease: ${{ contains(env.VERSION, '-') }}
-          files: target/thunder-${{ env.VERSION }}.zip
+          files: target/dist/*.zip
           body: ${{ env.RELEASE_BODY }}
           generate_release_notes: false
+      
+      - name: 🔔 Set Release Info
+        id: release_info
+        run: |
+          RELEASE_VERSION="${{ steps.version.outputs.version }}"
+          echo "release_name=Thunder ${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "release_tag=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "release_url=https://github.com/${{ github.repository }}/releases/tag/${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+      
+      - name: 🔔 Send Release Notification
+        uses: ./.github/actions/release-notification
+        with:
+          webhook: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+          release-name: ${{ steps.release_info.outputs.release_name }}
+          release-tag: ${{ steps.release_info.outputs.release_tag }}
+          release-url: ${{ steps.release_info.outputs.release_url }}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -16,6 +16,9 @@
  * under the License.
  */
 
+// Package services provides HTTP service implementations for various domain operations.
+//
+//nolint:dupl // ApplicationService has similar structure to GroupService but they serve different domains
 package services
 
 import (
@@ -27,12 +30,14 @@ import (
 
 // ApplicationService defines the service for handling application-related requests.
 type ApplicationService struct {
+	ServerOpsService   server.ServerOperationServiceInterface
 	applicationHandler *handler.ApplicationHandler
 }
 
 // NewApplicationService creates a new instance of ApplicationService.
-func NewApplicationService(mux *http.ServeMux) *ApplicationService {
+func NewApplicationService(mux *http.ServeMux) ServiceInterface {
 	instance := &ApplicationService{
+		ServerOpsService:   server.NewServerOperationService(),
 		applicationHandler: handler.NewApplicationHandler(),
 	}
 	instance.RegisterRoutes(mux)
@@ -41,8 +46,6 @@ func NewApplicationService(mux *http.ServeMux) *ApplicationService {
 }
 
 // RegisterRoutes registers the routes for the ApplicationService.
-//
-//nolint:dupl // Ignoring false positive duplicate code
 func (s *ApplicationService) RegisterRoutes(mux *http.ServeMux) {
 	opts1 := server.RequestWrapOptions{
 		Cors: &server.Cors{
@@ -51,11 +54,14 @@ func (s *ApplicationService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "POST /applications", &opts1, s.applicationHandler.HandleApplicationPostRequest)
-	server.WrapHandleFunction(mux, "GET /applications", &opts1, s.applicationHandler.HandleApplicationListRequest)
-	server.WrapHandleFunction(mux, "OPTIONS /applications", &opts1, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /applications", &opts1,
+		s.applicationHandler.HandleApplicationPostRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /applications", &opts1,
+		s.applicationHandler.HandleApplicationListRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /applications", &opts1,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 
 	opts2 := server.RequestWrapOptions{
 		Cors: &server.Cors{
@@ -64,11 +70,14 @@ func (s *ApplicationService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "GET /applications/", &opts2, s.applicationHandler.HandleApplicationGetRequest)
-	server.WrapHandleFunction(mux, "PUT /applications/", &opts2, s.applicationHandler.HandleApplicationPutRequest)
-	server.WrapHandleFunction(mux, "DELETE /applications/", &opts2,
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /applications/{id}", &opts2,
+		s.applicationHandler.HandleApplicationGetRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "PUT /applications/{id}", &opts2,
+		s.applicationHandler.HandleApplicationPutRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /applications/{id}", &opts2,
 		s.applicationHandler.HandleApplicationDeleteRequest)
-	server.WrapHandleFunction(mux, "OPTIONS /applications/", &opts2, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /applications/", &opts2,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 }

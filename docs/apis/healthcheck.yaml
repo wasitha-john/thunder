@@ -1,0 +1,95 @@
+openapi: 3.0.3
+
+info:
+  title: Health Check API
+  version: 0.1.0
+  description: This API is used to retrieve health status of the server including readiness and liveness checks.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://{host}:{port}
+    variables:
+      host:
+        default: "localhost"
+      port:
+        default: "8090"
+
+tags:
+  - name: health
+    description: Health check operations
+
+paths:
+  /health/liveness:
+    get:
+      tags:
+        - health
+      summary: Liveness Check
+      responses:
+        '200':
+          description: OK
+        '503':
+          description: Service Unavailable
+
+  /health/readiness:
+    get:
+      tags:
+        - health
+      summary: Readiness check
+      description: Returns OK if the service is ready to accept traffic.
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: "UP"
+                service_status:
+                  - service_name: "IdentityDB"
+                    status: "UP"
+                  - service_name: "RuntimeDB"
+                    status: "UP"
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: "DOWN"
+                service_status:
+                  - service_name: "IdentityDB"
+                    status: "DOWN"
+                  - service_name: "RuntimeDB"
+                    status: "UP"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - UP
+            - DOWN
+            - UNKNOWN
+        service_status:
+          type: array
+          items:
+            type: object
+            properties:
+              service_name:
+                type: string
+                enum:
+                  - IdentityDB
+                  - RuntimeDB
+              status:
+                type: string
+                enum:
+                - UP
+                - DOWN
+                - UNKNOWN

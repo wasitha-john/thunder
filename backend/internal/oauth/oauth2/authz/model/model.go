@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -29,7 +29,6 @@ import (
 type OAuthMessage struct {
 	RequestType        string
 	SessionData        *sessionmodel.SessionData
-	RequestHeaders     map[string][]string
 	RequestQueryParams map[string]string
 	RequestBodyParams  map[string]string
 }
@@ -45,4 +44,15 @@ type AuthorizationCode struct {
 	ExpiryTime       time.Time
 	Scopes           string
 	State            string
+}
+
+// AuthZPostRequest represents the request body for the authorization POST request.
+type AuthZPostRequest struct {
+	SessionDataKey string `json:"sessionDataKey"`
+	Assertion      string `json:"assertion"`
+}
+
+// AuthZPostResponse represents the response body for the authorization POST request.
+type AuthZPostResponse struct {
+	RedirectURI string `json:"redirect_uri"`
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -17,10 +17,8 @@
  */
  
 #root {
-  max-width: 1000px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  padding: 0;
 }
 
 .logo {
@@ -74,10 +72,12 @@ pre {
   padding: 20px;
   border-radius: 20px;
   text-align: left;
+  font-size: 12px;
 }
 
 code {
   word-break: break-all;
   word-wrap: break-word;
   white-space: normal;
+  font-size: 12px;
 }

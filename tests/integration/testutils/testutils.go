@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -26,24 +26,24 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 const (
-	TargetDir                   = "../../target"
-	ZipFilePattern              = "thunder-*.zip"
-	ExtractedDir                = "../../target/.test"
+	TargetDir                   = "../../target/dist"
+	ExtractedDir                = "../../target/out/.test"
 	ServerBinary                = "thunder"
 	TestDeploymentYamlPath      = "./resources/deployment.yaml"
 	TestDatabaseSchemaDirectory = "resources/dbscripts"
+	TestGraphsDirectory         = "resources/graphs"
 	InitScriptPath              = "./scripts/init_script.sh"
 	DBScriptPath                = "./scripts/setup_db.sh"
 	DatabaseFileBasePath        = "repository/database/"
 )
 
-func UnzipProduct() error {
-
+func UnzipProduct(zipFilePattern string) error {
 	// Find the zip file.
-	files, err := filepath.Glob(filepath.Join(TargetDir, ZipFilePattern))
+	files, err := findMatchingZipFile(zipFilePattern)
 	if err != nil || len(files) == 0 {
 		return fmt.Errorf("zip file not found in target directory")
 	}
@@ -65,7 +65,7 @@ func UnzipProduct() error {
 	}
 
 	// Set executable permissions for the server binary
-	productHome, err := getExtractedProductHome()
+	productHome, err := getExtractedProductHome(zipFilePattern)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,6 @@ func UnzipProduct() error {
 }
 
 func extractFile(f *zip.File, dest string) error {
-
 	rc, err := f.Open()
 	if err != nil {
 		return err
@@ -103,9 +102,8 @@ func extractFile(f *zip.File, dest string) error {
 }
 
 // getExtractedProductHome constructs the path to the unzipped folder.
-func getExtractedProductHome() (string, error) {
-
-	files, err := filepath.Glob(filepath.Join(TargetDir, ZipFilePattern))
+func getExtractedProductHome(zipFilePattern string) (string, error) {
+	files, err := findMatchingZipFile(zipFilePattern)
 	if err != nil || len(files) == 0 {
 		return "", fmt.Errorf("zip file not found in target directory")
 	}
@@ -114,8 +112,32 @@ func getExtractedProductHome() (string, error) {
 	return filepath.Join(ExtractedDir, filepath.Base(zipFile[:len(zipFile)-4])), nil
 }
 
-func ReplaceResources() error {
+// findMatchingZipFile finds zip files that match our specific version pattern criteria
+func findMatchingZipFile(zipFilePattern string) ([]string, error) {
+	path := filepath.Join(TargetDir, zipFilePattern)
+	files, err := filepath.Glob(path)
+	if err != nil {
+		return nil, err
+	}
 
+	// Filter the files to only include those that have a version number or 'v' after 'thunder-'
+	var matchingFiles []string
+	for _, file := range files {
+		baseName := filepath.Base(file)
+		parts := strings.Split(baseName, "-")
+		if len(parts) >= 3 {
+			// Check if the second part starts with a number or 'v'
+			secondPart := parts[1]
+			if len(secondPart) > 0 && (secondPart[0] == 'v' || (secondPart[0] >= '0' && secondPart[0] <= '9')) {
+				matchingFiles = append(matchingFiles, file)
+			}
+		}
+	}
+
+	return matchingFiles, nil
+}
+
+func ReplaceResources(zipFilePattern string) error {
 	log.Println("Replacing resources...")
 
 	cwd, err := os.Getwd()
@@ -125,7 +147,7 @@ func ReplaceResources() error {
 		log.Printf("Current working directory: %s", cwd)
 	}
 
-	productHome, err := getExtractedProductHome()
+	productHome, err := getExtractedProductHome(zipFilePattern)
 	if err != nil {
 		return err
 	}
@@ -142,11 +164,17 @@ func ReplaceResources() error {
 		return fmt.Errorf("failed to replace database schema files: %v", err)
 	}
 
+	// copy graphs from the target directory to the product home
+	graphsDestPath := filepath.Join(productHome, "repository", "resources", "graphs")
+	err = copyDirectory(TestGraphsDirectory, graphsDestPath)
+	if err != nil {
+		return fmt.Errorf("failed to replace graph files: %v", err)
+	}
+
 	return nil
 }
 
 func copyFile(src, dest string) error {
-
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
@@ -165,7 +193,6 @@ func copyFile(src, dest string) error {
 }
 
 func copyDirectory(src, dest string) error {
-
 	srcDir, err := os.Open(src)
 	if err != nil {
 		return err
@@ -201,8 +228,7 @@ func copyDirectory(src, dest string) error {
 	return nil
 }
 
-func RunInitScript() error {
-
+func RunInitScript(zipFilePattern string) error {
 	log.Println("Running init script...")
 
 	cwd, err := os.Getwd()
@@ -212,7 +238,7 @@ func RunInitScript() error {
 		log.Printf("Current working directory: %s", cwd)
 	}
 
-	productHome, err := getExtractedProductHome()
+	productHome, err := getExtractedProductHome(zipFilePattern)
 	if err != nil {
 		return err
 	}
@@ -247,10 +273,9 @@ func RunInitScript() error {
 	return nil
 }
 
-func StartServer(port string) (*exec.Cmd, error) {
-
+func StartServer(port string, zipFilePattern string) (*exec.Cmd, error) {
 	log.Println("Starting server...")
-	productHome, err := getExtractedProductHome()
+	productHome, err := getExtractedProductHome(zipFilePattern)
 	if err != nil {
 		return nil, err
 	}
@@ -268,10 +293,91 @@ func StartServer(port string) (*exec.Cmd, error) {
 }
 
 func StopServer(cmd *exec.Cmd) {
-
 	log.Println("Stopping server...")
 	if cmd != nil {
 		cmd.Process.Kill()
 		cmd.Wait()
 	}
+}
+
+func GetZipFilePattern() string {
+	goos, goarch := detectOSAndArchitecture()
+	// Use a more general pattern, the filtering will happen in findMatchingZipFile
+	return fmt.Sprintf("thunder-*-%s-%s.zip", goos, goarch)
+}
+
+// detectOSAndArchitecture detects the OS and architecture using Go environment variables
+// or falls back to system detection if environment variables are not available
+func detectOSAndArchitecture() (string, string) {
+	// Try to get from environment variables first
+	goos := os.Getenv("GOOS")
+	goarch := os.Getenv("GOARCH")
+
+	// If GOOS is not set, try to detect from system
+	if goos == "" {
+		// Try using go env command first
+		cmd := exec.Command("go", "env", "GOOS")
+		output, err := cmd.Output()
+		if err == nil {
+			goos = strings.TrimSpace(string(output))
+		}
+
+		// Fallback to uname if go env didn't work
+		if goos == "" {
+			cmd := exec.Command("uname", "-s")
+			output, err := cmd.Output()
+			if err == nil {
+				osName := strings.TrimSpace(string(output))
+				switch {
+				case osName == "Darwin":
+					goos = "darwin"
+				case osName == "Linux":
+					goos = "linux"
+				case strings.HasPrefix(osName, "MINGW") ||
+					strings.HasPrefix(osName, "MSYS") ||
+					strings.HasPrefix(osName, "CYGWIN"):
+					goos = "windows"
+				}
+			}
+		}
+	}
+
+	// If GOARCH is not set, try to detect from system
+	if goarch == "" {
+		// Try using go env command first
+		cmd := exec.Command("go", "env", "GOARCH")
+		output, err := cmd.Output()
+		if err == nil {
+			goarch = strings.TrimSpace(string(output))
+		}
+
+		// Fall back to uname if go env didn't work
+		if goarch == "" {
+			cmd := exec.Command("uname", "-m")
+			output, err := cmd.Output()
+			if err == nil {
+				arch := strings.TrimSpace(string(output))
+				switch arch {
+				case "x86_64", "amd64":
+					goarch = "amd64"
+				case "arm64", "aarch64":
+					goarch = "arm64"
+				}
+			}
+		}
+	}
+
+	// Normalize OS name according to distribution packaging
+	if goos == "darwin" {
+		goos = "macos"
+	} else if goos == "windows" {
+		goos = "win"
+	}
+
+	// Normalize architecture
+	if goarch == "amd64" {
+		goarch = "x64"
+	}
+
+	return goos, goarch
 }

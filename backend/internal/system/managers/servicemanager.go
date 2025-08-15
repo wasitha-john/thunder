@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -44,25 +44,38 @@ func NewServiceManager(mux *http.ServeMux) ServiceManagerInterface {
 
 // RegisterServices registers all the services with the provided HTTP multiplexer.
 func (sm *ServiceManager) RegisterServices() error {
+	// Register the health service.
+	services.NewHealthCheckService(sm.mux)
+
 	// Register the token service.
 	services.NewTokenService(sm.mux)
-
-	// Register the User service.
-	services.NewUserService(sm.mux)
-	// Register the Application service.
-	services.NewApplicationService(sm.mux)
 
 	// Register the authorization service.
 	services.NewAuthorizationService(sm.mux)
 
+	// Register the JWKS service.
+	services.NewJWKSAPIService(sm.mux)
+
+	// Register the Organization Unit service.
+	services.NewOrganizationUnitService(sm.mux)
+
+	// Register the User service.
+	services.NewUserService(sm.mux)
+
+	// Register the Group service.
+	services.NewGroupService(sm.mux)
+
+	// Register the Application service.
+	services.NewApplicationService(sm.mux)
+
 	// Register the identity provider service.
 	services.NewIDPService(sm.mux)
 
-	// Register the authentication service.
-	services.NewAuthenticationService(sm.mux)
-
 	// Register the flow execution service.
 	services.NewFlowExecutionService(sm.mux)
+
+	// Register the notification sender service.
+	services.NewNotificationSenderService(sm.mux)
 
 	return nil
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -22,9 +22,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"html"
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode"
 
 	"github.com/asgardeo/thunder/internal/system/log"
 )
@@ -84,6 +86,18 @@ func ParseURL(urlStr string) (*url.URL, error) {
 	return parsedURL, nil
 }
 
+// IsValidURI checks if the provided URI is valid.
+func IsValidURI(uri string) bool {
+	if uri == "" {
+		return false
+	}
+	parsed, err := url.Parse(uri)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return false
+	}
+	return true
+}
+
 // GetURIWithQueryParams constructs a URI with the given query parameters.
 func GetURIWithQueryParams(uri string, queryParams map[string]string) (string, error) {
 	// Parse the URI.
@@ -115,4 +129,41 @@ func DecodeJSONBody[T any](r *http.Request) (*T, error) {
 		return nil, errors.New("failed to decode JSON: " + err.Error())
 	}
 	return &data, nil
+}
+
+// SanitizeString trims whitespace, removes control characters, and escapes HTML.
+func SanitizeString(input string) string {
+	if input == "" {
+		return input
+	}
+
+	// Trim leading and trailing whitespace
+	trimmed := strings.TrimSpace(input)
+
+	// Remove non-printable/control characters (except newline and tab)
+	cleaned := strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) && r != '\n' && r != '\t' {
+			return -1
+		}
+		return r
+	}, trimmed)
+
+	// Escape HTML to prevent XSS
+	safe := html.EscapeString(cleaned)
+
+	return safe
+}
+
+// SanitizeStringMap sanitizes a map of strings.
+// This function trim whitespace, removes control characters, and escapes HTML in each map entry.
+func SanitizeStringMap(inputs map[string]string) map[string]string {
+	if len(inputs) == 0 {
+		return inputs
+	}
+
+	sanitized := make(map[string]string, len(inputs))
+	for key, value := range inputs {
+		sanitized[key] = SanitizeString(value)
+	}
+	return sanitized
 }

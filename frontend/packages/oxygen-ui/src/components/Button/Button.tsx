@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -20,7 +20,7 @@ import React from 'react';
 import { Button as MUIButton, ButtonProps } from '@mui/material';
 
 const Button = (props: ButtonProps): React.JSX.Element => {
-  return <MUIButton disableElevation {...props} />;
+  return <MUIButton {...props} />;
 };
 
 export type { ButtonProps };

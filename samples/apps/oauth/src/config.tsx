@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -16,12 +16,18 @@
  * under the License.
  */
 
+const response = await fetch('/runtime.json');
+const runtimeConfig = await response.json();
+
 const config = {
-    authEndpoint: import.meta.env.VITE_REACT_APP_SERVER_AUTHENTICATION_ENDPOINT,
-    tokenEndpoint: import.meta.env.VITE_REACT_APP_SERVER_TOKEN_ENDPOINT,
+    applicationID: runtimeConfig.applicationID || import.meta.env.VITE_REACT_APP_AUTH_APP_ID,
+    applicationsEndpoint: runtimeConfig.applicationsEndpoint || import.meta.env.VITE_REACT_APPLICATIONS_ENDPOINT,
+    flowEndpoint: runtimeConfig.flowEndpoint || import.meta.env.VITE_REACT_APP_SERVER_FLOW_ENDPOINT,
+    authorizationEndpoint: runtimeConfig.authorizationEndpoint || import.meta.env.VITE_REACT_APP_SERVER_AUTHORIZATION_ENDPOINT,
+    tokenEndpoint: runtimeConfig.tokenEndpoint || import.meta.env.VITE_REACT_APP_SERVER_TOKEN_ENDPOINT,
     clientId: import.meta.env.VITE_REACT_APP_CLIENT_ID,
     clientSecret: import.meta.env.VITE_REACT_APP_CLIENT_SECRET,
-    redirectUri: import.meta.env.VITE_REACT_APP_REDIRECT_URI,
+    redirectUri: runtimeConfig.redirectUri || import.meta.env.VITE_REACT_APP_REDIRECT_URI,
     scope: import.meta.env.VITE_REACT_APP_SCOPE
 };
 

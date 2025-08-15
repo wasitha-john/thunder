@@ -203,11 +203,16 @@ components:
           type: string
         description:
           type: string
-        client_id:
+        properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/model.IDPProperty'
+    model.IDPProperty:
+      type: object
+      properties:
+        name:
           type: string
-        client_secret:
+        value:
           type: string
-        redirect_uri:
-          type: string
-        scopes:
-          type: object
+        is_secret:
+          type: boolean

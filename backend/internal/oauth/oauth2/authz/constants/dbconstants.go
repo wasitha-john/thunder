@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -46,4 +46,10 @@ var QueryGetAuthorizationCode = dbmodel.DBQuery{
 var QueryUpdateAuthorizationCodeState = dbmodel.DBQuery{
 	ID:    "AZQ-00004",
 	Query: "UPDATE IDN_OAUTH2_AUTHZ_CODE SET STATE = $1 WHERE CODE_ID = $2",
+}
+
+// QueryGetAuthorizationCodeScopes is the query to retrieve scopes for an authorization code.
+var QueryGetAuthorizationCodeScopes = dbmodel.DBQuery{
+	ID:    "AZQ-00005",
+	Query: "SELECT SCOPE FROM IDN_OAUTH2_AUTHZ_CODE_SCOPE WHERE CODE_ID = $1",
 }

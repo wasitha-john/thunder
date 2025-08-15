@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -31,34 +31,37 @@ const (
 	serverPort = "8095"
 )
 
+var zipFilePattern string
+
 func main() {
+	initTests()
 
 	// Step 1: Unzip the product
-	err := testutils.UnzipProduct()
+	err := testutils.UnzipProduct(zipFilePattern)
 	if err != nil {
 		fmt.Printf("Failed to unzip product: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	// Step 2: Replace the resource files in the unzipped directory.
-	err = testutils.ReplaceResources()
+	err = testutils.ReplaceResources(zipFilePattern)
 	if err != nil {
 		fmt.Printf("Failed to replace resources: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	// Step 3: Run the init script to create the SQLite database
-	err = testutils.RunInitScript()
+	err = testutils.RunInitScript(zipFilePattern)
 	if err != nil {
 		fmt.Printf("Failed to run init script: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	// Step 4: Start the server
-	serverCmd, err := testutils.StartServer(serverPort)
+	serverCmd, err := testutils.StartServer(serverPort, zipFilePattern)
 	if err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
-		return
+		os.Exit(1)
 	}
 	defer testutils.StopServer(serverCmd)
 
@@ -75,8 +78,28 @@ func main() {
 	}
 }
 
+func initTests() {
+	zipFilePattern = testutils.GetZipFilePattern()
+	if zipFilePattern == "" {
+		fmt.Println("Failed to determine the zip file pattern.")
+		os.Exit(1)
+	}
+	fmt.Printf("Using zip file pattern: %s\n", zipFilePattern)
+}
+
 func runTests() error {
-	cmd := exec.Command("go", "test", "-v", "./...")
+	// Clean the test cache to avoid getting results from previous runs.
+	// This is important to avoid false positives in test results as the
+	// server and integration test suite are two separate applications.
+	cmd := exec.Command("go", "clean", "-testcache")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to clean test cache: %w", err)
+	}
+
+	cmd = exec.Command("go", "test", "-p=1", "-v", "./...")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

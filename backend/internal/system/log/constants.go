@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -21,4 +21,10 @@ package log
 const (
 	// LoggerKeyComponentName is the key used to identify the component name in the logger.
 	LoggerKeyComponentName = "component"
+	// LoggerKeyExecutorID is the key used to identify the executor ID in the logger.
+	LoggerKeyExecutorID = "executorId"
+	// LoggerKeyFlowID is the key used to identify the flow ID in the logger.
+	LoggerKeyFlowID = "flowId"
+	// LoggerKeyNodeID is the key used to identify the node ID in the logger.
+	LoggerKeyNodeID = "nodeId"
 )

@@ -1,0 +1,78 @@
+# ------------------------------------------------------------------------------
+# Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
+#
+# WSO2 LLC. licenses this file to you under the Apache License,
+# Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# ------------------------------------------------------------------------------
+
+template: testify
+template-data:
+  unroll-variadic: true
+packages:
+  github.com/asgardeo/thunder/internal/system/database/client:
+    config:
+      all: true
+      dir: tests/mocks/database/clientmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: clientmock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/system/database/provider:
+    config:
+      all: true
+      dir: tests/mocks/database/providermock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: providermock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/system/healthcheck/service:
+    config:
+      all: true
+      dir: tests/mocks/healthcheck/servicemock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: servicemock
+      filename: "{{.InterfaceName}}_mock.go"
+  
+  github.com/asgardeo/thunder/internal/system/healthcheck/provider:
+    config:
+      all: true
+      dir: tests/mocks/healthcheck/providermock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: providermock
+      filename: "{{.InterfaceName}}_mock.go"
+  
+  # Uncomment to generate mocks in the cache package.
+  # github.com/asgardeo/thunder/internal/system/cache:
+  #   config:
+  #     all: true
+  #     dir: internal/system/cache
+  #     structname: '{{.InterfaceName}}Mock'
+  #     pkgname: cache
+  #     filename: "{{.InterfaceName}}_mock_test.go"
+
+  github.com/asgardeo/thunder/internal/system/cache:
+    config:
+      all: true
+      dir: tests/mocks/cachemock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: cachemock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/cert:
+    config:
+      all: true
+      dir: tests/mocks/certmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: certmock
+      filename: "{{.InterfaceName}}_mock.go"

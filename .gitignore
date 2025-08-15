@@ -5,6 +5,7 @@
 *.so
 *.dylib
 *.db
+*/**/executables/*
 
 # Test binary, built with `go test -c`
 *.test
@@ -73,8 +74,8 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # NX artifacts
-.nx/cache
-.nx/workspace-data
+frontend/.nx/cache
+frontend/.nx/workspace-data
 
 # typescript
 *.tsbuildinfo
@@ -95,7 +96,9 @@ tmp
 out
 out-tsc
 backend/bin
+backend/server
 frontend/packages/*/modules
+samples/apps/*/server/app
 
 # IDE settings
 settings.json

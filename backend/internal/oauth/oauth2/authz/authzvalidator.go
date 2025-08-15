@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -27,8 +27,8 @@ import (
 
 // AuthorizationValidatorInterface defines the interface for validating OAuth2 authorization requests.
 type AuthorizationValidatorInterface interface {
-	validateInitialAuthorizationRequest(msg *model.OAuthMessage,
-		app *appmodel.OAuthApplication) (bool, string, string)
+	validateInitialAuthorizationRequest(msg *model.OAuthMessage, oauthApp *appmodel.OAuthAppConfigProcessed) (
+		bool, string, string)
 }
 
 // AuthorizationValidator implements the AuthorizationValidatorInterface for validating OAuth2 authorization requests.
@@ -41,35 +41,35 @@ func NewAuthorizationValidator() AuthorizationValidatorInterface {
 
 // validateInitialAuthorizationRequest validates the initial authorization request parameters.
 func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model.OAuthMessage,
-	app *appmodel.OAuthApplication) (bool, string, string) {
-	logger := log.GetLogger()
+	oauthApp *appmodel.OAuthAppConfigProcessed) (bool, string, string) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "AuthorizationValidator"))
 
 	// Extract required parameters.
-	responseType := msg.RequestQueryParams[constants.ResponseType]
-	clientID := msg.RequestQueryParams[constants.ClientID]
-	redirectURI := msg.RequestQueryParams[constants.RedirectURI]
+	responseType := msg.RequestQueryParams[constants.RequestParamResponseType]
+	clientID := msg.RequestQueryParams[constants.RequestParamClientID]
+	redirectURI := msg.RequestQueryParams[constants.RequestParamRedirectURI]
 
 	if clientID == "" {
 		return false, constants.ErrorInvalidRequest, "Missing client_id parameter"
 	}
 
-	// Validate if the authorization code grant type is allowed for the app.
-	if !app.IsAllowedGrantType(constants.GrantTypeAuthorizationCode) {
-		return false, constants.ErrorUnsupportedGrantType,
-			"Authorization code grant type is not allowed for the client"
-	}
-
 	// Validate the redirect URI against the registered application.
-	if err := app.ValidateRedirectURI(redirectURI); err != nil {
+	if err := oauthApp.ValidateRedirectURI(redirectURI); err != nil {
 		logger.Error("Validation failed for redirect URI", log.Error(err))
 		return false, constants.ErrorInvalidRequest, "Invalid redirect URI"
+	}
+
+	// Validate if the authorization code grant type is allowed for the app.
+	if !oauthApp.IsAllowedGrantType(constants.GrantTypeAuthorizationCode) {
+		return true, constants.ErrorUnsupportedGrantType,
+			"Authorization code grant type is not allowed for the client"
 	}
 
 	// Validate the authorization request.
 	if responseType == "" {
 		return true, constants.ErrorInvalidRequest, "Missing response_type parameter"
 	}
-	if responseType != constants.ResponseTypeCode {
+	if !oauthApp.IsAllowedResponseType(responseType) {
 		return true, constants.ErrorUnsupportedResponseType, "Unsupported response type"
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -40,3 +40,12 @@ const TokenTypeBearer = "Bearer"
 
 // ContentTypeJSON is the content type for JSON data.
 const ContentTypeJSON = "application/json"
+
+// ContentTypeFormURLEncoded is the content type for form-urlencoded data.
+const ContentTypeFormURLEncoded = "application/x-www-form-urlencoded"
+
+// DefaultPageSize is the default limit for pagination when not specified.
+const DefaultPageSize = 30
+
+// MaxPageSize is the maximum allowed limit for pagination.
+const MaxPageSize = 100

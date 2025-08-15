@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -27,14 +27,14 @@ import (
 
 // APIErrorFlowRequestJSONDecodeError defines the error response for json decode errors.
 var APIErrorFlowRequestJSONDecodeError = apierror.ErrorResponse{
-	Code:        "FES-60001",
+	Code:        "FES-1001",
 	Message:     "Invalid request payload",
 	Description: "Failed to decode request payload",
 }
 
 // ErrorNodeResponse defines the error response for errors received from nodes.
 var ErrorNodeResponse = serviceerror.ServiceError{
-	Code:             "FES-60002",
+	Code:             "FES-1002",
 	Type:             serviceerror.ClientErrorType,
 	Error:            "Invalid node response",
 	ErrorDescription: "Error response received from the node",
@@ -42,7 +42,7 @@ var ErrorNodeResponse = serviceerror.ServiceError{
 
 // ErrorInvalidAppID defines the error response for invalid app ID errors.
 var ErrorInvalidAppID = serviceerror.ServiceError{
-	Code:             "FES-60003",
+	Code:             "FES-1003",
 	Type:             serviceerror.ClientErrorType,
 	Error:            "Invalid request",
 	ErrorDescription: "Invalid app ID provided in the request",
@@ -50,25 +50,33 @@ var ErrorInvalidAppID = serviceerror.ServiceError{
 
 // ErrorInvalidFlowID defines the error response for invalid flow ID errors.
 var ErrorInvalidFlowID = serviceerror.ServiceError{
-	Code:             "FES-60004",
+	Code:             "FES-1004",
 	Type:             serviceerror.ClientErrorType,
 	Error:            "Invalid request",
 	ErrorDescription: "Invalid flow ID provided in the request",
 }
 
-// ErrorInputDataNotFound defines the error response for missing input data errors.
-var ErrorInputDataNotFound = serviceerror.ServiceError{
-	Code:             "FES-60005",
+// ErrorInvalidFlowType defines the error response for invalid flow type errors.
+var ErrorInvalidFlowType = serviceerror.ServiceError{
+	Code:             "FES-1005",
 	Type:             serviceerror.ClientErrorType,
 	Error:            "Invalid request",
-	ErrorDescription: "One or more input data is required to execute the flow",
+	ErrorDescription: "Invalid flow type provided in the request",
+}
+
+// ErrorRegistrationFlowDisabled defines the error response for registration flow disabled errors.
+var ErrorRegistrationFlowDisabled = serviceerror.ServiceError{
+	Code:             "FES-1006",
+	Type:             serviceerror.ClientErrorType,
+	Error:            "Registration not allowed",
+	ErrorDescription: "Registration flow is disabled for the application",
 }
 
 // Server error structs
 
 // ErrorFlowGraphNotInitialized defines the error response for uninitialized flow graph errors.
 var ErrorFlowGraphNotInitialized = serviceerror.ServiceError{
-	Code:             "FES-65001",
+	Code:             "FES-5001",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Flow graph is not initialized or is nil",
@@ -76,7 +84,7 @@ var ErrorFlowGraphNotInitialized = serviceerror.ServiceError{
 
 // ErrorFlowGraphNotFound defines the error response for flow graph not found errors.
 var ErrorFlowGraphNotFound = serviceerror.ServiceError{
-	Code:             "FES-65002",
+	Code:             "FES-5002",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Flow graph not found for the graph ID",
@@ -84,7 +92,7 @@ var ErrorFlowGraphNotFound = serviceerror.ServiceError{
 
 // ErrorStartNodeNotFoundInGraph defines the error response for start node not found in the flow graph.
 var ErrorStartNodeNotFoundInGraph = serviceerror.ServiceError{
-	Code:             "FES-65003",
+	Code:             "FES-5003",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Start node not found in the flow graph",
@@ -92,7 +100,7 @@ var ErrorStartNodeNotFoundInGraph = serviceerror.ServiceError{
 
 // ErrorNodeResponseStatusNotFound defines the error response for node response status not found in the flow graph.
 var ErrorNodeResponseStatusNotFound = serviceerror.ServiceError{
-	Code:             "FES-65004",
+	Code:             "FES-5004",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Node response status not found in the flow graph",
@@ -100,7 +108,7 @@ var ErrorNodeResponseStatusNotFound = serviceerror.ServiceError{
 
 // ErrorMovingToNextNode defines the error response for errors while moving to the next node in the flow graph.
 var ErrorMovingToNextNode = serviceerror.ServiceError{
-	Code:             "FES-65005",
+	Code:             "FES-5005",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Error while moving to the next node",
@@ -108,7 +116,7 @@ var ErrorMovingToNextNode = serviceerror.ServiceError{
 
 // ErrorResolvingStepForRedirection defines the error response for errors while resolving step for redirection.
 var ErrorResolvingStepForRedirection = serviceerror.ServiceError{
-	Code:             "FES-65006",
+	Code:             "FES-5006",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Error while resolving step for redirection",
@@ -116,7 +124,7 @@ var ErrorResolvingStepForRedirection = serviceerror.ServiceError{
 
 // ErrorResolvingStepForPrompt defines the error response for errors while resolving step for prompt.
 var ErrorResolvingStepForPrompt = serviceerror.ServiceError{
-	Code:             "FES-65007",
+	Code:             "FES-5007",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Error while resolving step for prompt",
@@ -124,7 +132,7 @@ var ErrorResolvingStepForPrompt = serviceerror.ServiceError{
 
 // ErrorUnsupportedNodeResponseType defines the error response for unsupported response type from the node.
 var ErrorUnsupportedNodeResponseType = serviceerror.ServiceError{
-	Code:             "FES-65008",
+	Code:             "FES-5008",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Unsupported response type returned from the node",
@@ -132,7 +140,7 @@ var ErrorUnsupportedNodeResponseType = serviceerror.ServiceError{
 
 // ErrorUnsupportedNodeResponseStatus defines the error response for unsupported response status from the node.
 var ErrorUnsupportedNodeResponseStatus = serviceerror.ServiceError{
-	Code:             "FES-65009",
+	Code:             "FES-5009",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Unsupported response status returned from the node",
@@ -140,15 +148,23 @@ var ErrorUnsupportedNodeResponseStatus = serviceerror.ServiceError{
 
 // ErrorNodeExecutorNotFound defines the error response for node executor not found errors.
 var ErrorNodeExecutorNotFound = serviceerror.ServiceError{
-	Code:             "FES-65010",
+	Code:             "FES-5010",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "An executor not found for the node",
 }
 
+// ErrorConstructingNodeExecutor defines the error response for errors while constructing the node executor.
+var ErrorConstructingNodeExecutor = serviceerror.ServiceError{
+	Code:             "FES-5011",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Something went wrong",
+	ErrorDescription: "Error constructing the node executor",
+}
+
 // ErrorNodeExecutorExecError defines the error response for errors while executing the node executor.
 var ErrorNodeExecutorExecError = serviceerror.ServiceError{
-	Code:             "FES-65011",
+	Code:             "FES-5012",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Executor Execution Error",
 	ErrorDescription: "Error executing the node executor",
@@ -156,7 +172,7 @@ var ErrorNodeExecutorExecError = serviceerror.ServiceError{
 
 // ErrorNilResponseFromExecutor defines the error response for nil response from the executor.
 var ErrorNilResponseFromExecutor = serviceerror.ServiceError{
-	Code:             "FES-65012",
+	Code:             "FES-5013",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Executor Response Error",
 	ErrorDescription: "Received nil response from the executor",
@@ -164,7 +180,7 @@ var ErrorNilResponseFromExecutor = serviceerror.ServiceError{
 
 // ErrorUpdatingContextInStore defines the error response for errors while updating the flow context in the store.
 var ErrorUpdatingContextInStore = serviceerror.ServiceError{
-	Code:             "FES-65013",
+	Code:             "FES-5014",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Something went wrong",
 	ErrorDescription: "Error updating flow context in the store",
@@ -173,7 +189,7 @@ var ErrorUpdatingContextInStore = serviceerror.ServiceError{
 // ErrorAuthFlowNotConfiguredForApplication defines the error response for applications without
 // an authentication flow graph configured.
 var ErrorAuthFlowNotConfiguredForApplication = serviceerror.ServiceError{
-	Code:             "FES-65014",
+	Code:             "FES-5015",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Invalid configuration",
 	ErrorDescription: "No authentication flow graph is configured for the application",
@@ -182,8 +198,33 @@ var ErrorAuthFlowNotConfiguredForApplication = serviceerror.ServiceError{
 // ErrorInvalidAuthFlowConfiguredForApplication defines the error response for applications with an invalid
 // authentication flow graph configured.
 var ErrorInvalidAuthFlowConfiguredForApplication = serviceerror.ServiceError{
-	Code:             "FES-65015",
+	Code:             "FES-5016",
 	Type:             serviceerror.ServerErrorType,
 	Error:            "Invalid configuration",
 	ErrorDescription: "The configured flow graph is not valid for the application authentication flow",
+}
+
+// ErrorNoActionsDefinedForNode defines the error response for nodes without any actions defined.
+var ErrorNoActionsDefinedForNode = serviceerror.ServiceError{
+	Code:             "FES-5017",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Invalid configuration",
+	ErrorDescription: "No actions defined for the node",
+}
+
+// ErrorRegisFlowNotConfiguredForApplication defines the error response for applications without
+// a registration flow graph configured.
+var ErrorRegisFlowNotConfiguredForApplication = serviceerror.ServiceError{
+	Code:             "FES-5018",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Invalid configuration",
+	ErrorDescription: "No registration flow graph is configured for the application",
+}
+
+// ErrorFlowContextConversionFailed defines the error response for failed flow context conversion.
+var ErrorFlowContextConversionFailed = serviceerror.ServiceError{
+	Code:             "FES-5019",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Something went wrong",
+	ErrorDescription: "Failed to convert flow context from database format",
 }

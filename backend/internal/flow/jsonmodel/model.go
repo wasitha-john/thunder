@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -21,17 +21,18 @@ package jsonmodel
 
 // GraphDefinition represents the direct graph structure from JSON
 type GraphDefinition struct {
-	ID    string              `json:"id"`
-	Nodes []NodeDefinition    `json:"nodes"`
-	Edges map[string][]string `json:"edges"`
+	ID    string           `json:"id"`
+	Type  string           `json:"type"`
+	Nodes []NodeDefinition `json:"nodes"`
 }
 
 // NodeDefinition represents a node in the graph definition
 type NodeDefinition struct {
-	ID        string            `json:"id"`
-	Type      string            `json:"type"`
-	InputData []InputDefinition `json:"inputData"`
-	Executor  string            `json:"executor"`
+	ID        string             `json:"id"`
+	Type      string             `json:"type"`
+	InputData []InputDefinition  `json:"inputData"`
+	Executor  ExecutorDefinition `json:"executor"`
+	Next      []string           `json:"next,omitempty"`
 }
 
 // InputDefinition represents an input parameter for a node
@@ -39,4 +40,11 @@ type InputDefinition struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Required bool   `json:"required"`
+}
+
+// ExecutorDefinition represents the executor configuration for a node
+type ExecutorDefinition struct {
+	Name       string            `json:"name"`
+	IdpName    string            `json:"idpName,omitempty"`
+	Properties map[string]string `json:"properties,omitempty"`
 }

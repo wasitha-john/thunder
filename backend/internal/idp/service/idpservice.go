@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -33,6 +33,7 @@ type IDPServiceInterface interface {
 	CreateIdentityProvider(idp *model.IDP) (*model.IDP, error)
 	GetIdentityProviderList() ([]model.IDP, error)
 	GetIdentityProvider(idpID string) (*model.IDP, error)
+	GetIdentityProviderByName(idpName string) (*model.IDP, error)
 	UpdateIdentityProvider(idpID string, idp *model.IDP) (*model.IDP, error)
 	DeleteIdentityProvider(idpID string) error
 }
@@ -77,6 +78,20 @@ func (is *IDPService) GetIdentityProvider(idpID string) (*model.IDP, error) {
 	}
 
 	idp, err := store.GetIdentityProvider(idpID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &idp, nil
+}
+
+// GetIdentityProviderByName get the IdP for given IdP name.
+func (is *IDPService) GetIdentityProviderByName(idpName string) (*model.IDP, error) {
+	if idpName == "" {
+		return nil, errors.New("IdP name is empty")
+	}
+
+	idp, err := store.GetIdentityProviderByName(idpName)
 	if err != nil {
 		return nil, err
 	}

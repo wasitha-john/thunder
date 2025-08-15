@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -19,6 +19,9 @@
 package granthandlers
 
 import (
+	"strings"
+	"time"
+
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
@@ -26,12 +29,23 @@ import (
 )
 
 // ClientCredentialsGrantHandler handles the client credentials grant type.
-type ClientCredentialsGrantHandler struct{}
+type ClientCredentialsGrantHandler struct {
+	JWTService jwt.JWTServiceInterface
+}
+
+var _ GrantHandler = (*ClientCredentialsGrantHandler)(nil)
+
+// NewClientCredentialsGrantHandler creates a new instance of ClientCredentialsGrantHandler.
+func NewClientCredentialsGrantHandler() *ClientCredentialsGrantHandler {
+	return &ClientCredentialsGrantHandler{
+		JWTService: jwt.GetJWTService(),
+	}
+}
 
 // ValidateGrant validates the client credentials grant type.
-func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest) *model.ErrorResponse {
-	// Validate the grant type.
-	if tokenRequest.GrantType != constants.GrantTypeClientCredentials {
+func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
+	oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse {
+	if constants.GrantType(tokenRequest.GrantType) != constants.GrantTypeClientCredentials {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorUnsupportedGrantType,
 			ErrorDescription: "Unsupported grant type",
@@ -51,17 +65,21 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 
 // HandleGrant handles the client credentials grant type.
 func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthApplication) (*model.TokenResponse, *model.ErrorResponse) {
-	// Validate the client credentials.
-	if tokenRequest.ClientID != oauthApp.ClientID || tokenRequest.ClientSecret != oauthApp.ClientSecret {
-		return nil, &model.ErrorResponse{
-			Error:            constants.ErrorInvalidClient,
-			ErrorDescription: "Invalid client credentials",
-		}
+	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (
+	*model.TokenResponseDTO, *model.ErrorResponse) {
+	scopeString := strings.TrimSpace(tokenRequest.Scope)
+	scopes := []string{}
+	if scopeString != "" {
+		scopes = strings.Split(scopeString, " ")
 	}
 
 	// Generate a JWT token for the client.
-	token, err := jwt.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID)
+	jwtClaims := make(map[string]string)
+	if scopeString != "" {
+		jwtClaims["scope"] = scopeString
+	}
+	token, _, err := h.JWTService.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID,
+		jwt.GetJWTTokenValidityPeriod(), jwtClaims)
 	if err != nil {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
@@ -69,11 +87,24 @@ func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 		}
 	}
 
-	// Return the token response.
-	return &model.TokenResponse{
-		AccessToken: token,
-		TokenType:   constants.TokenTypeBearer,
-		Scope:       tokenRequest.Scope,
-		ExpiresIn:   3600,
+	// Add context attributes.
+	if ctx.TokenAttributes == nil {
+		ctx.TokenAttributes = make(map[string]interface{})
+	}
+	ctx.TokenAttributes["sub"] = tokenRequest.ClientID
+	ctx.TokenAttributes["aud"] = tokenRequest.ClientID
+
+	// Prepare the token response.
+	accessToken := &model.TokenDTO{
+		Token:     token,
+		TokenType: constants.TokenTypeBearer,
+		IssuedAt:  time.Now().Unix(),
+		ExpiresIn: 3600,
+		Scopes:    scopes,
+		ClientID:  tokenRequest.ClientID,
+	}
+
+	return &model.TokenResponseDTO{
+		AccessToken: *accessToken,
 	}, nil
 }

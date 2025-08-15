@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -22,38 +22,49 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/asgardeo/thunder/internal/flow/constants"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // GraphInterface defines the graph structure
 type GraphInterface interface {
 	GetID() string
+	GetType() constants.FlowType
 	AddNode(node NodeInterface) error
 	GetNode(nodeID string) (NodeInterface, bool)
 	AddEdge(fromNodeID, toNodeID string) error
+	RemoveEdge(fromNodeID, toNodeID string) error
 	GetNodes() map[string]NodeInterface
+	SetNodes(nodes map[string]NodeInterface)
 	GetEdges() map[string][]string
+	SetEdges(edges map[string][]string)
 	GetStartNodeID() string
-	SetStartNodeID(startNodeID string) error
+	GetStartNode() (NodeInterface, error)
+	SetStartNode(startNodeID string) error
 	ToJSON() (string, error)
 }
 
 // Graph implements the GraphInterface for the flow execution
 type Graph struct {
 	id          string
+	_type       constants.FlowType
 	nodes       map[string]NodeInterface
 	edges       map[string][]string
 	startNodeID string
 }
 
 // NewGraph creates a new Graph with a unique ID
-func NewGraph(id string) GraphInterface {
+func NewGraph(id string, _type constants.FlowType) GraphInterface {
 	if id == "" {
 		id = sysutils.GenerateUUID()
+	}
+	if _type == "" {
+		_type = constants.FlowTypeAuthentication
 	}
 
 	return &Graph{
 		id:    id,
+		_type: _type,
 		nodes: make(map[string]NodeInterface),
 		edges: make(map[string][]string),
 	}
@@ -62,6 +73,11 @@ func NewGraph(id string) GraphInterface {
 // GetID returns the unique ID of the graph
 func (g *Graph) GetID() string {
 	return g.id
+}
+
+// GetType returns the type of the graph
+func (g *Graph) GetType() constants.FlowType {
+	return g._type
 }
 
 // AddNode adds a node to the graph
@@ -87,12 +103,17 @@ func (g *Graph) AddEdge(fromNodeID, toNodeID string) error {
 	if fromNodeID == "" || toNodeID == "" {
 		return errors.New("fromNodeID and toNodeID cannot be empty")
 	}
-	if _, exists := g.nodes[fromNodeID]; !exists {
+	fromNode, exists := g.nodes[fromNodeID]
+	if !exists {
 		return errors.New("node with fromNodeID does not exist")
 	}
-	if _, exists := g.nodes[toNodeID]; !exists {
+	toNode, exists := g.nodes[toNodeID]
+	if !exists {
 		return errors.New("node with toNodeID does not exist")
 	}
+
+	fromNode.AddNextNodeID(toNodeID)
+	toNode.AddPreviousNodeID(fromNodeID)
 
 	if _, exists := g.edges[fromNodeID]; !exists {
 		g.edges[fromNodeID] = []string{}
@@ -101,9 +122,47 @@ func (g *Graph) AddEdge(fromNodeID, toNodeID string) error {
 	return nil
 }
 
+// RemoveEdge removes an edge from one node to another
+func (g *Graph) RemoveEdge(fromNodeID, toNodeID string) error {
+	if fromNodeID == "" || toNodeID == "" {
+		return errors.New("fromNodeID and toNodeID cannot be empty")
+	}
+	fromNode, exists := g.nodes[fromNodeID]
+	if !exists {
+		return errors.New("node with fromNodeID does not exist")
+	}
+	toNode, exists := g.nodes[toNodeID]
+	if !exists {
+		return errors.New("node with toNodeID does not exist")
+	}
+
+	fromNode.RemoveNextNodeID(toNodeID)
+	toNode.RemovePreviousNodeID(fromNodeID)
+
+	if edges, exists := g.edges[fromNodeID]; exists {
+		for i, edge := range edges {
+			if edge == toNodeID {
+				g.edges[fromNodeID] = append(edges[:i], edges[i+1:]...)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // GetNodes returns all nodes in the graph
 func (g *Graph) GetNodes() map[string]NodeInterface {
 	return g.nodes
+}
+
+// SetNodes sets the nodes for the graph
+func (g *Graph) SetNodes(nodes map[string]NodeInterface) {
+	if nodes == nil {
+		g.nodes = make(map[string]NodeInterface)
+	} else {
+		g.nodes = nodes
+	}
 }
 
 // GetEdges returns all edges in the graph
@@ -111,17 +170,41 @@ func (g *Graph) GetEdges() map[string][]string {
 	return g.edges
 }
 
+// SetEdges sets the edges for the graph
+func (g *Graph) SetEdges(edges map[string][]string) {
+	if edges == nil {
+		g.edges = make(map[string][]string)
+	} else {
+		g.edges = edges
+	}
+}
+
 // GetStartNodeID returns the start node ID of the graph
 func (g *Graph) GetStartNodeID() string {
 	return g.startNodeID
 }
 
-// SetStartNodeID sets the start node ID for the graph
-func (g *Graph) SetStartNodeID(startNodeID string) error {
-	if _, exists := g.nodes[startNodeID]; !exists {
+// GetStartNode retrieves the start node of the graph
+func (g *Graph) GetStartNode() (NodeInterface, error) {
+	if g.startNodeID == "" {
+		return nil, errors.New("start node not set for the graph")
+	}
+	node, exists := g.nodes[g.startNodeID]
+	if !exists {
+		return nil, errors.New("start node does not exist in the graph")
+	}
+	return node, nil
+}
+
+// SetStartNode sets the start node ID for the graph
+func (g *Graph) SetStartNode(startNodeID string) error {
+	node, exists := g.nodes[startNodeID]
+	if !exists {
 		return errors.New("node with startNodeID does not exist")
 	}
 	g.startNodeID = startNodeID
+	node.SetAsStartNode()
+
 	return nil
 }
 
@@ -134,14 +217,14 @@ func (g *Graph) ToJSON() (string, error) {
 	}
 
 	type JSONNode struct {
-		ID             string          `json:"id"`
-		Type           string          `json:"type"`
-		IsStartNode    bool            `json:"isStartNode,omitempty"`
-		IsFinalNode    bool            `json:"isFinalNode,omitempty"`
-		NextNodeID     string          `json:"nextNodeId,omitempty"`
-		PreviousNodeID string          `json:"previousNodeId,omitempty"`
-		InputData      []JSONInputData `json:"inputData,omitempty"`
-		Executor       string          `json:"executor,omitempty"`
+		ID                 string          `json:"id"`
+		Type               string          `json:"type"`
+		IsStartNode        bool            `json:"isStartNode,omitempty"`
+		IsFinalNode        bool            `json:"isFinalNode,omitempty"`
+		NextNodeIDList     []string        `json:"nextNodeIds"`
+		PreviousNodeIDList []string        `json:"previousNodeIds"`
+		InputData          []JSONInputData `json:"inputData,omitempty"`
+		Executor           string          `json:"executor,omitempty"`
 	}
 
 	type JSONGraph struct {
@@ -161,12 +244,12 @@ func (g *Graph) ToJSON() (string, error) {
 	// Convert nodes to JSONNode
 	for id, node := range g.nodes {
 		jsonNode := JSONNode{
-			ID:             id,
-			Type:           node.GetType(),
-			IsStartNode:    node.IsStartNode(),
-			IsFinalNode:    node.IsFinalNode(),
-			NextNodeID:     node.GetNextNodeID(),
-			PreviousNodeID: node.GetPreviousNodeID(),
+			ID:                 id,
+			Type:               string(node.GetType()),
+			IsStartNode:        node.IsStartNode(),
+			IsFinalNode:        node.IsFinalNode(),
+			NextNodeIDList:     node.GetNextNodeList(),
+			PreviousNodeIDList: node.GetPreviousNodeList(),
 		}
 
 		// Set executor if available

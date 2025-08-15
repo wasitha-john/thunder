@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+# Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
 #
 # WSO2 LLC. licenses this file to you under the Apache License,
 # Version 2.0 (the "License"); you may not use this file except
@@ -32,39 +32,86 @@ $(TOOL_BIN):
 	mkdir -p $(TOOL_BIN)
 
 # Default target
-all: prepare clean build test
+all: prepare clean test_unit build test_integration
+
+backend: prepare clean test_unit build_backend test_integration
 
 prepare:
 	chmod +x build.sh
 
+clean_all:
+	./build.sh clean_all $(OS) $(ARCH)
+
 clean:
 	./build.sh clean $(OS) $(ARCH)
 
-build:
-	./build.sh build $(OS) $(ARCH)
+build: build_backend build_samples
+
+build_backend:
+	./build.sh build_backend $(OS) $(ARCH)
+
+package_samples:
+	./build.sh package_samples $(OS) $(ARCH)
+
+build_samples:
+	./build.sh build_samples
 
 test:
 	./build.sh test $(OS) $(ARCH)
 
+test_unit:
+	./build.sh test_unit $(OS) $(ARCH)
+
+test_integration:
+	./build.sh test_integration $(OS) $(ARCH)
+
 run:
 	./build.sh run $(OS) $(ARCH)
+
+docker-build:
+	docker build -t thunder:$(VERSION) .
+
+docker-build-latest:
+	docker build -t thunder:latest .
+
+docker-build-multiarch:
+	docker buildx build --platform linux/amd64,linux/arm64 -t thunder:$(VERSION) .
+
+docker-build-multiarch-latest:
+	docker buildx build --platform linux/amd64,linux/arm64 -t thunder:latest .
+
+docker-build-multiarch-push:
+	docker buildx build --platform linux/amd64,linux/arm64 -t thunder:$(VERSION) -t thunder:latest --push .
 
 lint: golangci-lint
 	cd backend && $(GOLANGCI_LINT) run ./...
 
 help:
 	@echo "Makefile targets:"
-	@echo "  all    - Clean, build, and test the project."
-	@echo "  clean  - Remove build artifacts."
-	@echo "  build  - Build the Go project and frontend, then package."
-	@echo "  test   - Run integration tests."
-	@echo "  run    - Build and run the application locally."
-	@echo "  lint   - Run golangci-lint on the project."
-	@echo "  help   - Show this help message."
+	@echo "  all                           - Clean, build, and test the project."
+	@echo "  clean                         - Remove build artifacts."
+	@echo "  clean_all                     - Remove all build artifacts including distribution files."
+	@echo "  build                         - Build the Go project and frontend, then package."
+	@echo "  build_backend                 - Build the backend Go application."
+	@echo "  package_samples               - Package sample applications."
+	@echo "  build_samples                 - Build sample applications."
+	@echo "  test_unit                     - Run unit tests."
+	@echo "  test_integration              - Run integration tests."
+	@echo "  test                          - Run all tests (unit and integration)."
+	@echo "  run                           - Build and run the application locally."
+	@echo "  docker-build                  - Build single-arch Docker image with version tag."
+	@echo "  docker-build-latest           - Build single-arch Docker image with latest tag."
+	@echo "  docker-build-multiarch        - Build multi-arch Docker image with version tag."
+	@echo "  docker-build-multiarch-latest - Build multi-arch Docker image with latest tag."
+	@echo "  docker-build-multiarch-push   - Build and push multi-arch images to registry."
+	@echo "  lint                          - Run golangci-lint on the project."
+	@echo "  help                          - Show this help message."
 
-.PHONY: all prepare clean build test run lint help
-
-.PHONY: go_install_tool golangci-lint
+.PHONY: all prepare clean clean_all build build_samples package_samples run
+.PHONY: docker-build docker-build-latest docker-build-multiarch 
+.PHONY: docker-build-multiarch-latest docker-build-multiarch-push
+.PHONY: test_unit test_integration test
+.PHONY: lint help go_install_tool golangci-lint
 
 define go_install_tool
 	cd /tmp && \

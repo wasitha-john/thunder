@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -16,11 +16,30 @@
  * under the License.
  */
 
+const base64UrlDecode = (base64UrlString: string): string => {
+    // Convert Base64URL → Base64
+    let base64 = base64UrlString.replace(/-/g, '+').replace(/_/g, '/');
+  
+    // Pad with `=` if necessary
+    while (base64.length % 4 !== 0) {
+      base64 += '=';
+    }
+  
+    return atob(base64);
+}
+
+/**
+ * Decodes a JWT token string into its header, payload, and signature components.
+ * 
+ * @param token JWT token string to decode.
+ * @returns An object containing the decoded header, payload, and signature.
+ */
 export const decodeJwt = (token: string) => {
     try {
         const [header, payload, signature] = token.split('.');
-        const decodedHeader = JSON.parse(atob(header));
-        const decodedPayload = JSON.parse(atob(payload));
+
+        const decodedHeader = JSON.parse(base64UrlDecode(header));
+        const decodedPayload = JSON.parse(base64UrlDecode(payload));
         return {
             header: decodedHeader,
             payload: decodedPayload,

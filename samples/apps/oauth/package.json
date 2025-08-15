@@ -1,23 +1,32 @@
 {
-  "name": "oauth",
+  "name": "react-oauth-sample-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run build:server",
     "start": "tsc -b && vite build && vite preview",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "copy:app": "rm -rf server/app && mkdir -p server/app && cp -r dist/* server/app",
+    "copy:certs": "cp -r server.key server.cert server ",
+    "build:server": "npm run copy:app && npm run copy:certs && cd server && npm install"
   },
   "dependencies": {
-    "axios": "^0.21.1",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^7.1.0",
+    "@mui/material": "^7.0.2",
+    "@mui/system": "^7.1.0",
+    "axios": "^1.9.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^5.2.0"
+    "react-router-dom": "^7.6.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@types/node": "^22.15.29",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@types/react-router-dom": "5",

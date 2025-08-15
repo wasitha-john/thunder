@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -36,22 +36,22 @@ const (
 
 var (
 	preCreatedUser User = User{
-		Id:         "550e8400-e29b-41d4-a716-446655440000",
-		OrgId:      "456e8400-e29b-41d4-a716-446655440001",
-		Type:       "person",
-		Attributes: json.RawMessage(`{"age": 30, "roles": ["admin", "user"], "address": {"city": "Colombo", "zip": "00100"}}`),
+		Id:               "550e8400-e29b-41d4-a716-446655440000",
+		OrganizationUnit: "456e8400-e29b-41d4-a716-446655440001",
+		Type:             "person",
+		Attributes:       json.RawMessage(`{"age": 30, "roles": ["admin", "user"], "address": {"city": "Colombo", "zip": "00100"}}`),
 	}
 
 	userToCreate = User{
-		OrgId:      "456e8400-e29b-41d4-a716-446655440001",
-		Type:       "person",
-		Attributes: json.RawMessage(`{"age": 25, "roles": ["viewer"], "address": {"city": "Seattle", "zip": "98101"}}`),
+		OrganizationUnit: "456e8400-e29b-41d4-a716-446655440001",
+		Type:             "person",
+		Attributes:       json.RawMessage(`{"age": 25, "roles": ["viewer"], "address": {"city": "Seattle", "zip": "98101"}}`),
 	}
 
 	userToUpdate = User{
-		OrgId:      "456e8400-e29b-41d4-a716-446655440001",
-		Type:       "person",
-		Attributes: json.RawMessage(`{"age": 35, "roles": ["admin"], "address": {"city": "Colombo", "zip": "10300"}}`),
+		OrganizationUnit: "456e8400-e29b-41d4-a716-446655440001",
+		Type:             "person",
+		Attributes:       json.RawMessage(`{"age": 35, "roles": ["admin"], "address": {"city": "Colombo", "zip": "10300"}}`),
 	}
 )
 
@@ -112,34 +112,132 @@ func (ts *UserAPITestSuite) TestUserListing() {
 
 	// Validate the response
 	if resp.StatusCode != http.StatusOK {
-		ts.T().Fatalf("Expected status 200, got %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		ts.T().Fatalf("Expected status 200, got %d. Response body: %s", resp.StatusCode, string(body))
 	}
 
-	// Parse the response body
-	var users []User
-	err = json.NewDecoder(resp.Body).Decode(&users)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		ts.T().Fatalf("Failed to parse response body: %v", err)
+		ts.T().Fatalf("Failed to read response body: %v", err)
 	}
 
+	var userListResponse UserListResponse
+	err = json.Unmarshal(bodyBytes, &userListResponse)
+	if err != nil {
+		ts.T().Fatalf("Failed to parse response body: %v. Raw body: %s", err, string(bodyBytes))
+	}
+
+	if userListResponse.TotalResults <= 0 {
+		ts.T().Fatalf("Expected TotalResults > 0, got %d", userListResponse.TotalResults)
+	}
+
+	if userListResponse.StartIndex != 1 {
+		ts.T().Fatalf("Expected StartIndex 1, got %d", userListResponse.StartIndex)
+	}
+
+	if userListResponse.Count != len(userListResponse.Users) {
+		ts.T().Fatalf("Count field (%d) doesn't match actual users length (%d)", userListResponse.Count, len(userListResponse.Users))
+	}
+
+	users := userListResponse.Users
 	userListLength := len(users)
 	if userListLength == 0 {
 		ts.T().Fatalf("Response does not contain any users")
 	}
 
-	if userListLength != 2 {
-		ts.T().Fatalf("Expected 2 users, got %d", userListLength)
-	}
-
-	user1 := users[0]
-	if !user1.equals(preCreatedUser) {
-		ts.T().Fatalf("User mismatch, expected %+v, got %+v", preCreatedUser, user1)
-	}
-
-	user2 := users[1]
+	var foundCreatedUser bool
 	createdUser := buildCreatedUser()
-	if !user2.equals(createdUser) {
-		ts.T().Fatalf("User mismatch, expected %+v, got %+v", createdUser, user2)
+	for _, user := range users {
+		if user.equals(createdUser) {
+			foundCreatedUser = true
+			break
+		}
+	}
+
+	if !foundCreatedUser {
+		ts.T().Fatalf("Created user not found in user list. Expected %+v", createdUser)
+	}
+}
+
+// Test user pagination
+func (ts *UserAPITestSuite) TestUserPagination() {
+	req, err := http.NewRequest("GET", testServerURL+"/users?limit=1&offset=0", nil)
+	if err != nil {
+		ts.T().Fatalf("Failed to create request: %v", err)
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		ts.T().Fatalf("Failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		ts.T().Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	var userListResponse UserListResponse
+	err = json.NewDecoder(resp.Body).Decode(&userListResponse)
+	if err != nil {
+		ts.T().Fatalf("Failed to parse response body: %v", err)
+	}
+
+	if userListResponse.Count != 1 {
+		ts.T().Fatalf("Expected count 1 with limit=1, got %d", userListResponse.Count)
+	}
+
+	if len(userListResponse.Users) != 1 {
+		ts.T().Fatalf("Expected 1 user with limit=1, got %d", len(userListResponse.Users))
+	}
+
+	if userListResponse.StartIndex != 1 {
+		ts.T().Fatalf("Expected StartIndex 1 with offset=0, got %d", userListResponse.StartIndex)
+	}
+
+	req2, err := http.NewRequest("GET", testServerURL+"/users?limit=1&offset=1", nil)
+	if err != nil {
+		ts.T().Fatalf("Failed to create request: %v", err)
+	}
+
+	resp2, err := client.Do(req2)
+	if err != nil {
+		ts.T().Fatalf("Failed to send request: %v", err)
+	}
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != http.StatusOK {
+		ts.T().Fatalf("Expected status 200, got %d", resp2.StatusCode)
+	}
+
+	var userListResponse2 UserListResponse
+	err = json.NewDecoder(resp2.Body).Decode(&userListResponse2)
+	if err != nil {
+		ts.T().Fatalf("Failed to parse response body: %v", err)
+	}
+
+	if userListResponse2.StartIndex != 2 {
+		ts.T().Fatalf("Expected StartIndex 2 with offset=1, got %d", userListResponse2.StartIndex)
+	}
+
+	req3, err := http.NewRequest("GET", testServerURL+"/users?limit=invalid", nil)
+	if err != nil {
+		ts.T().Fatalf("Failed to create request: %v", err)
+	}
+
+	resp3, err := client.Do(req3)
+	if err != nil {
+		ts.T().Fatalf("Failed to send request: %v", err)
+	}
+	defer resp3.Body.Close()
+
+	if resp3.StatusCode != http.StatusBadRequest {
+		ts.T().Fatalf("Expected status 400 for invalid limit, got %d", resp3.StatusCode)
 	}
 }
 
@@ -190,10 +288,10 @@ func (ts *UserAPITestSuite) TestUserUpdate() {
 
 	// Validate the update by retrieving the user
 	retrieveAndValidateUserDetails(ts, User{
-		Id:         createdUserID,
-		OrgId:      userToUpdate.OrgId,
-		Type:       userToUpdate.Type,
-		Attributes: userToUpdate.Attributes,
+		Id:               createdUserID,
+		OrganizationUnit: userToUpdate.OrganizationUnit,
+		Type:             userToUpdate.Type,
+		Attributes:       userToUpdate.Attributes,
 	})
 }
 
@@ -311,9 +409,9 @@ func deleteUser(userId string) error {
 func buildCreatedUser() User {
 
 	return User{
-		Id:         createdUserID,
-		OrgId:      userToCreate.OrgId,
-		Type:       userToCreate.Type,
-		Attributes: userToCreate.Attributes,
+		Id:               createdUserID,
+		OrganizationUnit: userToCreate.OrganizationUnit,
+		Type:             userToCreate.Type,
+		Attributes:       userToCreate.Attributes,
 	}
 }

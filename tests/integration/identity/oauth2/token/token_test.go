@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -138,22 +138,16 @@ func (ts *TokenTestSuite) TestClientCredentialsGrantWithHeaderCredentials() {
 			expectedScopes:  nil,
 		},
 		{
-			testName:        "WithAuthorizedAndUnauthorizedScopes",
-			requestedScopes: "internal_user_mgt_view internal_group_mgt_view internal_group_mgt_edit",
+			testName:        "WithUnknownScopes",
+			requestedScopes: "unknown_scope",
 			expectedStatus:  http.StatusOK,
-			expectedScopes:  []string{"internal_user_mgt_view", "internal_group_mgt_view"},
+			expectedScopes:  []string{"unknown_scope"},
 		},
 		{
-			testName:        "WithInvalidScopes",
-			requestedScopes: "invalid_scope",
+			testName:        "WithAuthorizedAndUnknownScopes",
+			requestedScopes: "internal_user_mgt_view unknown_scope",
 			expectedStatus:  http.StatusOK,
-			expectedScopes:  nil,
-		},
-		{
-			testName:        "WithAuthorizedAndInvalidScopes",
-			requestedScopes: "internal_user_mgt_view invalid_scope",
-			expectedStatus:  http.StatusOK,
-			expectedScopes:  []string{"internal_user_mgt_view"},
+			expectedScopes:  []string{"internal_user_mgt_view", "unknown_scope"},
 		},
 	}
 

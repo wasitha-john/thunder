@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -22,14 +22,13 @@ package model
 import (
 	"time"
 
-	authnmodel "github.com/asgardeo/thunder/internal/authn/model"
+	authndto "github.com/asgardeo/thunder/internal/authn/dto"
 	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
 // SessionData represents the session data for the authentication.
 type SessionData struct {
-	OAuthParameters      oauthmodel.OAuthParameters
-	AuthTime             time.Time
-	CurrentAuthenticator string
-	AuthenticatedUser    authnmodel.AuthenticatedUser
+	OAuthParameters   oauthmodel.OAuthParameters
+	AuthTime          time.Time
+	AuthenticatedUser authndto.AuthenticatedUser
 }

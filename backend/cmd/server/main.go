@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -28,8 +28,9 @@ import (
 	"path"
 	"time"
 
+	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/flow"
-	"github.com/asgardeo/thunder/internal/system/cert"
+	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/managers"
 
 	"github.com/asgardeo/thunder/internal/oauth/jwt"
@@ -38,28 +39,28 @@ import (
 )
 
 func main() {
-	// Initialize the logger.
 	logger := log.GetLogger()
 
-	// Get the Thunder home directory.
 	thunderHome := getThunderHome(logger)
 
-	// Initialize the server.
 	cfg := initThunderConfigurations(logger, thunderHome)
 	if cfg == nil {
 		logger.Fatal("Failed to initialize configurations")
 	}
 
-	// Initialize the multiplexer and register services.
 	mux := initMultiplexer(logger)
 	if mux == nil {
 		logger.Fatal("Failed to initialize multiplexer")
 	}
 
-	// Initialize the flow service.
 	initFlowService(logger)
 
-	startServer(logger, cfg, mux, thunderHome)
+	if cfg.Server.HTTPOnly {
+		logger.Info("TLS is not enabled, starting server without TLS")
+		startHTTPServer(logger, cfg, mux)
+	} else {
+		startTLSServer(logger, cfg, mux, thunderHome)
+	}
 }
 
 // getThunderHome retrieves and return the Thunder home directory.
@@ -93,14 +94,18 @@ func initThunderConfigurations(logger *log.Logger, thunderHome string) *config.C
 		logger.Fatal("Failed to load configurations", log.Error(err))
 	}
 
-	// Load the server's private key for signing JWTs.
-	if err := jwt.LoadPrivateKey(cfg, thunderHome); err != nil {
-		logger.Fatal("Failed to load private key", log.Error(err))
-	}
-
 	// Initialize runtime configurations.
 	if err := config.InitializeThunderRuntime(thunderHome, cfg); err != nil {
 		logger.Fatal("Failed to initialize thunder runtime", log.Error(err))
+	}
+
+	// Initialize the cache manager.
+	initCacheManager(logger)
+
+	// Load the server's private key for signing JWTs.
+	jwtService := jwt.GetJWTService()
+	if err := jwtService.Init(); err != nil {
+		logger.Fatal("Failed to load private key", log.Error(err))
 	}
 
 	return cfg
@@ -122,36 +127,70 @@ func initMultiplexer(logger *log.Logger) *http.ServeMux {
 
 // initFlowService initializes the flow service.
 func initFlowService(logger *log.Logger) {
-	svc := flow.GetFlowService()
+	svc := flow.GetFlowExecService()
 	if err := svc.Init(); err != nil {
 		logger.Fatal("Failed to initialize flow service", log.Error(err))
 	}
 }
 
-// startServer starts the HTTP server with the given configurations and multiplexer.
-func startServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thunderHome string) {
+// initCacheManager initializes the cache manager with centralized cleanup.
+func initCacheManager(logger *log.Logger) {
+	cm := cache.GetCacheManager()
+	if cm == nil {
+		logger.Fatal("Failed to get cache manager instance")
+	}
+	cm.Init()
+}
+
+// startTLSServer starts the HTTPS server with TLS configuration.
+func startTLSServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thunderHome string) {
+	server, serverAddr := createHTTPServer(logger, cfg, mux)
+
 	// Get TLS configuration from the certificate and key files.
-	tlsConfig, err := cert.GetTLSConfig(cfg, thunderHome)
+	sysCertSvc := cert.NewSystemCertificateService()
+	tlsConfig, err := sysCertSvc.GetTLSConfig(cfg, thunderHome)
 	if err != nil {
 		logger.Fatal("Failed to load TLS configuration", log.Error(err))
 	}
 
-	// Build the server address using hostname and port from the configurations.
-	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Hostname, cfg.Server.Port)
-
-	ln, err := tls.Listen("tcp", serverAddr, tlsConfig) // listener bound to port
+	ln, err := tls.Listen("tcp", serverAddr, tlsConfig)
 	if err != nil {
 		logger.Fatal("Failed to start TLS listener", log.Error(err))
 	}
 
-	logger.Info("WSO2 Thunder server started...", log.String("address", serverAddr))
-
-	server := &http.Server{
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second, // Mitigate Slowloris attacks
-	}
+	logger.Info("WSO2 Thunder server started (HTTPS)...", log.String("address", serverAddr))
 
 	if err := server.Serve(ln); err != nil {
 		logger.Fatal("Failed to serve requests", log.Error(err))
 	}
+}
+
+// startHTTPServer starts the HTTP server without TLS.
+func startHTTPServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux) {
+	server, serverAddr := createHTTPServer(logger, cfg, mux)
+
+	logger.Info("WSO2 Thunder server started (HTTP)...", log.String("address", serverAddr))
+
+	if err := server.ListenAndServe(); err != nil {
+		logger.Fatal("Failed to serve HTTP requests", log.Error(err))
+	}
+}
+
+// createHTTPServer creates and configures an HTTP server with common settings.
+func createHTTPServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux) (*http.Server, string) {
+	// Wrap the multiplexer with AccessLogHandler.
+	wrappedMux := log.AccessLogHandler(logger, mux)
+
+	// Build the server address using hostname and port from the configurations.
+	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Hostname, cfg.Server.Port)
+
+	server := &http.Server{
+		Addr:              serverAddr,
+		Handler:           wrappedMux,
+		ReadHeaderTimeout: 10 * time.Second, // Mitigate Slowloris attacks
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
+	return server, serverAddr
 }

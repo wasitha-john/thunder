@@ -4,32 +4,17 @@
     "nodes": [
         {
             "id": "basic_auth",
-            "type": "TASK_EXECUTOR",
-            "inputData": [
-                {
-                    "name": "username",
-                    "type": "string",
-                    "required": true
-                },
-                {
-                    "name": "password",
-                    "type": "string",
-                    "required": true
-                },
-                {
-                    "name": "firstName",
-                    "type": "string",
-                    "required": false
-                }
-            ],
-            "executor": "BasicAuthExecutor"
+            "type": "TASK_EXECUTION",
+            "executor": {
+                "name": "BasicAuthExecutor"
+            },
+            "next": [
+                "authenticated"
+            ]
         },
         {
             "id": "authenticated",
             "type": "AUTHENTICATION_SUCCESS"
         }
-    ],
-    "edges": {
-        "basic_auth": ["authenticated"]
-    }
+    ]
 }

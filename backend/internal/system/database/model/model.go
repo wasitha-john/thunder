@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -20,6 +20,46 @@
 package model
 
 import "database/sql"
+
+// DBInterface defines the wrapper interface for database operations.
+type DBInterface interface {
+	Query(query string, args ...any) (*sql.Rows, error)
+	Exec(query string, args ...any) (sql.Result, error)
+	Begin() (*sql.Tx, error)
+	Close() error
+}
+
+// DB is the implementation of DBInterface for managing database connections.
+type DB struct {
+	internal *sql.DB
+}
+
+// NewDB creates a new instance of DB with the provided sql.DB.
+func NewDB(db *sql.DB) DBInterface {
+	return &DB{
+		internal: db,
+	}
+}
+
+// Query executes a query that returns rows, typically a SELECT, and returns the result as *sql.Rows.
+func (d *DB) Query(query string, args ...any) (*sql.Rows, error) {
+	return d.internal.Query(query, args...)
+}
+
+// Exec executes a query without returning data in any rows, and returns sql.Result.
+func (d *DB) Exec(query string, args ...any) (sql.Result, error) {
+	return d.internal.Exec(query, args...)
+}
+
+// Begin starts a new database transaction and returns *sql.Tx.
+func (d *DB) Begin() (*sql.Tx, error) {
+	return d.internal.Begin()
+}
+
+// Close closes the database connection.
+func (d *DB) Close() error {
+	return d.internal.Close()
+}
 
 // TxInterface defines the wrapper interface for transaction management.
 type TxInterface interface {

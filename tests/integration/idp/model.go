@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -18,47 +18,43 @@
 
 package idp
 
-import (
-	"encoding/json"
-)
-
-type IDP struct {
-	ID           string          `json:"id"`
-	Name         string          `json:"name"`          // Display name
-	Description  string          `json:"description"`   // Description shown in UI
-	ClientID     string          `json:"client_id"`     // OAuth client ID
-	ClientSecret string          `json:"client_secret"` // OAuth client secret
-	RedirectURI  string          `json:"redirect_uri"`  // OAuth redirect URI
-	Scopes       json.RawMessage `json:"scopes"`        // JSON format scopes
+type IDPProperty struct {
+	Name     string `json:"name"`      // Name of the property
+	Value    string `json:"value"`     // Value of the property
+	IsSecret bool   `json:"is_secret"` // Whether the property is a secret
 }
 
-func compareStringSlices(a, b []string) bool {
-
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+type IDP struct {
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`        // Display name
+	Description string        `json:"description"` // Description shown in UI
+	Properties  []IDPProperty `json:"properties"`  // Additional properties for the IDP
 }
 
 // compare and validate whether two IdPs have equal content
 func (idp *IDP) equals(expectedIdp IDP) bool {
-	if idp.ID != expectedIdp.ID || idp.Name != expectedIdp.Name || idp.Description != expectedIdp.Description || idp.ClientID != expectedIdp.ClientID || idp.ClientSecret != expectedIdp.ClientSecret || idp.RedirectURI != expectedIdp.RedirectURI {
+	if idp.ID != expectedIdp.ID || idp.Name != expectedIdp.Name || idp.Description != expectedIdp.Description {
 		return false
 	}
 
-	// Compare the Scopes JSON
-	var scopes1, scopes2 []string
-	if err := json.Unmarshal(idp.Scopes, &scopes1); err != nil {
-		return false
-	}
-	if err := json.Unmarshal(expectedIdp.Scopes, &scopes2); err != nil {
-		return false
+	// Compare the Properties
+	for _, expProp := range expectedIdp.Properties {
+		found := false
+		for _, p := range idp.Properties {
+			if p.Name == expProp.Name {
+				found = true
+				if !expProp.IsSecret {
+					if p.Value != expProp.Value {
+						return false
+					}
+				}
+				break
+			}
+		}
+		if !found {
+			return false
+		}
 	}
 
-	return compareStringSlices(scopes1, scopes2)
+	return true
 }

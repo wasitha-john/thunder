@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -27,12 +27,14 @@ import (
 
 // FlowExecutionService defines the service for handling flow execution requests.
 type FlowExecutionService struct {
+	ServerOpsService     server.ServerOperationServiceInterface
 	flowExecutionHandler *handler.FlowExecutionHandler
 }
 
 // NewFlowExecutionService creates a new instance of FlowExecutionService.
-func NewFlowExecutionService(mux *http.ServeMux) *FlowExecutionService {
+func NewFlowExecutionService(mux *http.ServeMux) ServiceInterface {
 	instance := &FlowExecutionService{
+		ServerOpsService:     server.NewServerOperationService(),
 		flowExecutionHandler: handler.NewFlowExecutionHandler(),
 	}
 	instance.RegisterRoutes(mux)
@@ -42,7 +44,7 @@ func NewFlowExecutionService(mux *http.ServeMux) *FlowExecutionService {
 
 // RegisterRoutes registers the routes for the FlowExecutionService.
 func (s *FlowExecutionService) RegisterRoutes(mux *http.ServeMux) {
-	// TODO: Ideally this should be renamed to "/flow/authn". Keeping it as "/flow/execution" until the
+	// TODO: Ideally this should be renamed to "/flow/authn". Keeping it as "/flow/execute" until the
 	//  previous authenticator implementation is removed.
 	opts := server.RequestWrapOptions{
 		Cors: &server.Cors{
@@ -51,5 +53,10 @@ func (s *FlowExecutionService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "POST /flow/execution", &opts, s.flowExecutionHandler.HandleFlowExecutionRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /flow/execute", &opts,
+		s.flowExecutionHandler.HandleFlowExecutionRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /flow/execute", &opts,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 }

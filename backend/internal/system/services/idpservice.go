@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -30,13 +30,15 @@ import (
 
 // IDPService is the service for identity provider management operations.
 type IDPService struct {
-	idpHandler *handler.IDPHandler
+	ServerOpsService server.ServerOperationServiceInterface
+	idpHandler       *handler.IDPHandler
 }
 
 // NewIDPService creates a new instance of IDPService.
-func NewIDPService(mux *http.ServeMux) *IDPService {
+func NewIDPService(mux *http.ServeMux) ServiceInterface {
 	instance := &IDPService{
-		idpHandler: &handler.IDPHandler{},
+		ServerOpsService: server.NewServerOperationService(),
+		idpHandler:       &handler.IDPHandler{},
 	}
 	instance.RegisterRoutes(mux)
 
@@ -52,11 +54,12 @@ func (s *IDPService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "POST /identity-providers", &opts1, s.idpHandler.HandleIDPPostRequest)
-	server.WrapHandleFunction(mux, "GET /identity-providers", &opts1, s.idpHandler.HandleIDPListRequest)
-	server.WrapHandleFunction(mux, "OPTIONS /identity-providers", &opts1, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /identity-providers", &opts1, s.idpHandler.HandleIDPPostRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /identity-providers", &opts1, s.idpHandler.HandleIDPListRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /identity-providers", &opts1,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 
 	opts2 := server.RequestWrapOptions{
 		Cors: &server.Cors{
@@ -65,10 +68,12 @@ func (s *IDPService) RegisterRoutes(mux *http.ServeMux) {
 			AllowCredentials: true,
 		},
 	}
-	server.WrapHandleFunction(mux, "GET /identity-providers/", &opts2, s.idpHandler.HandleIDPGetRequest)
-	server.WrapHandleFunction(mux, "PUT /identity-providers/", &opts2, s.idpHandler.HandleIDPPutRequest)
-	server.WrapHandleFunction(mux, "DELETE /identity-providers/", &opts2, s.idpHandler.HandleIDPDeleteRequest)
-	server.WrapHandleFunction(mux, "OPTIONS /identity-providers/", &opts2, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /identity-providers/", &opts2, s.idpHandler.HandleIDPGetRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "PUT /identity-providers/", &opts2, s.idpHandler.HandleIDPPutRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /identity-providers/", &opts2,
+		s.idpHandler.HandleIDPDeleteRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /identity-providers/", &opts2,
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 }

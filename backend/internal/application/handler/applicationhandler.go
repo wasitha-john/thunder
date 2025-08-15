@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -22,240 +22,510 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
-	"sync"
 
+	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
 	appprovider "github.com/asgardeo/thunder/internal/application/provider"
+	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
+	serverconst "github.com/asgardeo/thunder/internal/system/constants"
+	"github.com/asgardeo/thunder/internal/system/error/apierror"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
+	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // ApplicationHandler defines the handler for managing application API requests.
-//
-// @title          Application Management API
-// @version        1.0
-// @description    This API is used to manage applications.
-//
-// @license.name   Apache 2.0
-// @license.url    http://www.apache.org/licenses/LICENSE-2.0.html
-//
-// @host           localhost:8090
-// @BasePath       /
 type ApplicationHandler struct {
-	store map[string]model.Application
-	mu    *sync.RWMutex
+	ApplicationProvider appprovider.ApplicationProviderInterface
 }
 
 // NewApplicationHandler creates a new instance of ApplicationHandler.
 func NewApplicationHandler() *ApplicationHandler {
 	return &ApplicationHandler{
-		store: make(map[string]model.Application),
-		mu:    &sync.RWMutex{},
+		ApplicationProvider: appprovider.NewApplicationProvider(),
 	}
 }
 
 // HandleApplicationPostRequest handles the application request.
-//
-// @Summary      Create an application
-// @Description  Creates a new application with the provided details.
-// @Tags         applications
-// @Accept       json
-// @Produce      json
-// @Param        application  body  model.Application  true  "Application data"
-// @Success      201  {object}  model.Application
-// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
-// @Router       /applications [post]
 func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
-	var appInCreationRequest model.Application
-	if err := json.NewDecoder(r.Body).Decode(&appInCreationRequest); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	appRequest, err := sysutils.DecodeJSONBody[model.ApplicationRequest](r)
+	if err != nil {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidRequestFormat.Code,
+			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Description: constants.ErrorInvalidRequestFormat.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
 		return
+	}
+
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	inboundAuthConfig := model.InboundAuthConfig{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfig{
+			ClientID:                appRequest.ClientID,
+			ClientSecret:            appRequest.ClientSecret,
+			RedirectURIs:            appRequest.RedirectURIs,
+			GrantTypes:              appRequest.GrantTypes,
+			ResponseTypes:           appRequest.ResponseTypes,
+			TokenEndpointAuthMethod: appRequest.TokenEndpointAuthMethod,
+		},
+	}
+	appDTO := model.ApplicationDTO{
+		Name:                      appRequest.Name,
+		Description:               appRequest.Description,
+		AuthFlowGraphID:           appRequest.AuthFlowGraphID,
+		RegistrationFlowGraphID:   appRequest.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: appRequest.IsRegistrationFlowEnabled,
+		URL:                       appRequest.URL,
+		LogoURL:                   appRequest.LogoURL,
+		Certificate:               appRequest.Certificate,
+		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
 	}
 
 	// Create the app using the application service.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-	createdApplication, err := appService.CreateApplication(&appInCreationRequest)
-	if err != nil {
-		http.Error(w, "Failed to create application", http.StatusInternalServerError)
+	appService := ah.ApplicationProvider.GetApplicationService()
+	createdAppDTO, svcErr := appService.CreateApplication(&appDTO)
+	if svcErr != nil {
+		ah.handleError(w, logger, svcErr)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(createdAppDTO.InboundAuthConfig) == 0 ||
+		createdAppDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		logger.Error("Unsupported inbound authentication type returned",
+			log.String("type", string(createdAppDTO.InboundAuthConfig[0].Type)))
+
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusInternalServerError)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInternalServerError.Code,
+			Message:     constants.ErrorInternalServerError.Error,
+			Description: constants.ErrorInternalServerError.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	returnInboundAuthConfig := createdAppDTO.InboundAuthConfig[0]
+	if returnInboundAuthConfig.OAuthAppConfig == nil {
+		logger.Error("OAuth application configuration is nil")
+
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusInternalServerError)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInternalServerError.Code,
+			Message:     constants.ErrorInternalServerError.Error,
+			Description: constants.ErrorInternalServerError.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{}
+	}
+	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []oauth2const.GrantType{}
+	}
+	responseTypes := returnInboundAuthConfig.OAuthAppConfig.ResponseTypes
+	if len(responseTypes) == 0 {
+		responseTypes = []oauth2const.ResponseType{}
+	}
+	tokenAuthMethods := returnInboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod
+	if len(tokenAuthMethods) == 0 {
+		tokenAuthMethods = []oauth2const.TokenEndpointAuthMethod{}
+	}
+
+	returnApp := model.ApplicationCompleteResponse{
+		ID:                        createdAppDTO.ID,
+		Name:                      createdAppDTO.Name,
+		Description:               createdAppDTO.Description,
+		ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		ClientSecret:              returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
+		RedirectURIs:              redirectURIs,
+		GrantTypes:                grantTypes,
+		ResponseTypes:             responseTypes,
+		TokenEndpointAuthMethod:   tokenAuthMethods,
+		AuthFlowGraphID:           createdAppDTO.AuthFlowGraphID,
+		RegistrationFlowGraphID:   createdAppDTO.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: createdAppDTO.IsRegistrationFlowEnabled,
+		URL:                       createdAppDTO.URL,
+		LogoURL:                   createdAppDTO.LogoURL,
+		Certificate:               createdAppDTO.Certificate,
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusCreated)
 
-	err = json.NewEncoder(w).Encode(createdApplication)
-	if err != nil {
+	if encodeErr := json.NewEncoder(w).Encode(returnApp); encodeErr != nil {
+		logger.Error("Error encoding response", log.Error(encodeErr))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
-	// Log the application creation response.
-	logger.Debug("Application POST response sent", log.String("app id", createdApplication.ID))
 }
 
 // HandleApplicationListRequest handles the application request.
-//
-// @Summary      List applications
-// @Description  Retrieve a list of all applications.
-// @Tags         applications
-// @Accept       json
-// @Produce      json
-// @Success      200  {array}   model.Application
-// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
-// @Router       /applications [get]
 func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
-	// Get the application list using the application service.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-	applications, err := appService.GetApplicationList()
-	if err != nil {
-		http.Error(w, "Failed get application list", http.StatusInternalServerError)
+	appService := ah.ApplicationProvider.GetApplicationService()
+	listResponse, svcErr := appService.GetApplicationList()
+	if svcErr != nil {
+		ah.handleError(w, logger, svcErr)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(applications)
-	if err != nil {
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if encodeErr := json.NewEncoder(w).Encode(listResponse); encodeErr != nil {
+		logger.Error("Error encoding response", log.Error(encodeErr))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
-	// Log the application response.
-	logger.Debug("Application GET (list) response sent")
 }
 
 // HandleApplicationGetRequest handles the application request.
-//
-// @Summary      Get an application by ID
-// @Description  Retrieve a specific application using its ID.
-// @Tags         applications
-// @Accept       json
-// @Produce      json
-// @Param        id   path      string  true  "Application ID"
-// @Success      200  {object}  model.Application
-// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      404  {string}  "Not Found: The application with the specified ID does not exist."
-// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
-// @Router       /applications/{id} [get]
 func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
-	id := strings.TrimPrefix(r.URL.Path, "/applications/")
+	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Missing application id", http.StatusBadRequest)
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidApplicationID.Code,
+			Message:     constants.ErrorInvalidApplicationID.Error,
+			Description: constants.ErrorInvalidApplicationID.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	// Get the application using the application service.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-	application, err := appService.GetApplication(id)
-	if err != nil {
-		http.Error(w, "Failed get application", http.StatusInternalServerError)
+	appService := ah.ApplicationProvider.GetApplicationService()
+	appDTO, svcErr := appService.GetApplication(id)
+	if svcErr != nil {
+		ah.handleError(w, logger, svcErr)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(application)
-	if err != nil {
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(appDTO.InboundAuthConfig) == 0 || appDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		logger.Error("Unsupported inbound authentication type returned",
+			log.String("type", string(appDTO.InboundAuthConfig[0].Type)))
+
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusInternalServerError)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInternalServerError.Code,
+			Message:     constants.ErrorInternalServerError.Error,
+			Description: constants.ErrorInternalServerError.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	returnInboundAuthConfig := appDTO.InboundAuthConfig[0]
+	if returnInboundAuthConfig.OAuthAppConfig == nil {
+		logger.Error("OAuth application configuration is nil")
+
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusInternalServerError)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInternalServerError.Code,
+			Message:     constants.ErrorInternalServerError.Error,
+			Description: constants.ErrorInternalServerError.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{}
+	}
+	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []oauth2const.GrantType{}
+	}
+	responseTypes := returnInboundAuthConfig.OAuthAppConfig.ResponseTypes
+	if len(responseTypes) == 0 {
+		responseTypes = []oauth2const.ResponseType{}
+	}
+	tokenAuthMethods := returnInboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod
+	if len(tokenAuthMethods) == 0 {
+		tokenAuthMethods = []oauth2const.TokenEndpointAuthMethod{}
+	}
+
+	returnApp := model.ApplicationGetResponse{
+		ID:                        appDTO.ID,
+		Name:                      appDTO.Name,
+		Description:               appDTO.Description,
+		ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		RedirectURIs:              redirectURIs,
+		GrantTypes:                grantTypes,
+		ResponseTypes:             responseTypes,
+		TokenEndpointAuthMethod:   tokenAuthMethods,
+		AuthFlowGraphID:           appDTO.AuthFlowGraphID,
+		RegistrationFlowGraphID:   appDTO.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: appDTO.IsRegistrationFlowEnabled,
+		URL:                       appDTO.URL,
+		LogoURL:                   appDTO.LogoURL,
+		Certificate:               appDTO.Certificate,
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if encodeErr := json.NewEncoder(w).Encode(returnApp); encodeErr != nil {
+		logger.Error("Error encoding response", log.Error(encodeErr))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
-	// Log the application response.
-	logger.Debug("Application GET response sent", log.String("app id", id))
 }
 
 // HandleApplicationPutRequest handles the application request.
-//
-// @Summary      Update an application
-// @Description  Update the details of an existing application.
-// @Tags         applications
-// @Accept       json
-// @Produce      json
-// @Param        id           path   string            true  "Application ID"
-// @Param        application  body   model.Application  true  "Updated application data"
-// @Success      200  {object}  model.Application
-// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      404  {string}  "Not Found: The application with the specified ID does not exist."
-// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
-// @Router       /applications/{id} [put]
 func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
-	id := strings.TrimPrefix(r.URL.Path, "/applications/")
+	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Missing application id", http.StatusBadRequest)
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidApplicationID.Code,
+			Message:     constants.ErrorInvalidApplicationID.Error,
+			Description: constants.ErrorInvalidApplicationID.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	var updatedApp model.Application
-	if err := json.NewDecoder(r.Body).Decode(&updatedApp); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	appRequest, err := sysutils.DecodeJSONBody[model.ApplicationRequest](r)
+	if err != nil {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidRequestFormat.Code,
+			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Description: constants.ErrorInvalidRequestFormat.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
 		return
 	}
-	updatedApp.ID = id
+
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	inboundAuthConfig := model.InboundAuthConfig{
+		Type: constants.OAuthInboundAuthType,
+		OAuthAppConfig: &model.OAuthAppConfig{
+			ClientID:                appRequest.ClientID,
+			ClientSecret:            appRequest.ClientSecret,
+			RedirectURIs:            appRequest.RedirectURIs,
+			GrantTypes:              appRequest.GrantTypes,
+			ResponseTypes:           appRequest.ResponseTypes,
+			TokenEndpointAuthMethod: appRequest.TokenEndpointAuthMethod,
+		},
+	}
+	updateReqAppDTO := model.ApplicationDTO{
+		ID:                        id,
+		Name:                      appRequest.Name,
+		Description:               appRequest.Description,
+		AuthFlowGraphID:           appRequest.AuthFlowGraphID,
+		RegistrationFlowGraphID:   appRequest.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: appRequest.IsRegistrationFlowEnabled,
+		URL:                       appRequest.URL,
+		LogoURL:                   appRequest.LogoURL,
+		Certificate:               appRequest.Certificate,
+		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
+	}
 
 	// Update the application using the application service.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-	application, err := appService.UpdateApplication(id, &updatedApp)
-	if err != nil {
-		http.Error(w, "Failed get application", http.StatusInternalServerError)
+	appService := ah.ApplicationProvider.GetApplicationService()
+	updatedAppDTO, svcErr := appService.UpdateApplication(id, &updateReqAppDTO)
+	if svcErr != nil {
+		ah.handleError(w, logger, svcErr)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(application)
-	if err != nil {
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(updatedAppDTO.InboundAuthConfig) == 0 ||
+		updatedAppDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		logger.Error("Unsupported inbound authentication type returned",
+			log.String("type", string(updatedAppDTO.InboundAuthConfig[0].Type)))
+
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusInternalServerError)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInternalServerError.Code,
+			Message:     constants.ErrorInternalServerError.Error,
+			Description: constants.ErrorInternalServerError.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	returnInboundAuthConfig := updatedAppDTO.InboundAuthConfig[0]
+	if returnInboundAuthConfig.OAuthAppConfig == nil {
+		logger.Error("OAuth application configuration is nil")
+
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusInternalServerError)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInternalServerError.Code,
+			Message:     constants.ErrorInternalServerError.Error,
+			Description: constants.ErrorInternalServerError.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{}
+	}
+	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []oauth2const.GrantType{}
+	}
+	responseTypes := returnInboundAuthConfig.OAuthAppConfig.ResponseTypes
+	if len(responseTypes) == 0 {
+		responseTypes = []oauth2const.ResponseType{}
+	}
+	tokenAuthMethods := returnInboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod
+	if len(tokenAuthMethods) == 0 {
+		tokenAuthMethods = []oauth2const.TokenEndpointAuthMethod{}
+	}
+
+	returnApp := model.ApplicationCompleteResponse{
+		ID:                        updatedAppDTO.ID,
+		Name:                      updatedAppDTO.Name,
+		Description:               updatedAppDTO.Description,
+		ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
+		ClientSecret:              returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
+		RedirectURIs:              redirectURIs,
+		GrantTypes:                grantTypes,
+		ResponseTypes:             responseTypes,
+		TokenEndpointAuthMethod:   tokenAuthMethods,
+		AuthFlowGraphID:           updatedAppDTO.AuthFlowGraphID,
+		RegistrationFlowGraphID:   updatedAppDTO.RegistrationFlowGraphID,
+		IsRegistrationFlowEnabled: updatedAppDTO.IsRegistrationFlowEnabled,
+		URL:                       updatedAppDTO.URL,
+		LogoURL:                   updatedAppDTO.LogoURL,
+		Certificate:               updatedAppDTO.Certificate,
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	if encodeErr := json.NewEncoder(w).Encode(returnApp); encodeErr != nil {
+		logger.Error("Error encoding response", log.Error(encodeErr))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
-	// Log the application response.
-	logger.Debug("Application PUT response sent", log.String("app id", id))
 }
 
 // HandleApplicationDeleteRequest handles the application request.
-//
-// @Summary      Delete an application
-// @Description  Delete an application using its ID.
-// @Tags         applications
-// @Accept       json
-// @Produce      json
-// @Param        id   path   string  true  "Application ID"
-// @Success      204
-// @Failure      400  {string}  "Bad Request: The request body is malformed or contains invalid data."
-// @Failure      404  {string}  "Not Found: The application with the specified ID does not exist."
-// @Failure      500  {string}  "Internal Server Error: An unexpected error occurred while processing the request."
-// @Router       /applications/{id} [delete]
 func (ah *ApplicationHandler) HandleApplicationDeleteRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
-	id := strings.TrimPrefix(r.URL.Path, "/applications/")
+	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Missing application id", http.StatusBadRequest)
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+
+		errResp := apierror.ErrorResponse{
+			Code:        constants.ErrorInvalidApplicationID.Code,
+			Message:     constants.ErrorInvalidApplicationID.Error,
+			Description: constants.ErrorInvalidApplicationID.ErrorDescription,
+		}
+		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+			logger.Error("Error encoding error response", log.Error(encodeErr))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	// Delete the application using the application service.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-	err := appService.DeleteApplication(id)
-	if err != nil {
-		http.Error(w, "Failed delete application", http.StatusInternalServerError)
+	appService := ah.ApplicationProvider.GetApplicationService()
+	svcErr := appService.DeleteApplication(id)
+	if svcErr != nil {
+		ah.handleError(w, logger, svcErr)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
 
-	// Log the application response.
-	logger.Debug("Application DELETE response sent", log.String("app id", id))
+// handleError handles service errors and returns appropriate HTTP responses.
+func (ah *ApplicationHandler) handleError(w http.ResponseWriter, logger *log.Logger,
+	svcErr *serviceerror.ServiceError) {
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+
+	errResp := apierror.ErrorResponse{
+		Code:        svcErr.Code,
+		Message:     svcErr.Error,
+		Description: svcErr.ErrorDescription,
+	}
+
+	statusCode := http.StatusInternalServerError
+	if svcErr.Type == serviceerror.ClientErrorType {
+		if svcErr.Code == constants.ErrorApplicationNotFound.Code {
+			statusCode = http.StatusNotFound
+		} else {
+			statusCode = http.StatusBadRequest
+		}
+	}
+	w.WriteHeader(statusCode)
+
+	if err := json.NewEncoder(w).Encode(errResp); err != nil {
+		logger.Error("Error encoding error response", log.Error(err))
+		http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+	}
 }

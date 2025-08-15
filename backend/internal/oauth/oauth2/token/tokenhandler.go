@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -22,7 +22,9 @@ package token
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
+	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/utils"
 
 	appprovider "github.com/asgardeo/thunder/internal/application/provider"
@@ -33,8 +35,24 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
-// TokenHandler handles OAuth 2.0 token requests.
-type TokenHandler struct{}
+// TokenHandlerInterface defines the interface for handling OAuth 2.0 token requests.
+type TokenHandlerInterface interface {
+	HandleTokenRequest(w http.ResponseWriter, r *http.Request)
+}
+
+// TokenHandler implements the TokenHandlerInterface.
+type TokenHandler struct {
+	ApplicationProvider    appprovider.ApplicationProviderInterface
+	ScopeValidatorProvider scopeprovider.ScopeValidatorProviderInterface
+}
+
+// NewTokenHandler creates a new instance of TokenHandler.
+func NewTokenHandler() TokenHandlerInterface {
+	return &TokenHandler{
+		ApplicationProvider:    appprovider.NewApplicationProvider(),
+		ScopeValidatorProvider: scopeprovider.NewScopeValidatorProvider(),
+	}
+}
 
 // HandleTokenRequest handles the token request for OAuth 2.0.
 // It validates the client credentials and delegates to the appropriate grant handler.
@@ -49,71 +67,75 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Validate the grant_type.
-	grantType := r.FormValue(constants.GrantType)
-	if grantType == "" {
+	grantTypeStr := r.FormValue(constants.RequestParamGrantType)
+	if grantTypeStr == "" {
 		utils.WriteJSONError(w, constants.ErrorInvalidRequest,
 			"Missing grant_type parameter", http.StatusBadRequest, nil)
+		return
+	}
+	grantType := constants.GrantType(grantTypeStr)
+	if !grantType.IsValid() {
+		utils.WriteJSONError(w, constants.ErrorUnsupportedGrantType,
+			"Invalid grant_type parameter", http.StatusBadRequest, nil)
 		return
 	}
 
 	var grantHandler granthandlers.GrantHandler
 	switch grantType {
 	case constants.GrantTypeClientCredentials:
-		grantHandler = &granthandlers.ClientCredentialsGrantHandler{}
+		grantHandler = granthandlers.NewClientCredentialsGrantHandler()
 	case constants.GrantTypeAuthorizationCode:
-		grantHandler = &granthandlers.AuthorizationCodeGrantHandler{}
+		grantHandler = granthandlers.NewAuthorizationCodeGrantHandler()
+	case constants.GrantTypeRefreshToken:
+		grantHandler = granthandlers.NewRefreshTokenGrantHandler()
 	default:
 		utils.WriteJSONError(w, constants.ErrorUnsupportedGrantType,
 			"Unsupported grant type", http.StatusBadRequest, nil)
 		return
 	}
 
-	// Extract client credentials from the request.
-	clientID := ""
-	clientSecret := ""
-	if r.Header.Get("Authorization") != "" {
-		var err error
-		clientID, clientSecret, err = utils.ExtractBasicAuthCredentials(r)
-		if err != nil {
-			if err.Error() == "invalid authorization header" {
-				responseHeaders := []map[string]string{
-					{"WWW-Authenticate": "Basic"},
-				}
-				utils.WriteJSONError(w, constants.ErrorInvalidClient,
-					"Invalid client credentials", http.StatusUnauthorized, responseHeaders)
-				return
-			}
+	clientID, clientSecret, tokenAuthMethod, ok := extractClientIDAndSecret(r, w)
+	if !ok {
+		return
+	}
+
+	// Retrieve the OAuth application based on the client id.
+	appService := th.ApplicationProvider.GetApplicationService()
+	oauthApp, err := appService.GetOAuthApplication(clientID)
+	if err != nil || oauthApp == nil {
+		utils.WriteJSONError(w, constants.ErrorInvalidClient,
+			"Invalid client credentials", http.StatusUnauthorized, nil)
+		return
+	}
+
+	// Validate the token endpoint authentication method.
+	if !oauthApp.IsAllowedTokenEndpointAuthMethod(tokenAuthMethod) {
+		utils.WriteJSONError(w, constants.ErrorUnauthorizedClient,
+			"Client is not allowed to use the specified token endpoint authentication method",
+			http.StatusUnauthorized, nil)
+		return
+	}
+
+	// Validate the client credentials.
+	hashedClientSecret := hash.HashString(clientSecret)
+	if tokenAuthMethod != constants.TokenEndpointAuthMethodNone {
+		if clientID != oauthApp.ClientID || hashedClientSecret != oauthApp.HashedClientSecret {
 			utils.WriteJSONError(w, constants.ErrorInvalidClient,
 				"Invalid client credentials", http.StatusUnauthorized, nil)
 			return
 		}
 	}
 
-	// Check for client credentials in the request body.
-	clientIDFromBody := r.FormValue(constants.ClientID)
-	clientSecretFromBody := r.FormValue(constants.ClientSecret)
-
-	if clientIDFromBody != "" && clientSecretFromBody != "" {
-		if clientID != "" && clientSecret != "" {
-			utils.WriteJSONError(w, constants.ErrorInvalidRequest,
-				"Authorization information is provided in both header and body", http.StatusBadRequest, nil)
-			return
-		}
-
-		clientID = clientIDFromBody
-		clientSecret = clientSecretFromBody
-	} else {
-		if clientID == "" {
-			clientID = clientIDFromBody
-		}
-		if clientSecret == "" {
-			clientSecret = clientSecretFromBody
-		}
+	// Validate grant type against the application.
+	if !oauthApp.IsAllowedGrantType(grantType) {
+		utils.WriteJSONError(w, constants.ErrorUnauthorizedClient,
+			"The client is not authorized to use this grant type", http.StatusUnauthorized, nil)
+		return
 	}
 
 	// Construct the token request.
 	tokenRequest := &model.TokenRequest{
-		GrantType:    grantType,
+		GrantType:    grantTypeStr,
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Scope:        r.FormValue("scope"),
@@ -126,34 +148,14 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Validate the token request.
-	tokenError := grantHandler.ValidateGrant(tokenRequest)
+	tokenError := grantHandler.ValidateGrant(tokenRequest, oauthApp)
 	if tokenError != nil && tokenError.Error != "" {
 		utils.WriteJSONError(w, tokenError.Error, tokenError.ErrorDescription, http.StatusBadRequest, nil)
 		return
 	}
 
-	// Retrieve the OAuth application based on the client id.
-	appProvider := appprovider.NewApplicationProvider()
-	appService := appProvider.GetApplicationService()
-
-	oauthApp, err := appService.GetOAuthApplication(clientID)
-	if err != nil || oauthApp == nil {
-		utils.WriteJSONError(w, constants.ErrorInvalidClient,
-			"Invalid client credentials", http.StatusUnauthorized, nil)
-		return
-	}
-
-	// Validate grant type against the application.
-	if !oauthApp.IsAllowedGrantType(tokenRequest.GrantType) {
-		utils.WriteJSONError(w, constants.ErrorUnauthorizedClient,
-			"The authenticated client is not authorized to use this grant type", http.StatusUnauthorized, nil)
-		return
-	}
-
 	// Validate and filter scopes.
-	scopeValidatorProvider := scopeprovider.NewScopeValidatorProvider()
-	scopeValidator := scopeValidatorProvider.GetScopeValidator()
-
+	scopeValidator := th.ScopeValidatorProvider.GetScopeValidator()
 	validScopes, scopeError := scopeValidator.ValidateScopes(tokenRequest.Scope, oauthApp.ClientID)
 	if scopeError != nil {
 		utils.WriteJSONError(w, scopeError.Error, scopeError.ErrorDescription, http.StatusBadRequest, nil)
@@ -162,14 +164,42 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 	tokenRequest.Scope = validScopes
 
 	// Delegate to the grant handler.
-	tokenResponse, tokenError := grantHandler.HandleGrant(tokenRequest, oauthApp)
+	ctx := &model.TokenContext{
+		TokenAttributes: make(map[string]interface{}),
+	}
+	tokenRespDTO, tokenError := grantHandler.HandleGrant(tokenRequest, oauthApp, ctx)
 	if tokenError != nil && tokenError.Error != "" {
 		utils.WriteJSONError(w, tokenError.Error, tokenError.ErrorDescription, http.StatusBadRequest, nil)
 		return
 	}
 
-	// Log successful token generation.
-	logger.Info("Token generated successfully", log.String("client_id", clientID))
+	// Generate and add refresh token if applicable.
+	if grantType == constants.GrantTypeAuthorizationCode &&
+		oauthApp.IsAllowedGrantType(constants.GrantTypeRefreshToken) {
+		logger.Debug("Issuing refresh token for the token request", log.String("client_id", clientID),
+			log.String("grant_type", grantTypeStr))
+
+		refreshGrantHandler := granthandlers.NewRefreshTokenGrantHandler()
+		refreshTokenError := refreshGrantHandler.IssueRefreshToken(tokenRespDTO, ctx, oauthApp.ClientID,
+			grantTypeStr, tokenRespDTO.AccessToken.Scopes)
+		if refreshTokenError != nil && refreshTokenError.Error != "" {
+			utils.WriteJSONError(w, refreshTokenError.Error, refreshTokenError.ErrorDescription,
+				http.StatusInternalServerError, nil)
+			return
+		}
+	}
+
+	scopes := strings.Join(tokenRespDTO.AccessToken.Scopes, " ")
+	tokenResponse := &model.TokenResponse{
+		AccessToken:  tokenRespDTO.AccessToken.Token,
+		TokenType:    tokenRespDTO.AccessToken.TokenType,
+		ExpiresIn:    tokenRespDTO.AccessToken.ExpiresIn,
+		RefreshToken: tokenRespDTO.RefreshToken.Token,
+		Scope:        scopes,
+	}
+
+	logger.Debug("Token generated successfully", log.String("client_id", clientID),
+		log.String("grant_type", grantTypeStr))
 
 	// Set the response headers.
 	w.Header().Set("Content-Type", "application/json")
@@ -184,6 +214,59 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Failed to write token response", http.StatusInternalServerError)
 		return
 	}
-	// Log the token response.
-	logger.Info("Token response sent", log.String("client_id", clientID))
+	logger.Debug("Token response sent", log.String("client_id", clientID), log.String("grant_type", grantTypeStr))
+}
+
+// extractClientIDAndSecret extracts the client ID and secret from the request.
+// It returns the client ID, client secret, token authentication method, and a boolean indicating success.
+func extractClientIDAndSecret(r *http.Request, w http.ResponseWriter) (
+	string, string, constants.TokenEndpointAuthMethod, bool) {
+	tokenAuthMethod := constants.TokenEndpointAuthMethodNone
+	clientID := ""
+	clientSecret := ""
+	if r.Header.Get("Authorization") != "" {
+		var err error
+		clientID, clientSecret, err = utils.ExtractBasicAuthCredentials(r)
+		if err != nil {
+			if err.Error() == "invalid authorization header" {
+				responseHeaders := []map[string]string{
+					{"WWW-Authenticate": "Basic"},
+				}
+				utils.WriteJSONError(w, constants.ErrorInvalidClient,
+					"Invalid client credentials", http.StatusUnauthorized, responseHeaders)
+				return "", "", "", false
+			}
+			utils.WriteJSONError(w, constants.ErrorInvalidClient,
+				"Invalid client credentials", http.StatusUnauthorized, nil)
+			return "", "", "", false
+		}
+
+		if clientID != "" && clientSecret != "" {
+			tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretBasic
+		}
+	}
+
+	// Check for client credentials in the request body.
+	clientIDFromBody := r.FormValue(constants.RequestParamClientID)
+	clientSecretFromBody := r.FormValue(constants.RequestParamClientSecret)
+
+	if clientIDFromBody != "" && clientSecretFromBody != "" {
+		if clientID != "" && clientSecret != "" {
+			utils.WriteJSONError(w, constants.ErrorInvalidRequest,
+				"Authorization information is provided in both header and body", http.StatusBadRequest, nil)
+			return "", "", "", false
+		}
+
+		clientID = clientIDFromBody
+		clientSecret = clientSecretFromBody
+		tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretPost
+	}
+
+	if clientID == "" {
+		utils.WriteJSONError(w, constants.ErrorInvalidRequest, "Missing client_id parameter",
+			http.StatusBadRequest, nil)
+		return "", "", "", false
+	}
+
+	return clientID, clientSecret, tokenAuthMethod, true
 }

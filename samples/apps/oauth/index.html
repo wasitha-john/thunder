@@ -4,7 +4,39 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <title>Thunder Sample App</title>
+    <script>
+      (function() {
+        try {
+          let colorScheme = '';
+          const mode = localStorage.getItem('mui-mode') || 'system';
+          const dark = localStorage.getItem('mui-color-scheme-dark') || 'dark';
+          const light = localStorage.getItem('mui-color-scheme-light') || 'light';
+          if (mode === 'system') {
+            // handle system mode
+            const mql = window.matchMedia('(prefers-color-scheme: dark)');
+            if (mql.matches) {
+              colorScheme = dark
+            } else {
+              colorScheme = light
+            }
+          }
+          if (mode === 'light') {
+            colorScheme = light;
+          }
+          if (mode === 'dark') {
+            colorScheme = dark;
+          }
+          if (colorScheme) {
+            document.documentElement.setAttribute('data-mui-color-scheme', colorScheme);
+            document.documentElement.setAttribute('data-color-scheme', colorScheme);
+          }
+        } catch(e){
+          console.error('Error setting color scheme:', e);
+        }
+      }
+    )();
+    </script>
   </head>
   <body>
     <div id="root"></div>
