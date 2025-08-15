@@ -57,6 +57,7 @@ type UserServiceInterface interface {
 	DeleteUser(userID string) *serviceerror.ServiceError
 	IdentifyUser(filters map[string]interface{}) (*string, *serviceerror.ServiceError)
 	VerifyUser(userID string, credentials map[string]interface{}) (*model.User, *serviceerror.ServiceError)
+	AuthenticateUser(request model.AuthenticateUserRequest) (*model.AuthenticateUserResponse, *serviceerror.ServiceError)
 	ValidateUserIDs(userIDs []string) ([]string, *serviceerror.ServiceError)
 }
 
@@ -379,7 +380,7 @@ func (as *UserService) VerifyUser(
 
 	if len(credentialsToVerify) == 0 {
 		logger.Debug("No valid credentials provided for verification", log.String("userID", userID))
-		return nil, &constants.ErrorInvalidCredentials
+		return nil, &constants.ErrorAuthenticationFailed
 	}
 
 	user, storedCredentials, err := store.VerifyUser(userID)
@@ -393,7 +394,7 @@ func (as *UserService) VerifyUser(
 
 	if len(storedCredentials) == 0 {
 		logger.Debug("No credentials found for user", log.String("userID", userID))
-		return nil, &constants.ErrorInvalidCredentials
+		return nil, &constants.ErrorAuthenticationFailed
 	}
 
 	for credType, credValue := range credentialsToVerify {
@@ -407,7 +408,7 @@ func (as *UserService) VerifyUser(
 
 		if matchingCredential == nil {
 			logger.Debug("No stored credential found for type", log.String("userID", userID), log.String("credType", credType))
-			return nil, &constants.ErrorInvalidCredentials
+			return nil, &constants.ErrorAuthenticationFailed
 		}
 
 		hashToCompare, err := hash.HashStringWithSalt(credValue, matchingCredential.Salt)
@@ -419,12 +420,61 @@ func (as *UserService) VerifyUser(
 			logger.Debug("Credential verified successfully", log.String("userID", userID), log.String("credType", credType))
 		} else {
 			logger.Debug("Credential verification failed", log.String("userID", userID), log.String("credType", credType))
-			return nil, &constants.ErrorInvalidCredentials
+			return nil, &constants.ErrorAuthenticationFailed
 		}
 	}
 
 	logger.Debug("Successfully verified all user credentials", log.String("id", userID))
 	return &user, nil
+}
+
+// AuthenticateUser authenticates a user by combining identify and verify operations.
+func (as *UserService) AuthenticateUser(
+	request model.AuthenticateUserRequest,
+) (*model.AuthenticateUserResponse, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
+	if len(request) == 0 {
+		return nil, &constants.ErrorInvalidRequestFormat
+	}
+
+	identifyFilters := make(map[string]interface{})
+	credentials := make(map[string]interface{})
+
+	for key, value := range request {
+		if _, isCredential := supportedCredentialFields[key]; isCredential {
+			credentials[key] = value
+		} else {
+			identifyFilters[key] = value
+		}
+	}
+
+	if len(identifyFilters) == 0 {
+		return nil, &constants.ErrorMissingRequiredFields
+	}
+	if len(credentials) == 0 {
+		return nil, &constants.ErrorMissingCredentials
+	}
+
+	userID, svcErr := as.IdentifyUser(identifyFilters)
+	if svcErr != nil {
+		if svcErr.Code == constants.ErrorUserNotFound.Code {
+			return nil, &constants.ErrorUserNotFound
+		}
+		return nil, svcErr
+	}
+
+	user, svcErr := as.VerifyUser(*userID, credentials)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+
+	logger.Debug("User authenticated successfully", log.String("userID", *userID))
+	return &model.AuthenticateUserResponse{
+		ID:               user.ID,
+		Type:             user.Type,
+		OrganizationUnit: user.OrganizationUnit,
+	}, nil
 }
 
 // ValidateUserIDs validates that all provided user IDs exist.
