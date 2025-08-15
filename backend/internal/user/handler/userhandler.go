@@ -91,15 +91,15 @@ func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Requ
 func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserHandler"))
 
-	var userInCreationRequest model.User
-	if err := json.NewDecoder(r.Body).Decode(&userInCreationRequest); err != nil {
+	createRequest, err := sysutils.DecodeJSONBody[model.User](r)
+	if err != nil {
 		http.Error(w, "Bad Request: The request body is malformed or contains invalid data.", http.StatusBadRequest)
 		return
 	}
 
 	// Create the user using the user service.
 	userService := ah.userProvider.GetUserService()
-	createdUser, svcErr := userService.CreateUser(&userInCreationRequest)
+	createdUser, svcErr := userService.CreateUser(createRequest)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return
@@ -157,16 +157,16 @@ func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var updatedUser model.User
-	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
+	updateRequest, err := sysutils.DecodeJSONBody[model.User](r)
+	if err != nil {
 		http.Error(w, "Bad Request: The request body is malformed or contains invalid data.", http.StatusBadRequest)
 		return
 	}
-	updatedUser.ID = id
+	updateRequest.ID = id
 
 	// Update the user using the user service.
 	userService := ah.userProvider.GetUserService()
-	user, svcErr := userService.UpdateUser(id, &updatedUser)
+	user, svcErr := userService.UpdateUser(id, updateRequest)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return
@@ -298,8 +298,8 @@ func (ah *UserHandler) HandleUserPostByPathRequest(w http.ResponseWriter, r *htt
 func (ah *UserHandler) HandleUserAuthenticateRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	var authRequest model.AuthenticateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&authRequest); err != nil {
+	authenticateRequest, err := sysutils.DecodeJSONBody[model.AuthenticateUserRequest](r)
+	if err != nil {
 		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusBadRequest)
 
@@ -317,7 +317,7 @@ func (ah *UserHandler) HandleUserAuthenticateRequest(w http.ResponseWriter, r *h
 	}
 
 	userService := ah.userProvider.GetUserService()
-	authResponse, svcErr := userService.AuthenticateUser(authRequest)
+	authResponse, svcErr := userService.AuthenticateUser(*authenticateRequest)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return
