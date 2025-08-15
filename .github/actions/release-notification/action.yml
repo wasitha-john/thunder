@@ -1,0 +1,87 @@
+name: 'Release Notification'
+description: 'Sends a notification to Google Chat when a release is published'
+inputs:
+  webhook:
+    description: 'Google Chat webhook URL'
+    required: true
+  release-name:
+    description: 'Name of the release'
+    required: true
+  release-tag:
+    description: 'Tag of the release'
+    required: true
+  release-url:
+    description: 'URL of the release'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Send Notification to Google Chat
+      shell: bash
+      env:
+        GOOGLE_CHAT_WEBHOOK: ${{ inputs.webhook }}
+        RELEASE_NAME: ${{ inputs.release-name }}
+        RELEASE_TAG: ${{ inputs.release-tag }}
+        RELEASE_URL: ${{ inputs.release-url }}
+      run: |
+        if [ -z "$GOOGLE_CHAT_WEBHOOK" ]; then
+          echo "GOOGLE_CHAT_WEBHOOK input is not set. Skipping notification."
+          exit 0
+        fi
+        
+        # Create JSON payload for Google Chat
+        cat > payload.json << EOF
+        {
+          "cards": [{
+            "header": {
+              "title": "Thunder $RELEASE_TAG Released ⚡",
+              "imageUrl": "https://cdn-icons-png.freepik.com/256/11063/11063287.png",
+              "imageStyle": "AVATAR"
+            },
+            "sections": [{
+              "widgets": [
+                {
+                  "keyValue": {
+                    "topLabel": "Release Name",
+                    "content": "$RELEASE_NAME"
+                  }
+                },
+                {
+                  "keyValue": {
+                    "topLabel": "Tag",
+                    "content": "$RELEASE_TAG"
+                  }
+                },
+                {
+                  "buttons": [{
+                    "textButton": {
+                      "text": "VIEW RELEASE",
+                      "onClick": {
+                        "openLink": {
+                          "url": "$RELEASE_URL"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "textButton": {
+                      "text": "VIEW CONTAINER",
+                      "onClick": {
+                        "openLink": {
+                          "url": "https://github.com/asgardeo/thunder/pkgs/container/thunder"
+                        }
+                      }
+                    }
+                  }]
+                }
+              ]
+            }]
+          }]
+        }
+        EOF
+        
+        # Send the payload to Google Chat
+        curl -f -X POST -H "Content-Type: application/json" \
+          -d @payload.json \
+          "$GOOGLE_CHAT_WEBHOOK"

@@ -262,3 +262,19 @@ jobs:
           files: target/dist/*.zip
           body: ${{ env.RELEASE_BODY }}
           generate_release_notes: false
+      
+      - name: 🔔 Set Release Info
+        id: release_info
+        run: |
+          RELEASE_VERSION="${{ steps.version.outputs.version }}"
+          echo "release_name=Thunder ${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "release_tag=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "release_url=https://github.com/${{ github.repository }}/releases/tag/${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+      
+      - name: 🔔 Send Release Notification
+        uses: ./.github/actions/release-notification
+        with:
+          webhook: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+          release-name: ${{ steps.release_info.outputs.release_name }}
+          release-tag: ${{ steps.release_info.outputs.release_tag }}
+          release-url: ${{ steps.release_info.outputs.release_url }}
