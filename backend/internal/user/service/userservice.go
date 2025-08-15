@@ -39,6 +39,13 @@ import (
 
 const loggerComponentName = "UserService"
 
+// SupportedCredentialFields defines the set of credential field names that are supported.
+var supportedCredentialFields = map[string]struct{}{
+	"password": {},
+	"pin":      {},
+	"secret":   {},
+}
+
 // UserServiceInterface defines the interface for the user service.
 type UserServiceInterface interface {
 	GetUserList(limit, offset int) (*model.UserListResponse, *serviceerror.ServiceError)
@@ -49,7 +56,7 @@ type UserServiceInterface interface {
 	UpdateUser(userID string, user *model.User) (*model.User, *serviceerror.ServiceError)
 	DeleteUser(userID string) *serviceerror.ServiceError
 	IdentifyUser(filters map[string]interface{}) (*string, *serviceerror.ServiceError)
-	VerifyUser(userID, credType, credValue string) (*model.User, *serviceerror.ServiceError)
+	VerifyUser(userID string, credentials map[string]interface{}) (*model.User, *serviceerror.ServiceError)
 	ValidateUserIDs(userIDs []string) ([]string, *serviceerror.ServiceError)
 }
 
@@ -166,8 +173,7 @@ func (as *UserService) CreateUser(user *model.User) (*model.User, *serviceerror.
 		return nil, logErrorAndReturnServerError(logger, "Failed to create user DTO", err)
 	}
 
-	// Create the user in the database.
-	err = store.CreateUser(*user, *credentials)
+	err = store.CreateUser(*user, credentials)
 	if err != nil {
 		return nil, logErrorAndReturnServerError(logger, "Failed to create user", err)
 	}
@@ -206,45 +212,50 @@ func (as *UserService) CreateUserByPath(
 	return as.CreateUser(user)
 }
 
-// extractCredentials extracts the credentials from the user attributes and returns a Credentials object.
-func extractCredentials(user *model.User) (*model.Credentials, error) {
+// extractCredentials extracts the credentials from the user attributes and returns a Credentials array.
+func extractCredentials(user *model.User) ([]model.Credential, error) {
 	var attrsMap map[string]interface{}
 	if err := json.Unmarshal(user.Attributes, &attrsMap); err != nil {
 		return nil, err
 	}
 
-	if pw, ok := attrsMap["password"].(string); ok {
-		// Generate a salt
-		pwSalt, err := hash.GenerateSalt()
-		if err != nil {
-			return nil, err
-		}
+	var credentials []model.Credential
 
-		// Hash the password with the salt
-		pwHash, err := hash.HashStringWithSalt(pw, pwSalt)
-		if err != nil {
-			return nil, err
-		}
+	for credField := range supportedCredentialFields {
+		if credValue, ok := attrsMap[credField].(string); ok {
+			credSalt, err := hash.GenerateSalt()
+			if err != nil {
+				return nil, err
+			}
 
-		delete(attrsMap, "password")
+			credHash, err := hash.HashStringWithSalt(credValue, credSalt)
+			if err != nil {
+				return nil, err
+			}
+
+			delete(attrsMap, credField)
+
+			credential := model.Credential{
+				CredentialType: credField,
+				StorageType:    "hash",
+				StorageAlgo:    "SHA-256",
+				Value:          credHash,
+				Salt:           credSalt,
+			}
+
+			credentials = append(credentials, credential)
+		}
+	}
+
+	if len(credentials) > 0 {
 		updatedAttrs, err := json.Marshal(attrsMap)
 		if err != nil {
 			return nil, err
 		}
 		user.Attributes = updatedAttrs
-
-		credentials := model.Credentials{
-			CredentialType: "password",
-			StorageType:    "hash",
-			StorageAlgo:    "SHA-256",
-			Value:          pwHash,
-			Salt:           pwSalt,
-		}
-
-		return &credentials, nil
 	}
 
-	return &model.Credentials{}, nil
+	return credentials, nil
 }
 
 // GetUser get the user for given user id.
@@ -338,22 +349,40 @@ func (as *UserService) IdentifyUser(filters map[string]interface{}) (*string, *s
 }
 
 // VerifyUser validate the specified user with the given credentials.
-func (as *UserService) VerifyUser(userID, credType, credValue string) (*model.User, *serviceerror.ServiceError) {
+func (as *UserService) VerifyUser(
+	userID string, credentials map[string]interface{},
+) (*model.User, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	if userID == "" {
 		return nil, &constants.ErrorMissingUserID
 	}
 
-	if credType == "" {
+	if len(credentials) == 0 {
 		return nil, &constants.ErrorInvalidRequestFormat
 	}
 
-	if credValue == "" {
-		return nil, &constants.ErrorInvalidRequestFormat
+	credentialsToVerify := make(map[string]string)
+
+	for credType, credValueInterface := range credentials {
+		if _, isSupported := supportedCredentialFields[credType]; !isSupported {
+			continue
+		}
+
+		credValue, ok := credValueInterface.(string)
+		if !ok || credValue == "" {
+			continue
+		}
+
+		credentialsToVerify[credType] = credValue
 	}
 
-	user, credentials, err := store.VerifyUser(userID)
+	if len(credentialsToVerify) == 0 {
+		logger.Debug("No valid credentials provided for verification", log.String("userID", userID))
+		return nil, &constants.ErrorInvalidCredentials
+	}
+
+	user, storedCredentials, err := store.VerifyUser(userID)
 	if err != nil {
 		if errors.Is(err, constants.ErrUserNotFound) {
 			logger.Debug("User not found", log.String("id", userID))
@@ -362,26 +391,39 @@ func (as *UserService) VerifyUser(userID, credType, credValue string) (*model.Us
 		return nil, logErrorAndReturnServerError(logger, "Failed to verify user", err, log.String("id", userID))
 	}
 
-	// Fix the comparison to check for an empty Credentials struct instead of nil.
-	if credentials == (model.Credentials{}) {
-		return nil, logErrorAndReturnServerError(logger, "Credentials not found", nil, log.String("userID", userID))
-	}
-	if credentials.CredentialType == "" || credentials.Value == "" || credentials.Salt == "" {
-		return nil, logErrorAndReturnServerError(logger, "Incomplete credentials", nil, log.String("userID", userID))
+	if len(storedCredentials) == 0 {
+		logger.Debug("No credentials found for user", log.String("userID", userID))
+		return nil, &constants.ErrorInvalidCredentials
 	}
 
-	hashToCompare, err := hash.HashStringWithSalt(credValue, credentials.Salt)
-	if err != nil {
-		return nil, logErrorAndReturnServerError(logger, "Failed to hash credential value", err)
-	}
-	if credentials.CredentialType != credType {
-		return nil, logErrorAndReturnServerError(logger, "Invalid credential type", nil, log.String("userID", userID))
-	}
-	if credentials.Value != hashToCompare {
-		return nil, logErrorAndReturnServerError(logger, "Invalid credentials", nil, log.String("userID", userID))
+	for credType, credValue := range credentialsToVerify {
+		var matchingCredential *model.Credential
+		for _, storedCred := range storedCredentials {
+			if storedCred.CredentialType == credType {
+				matchingCredential = &storedCred
+				break
+			}
+		}
+
+		if matchingCredential == nil {
+			logger.Debug("No stored credential found for type", log.String("userID", userID), log.String("credType", credType))
+			return nil, &constants.ErrorInvalidCredentials
+		}
+
+		hashToCompare, err := hash.HashStringWithSalt(credValue, matchingCredential.Salt)
+		if err != nil {
+			return nil, logErrorAndReturnServerError(logger, "Failed to hash credential value", err)
+		}
+
+		if matchingCredential.Value == hashToCompare {
+			logger.Debug("Credential verified successfully", log.String("userID", userID), log.String("credType", credType))
+		} else {
+			logger.Debug("Credential verification failed", log.String("userID", userID), log.String("credType", credType))
+			return nil, &constants.ErrorInvalidCredentials
+		}
 	}
 
-	logger.Debug("Successfully verified user", log.String("id", userID))
+	logger.Debug("Successfully verified all user credentials", log.String("id", userID))
 	return &user, nil
 }
 
