@@ -28,6 +28,7 @@ import (
 	"github.com/asgardeo/thunder/internal/idp/model"
 	idpprovider "github.com/asgardeo/thunder/internal/idp/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
+	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // IDPHandler is the handler for identity provider management operations.
@@ -38,8 +39,8 @@ type IDPHandler struct {
 func (ih *IDPHandler) HandleIDPPostRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IDPHandler"))
 
-	var idpInCreationRequest model.IDP
-	if err := json.NewDecoder(r.Body).Decode(&idpInCreationRequest); err != nil {
+	createRequest, err := utils.DecodeJSONBody[model.IDP](r)
+	if err != nil {
 		http.Error(w, "Bad Request: The request body is malformed or contains invalid data.", http.StatusBadRequest)
 		return
 	}
@@ -47,7 +48,7 @@ func (ih *IDPHandler) HandleIDPPostRequest(w http.ResponseWriter, r *http.Reques
 	// Create the IdP using the IdP service.
 	idpProvider := idpprovider.NewIDPProvider()
 	idpService := idpProvider.GetIDPService()
-	createdIDP, err := idpService.CreateIdentityProvider(&idpInCreationRequest)
+	createdIDP, err := idpService.CreateIdentityProvider(createRequest)
 	if err != nil {
 		if errors.Is(err, model.ErrBadScopesInRequest) {
 			http.Error(w, "Bad Request: The scopes element is malformed or contains invalid data.", http.StatusBadRequest)
@@ -167,17 +168,17 @@ func (ih *IDPHandler) HandleIDPPutRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var updatedIDP model.IDP
-	if err := json.NewDecoder(r.Body).Decode(&updatedIDP); err != nil {
+	updateRequest, err := utils.DecodeJSONBody[model.IDP](r)
+	if err != nil {
 		http.Error(w, "Bad Request: The request body is malformed or contains invalid data.", http.StatusBadRequest)
 		return
 	}
-	updatedIDP.ID = id
+	updateRequest.ID = id
 
 	// Update the IdP using the IdP service.
 	idpProvider := idpprovider.NewIDPProvider()
 	idpService := idpProvider.GetIDPService()
-	idp, err := idpService.UpdateIdentityProvider(id, &updatedIDP)
+	idp, err := idpService.UpdateIdentityProvider(id, updateRequest)
 	if err != nil {
 		if errors.Is(err, model.ErrIDPNotFound) {
 			http.Error(w, "Not Found: The identity provider with the specified id does not exist.",
