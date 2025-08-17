@@ -21,6 +21,7 @@ package token
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -42,6 +43,7 @@ type TokenHandlerInterface interface {
 
 // TokenHandler implements the TokenHandlerInterface.
 type TokenHandler struct {
+	GrantHandlerProvider   granthandlers.GrantHandlerProviderInterface
 	ApplicationProvider    appprovider.ApplicationProviderInterface
 	ScopeValidatorProvider scopeprovider.ScopeValidatorProviderInterface
 }
@@ -49,6 +51,7 @@ type TokenHandler struct {
 // NewTokenHandler creates a new instance of TokenHandler.
 func NewTokenHandler() TokenHandlerInterface {
 	return &TokenHandler{
+		GrantHandlerProvider:   granthandlers.NewGrantHandlerProvider(),
 		ApplicationProvider:    appprovider.NewApplicationProvider(),
 		ScopeValidatorProvider: scopeprovider.NewScopeValidatorProvider(),
 	}
@@ -80,17 +83,16 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var grantHandler granthandlers.GrantHandler
-	switch grantType {
-	case constants.GrantTypeClientCredentials:
-		grantHandler = granthandlers.NewClientCredentialsGrantHandler()
-	case constants.GrantTypeAuthorizationCode:
-		grantHandler = granthandlers.NewAuthorizationCodeGrantHandler()
-	case constants.GrantTypeRefreshToken:
-		grantHandler = granthandlers.NewRefreshTokenGrantHandler()
-	default:
-		utils.WriteJSONError(w, constants.ErrorUnsupportedGrantType,
-			"Unsupported grant type", http.StatusBadRequest, nil)
+	grantHandler, handlerErr := th.GrantHandlerProvider.GetGrantHandler(grantType)
+	if handlerErr != nil {
+		if errors.Is(handlerErr, constants.UnSupportedGrantTypeError) {
+			utils.WriteJSONError(w, constants.ErrorUnsupportedGrantType, "Unsupported grant type",
+				http.StatusBadRequest, nil)
+			return
+		}
+		logger.Error("Failed to get grant handler", log.Error(handlerErr))
+		utils.WriteJSONError(w, constants.ErrorServerError,
+			"Failed to get grant handler", http.StatusInternalServerError, nil)
 		return
 	}
 
@@ -179,8 +181,23 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		logger.Debug("Issuing refresh token for the token request", log.String("client_id", clientID),
 			log.String("grant_type", grantTypeStr))
 
-		refreshGrantHandler := granthandlers.NewRefreshTokenGrantHandler()
-		refreshTokenError := refreshGrantHandler.IssueRefreshToken(tokenRespDTO, ctx, oauthApp.ClientID,
+		refreshGrantHandler, handlerErr := th.GrantHandlerProvider.GetGrantHandler(constants.GrantTypeRefreshToken)
+		if handlerErr != nil {
+			logger.Error("Failed to get refresh grant handler", log.Error(handlerErr))
+			utils.WriteJSONError(w, constants.ErrorServerError,
+				"Failed to get refresh grant handler", http.StatusInternalServerError, nil)
+			return
+		}
+		refreshGrantHandlerTyped, ok := refreshGrantHandler.(granthandlers.RefreshTokenGrantHandlerInterface)
+		if !ok {
+			logger.Error("Failed to cast refresh grant handler", log.String("client_id", clientID),
+				log.String("grant_type", grantTypeStr))
+			utils.WriteJSONError(w, constants.ErrorServerError, "Something went wrong",
+				http.StatusInternalServerError, nil)
+			return
+		}
+
+		refreshTokenError := refreshGrantHandlerTyped.IssueRefreshToken(tokenRespDTO, ctx, oauthApp.ClientID,
 			grantTypeStr, tokenRespDTO.AccessToken.Scopes)
 		if refreshTokenError != nil && refreshTokenError.Error != "" {
 			utils.WriteJSONError(w, refreshTokenError.Error, refreshTokenError.ErrorDescription,

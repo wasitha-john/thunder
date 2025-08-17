@@ -34,22 +34,20 @@ import (
 
 const defaultRefreshTokenValidity = 86400 // default validity period of 1 day
 
-// RefreshTokenGrantHandler handles the refresh token grant type.
-type RefreshTokenGrantHandler struct {
+// refreshTokenGrantHandler handles the refresh token grant type.
+type refreshTokenGrantHandler struct {
 	JWTService jwt.JWTServiceInterface
 }
 
-var _ GrantHandler = (*RefreshTokenGrantHandler)(nil)
-
-// NewRefreshTokenGrantHandler creates a new instance of RefreshTokenGrantHandler.
-func NewRefreshTokenGrantHandler() *RefreshTokenGrantHandler {
-	return &RefreshTokenGrantHandler{
+// newRefreshTokenGrantHandler creates a new instance of RefreshTokenGrantHandler.
+func newRefreshTokenGrantHandler() RefreshTokenGrantHandlerInterface {
+	return &refreshTokenGrantHandler{
 		JWTService: jwt.GetJWTService(),
 	}
 }
 
 // ValidateGrant validates the refresh token grant request.
-func (h *RefreshTokenGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
+func (h *refreshTokenGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse {
 	if constants.GrantType(tokenRequest.GrantType) != constants.GrantTypeRefreshToken {
 		return &model.ErrorResponse{
@@ -74,7 +72,7 @@ func (h *RefreshTokenGrantHandler) ValidateGrant(tokenRequest *model.TokenReques
 }
 
 // HandleGrant processes the refresh token grant request and generates a new token response.
-func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
+func (h *refreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (
 	*model.TokenResponseDTO, *model.ErrorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "RefreshTokenGrantHandler"))
@@ -181,7 +179,7 @@ func (h *RefreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 }
 
 // IssueRefreshToken generates a new refresh token for the given OAuth application and scopes.
-func (h *RefreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenResponseDTO,
+func (h *refreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenResponseDTO,
 	ctx *model.TokenContext, clientID, grantType string, scopes []string) *model.ErrorResponse {
 	// Extract sub and aud from the context attributes if available
 	sub := ""
@@ -238,7 +236,7 @@ func (h *RefreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 }
 
 // verifyRefreshTokenSignature verifies the signature of the refresh token using the server's public key.
-func (h *RefreshTokenGrantHandler) verifyRefreshTokenSignature(refreshToken string,
+func (h *refreshTokenGrantHandler) verifyRefreshTokenSignature(refreshToken string,
 	logger *log.Logger) *model.ErrorResponse {
 	pubKey := h.JWTService.GetPublicKey()
 	if pubKey == nil {
@@ -260,7 +258,7 @@ func (h *RefreshTokenGrantHandler) verifyRefreshTokenSignature(refreshToken stri
 }
 
 // getValidatedClaims validates the claims in the refresh token and returns them if valid.
-func (h *RefreshTokenGrantHandler) getValidatedClaims(refreshToken, clientID string,
+func (h *refreshTokenGrantHandler) getValidatedClaims(refreshToken, clientID string,
 	logger *log.Logger) (map[string]interface{}, *model.ErrorResponse) {
 	claims, err := jwtutils.ParseJWTClaims(refreshToken)
 	if err != nil {
@@ -313,7 +311,7 @@ func (h *RefreshTokenGrantHandler) getValidatedClaims(refreshToken, clientID str
 }
 
 // validateIssuedAt validates the issued at time (iat) claim of the refresh token.
-func (h *RefreshTokenGrantHandler) validateIssuedAt(claims map[string]interface{},
+func (h *refreshTokenGrantHandler) validateIssuedAt(claims map[string]interface{},
 	logger *log.Logger) *model.ErrorResponse {
 	return h.validateTimeClaim(
 		claims,
@@ -326,7 +324,7 @@ func (h *RefreshTokenGrantHandler) validateIssuedAt(claims map[string]interface{
 }
 
 // validateExpiryTime validates the expiry time (exp) claim of the refresh token.
-func (h *RefreshTokenGrantHandler) validateExpiryTime(claims map[string]interface{},
+func (h *refreshTokenGrantHandler) validateExpiryTime(claims map[string]interface{},
 	logger *log.Logger) *model.ErrorResponse {
 	return h.validateTimeClaim(
 		claims,
@@ -339,7 +337,7 @@ func (h *RefreshTokenGrantHandler) validateExpiryTime(claims map[string]interfac
 }
 
 // validateTimeClaim validates a given time-based claim in the refresh token.
-func (h *RefreshTokenGrantHandler) validateTimeClaim(claims map[string]interface{}, claimKey string,
+func (h *refreshTokenGrantHandler) validateTimeClaim(claims map[string]interface{}, claimKey string,
 	cmp func(now, claim int64) bool, errMsg, errDesc string, logger *log.Logger) *model.ErrorResponse {
 	val, ok := claims[claimKey]
 	if !ok || val == nil {
@@ -379,7 +377,7 @@ func (h *RefreshTokenGrantHandler) validateTimeClaim(claims map[string]interface
 }
 
 // validateNBF validates the not before time (nbf) claim of the refresh token if present.
-func (h *RefreshTokenGrantHandler) validateNBF(claims map[string]interface{},
+func (h *refreshTokenGrantHandler) validateNBF(claims map[string]interface{},
 	logger *log.Logger) *model.ErrorResponse {
 	nbfVal, ok := claims["nbf"]
 	if ok && nbfVal != nil {
@@ -414,7 +412,7 @@ func (h *RefreshTokenGrantHandler) validateNBF(claims map[string]interface{},
 
 // extractScopes extracts and validates the scopes from the refresh token claims. It returns scopes for the
 // refresh token and the new access token.
-func (h *RefreshTokenGrantHandler) extractScopes(requestedScopes string, refreshTokenClaims map[string]interface{},
+func (h *refreshTokenGrantHandler) extractScopes(requestedScopes string, refreshTokenClaims map[string]interface{},
 	logger *log.Logger) ([]string, []string, *model.ErrorResponse) {
 	// Extract scopes from the refresh token claims
 	refreshTokenScopes := []string{}

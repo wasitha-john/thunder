@@ -19,6 +19,8 @@
 // Package constants defines constants used across the OAuth2 module.
 package constants
 
+import "errors"
+
 // OAuth2 request parameters.
 const (
 	RequestParamGrantType        string = "grant_type"
@@ -155,3 +157,6 @@ const (
 	ErrorUnsupportedResponseType string = "unsupported_response_type"
 	ErrorAccessDenied            string = "access_denied"
 )
+
+// UnSupportedGrantTypeError is returned when an unsupported grant type is requested.
+var UnSupportedGrantTypeError = errors.New("unsupported_grant_type")

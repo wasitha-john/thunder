@@ -43,18 +43,22 @@ type AuthorizationCodeStoreInterface interface {
 }
 
 // AuthorizationCodeStore implements the AuthorizationCodeStoreInterface for managing authorization codes.
-type AuthorizationCodeStore struct{}
+type AuthorizationCodeStore struct {
+	DBProvider provider.DBProviderInterface
+}
 
 // NewAuthorizationCodeStore creates a new instance of AuthorizationCodeStore.
 func NewAuthorizationCodeStore() AuthorizationCodeStoreInterface {
-	return &AuthorizationCodeStore{}
+	return &AuthorizationCodeStore{
+		DBProvider: provider.NewDBProvider(),
+	}
 }
 
 // InsertAuthorizationCode inserts a new authorization code into the database.
 func (acs *AuthorizationCodeStore) InsertAuthorizationCode(authzCode model.AuthorizationCode) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("runtime")
+	dbClient, err := acs.DBProvider.GetDBClient("runtime")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return err
@@ -110,7 +114,7 @@ func (acs *AuthorizationCodeStore) InsertAuthorizationCode(authzCode model.Autho
 func (acs *AuthorizationCodeStore) GetAuthorizationCode(clientID, authCode string) (model.AuthorizationCode, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("runtime")
+	dbClient, err := acs.DBProvider.GetDBClient("runtime")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return model.AuthorizationCode{}, err
@@ -191,7 +195,7 @@ func (acs *AuthorizationCodeStore) updateAuthorizationCodeState(authzCode model.
 	newState string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("runtime")
+	dbClient, err := acs.DBProvider.GetDBClient("runtime")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return err
