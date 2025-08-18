@@ -31,24 +31,22 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
-// AuthorizationCodeGrantHandler handles the authorization code grant type.
-type AuthorizationCodeGrantHandler struct {
+// authorizationCodeGrantHandler handles the authorization code grant type.
+type authorizationCodeGrantHandler struct {
 	JWTService jwt.JWTServiceInterface
 	AuthZStore store.AuthorizationCodeStoreInterface
 }
 
-var _ GrantHandler = (*AuthorizationCodeGrantHandler)(nil)
-
-// NewAuthorizationCodeGrantHandler creates a new instance of AuthorizationCodeGrantHandler.
-func NewAuthorizationCodeGrantHandler() *AuthorizationCodeGrantHandler {
-	return &AuthorizationCodeGrantHandler{
+// newAuthorizationCodeGrantHandler creates a new instance of AuthorizationCodeGrantHandler.
+func newAuthorizationCodeGrantHandler() GrantHandlerInterface {
+	return &authorizationCodeGrantHandler{
 		JWTService: jwt.GetJWTService(),
 		AuthZStore: store.NewAuthorizationCodeStore(),
 	}
 }
 
 // ValidateGrant validates the authorization code grant request.
-func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
+func (h *authorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse {
 	if tokenRequest.GrantType == "" {
 		return &model.ErrorResponse{
@@ -96,7 +94,7 @@ func (h *AuthorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 }
 
 // HandleGrant processes the authorization code grant request and generates a token response.
-func (h *AuthorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
+func (h *authorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (
 	*model.TokenResponseDTO, *model.ErrorResponse) {
 	authCode, err := h.AuthZStore.GetAuthorizationCode(tokenRequest.ClientID, tokenRequest.Code)

@@ -28,22 +28,20 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
-// ClientCredentialsGrantHandler handles the client credentials grant type.
-type ClientCredentialsGrantHandler struct {
+// clientCredentialsGrantHandler handles the client credentials grant type.
+type clientCredentialsGrantHandler struct {
 	JWTService jwt.JWTServiceInterface
 }
 
-var _ GrantHandler = (*ClientCredentialsGrantHandler)(nil)
-
-// NewClientCredentialsGrantHandler creates a new instance of ClientCredentialsGrantHandler.
-func NewClientCredentialsGrantHandler() *ClientCredentialsGrantHandler {
-	return &ClientCredentialsGrantHandler{
+// newClientCredentialsGrantHandler creates a new instance of ClientCredentialsGrantHandler.
+func newClientCredentialsGrantHandler() GrantHandlerInterface {
+	return &clientCredentialsGrantHandler{
 		JWTService: jwt.GetJWTService(),
 	}
 }
 
 // ValidateGrant validates the client credentials grant type.
-func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
+func (h *clientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse {
 	if constants.GrantType(tokenRequest.GrantType) != constants.GrantTypeClientCredentials {
 		return &model.ErrorResponse{
@@ -64,7 +62,7 @@ func (h *ClientCredentialsGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 }
 
 // HandleGrant handles the client credentials grant type.
-func (h *ClientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
+func (h *clientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (
 	*model.TokenResponseDTO, *model.ErrorResponse) {
 	scopeString := strings.TrimSpace(tokenRequest.Scope)
