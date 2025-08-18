@@ -20,7 +20,7 @@ package crypto
 
 // EncryptedData represents the structure of encrypted data with metadata
 type EncryptedData struct {
-	Algorithm  Algorithm `json:"algorithm"`  // Use full name for clarity
-	Ciphertext string    `json:"ciphertext"` // Base64 encoded ciphertext (nonce + ciphertext for GCM)
-	KeyID      string    `json:"key_id"`     // Key identifier for key rotation
+	Algorithm  Algorithm `json:"alg"` // Use full name for clarity
+	Ciphertext string    `json:"ct"`  // Base64 encoded ciphertext (nonce + ciphertext for GCM)
+	KeyID      string    `json:"kid"` // Key identifier for key rotation
 }

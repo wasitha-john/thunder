@@ -26,22 +26,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 )
 
-// CryptoAlgorithm defines the interface that all encryption algorithms must implement
+// CryptoAlgorithm defines the interface that all encryption algorithms must implement.
 type CryptoAlgorithm interface {
-	Encrypt(key []byte, plaintext []byte) (string, error)
+	Encrypt(key []byte, kid string, plaintext []byte) (string, error)
 	Decrypt(key []byte, encodedData string) ([]byte, error)
 	Name() Algorithm
-	KeySize() int
 }
 
-// AESGCMAlgorithm implements the CryptoAlgorithm interface for AES-256-GCM
+// AESGCMAlgorithm implements the CryptoAlgorithm interface for AES-GCM.
 type AESGCMAlgorithm struct{}
 
-// Encrypt encrypts plaintext using AES-256-GCM and returns a serialized EncryptedData
-func (a *AESGCMAlgorithm) Encrypt(key []byte, plaintext []byte) (string, error) {
+// Encrypt encrypts the given plaintext using AES-GCM and returns a JSON string.
+func (a *AESGCMAlgorithm) Encrypt(key []byte, kid string, plaintext []byte) (string, error) {
 	// Create AES cipher
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -56,7 +54,7 @@ func (a *AESGCMAlgorithm) Encrypt(key []byte, plaintext []byte) (string, error) 
 
 	// Create a nonce
 	nonce := make([]byte, aesgcm.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+	if _, err = rand.Read(nonce); err != nil {
 		return "", err
 	}
 
@@ -67,6 +65,7 @@ func (a *AESGCMAlgorithm) Encrypt(key []byte, plaintext []byte) (string, error) 
 	encData := EncryptedData{
 		Algorithm:  AESGCM,
 		Ciphertext: base64.StdEncoding.EncodeToString(ciphertext),
+		KeyID:      kid, // Unique identifier for the key
 	}
 
 	// Serialize to JSON
@@ -75,20 +74,14 @@ func (a *AESGCMAlgorithm) Encrypt(key []byte, plaintext []byte) (string, error) 
 		return "", err
 	}
 
-	return base64.StdEncoding.EncodeToString(jsonData), nil
+	return string(jsonData), nil
 }
 
-// Decrypt decrypts the base64-encoded serialized EncryptedData
-func (a *AESGCMAlgorithm) Decrypt(key []byte, encodedData string) ([]byte, error) {
-	// Decode base64
-	jsonData, err := base64.StdEncoding.DecodeString(encodedData)
-	if err != nil {
-		return nil, fmt.Errorf("invalid base64 encoding: %w", err)
-	}
-
+// Decrypt decrypts a JSON string cencrypted using AES-GCM and returns the plaintext.
+func (a *AESGCMAlgorithm) Decrypt(key []byte, jsonString string) ([]byte, error) {
 	// Deserialize JSON
 	var encData EncryptedData
-	if err := json.Unmarshal(jsonData, &encData); err != nil {
+	if err := json.Unmarshal([]byte(jsonString), &encData); err != nil {
 		return nil, fmt.Errorf("invalid data format: %w", err)
 	}
 
@@ -131,12 +124,7 @@ func (a *AESGCMAlgorithm) Decrypt(key []byte, encodedData string) ([]byte, error
 	return plaintext, nil
 }
 
-// Name returns the algorithm name
+// Name returns the algorithm name.
 func (a *AESGCMAlgorithm) Name() Algorithm {
 	return AESGCM
-}
-
-// KeySize returns the required key size in bytes
-func (a *AESGCMAlgorithm) KeySize() int {
-	return 32 // 256 bits
 }
