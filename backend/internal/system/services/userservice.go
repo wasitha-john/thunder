@@ -26,7 +26,6 @@ import (
 
 	"github.com/asgardeo/thunder/internal/system/server"
 	"github.com/asgardeo/thunder/internal/user/handler"
-	"github.com/asgardeo/thunder/internal/user/provider"
 )
 
 // UserService is the service for user management operations.
@@ -37,10 +36,9 @@ type UserService struct {
 
 // NewUserService creates a new instance of UserService.
 func NewUserService(mux *http.ServeMux) ServiceInterface {
-	userProvider := provider.NewUserProvider()
 	instance := &UserService{
 		ServerOpsService: server.NewServerOperationService(),
-		userHandler:      handler.NewUserHandler(userProvider),
+		userHandler:      handler.NewUserHandler(),
 	}
 	instance.RegisterRoutes(mux)
 

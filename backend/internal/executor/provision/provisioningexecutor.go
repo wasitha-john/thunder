@@ -31,7 +31,7 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 	usermodel "github.com/asgardeo/thunder/internal/user/model"
-	userprovider "github.com/asgardeo/thunder/internal/user/provider"
+	"github.com/asgardeo/thunder/internal/user/service"
 )
 
 const (
@@ -45,7 +45,8 @@ var nonUserAttributes = []string{"userID", "code", "nonce", "state", "flowID",
 // ProvisioningExecutor implements the ExecutorInterface for user provisioning in a flow.
 type ProvisioningExecutor struct {
 	*identify.IdentifyingExecutor
-	internal flowmodel.Executor
+	internal    flowmodel.Executor
+	userService service.UserServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*ProvisioningExecutor)(nil)
@@ -56,6 +57,7 @@ func NewProvisioningExecutor(id, name string, properties map[string]string) *Pro
 		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
 		internal: *flowmodel.NewExecutor(id, name, []flowmodel.InputData{}, []flowmodel.InputData{},
 			properties),
+		userService: service.GetUserService(),
 	}
 }
 
@@ -318,9 +320,7 @@ func (p *ProvisioningExecutor) createUserInStore(flowID string,
 	}
 	user.Attributes = attributesJSON
 
-	userProvider := userprovider.NewUserProvider()
-	userService := userProvider.GetUserService()
-	retUser, svcErr := userService.CreateUser(&user)
+	retUser, svcErr := p.userService.CreateUser(&user)
 	if svcErr != nil {
 		return nil, fmt.Errorf("failed to create user in the store: %s", svcErr.Error)
 	}
