@@ -27,7 +27,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/group/constants"
 	"github.com/asgardeo/thunder/internal/group/model"
-	"github.com/asgardeo/thunder/internal/group/provider"
+	"github.com/asgardeo/thunder/internal/group/service"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/error/apierror"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
@@ -38,11 +38,15 @@ import (
 const loggerComponentName = "GroupHandler"
 
 // GroupHandler is the handler for group management operations.
-type GroupHandler struct{}
+type GroupHandler struct {
+	groupService service.GroupServiceInterface
+}
 
 // NewGroupHandler creates a new instance of GroupHandler
 func NewGroupHandler() *GroupHandler {
-	return &GroupHandler{}
+	return &GroupHandler{
+		groupService: service.GetGroupService(),
+	}
 }
 
 // HandleGroupListRequest handles the list groups request.
@@ -55,9 +59,7 @@ func (gh *GroupHandler) HandleGroupListRequest(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	groupProvider := provider.NewGroupProvider()
-	groupService := groupProvider.GetGroupService()
-	groupListResponse, svcErr := groupService.GetGroupList(limit, offset)
+	groupListResponse, svcErr := gh.groupService.GetGroupList(limit, offset)
 	if svcErr != nil {
 		gh.handleError(w, logger, svcErr)
 		return
@@ -93,9 +95,7 @@ func (gh *GroupHandler) HandleGroupListByPathRequest(w http.ResponseWriter, r *h
 		return
 	}
 
-	groupProvider := provider.NewGroupProvider()
-	groupService := groupProvider.GetGroupService()
-	groupListResponse, svcErr := groupService.GetGroupsByPath(path, limit, offset)
+	groupListResponse, svcErr := gh.groupService.GetGroupsByPath(path, limit, offset)
 	if svcErr != nil {
 		gh.handleError(w, logger, svcErr)
 		return
@@ -139,10 +139,7 @@ func (gh *GroupHandler) HandleGroupPostRequest(w http.ResponseWriter, r *http.Re
 	}
 
 	sanitizedRequest := gh.sanitizeCreateGroupRequest(createRequest)
-
-	groupProvider := provider.NewGroupProvider()
-	groupService := groupProvider.GetGroupService()
-	createdGroup, svcErr := groupService.CreateGroup(sanitizedRequest)
+	createdGroup, svcErr := gh.groupService.CreateGroup(sanitizedRequest)
 	if svcErr != nil {
 		gh.handleError(w, logger, svcErr)
 		return
@@ -187,9 +184,7 @@ func (gh *GroupHandler) HandleGroupPostByPathRequest(w http.ResponseWriter, r *h
 		return
 	}
 
-	groupProvider := provider.NewGroupProvider()
-	groupService := groupProvider.GetGroupService()
-	group, svcErr := groupService.CreateGroupByPath(path, *createRequest)
+	group, svcErr := gh.groupService.CreateGroupByPath(path, *createRequest)
 	if svcErr != nil {
 		gh.handleError(w, logger, svcErr)
 		return
@@ -227,9 +222,7 @@ func (gh *GroupHandler) HandleGroupGetRequest(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	groupProvider := provider.NewGroupProvider()
-	groupService := groupProvider.GetGroupService()
-	group, svcErr := groupService.GetGroup(id)
+	group, svcErr := gh.groupService.GetGroup(id)
 	if svcErr != nil {
 		gh.handleError(w, logger, svcErr)
 		return
@@ -286,10 +279,7 @@ func (gh *GroupHandler) HandleGroupPutRequest(w http.ResponseWriter, r *http.Req
 	}
 
 	sanitizedRequest := gh.sanitizeUpdateGroupRequest(updateRequest)
-
-	groupProvider := provider.NewGroupProvider()
-	groupService := groupProvider.GetGroupService()
-	group, svcErr := groupService.UpdateGroup(id, sanitizedRequest)
+	group, svcErr := gh.groupService.UpdateGroup(id, sanitizedRequest)
 	if svcErr != nil {
 		gh.handleError(w, logger, svcErr)
 		return
@@ -327,9 +317,7 @@ func (gh *GroupHandler) HandleGroupDeleteRequest(w http.ResponseWriter, r *http.
 		return
 	}
 
-	groupProvider := provider.NewGroupProvider()
-	groupService := groupProvider.GetGroupService()
-	svcErr := groupService.DeleteGroup(id)
+	svcErr := gh.groupService.DeleteGroup(id)
 	if svcErr != nil {
 		gh.handleError(w, logger, svcErr)
 		return
@@ -365,9 +353,7 @@ func (gh *GroupHandler) HandleGroupMembersGetRequest(w http.ResponseWriter, r *h
 		return
 	}
 
-	groupProvider := provider.NewGroupProvider()
-	groupService := groupProvider.GetGroupService()
-	memberListResponse, svcErr := groupService.GetGroupMembers(id, limit, offset)
+	memberListResponse, svcErr := gh.groupService.GetGroupMembers(id, limit, offset)
 	if svcErr != nil {
 		gh.handleError(w, logger, svcErr)
 		return

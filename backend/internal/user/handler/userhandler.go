@@ -33,20 +33,20 @@ import (
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 	"github.com/asgardeo/thunder/internal/user/constants"
 	"github.com/asgardeo/thunder/internal/user/model"
-	userprovider "github.com/asgardeo/thunder/internal/user/provider"
+	"github.com/asgardeo/thunder/internal/user/service"
 )
 
 const loggerComponentName = "UserHandler"
 
 // UserHandler is the handler for user management operations.
 type UserHandler struct {
-	userProvider userprovider.UserProviderInterface
+	userService service.UserServiceInterface
 }
 
 // NewUserHandler creates a new instance of UserHandler with dependency injection.
-func NewUserHandler(userProvider userprovider.UserProviderInterface) *UserHandler {
+func NewUserHandler() *UserHandler {
 	return &UserHandler{
-		userProvider: userProvider,
+		userService: service.GetUserService(),
 	}
 }
 
@@ -65,8 +65,7 @@ func (ah *UserHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Get the user list using the user service.
-	userService := ah.userProvider.GetUserService()
-	userListResponse, svcErr := userService.GetUserList(limit, offset)
+	userListResponse, svcErr := ah.userService.GetUserList(limit, offset)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return
@@ -98,8 +97,7 @@ func (ah *UserHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Create the user using the user service.
-	userService := ah.userProvider.GetUserService()
-	createdUser, svcErr := userService.CreateUser(createRequest)
+	createdUser, svcErr := ah.userService.CreateUser(createRequest)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return
@@ -129,8 +127,7 @@ func (ah *UserHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Get the user using the user service.
-	userService := ah.userProvider.GetUserService()
-	user, svcErr := userService.GetUser(id)
+	user, svcErr := ah.userService.GetUser(id)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return
@@ -165,8 +162,7 @@ func (ah *UserHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 	updateRequest.ID = id
 
 	// Update the user using the user service.
-	userService := ah.userProvider.GetUserService()
-	user, svcErr := userService.UpdateUser(id, updateRequest)
+	user, svcErr := ah.userService.UpdateUser(id, updateRequest)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return
@@ -194,8 +190,7 @@ func (ah *UserHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Re
 	}
 
 	// Delete the user using the user service.
-	userService := ah.userProvider.GetUserService()
-	svcErr := userService.DeleteUser(id)
+	svcErr := ah.userService.DeleteUser(id)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return
@@ -226,8 +221,7 @@ func (ah *UserHandler) HandleUserListByPathRequest(w http.ResponseWriter, r *htt
 		limit = serverconst.DefaultPageSize
 	}
 
-	userService := ah.userProvider.GetUserService()
-	userListResponse, svcErr := userService.GetUsersByPath(path, limit, offset)
+	userListResponse, svcErr := ah.userService.GetUsersByPath(path, limit, offset)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return
@@ -275,8 +269,7 @@ func (ah *UserHandler) HandleUserPostByPathRequest(w http.ResponseWriter, r *htt
 		return
 	}
 
-	userService := ah.userProvider.GetUserService()
-	user, svcErr := userService.CreateUserByPath(path, *createRequest)
+	user, svcErr := ah.userService.CreateUserByPath(path, *createRequest)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return
@@ -316,8 +309,7 @@ func (ah *UserHandler) HandleUserAuthenticateRequest(w http.ResponseWriter, r *h
 		return
 	}
 
-	userService := ah.userProvider.GetUserService()
-	authResponse, svcErr := userService.AuthenticateUser(*authenticateRequest)
+	authResponse, svcErr := ah.userService.AuthenticateUser(*authenticateRequest)
 	if svcErr != nil {
 		handleError(w, logger, svcErr)
 		return

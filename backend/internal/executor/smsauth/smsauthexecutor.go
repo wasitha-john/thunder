@@ -35,7 +35,7 @@ import (
 	"github.com/asgardeo/thunder/internal/notification/message/model"
 	msgsenderprovider "github.com/asgardeo/thunder/internal/notification/message/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
-	userprovider "github.com/asgardeo/thunder/internal/user/provider"
+	"github.com/asgardeo/thunder/internal/user/service"
 )
 
 const (
@@ -53,7 +53,8 @@ const (
 // SMSOTPAuthExecutor implements the ExecutorInterface for SMS OTP authentication.
 type SMSOTPAuthExecutor struct {
 	*identify.IdentifyingExecutor
-	internal flowmodel.Executor
+	internal    flowmodel.Executor
+	userService service.UserServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*SMSOTPAuthExecutor)(nil)
@@ -79,6 +80,7 @@ func NewSMSOTPAuthExecutor(id, name string, properties map[string]string) *SMSOT
 		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
 		internal: *flowmodel.NewExecutor(id, name, defaultInputs, prerequisites,
 			properties),
+		userService: service.GetUserService(),
 	}
 }
 
@@ -417,10 +419,8 @@ func (s *SMSOTPAuthExecutor) resolveUserIDFromAttribute(ctx *flowmodel.NodeConte
 		attributeValue = ctx.RuntimeData[attributeName]
 	}
 	if attributeValue != "" {
-		userProvider := userprovider.NewUserProvider()
-		userService := userProvider.GetUserService()
 		filters := map[string]interface{}{attributeName: attributeValue}
-		userID, svcErr := userService.IdentifyUser(filters)
+		userID, svcErr := s.userService.IdentifyUser(filters)
 		if svcErr != nil {
 			return false, fmt.Errorf("failed to identify user by %s: %s", attributeName, svcErr.Error)
 		}
@@ -447,9 +447,7 @@ func (s *SMSOTPAuthExecutor) getUserMobileNumber(userID string, ctx *flowmodel.N
 	logger.Debug("Retrieving user mobile number")
 
 	var err error
-	userProvider := userprovider.NewUserProvider()
-	userService := userProvider.GetUserService()
-	user, svcErr := userService.GetUser(userID)
+	user, svcErr := s.userService.GetUser(userID)
 	if svcErr != nil {
 		return "", fmt.Errorf("failed to retrieve user details: %s", svcErr.Error)
 	}
@@ -734,9 +732,7 @@ func (s *SMSOTPAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 		return nil, errors.New("user ID is empty")
 	}
 
-	userProvider := userprovider.NewUserProvider()
-	userService := userProvider.GetUserService()
-	user, svcErr := userService.GetUser(userID)
+	user, svcErr := s.userService.GetUser(userID)
 	if svcErr != nil {
 		return nil, fmt.Errorf("failed to get user details: %s", svcErr.Error)
 	}

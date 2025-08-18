@@ -28,7 +28,7 @@ import (
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
 	"github.com/asgardeo/thunder/internal/system/log"
-	userprovider "github.com/asgardeo/thunder/internal/user/provider"
+	"github.com/asgardeo/thunder/internal/user/service"
 )
 
 const (
@@ -44,7 +44,8 @@ const (
 // BasicAuthExecutor implements the ExecutorInterface for basic authentication.
 type BasicAuthExecutor struct {
 	*identify.IdentifyingExecutor
-	internal flowmodel.Executor
+	internal    flowmodel.Executor
+	userService service.UserServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*BasicAuthExecutor)(nil)
@@ -66,6 +67,7 @@ func NewBasicAuthExecutor(id, name string, properties map[string]string) *BasicA
 	return &BasicAuthExecutor{
 		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
 		internal:            *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
+		userService:         service.GetUserService(),
 	}
 }
 
@@ -209,14 +211,11 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 		return nil, nil
 	}
 
-	userProvider := userprovider.NewUserProvider()
-	userService := userProvider.GetUserService()
-
 	credentials := map[string]interface{}{
 		userAttributePassword: ctx.UserInputData[userAttributePassword],
 	}
 
-	user, svcErr := userService.VerifyUser(*userID, credentials)
+	user, svcErr := b.userService.VerifyUser(*userID, credentials)
 	if svcErr != nil {
 		logger.Error("Failed to verify user credentials",
 			log.String("userID", *userID),
