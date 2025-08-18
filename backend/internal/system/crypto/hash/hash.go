@@ -26,11 +26,16 @@ import (
 	"encoding/hex"
 )
 
+// Hash returns a SHA-256 hash of the input byte array.
+func Hash(input []byte) string {
+	h := sha256.New()
+	h.Write(input)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 // HashString returns a SHA-256 hash of the input string.
 func HashString(input string) string {
-	h := sha256.New()
-	h.Write([]byte(input))
-	return hex.EncodeToString(h.Sum(nil))
+	return Hash([]byte(input))
 }
 
 // HashStringWithSalt hashes the input string with the given salt and returns the hex-encoded hash.

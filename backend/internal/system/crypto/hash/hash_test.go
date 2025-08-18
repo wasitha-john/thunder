@@ -34,6 +34,32 @@ func TestHashSuite(t *testing.T) {
 	suite.Run(t, new(HashTestSuite))
 }
 
+func (suite *HashTestSuite) TestHash() {
+	testCases := []struct {
+		name     string
+		input    []byte
+		expected string
+	}{
+		{
+			name:     "EmptyInput",
+			input:    []byte(""),
+			expected: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		},
+		{
+			name:     "NormalInput",
+			input:    []byte("hello world"),
+			expected: "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			hash := Hash(tc.input)
+			suite.Equal(tc.expected, hash, "Hash should match expected value")
+		})
+	}
+}
+
 func (suite *HashTestSuite) TestHashString() {
 	testCases := []struct {
 		name     string
