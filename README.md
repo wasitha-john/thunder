@@ -2071,7 +2071,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
   npm run dev
   ```
   
-- Open your browser and navigate to `http://localhost:5173` to see the sample app in action.
+- Open your browser and navigate to `http://localhost:3000` to see the sample app in action.
 
 ### Remote Debugging Setup
 
