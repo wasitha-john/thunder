@@ -1,0 +1,68 @@
+name: Setup Node.js
+description: Sets up Node.js environment
+
+inputs:
+  node-version:
+    description: 'Version of Node.js to use'
+    required: false
+    default: '20'
+  package-manager:
+    description: 'Package manager to use (npm, yarn, pnpm, or auto for detection)'
+    required: false
+    default: 'auto'
+  dependency-path:
+    description: 'Path to the dependency file (package-lock.json, yarn.lock, pnpm-lock.yaml)'
+    required: false
+    default: 'samples/apps/oauth'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Detect package manager
+      id: detect-package-manager
+      shell: bash
+      run: |
+        if [[ "${{ inputs.package-manager }}" != "auto" ]]; then
+          echo "Using configured package manager: ${{ inputs.package-manager }}"
+          echo "package-manager=${{ inputs.package-manager }}" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        DEPENDENCY_PATH="${{ inputs.dependency-path }}"
+        
+        if [ -f "${DEPENDENCY_PATH}/package-lock.json" ]; then
+          echo "Detected package-lock.json - using npm"
+          echo "package-manager=npm" >> $GITHUB_OUTPUT
+        elif [ -f "${DEPENDENCY_PATH}/yarn.lock" ]; then
+          echo "Detected yarn.lock - using yarn"
+          echo "package-manager=yarn" >> $GITHUB_OUTPUT
+        elif [ -f "${DEPENDENCY_PATH}/pnpm-lock.yaml" ]; then
+          echo "Detected pnpm-lock.yaml - using pnpm"
+          echo "package-manager=pnpm" >> $GITHUB_OUTPUT
+        else
+          echo "No lock file detected - defaulting to npm"
+          echo "package-manager=npm" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Determine dependency path
+      id: dependency-path
+      shell: bash
+      run: |
+        PACKAGE_MANAGER="${{ steps.detect-package-manager.outputs.package-manager }}"
+        DEPENDENCY_PATH="${{ inputs.dependency-path }}"
+        
+        if [ "$PACKAGE_MANAGER" = "npm" ] && [ -f "${DEPENDENCY_PATH}/package-lock.json" ]; then
+          echo "dependency-path=${DEPENDENCY_PATH}/package-lock.json" >> $GITHUB_OUTPUT
+        elif [ "$PACKAGE_MANAGER" = "yarn" ] && [ -f "${DEPENDENCY_PATH}/yarn.lock" ]; then
+          echo "dependency-path=${DEPENDENCY_PATH}/yarn.lock" >> $GITHUB_OUTPUT
+        elif [ "$PACKAGE_MANAGER" = "pnpm" ] && [ -f "${DEPENDENCY_PATH}/pnpm-lock.yaml" ]; then
+          echo "dependency-path=${DEPENDENCY_PATH}/pnpm-lock.yaml" >> $GITHUB_OUTPUT
+        else
+          echo "dependency-path=${DEPENDENCY_PATH}" >> $GITHUB_OUTPUT
+        fi
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ steps.detect-package-manager.outputs.package-manager }}
+        cache-dependency-path: ${{ steps.dependency-path.outputs.dependency-path }}
