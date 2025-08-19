@@ -120,6 +120,13 @@ jobs:
           
           echo "✅ Thunder built for all platforms successfully!"
 
+      - name: ⚙️ Set up Node.js Environment
+        uses: ./.github/actions/setup-node
+        with:
+          node-version: '20'
+          package-manager: 'npm'
+          dependency-path: 'samples/apps/oauth'
+
       - name: 📝 Update Sample Apps Version
         run: |
           # Get the clean sample version without v prefix
