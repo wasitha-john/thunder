@@ -35,6 +35,14 @@ packages:
       structname: '{{.InterfaceName}}Mock'
       pkgname: providermock
       filename: "{{.InterfaceName}}_mock.go"
+  
+  github.com/asgardeo/thunder/internal/system/database/model:
+    config:
+      all: true
+      dir: tests/mocks/database/modelmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: modelmock
+      filename: "{{.InterfaceName}}_mock.go"
 
   github.com/asgardeo/thunder/internal/system/healthcheck/service:
     config:
