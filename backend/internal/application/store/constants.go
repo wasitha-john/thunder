@@ -40,7 +40,8 @@ var (
 			"sp.REGISTRATION_FLOW_GRAPH_ID, sp.IS_REGISTRATION_FLOW_ENABLED, sp.APP_JSON, " +
 			"oauth.CONSUMER_KEY, oauth.CONSUMER_SECRET, oauth.CALLBACK_URIS, oauth.GRANT_TYPES, " +
 			"oauth.RESPONSE_TYPES, oauth.TOKEN_ENDPOINT_AUTH_METHODS " +
-			"FROM SP_APP sp JOIN IDN_OAUTH_CONSUMER_APPS oauth ON sp.APP_ID = oauth.APP_ID WHERE sp.APP_ID = $1",
+			"FROM SP_APP sp LEFT JOIN IDN_OAUTH_CONSUMER_APPS oauth ON sp.APP_ID = oauth.APP_ID " +
+			"WHERE sp.APP_ID = $1",
 	}
 	// QueryGetApplicationByName is the query to retrieve application details by name.
 	QueryGetApplicationByName = dbmodel.DBQuery{
@@ -49,7 +50,8 @@ var (
 			"sp.REGISTRATION_FLOW_GRAPH_ID, sp.IS_REGISTRATION_FLOW_ENABLED, sp.APP_JSON, " +
 			"oauth.CONSUMER_KEY, oauth.CONSUMER_SECRET, oauth.CALLBACK_URIS, " +
 			"oauth.GRANT_TYPES, oauth.RESPONSE_TYPES, oauth.TOKEN_ENDPOINT_AUTH_METHODS " +
-			"FROM SP_APP sp JOIN IDN_OAUTH_CONSUMER_APPS oauth ON sp.APP_ID = oauth.APP_ID WHERE sp.APP_NAME = $1",
+			"FROM SP_APP sp LEFT JOIN IDN_OAUTH_CONSUMER_APPS oauth ON sp.APP_ID = oauth.APP_ID " +
+			"WHERE sp.APP_NAME = $1",
 	}
 	// QueryGetOAuthApplicationByClientID is the query to retrieve oauth application details by client ID.
 	QueryGetOAuthApplicationByClientID = dbmodel.DBQuery{
@@ -62,7 +64,7 @@ var (
 		ID: "ASQ-APP_MGT-06",
 		Query: "SELECT sp.APP_ID, sp.APP_NAME, sp.DESCRIPTION, sp.AUTH_FLOW_GRAPH_ID, " +
 			"sp.REGISTRATION_FLOW_GRAPH_ID, sp.IS_REGISTRATION_FLOW_ENABLED, " +
-			"oauth.CONSUMER_KEY FROM SP_APP sp JOIN IDN_OAUTH_CONSUMER_APPS oauth ON sp.APP_ID = oauth.APP_ID",
+			"oauth.CONSUMER_KEY FROM SP_APP sp LEFT JOIN IDN_OAUTH_CONSUMER_APPS oauth ON sp.APP_ID = oauth.APP_ID",
 	}
 	// QueryUpdateApplicationByAppID is the query to update application details by app ID.
 	QueryUpdateApplicationByAppID = dbmodel.DBQuery{
@@ -86,5 +88,10 @@ var (
 	QueryGetApplicationCount = dbmodel.DBQuery{
 		ID:    "ASQ-APP_MGT-10",
 		Query: "SELECT COUNT(*) as total FROM SP_APP",
+	}
+	// QueryDeleteOAuthApplicationByClientID is the query to delete an OAuth application by client ID.
+	QueryDeleteOAuthApplicationByClientID = dbmodel.DBQuery{
+		ID:    "ASQ-APP_MGT-11",
+		Query: "DELETE FROM IDN_OAUTH_CONSUMER_APPS WHERE CONSUMER_KEY = $1",
 	}
 )

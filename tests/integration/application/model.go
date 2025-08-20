@@ -18,18 +18,45 @@
 
 package application
 
+// Application represents the structure for application request and response in tests.
 type Application struct {
-	ID                      string   `json:"id"`
-	Name                    string   `json:"name"`
-	Description             string   `json:"description"`
-	ClientID                string   `json:"client_id"`
-	ClientSecret            string   `json:"client_secret"`
-	RedirectURIs            []string `json:"redirect_uris"`
-	GrantTypes              []string `json:"grant_types"`
-	ResponseTypes           []string `json:"response_types,omitempty"`
-	TokenEndpointAuthMethod []string `json:"token_endpoint_auth_method,omitempty"`
+	ID                        string              `json:"id,omitempty"`
+	Name                      string              `json:"name"`
+	Description               string              `json:"description,omitempty"`
+	ClientID                  string              `json:"client_id,omitempty"`
+	ClientSecret              string              `json:"client_secret,omitempty"`
+	AuthFlowGraphID           string              `json:"auth_flow_graph_id,omitempty"`
+	RegistrationFlowGraphID   string              `json:"registration_flow_graph_id,omitempty"`
+	IsRegistrationFlowEnabled bool                `json:"is_registration_flow_enabled"`
+	URL                       string              `json:"url,omitempty"`
+	LogoURL                   string              `json:"logo_url,omitempty"`
+	Certificate               *ApplicationCert    `json:"certificate,omitempty"`
+	InboundAuthConfig         []InboundAuthConfig `json:"inbound_auth_config,omitempty"`
 }
 
+// ApplicationCert represents the certificate structure in the application.
+type ApplicationCert struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+// InboundAuthConfig represents the inbound authentication configuration.
+type InboundAuthConfig struct {
+	Type           string          `json:"type"`
+	OAuthAppConfig *OAuthAppConfig `json:"config,omitempty"`
+}
+
+// OAuthAppConfig represents the OAuth application configuration.
+type OAuthAppConfig struct {
+	ClientID                string   `json:"client_id"`
+	ClientSecret            string   `json:"client_secret,omitempty"`
+	RedirectURIs            []string `json:"redirect_uris"`
+	GrantTypes              []string `json:"grant_types"`
+	ResponseTypes           []string `json:"response_types"`
+	TokenEndpointAuthMethod []string `json:"token_endpoint_auth_method"`
+}
+
+// ApplicationList represents the response structure for listing applications.
 type ApplicationList struct {
 	TotalResults int           `json:"totalResults"`
 	Count        int           `json:"count"`
@@ -37,7 +64,6 @@ type ApplicationList struct {
 }
 
 func compareStringSlices(a, b []string) bool {
-
 	if len(a) != len(b) {
 		return false
 	}
@@ -50,10 +76,97 @@ func compareStringSlices(a, b []string) bool {
 }
 
 func (app *Application) equals(expectedApp Application) bool {
+	// Basic fields
+	if app.ID != expectedApp.ID ||
+		app.Name != expectedApp.Name ||
+		app.Description != expectedApp.Description {
+		return false
+	}
 
-	return app.ID == expectedApp.ID && app.Name == expectedApp.Name && app.Description == expectedApp.Description &&
-		app.ClientID == expectedApp.ClientID && compareStringSlices(app.RedirectURIs, expectedApp.RedirectURIs) &&
-		compareStringSlices(app.GrantTypes, expectedApp.GrantTypes) &&
-		compareStringSlices(app.ResponseTypes, expectedApp.ResponseTypes) &&
-		compareStringSlices(app.TokenEndpointAuthMethod, expectedApp.TokenEndpointAuthMethod)
+	// For ClientID, we need to handle it being in both the root and OAuth config
+	if app.ClientID != expectedApp.ClientID {
+		return false
+	}
+
+	// Auth flow fields
+	if app.AuthFlowGraphID != expectedApp.AuthFlowGraphID ||
+		app.RegistrationFlowGraphID != expectedApp.RegistrationFlowGraphID ||
+		app.IsRegistrationFlowEnabled != expectedApp.IsRegistrationFlowEnabled {
+		return false
+	}
+
+	// URL fields
+	if app.URL != expectedApp.URL ||
+		app.LogoURL != expectedApp.LogoURL {
+		return false
+	}
+
+	// ClientSecret is only checked when both have it (create/update operations)
+	// Don't check it for get operations where it shouldn't be returned
+	if app.ClientSecret != "" && expectedApp.ClientSecret != "" &&
+		app.ClientSecret != expectedApp.ClientSecret {
+		return false
+	}
+
+	// Check certificate - allow nil in expected if actual has default empty certificate
+	if (app.Certificate != nil) && (expectedApp.Certificate == nil) {
+		// If expected has no certificate but actual does, check if it's the default empty one
+		if app.Certificate.Type != "NONE" || app.Certificate.Value != "" {
+			return false
+		}
+	} else if (app.Certificate == nil) && (expectedApp.Certificate != nil) {
+		return false
+	} else if app.Certificate != nil && expectedApp.Certificate != nil {
+		if app.Certificate.Type != expectedApp.Certificate.Type ||
+			app.Certificate.Value != expectedApp.Certificate.Value {
+			return false
+		}
+	}
+
+	// Check inbound auth config if present
+	if len(app.InboundAuthConfig) != len(expectedApp.InboundAuthConfig) {
+		return false
+	}
+
+	// Compare inbound auth config details
+	if len(app.InboundAuthConfig) > 0 {
+		for i, cfg := range app.InboundAuthConfig {
+			expectedCfg := expectedApp.InboundAuthConfig[i]
+			if cfg.Type != expectedCfg.Type {
+				return false
+			}
+
+			// Compare OAuth configs if they exist
+			if cfg.OAuthAppConfig != nil && expectedCfg.OAuthAppConfig != nil {
+				oauth := cfg.OAuthAppConfig
+				expectedOAuth := expectedCfg.OAuthAppConfig
+
+				// Compare the fields
+				if oauth.ClientID != expectedOAuth.ClientID {
+					return false
+				}
+
+				if !compareStringSlices(oauth.RedirectURIs, expectedOAuth.RedirectURIs) {
+					return false
+				}
+
+				if !compareStringSlices(oauth.GrantTypes, expectedOAuth.GrantTypes) {
+					return false
+				}
+
+				if !compareStringSlices(oauth.ResponseTypes, expectedOAuth.ResponseTypes) {
+					return false
+				}
+
+				if !compareStringSlices(oauth.TokenEndpointAuthMethod, expectedOAuth.TokenEndpointAuthMethod) {
+					return false
+				}
+			} else if (cfg.OAuthAppConfig == nil && expectedCfg.OAuthAppConfig != nil) ||
+				(cfg.OAuthAppConfig != nil && expectedCfg.OAuthAppConfig == nil) {
+				return false
+			}
+		}
+	}
+
+	return true
 }

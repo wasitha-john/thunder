@@ -39,7 +39,7 @@ type RefreshTokenGrantHandlerTestSuite struct {
 	suite.Suite
 	handler           *refreshTokenGrantHandler
 	mockJWTService    *jwtmock.JWTServiceInterfaceMock
-	oauthApp          *appmodel.OAuthAppConfigProcessed
+	oauthApp          *appmodel.OAuthAppConfigProcessedDTO
 	validRefreshToken string
 	validClaims       map[string]interface{}
 	testTokenReq      *model.TokenRequest
@@ -70,7 +70,7 @@ func (suite *RefreshTokenGrantHandlerTestSuite) SetupTest() {
 		JWTService: suite.mockJWTService,
 	}
 
-	suite.oauthApp = &appmodel.OAuthAppConfigProcessed{
+	suite.oauthApp = &appmodel.OAuthAppConfigProcessedDTO{
 		ClientID:           "test-client-id",
 		HashedClientSecret: "hashed-secret",
 		GrantTypes:         []constants.GrantType{constants.GrantTypeRefreshToken},

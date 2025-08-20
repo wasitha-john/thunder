@@ -28,8 +28,27 @@ import (
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
-// OAuthAppConfig represents the configuration of an OAuth application.
+// OAuthAppConfig represents the structure for OAuth application configuration.
 type OAuthAppConfig struct {
+	ClientID                string                                `json:"client_id"`
+	RedirectURIs            []string                              `json:"redirect_uris"`
+	GrantTypes              []oauth2const.GrantType               `json:"grant_types"`
+	ResponseTypes           []oauth2const.ResponseType            `json:"response_types"`
+	TokenEndpointAuthMethod []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_method"`
+}
+
+// OAuthAppConfigComplete represents the complete structure for OAuth application configuration.
+type OAuthAppConfigComplete struct {
+	ClientID                string                                `json:"client_id"`
+	ClientSecret            string                                `json:"client_secret"`
+	RedirectURIs            []string                              `json:"redirect_uris"`
+	GrantTypes              []oauth2const.GrantType               `json:"grant_types"`
+	ResponseTypes           []oauth2const.ResponseType            `json:"response_types"`
+	TokenEndpointAuthMethod []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_method"`
+}
+
+// OAuthAppConfigDTO represents the data transfer object for OAuth application configuration.
+type OAuthAppConfigDTO struct {
 	AppID                   string
 	ClientID                string
 	ClientSecret            string
@@ -40,27 +59,27 @@ type OAuthAppConfig struct {
 }
 
 // IsAllowedGrantType checks if the provided grant type is allowed.
-func (o *OAuthAppConfig) IsAllowedGrantType(grantType oauth2const.GrantType) bool {
+func (o *OAuthAppConfigDTO) IsAllowedGrantType(grantType oauth2const.GrantType) bool {
 	return isAllowedGrantType(o.GrantTypes, grantType)
 }
 
 // IsAllowedResponseType checks if the provided response type is allowed.
-func (o *OAuthAppConfig) IsAllowedResponseType(responseType string) bool {
+func (o *OAuthAppConfigDTO) IsAllowedResponseType(responseType string) bool {
 	return isAllowedResponseType(o.ResponseTypes, responseType)
 }
 
 // IsAllowedTokenEndpointAuthMethod checks if the provided token endpoint authentication method is allowed.
-func (o *OAuthAppConfig) IsAllowedTokenEndpointAuthMethod(method oauth2const.TokenEndpointAuthMethod) bool {
+func (o *OAuthAppConfigDTO) IsAllowedTokenEndpointAuthMethod(method oauth2const.TokenEndpointAuthMethod) bool {
 	return isAllowedTokenEndpointAuthMethod(o.TokenEndpointAuthMethod, method)
 }
 
 // ValidateRedirectURI validates the provided redirect URI against the registered redirect URIs.
-func (o *OAuthAppConfig) ValidateRedirectURI(redirectURI string) error {
+func (o *OAuthAppConfigDTO) ValidateRedirectURI(redirectURI string) error {
 	return validateRedirectURI(o.RedirectURIs, redirectURI)
 }
 
-// OAuthAppConfigProcessed represents the processed configuration of an OAuth application.
-type OAuthAppConfigProcessed struct {
+// OAuthAppConfigProcessedDTO represents the processed data transfer object for OAuth application configuration.
+type OAuthAppConfigProcessedDTO struct {
 	AppID                   string
 	ClientID                string
 	HashedClientSecret      string
@@ -71,22 +90,22 @@ type OAuthAppConfigProcessed struct {
 }
 
 // IsAllowedGrantType checks if the provided grant type is allowed.
-func (o *OAuthAppConfigProcessed) IsAllowedGrantType(grantType oauth2const.GrantType) bool {
+func (o *OAuthAppConfigProcessedDTO) IsAllowedGrantType(grantType oauth2const.GrantType) bool {
 	return isAllowedGrantType(o.GrantTypes, grantType)
 }
 
 // IsAllowedResponseType checks if the provided response type is allowed.
-func (o *OAuthAppConfigProcessed) IsAllowedResponseType(responseType string) bool {
+func (o *OAuthAppConfigProcessedDTO) IsAllowedResponseType(responseType string) bool {
 	return isAllowedResponseType(o.ResponseTypes, responseType)
 }
 
 // IsAllowedTokenEndpointAuthMethod checks if the provided token endpoint authentication method is allowed.
-func (o *OAuthAppConfigProcessed) IsAllowedTokenEndpointAuthMethod(method oauth2const.TokenEndpointAuthMethod) bool {
+func (o *OAuthAppConfigProcessedDTO) IsAllowedTokenEndpointAuthMethod(method oauth2const.TokenEndpointAuthMethod) bool {
 	return isAllowedTokenEndpointAuthMethod(o.TokenEndpointAuthMethod, method)
 }
 
 // ValidateRedirectURI validates the provided redirect URI against the registered redirect URIs.
-func (o *OAuthAppConfigProcessed) ValidateRedirectURI(redirectURI string) error {
+func (o *OAuthAppConfigProcessedDTO) ValidateRedirectURI(redirectURI string) error {
 	return validateRedirectURI(o.RedirectURIs, redirectURI)
 }
 

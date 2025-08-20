@@ -42,7 +42,7 @@ type AuthorizationCodeGrantHandlerTestSuite struct {
 	handler        *authorizationCodeGrantHandler
 	mockJWTService *jwtmock.JWTServiceInterfaceMock
 	mockAuthZStore *storemock.AuthorizationCodeStoreInterfaceMock
-	oauthApp       *appmodel.OAuthAppConfigProcessed
+	oauthApp       *appmodel.OAuthAppConfigProcessedDTO
 	testAuthzCode  authzmodel.AuthorizationCode
 	testTokenReq   *model.TokenRequest
 }
@@ -70,7 +70,7 @@ func (suite *AuthorizationCodeGrantHandlerTestSuite) SetupTest() {
 		AuthZStore: suite.mockAuthZStore,
 	}
 
-	suite.oauthApp = &appmodel.OAuthAppConfigProcessed{
+	suite.oauthApp = &appmodel.OAuthAppConfigProcessedDTO{
 		ClientID:           "test-client-id",
 		HashedClientSecret: "hashed-secret",
 		RedirectURIs:       []string{"https://client.example.com/callback"},

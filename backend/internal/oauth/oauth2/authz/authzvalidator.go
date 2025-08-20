@@ -27,7 +27,7 @@ import (
 
 // AuthorizationValidatorInterface defines the interface for validating OAuth2 authorization requests.
 type AuthorizationValidatorInterface interface {
-	validateInitialAuthorizationRequest(msg *model.OAuthMessage, oauthApp *appmodel.OAuthAppConfigProcessed) (
+	validateInitialAuthorizationRequest(msg *model.OAuthMessage, oauthApp *appmodel.OAuthAppConfigProcessedDTO) (
 		bool, string, string)
 }
 
@@ -41,7 +41,7 @@ func NewAuthorizationValidator() AuthorizationValidatorInterface {
 
 // validateInitialAuthorizationRequest validates the initial authorization request parameters.
 func (av *AuthorizationValidator) validateInitialAuthorizationRequest(msg *model.OAuthMessage,
-	oauthApp *appmodel.OAuthAppConfigProcessed) (bool, string, string) {
+	oauthApp *appmodel.OAuthAppConfigProcessedDTO) (bool, string, string) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "AuthorizationValidator"))
 
 	// Extract required parameters.

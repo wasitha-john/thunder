@@ -38,7 +38,7 @@ func (_m *AuthorizationValidatorInterfaceMock) EXPECT() *AuthorizationValidatorI
 }
 
 // validateInitialAuthorizationRequest provides a mock function for the type AuthorizationValidatorInterfaceMock
-func (_mock *AuthorizationValidatorInterfaceMock) validateInitialAuthorizationRequest(msg *model.OAuthMessage, oauthApp *model0.OAuthAppConfigProcessed) (bool, string, string) {
+func (_mock *AuthorizationValidatorInterfaceMock) validateInitialAuthorizationRequest(msg *model.OAuthMessage, oauthApp *model0.OAuthAppConfigProcessedDTO) (bool, string, string) {
 	ret := _mock.Called(msg, oauthApp)
 
 	if len(ret) == 0 {
@@ -48,20 +48,20 @@ func (_mock *AuthorizationValidatorInterfaceMock) validateInitialAuthorizationRe
 	var r0 bool
 	var r1 string
 	var r2 string
-	if returnFunc, ok := ret.Get(0).(func(*model.OAuthMessage, *model0.OAuthAppConfigProcessed) (bool, string, string)); ok {
+	if returnFunc, ok := ret.Get(0).(func(*model.OAuthMessage, *model0.OAuthAppConfigProcessedDTO) (bool, string, string)); ok {
 		return returnFunc(msg, oauthApp)
 	}
-	if returnFunc, ok := ret.Get(0).(func(*model.OAuthMessage, *model0.OAuthAppConfigProcessed) bool); ok {
+	if returnFunc, ok := ret.Get(0).(func(*model.OAuthMessage, *model0.OAuthAppConfigProcessedDTO) bool); ok {
 		r0 = returnFunc(msg, oauthApp)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(*model.OAuthMessage, *model0.OAuthAppConfigProcessed) string); ok {
+	if returnFunc, ok := ret.Get(1).(func(*model.OAuthMessage, *model0.OAuthAppConfigProcessedDTO) string); ok {
 		r1 = returnFunc(msg, oauthApp)
 	} else {
 		r1 = ret.Get(1).(string)
 	}
-	if returnFunc, ok := ret.Get(2).(func(*model.OAuthMessage, *model0.OAuthAppConfigProcessed) string); ok {
+	if returnFunc, ok := ret.Get(2).(func(*model.OAuthMessage, *model0.OAuthAppConfigProcessedDTO) string); ok {
 		r2 = returnFunc(msg, oauthApp)
 	} else {
 		r2 = ret.Get(2).(string)
@@ -76,20 +76,20 @@ type AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Cal
 
 // validateInitialAuthorizationRequest is a helper method to define mock.On call
 //   - msg *model.OAuthMessage
-//   - oauthApp *model0.OAuthAppConfigProcessed
+//   - oauthApp *model0.OAuthAppConfigProcessedDTO
 func (_e *AuthorizationValidatorInterfaceMock_Expecter) validateInitialAuthorizationRequest(msg interface{}, oauthApp interface{}) *AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Call {
 	return &AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Call{Call: _e.mock.On("validateInitialAuthorizationRequest", msg, oauthApp)}
 }
 
-func (_c *AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Call) Run(run func(msg *model.OAuthMessage, oauthApp *model0.OAuthAppConfigProcessed)) *AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Call {
+func (_c *AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Call) Run(run func(msg *model.OAuthMessage, oauthApp *model0.OAuthAppConfigProcessedDTO)) *AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *model.OAuthMessage
 		if args[0] != nil {
 			arg0 = args[0].(*model.OAuthMessage)
 		}
-		var arg1 *model0.OAuthAppConfigProcessed
+		var arg1 *model0.OAuthAppConfigProcessedDTO
 		if args[1] != nil {
-			arg1 = args[1].(*model0.OAuthAppConfigProcessed)
+			arg1 = args[1].(*model0.OAuthAppConfigProcessedDTO)
 		}
 		run(
 			arg0,
@@ -104,7 +104,7 @@ func (_c *AuthorizationValidatorInterfaceMock_validateInitialAuthorizationReques
 	return _c
 }
 
-func (_c *AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Call) RunAndReturn(run func(msg *model.OAuthMessage, oauthApp *model0.OAuthAppConfigProcessed) (bool, string, string)) *AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Call {
+func (_c *AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Call) RunAndReturn(run func(msg *model.OAuthMessage, oauthApp *model0.OAuthAppConfigProcessedDTO) (bool, string, string)) *AuthorizationValidatorInterfaceMock_validateInitialAuthorizationRequest_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -220,11 +220,6 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
 --data '{
     "name": "My Application",
     "description": "Application with custom auth flow",
-    "client_id": "<client_id>",
-    "client_secret": "<client_secret>",
-    "redirect_uris": [
-        "https://localhost:3000"
-    ],
     "auth_flow_graph_id": "custom_auth_flow"
 }'
 ```
