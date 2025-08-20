@@ -19,9 +19,12 @@
 package token
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -31,31 +34,122 @@ import (
 
 const (
 	testServerURL = "https://localhost:8095"
-	clientId      = "client123"
-	clientSecret  = "secret123"
+	clientId      = "token_test_client_123"
+	clientSecret  = "token_test_secret_123"
+	appName       = "TokenTestApp"
 )
 
 type TokenTestSuite struct {
 	suite.Suite
+	applicationID string
+	client        *http.Client
 }
 
 func TestTokenTestSuite(t *testing.T) {
-
 	suite.Run(t, new(TokenTestSuite))
 }
 
-func (ts *TokenTestSuite) runClientCredentialsTestCase(request *http.Request,
-	expectedStatus int, expectedScopes []string, expectedError string) {
-
-	// Configure the HTTP client to skip TLS verification.
-	client := &http.Client{
+func (ts *TokenTestSuite) SetupSuite() {
+	// Create a client that skips TLS verification
+	ts.client = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
 
-	// Send the request.
-	resp, err := client.Do(request)
+	// Create a new application for testing
+	app := map[string]interface{}{
+		"name":                         appName,
+		"description":                  "Application for token integration tests",
+		"auth_flow_graph_id":           "auth_flow_config_basic",
+		"registration_flow_graph_id":   "registration_flow_config_basic",
+		"is_registration_flow_enabled": true,
+		"inbound_auth_config": []map[string]interface{}{
+			{
+				"type": "oauth2",
+				"config": map[string]interface{}{
+					"client_id":     clientId,
+					"client_secret": clientSecret,
+					"redirect_uris": []string{"https://localhost:3000"},
+					"grant_types": []string{
+						"client_credentials",
+						"authorization_code",
+						"refresh_token",
+					},
+					"token_endpoint_auth_method": []string{
+						"client_secret_basic",
+						"client_secret_post",
+					},
+				},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(app)
+	if err != nil {
+		ts.T().Fatalf("Failed to marshal application data: %v", err)
+	}
+
+	// Send the request to create the application
+	req, err := http.NewRequest("POST", testServerURL+"/applications", bytes.NewBuffer(jsonData))
+	if err != nil {
+		ts.T().Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := ts.client.Do(req)
+	if err != nil {
+		ts.T().Fatalf("Failed to create application: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		ts.T().Fatalf("Failed to create application. Status: %d, Response: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse the response to get the application ID
+	var respData map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+		ts.T().Fatalf("Failed to parse response: %v", err)
+	}
+
+	ts.applicationID = respData["id"].(string)
+	ts.T().Logf("Created test application with ID: %s", ts.applicationID)
+}
+
+func (ts *TokenTestSuite) TearDownSuite() {
+	if ts.applicationID == "" {
+		return
+	}
+
+	// Delete the application
+	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/applications/%s", testServerURL, ts.applicationID), nil)
+	if err != nil {
+		ts.T().Errorf("Failed to create delete request: %v", err)
+		return
+	}
+
+	resp, err := ts.client.Do(req)
+	if err != nil {
+		ts.T().Errorf("Failed to delete application: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		ts.T().Errorf("Failed to delete application. Status: %d, Response: %s", resp.StatusCode, string(bodyBytes))
+	} else {
+		ts.T().Logf("Successfully deleted test application with ID: %s", ts.applicationID)
+	}
+}
+
+func (ts *TokenTestSuite) runClientCredentialsTestCase(request *http.Request,
+	expectedStatus int, expectedScopes []string, expectedError string) {
+
+	// Send the request using the suite's client
+	resp, err := ts.client.Do(request)
 	if err != nil {
 		ts.T().Fatalf("Failed to send request: %v", err)
 	}
