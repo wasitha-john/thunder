@@ -142,13 +142,35 @@ func (suite *TokenHandlerTestSuite) TestHandleTokenRequest_MissingClientID() {
 
 	handler.HandleTokenRequest(rr, req)
 
-	assert.Equal(suite.T(), http.StatusBadRequest, rr.Code)
+	assert.Equal(suite.T(), http.StatusUnauthorized, rr.Code)
 
 	var response map[string]interface{}
 	err := json.Unmarshal(rr.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), "invalid_request", response["error"])
+	assert.Equal(suite.T(), "invalid_client", response["error"])
 	assert.Equal(suite.T(), "Missing client_id parameter", response["error_description"])
+}
+
+func (suite *TokenHandlerTestSuite) TestHandleTokenRequest_MissingClientSecret() {
+	handler := NewTokenHandler()
+	formData := url.Values{}
+	formData.Set("grant_type", "authorization_code")
+	formData.Set("client_id", "test-client-id")
+
+	req, _ := http.NewRequest("POST", "/token", strings.NewReader(formData.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	rr := httptest.NewRecorder()
+
+	handler.HandleTokenRequest(rr, req)
+
+	assert.Equal(suite.T(), http.StatusUnauthorized, rr.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "invalid_client", response["error"])
+	assert.Equal(suite.T(), "Missing client_secret parameter", response["error_description"])
 }
 
 func (suite *TokenHandlerTestSuite) TestHandleTokenRequest_InvalidClient() {
