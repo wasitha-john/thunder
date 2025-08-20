@@ -56,6 +56,9 @@ func (sm *ServiceManager) RegisterServices() error {
 	// Register the JWKS service.
 	services.NewJWKSAPIService(sm.mux)
 
+	// Register the introspection service.
+	services.NewIntrospectionAPIService(sm.mux)
+
 	// Register the Organization Unit service.
 	services.NewOrganizationUnitService(sm.mux)
 

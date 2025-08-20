@@ -37,6 +37,8 @@ const (
 	RequestParamState            string = "state"
 	RequestParamError            string = "error"
 	RequestParamErrorDescription string = "error_description"
+	RequestParamToken            string = "token"
+	RequestParamTokenTypeHint    string = "token_type_hint"
 )
 
 // Server OAuth constants.
