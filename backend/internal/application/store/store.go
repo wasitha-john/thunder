@@ -58,7 +58,25 @@ func NewApplicationStore() ApplicationStoreInterface {
 
 // CreateApplication creates a new application in the database.
 func (st *ApplicationStore) CreateApplication(app model.ApplicationProcessedDTO) error {
-	return createOrUpdateApplication(&app, QueryCreateApplication, QueryCreateOAuthApplication)
+	jsonDataBytes, err := getAppJSONDataBytes(&app)
+	if err != nil {
+		return err
+	}
+
+	queries := []func(tx dbmodel.TxInterface) error{
+		func(tx dbmodel.TxInterface) error {
+			isRegistrationEnabledStr := utils.BoolToNumString(app.IsRegistrationFlowEnabled)
+			_, err := tx.Exec(QueryCreateApplication.Query, app.ID, app.Name, app.Description,
+				app.AuthFlowGraphID, app.RegistrationFlowGraphID, isRegistrationEnabledStr, jsonDataBytes)
+			return err
+		},
+	}
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(app.InboundAuthConfig) > 0 {
+		queries = append(queries, createOAuthAppQuery(&app, QueryCreateOAuthApplication))
+	}
+
+	return executeTransaction(queries)
 }
 
 // GetTotalApplicationCount retrieves the total count of applications from the database.
@@ -265,7 +283,34 @@ func (st *ApplicationStore) getApplicationByQuery(query dbmodel.DBQuery, param s
 
 // UpdateApplication updates an existing application in the database.
 func (st *ApplicationStore) UpdateApplication(existingApp, updatedApp *model.ApplicationProcessedDTO) error {
-	return createOrUpdateApplication(updatedApp, QueryUpdateApplicationByAppID, QueryUpdateOAuthApplicationByAppID)
+	jsonDataBytes, err := getAppJSONDataBytes(updatedApp)
+	if err != nil {
+		return err
+	}
+
+	queries := []func(tx dbmodel.TxInterface) error{
+		func(tx dbmodel.TxInterface) error {
+			isRegistrationEnabledStr := utils.BoolToNumString(updatedApp.IsRegistrationFlowEnabled)
+			_, err := tx.Exec(QueryUpdateApplicationByAppID.Query, updatedApp.ID, updatedApp.Name,
+				updatedApp.Description, updatedApp.AuthFlowGraphID, updatedApp.RegistrationFlowGraphID,
+				isRegistrationEnabledStr, jsonDataBytes)
+			return err
+		},
+	}
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(updatedApp.InboundAuthConfig) > 0 && len(existingApp.InboundAuthConfig) > 0 {
+		queries = append(queries, createOAuthAppQuery(updatedApp, QueryUpdateOAuthApplicationByAppID))
+	} else if len(existingApp.InboundAuthConfig) > 0 {
+		clientID := ""
+		if len(existingApp.InboundAuthConfig) > 0 && existingApp.InboundAuthConfig[0].OAuthAppConfig != nil {
+			clientID = existingApp.InboundAuthConfig[0].OAuthAppConfig.ClientID
+		}
+		queries = append(queries, deleteOAuthAppQuery(clientID))
+	} else {
+		queries = append(queries, createOAuthAppQuery(updatedApp, QueryCreateOAuthApplication))
+	}
+
+	return executeTransaction(queries)
 }
 
 // DeleteApplication deletes an application from the database by its ID.
@@ -330,41 +375,39 @@ func getProcessedOAuthParams(inboundAuthConfig model.InboundAuthConfigProcessedD
 	return callBackURIs, grantTypes, responseTypes, tokenAuthMethods
 }
 
-// createOrUpdateApplication creates or updates an application in the database.
-func createOrUpdateApplication(app *model.ApplicationProcessedDTO,
-	appMgtQuery dbmodel.DBQuery, oauthAppMgtQuery dbmodel.DBQuery) error {
-	// Construct the app JSON
+// getAppJSONDataBytes constructs the JSON data bytes for the application.
+func getAppJSONDataBytes(app *model.ApplicationProcessedDTO) ([]byte, error) {
 	jsonData := map[string]interface{}{
 		"url":      app.URL,
 		"logo_url": app.LogoURL,
 	}
 	jsonDataBytes, err := json.Marshal(jsonData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal application JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal application JSON: %w", err)
 	}
+	return jsonDataBytes, nil
+}
 
-	queries := []func(tx dbmodel.TxInterface) error{
-		func(tx dbmodel.TxInterface) error {
-			isRegistrationEnabledStr := utils.BoolToNumString(app.IsRegistrationFlowEnabled)
-			_, err := tx.Exec(appMgtQuery.Query, app.ID, app.Name, app.Description,
-				app.AuthFlowGraphID, app.RegistrationFlowGraphID, isRegistrationEnabledStr, jsonDataBytes)
-			return err
-		},
+// createOAuthAppQuery creates a query function for creating or updating an OAuth application.
+func createOAuthAppQuery(app *model.ApplicationProcessedDTO,
+	oauthAppMgtQuery dbmodel.DBQuery) func(tx dbmodel.TxInterface) error {
+	inboundAuthConfig := app.InboundAuthConfig[0]
+	callBackURIs, grantTypes, responseTypes, tokenAuthMethods := getProcessedOAuthParams(inboundAuthConfig)
+
+	return func(tx dbmodel.TxInterface) error {
+		_, err := tx.Exec(oauthAppMgtQuery.Query, app.ID, inboundAuthConfig.OAuthAppConfig.ClientID,
+			inboundAuthConfig.OAuthAppConfig.HashedClientSecret, callBackURIs, grantTypes, responseTypes,
+			tokenAuthMethods)
+		return err
 	}
-	// TODO: Need to refactor when supporting other/multiple inbound auth types.
-	if len(app.InboundAuthConfig) > 0 {
-		inboundAuthConfig := app.InboundAuthConfig[0]
-		callBackURIs, grantTypes, responseTypes, tokenAuthMethods := getProcessedOAuthParams(inboundAuthConfig)
+}
 
-		queries = append(queries, func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(oauthAppMgtQuery.Query, app.ID, inboundAuthConfig.OAuthAppConfig.ClientID,
-				inboundAuthConfig.OAuthAppConfig.HashedClientSecret, callBackURIs, grantTypes, responseTypes,
-				tokenAuthMethods)
-			return err
-		})
+// deleteOAuthAppQuery creates a query function for deleting an OAuth application by client ID.
+func deleteOAuthAppQuery(clientID string) func(tx dbmodel.TxInterface) error {
+	return func(tx dbmodel.TxInterface) error {
+		_, err := tx.Exec(QueryDeleteOAuthApplicationByClientID.Query, clientID)
+		return err
 	}
-
-	return executeTransaction(queries)
 }
 
 // buildBasicApplicationFromResultRow constructs a BasicApplicationDTO from a database result row.

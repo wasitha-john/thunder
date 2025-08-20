@@ -65,7 +65,8 @@ func (as *CachedBackedApplicationStore) GetApplicationList() ([]model.BasicAppli
 }
 
 // GetOAuthApplication retrieves an OAuth application by client ID, using cache if available.
-func (as *CachedBackedApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessedDTO, error) {
+func (as *CachedBackedApplicationStore) GetOAuthApplication(clientID string) (
+	*model.OAuthAppConfigProcessedDTO, error) {
 	cacheKey := cache.CacheKey{
 		Key: clientID,
 	}

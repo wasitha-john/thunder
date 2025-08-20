@@ -89,4 +89,9 @@ var (
 		ID:    "ASQ-APP_MGT-10",
 		Query: "SELECT COUNT(*) as total FROM SP_APP",
 	}
+	// QueryDeleteOAuthApplicationByClientID is the query to delete an OAuth application by client ID.
+	QueryDeleteOAuthApplicationByClientID = dbmodel.DBQuery{
+		ID:    "ASQ-APP_MGT-11",
+		Query: "DELETE FROM IDN_OAUTH_CONSUMER_APPS WHERE CONSUMER_KEY = $1",
+	}
 )

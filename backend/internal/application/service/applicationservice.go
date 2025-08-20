@@ -84,40 +84,16 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		return nil, &constants.ErrorApplicationAlreadyExistsWithName
 	}
 
-	inboundAuthConfig, err := validateOAuthParamsForCreateAndUpdate(app)
-	if err != nil {
-		return nil, err
+	inboundAuthConfig, svcErr := validateAndProcessInboundAuthConfig(as.AppStore, app, nil, logger)
+	if svcErr != nil {
+		return nil, svcErr
 	}
 
-	// Check if an application with the same client ID already exists
-	if inboundAuthConfig != nil {
-		clientID := inboundAuthConfig.OAuthAppConfig.ClientID
-		if clientID == "" {
-			// TODO: Implement a proper client ID generation function.
-			inboundAuthConfig.OAuthAppConfig.ClientID = sysutils.GenerateUUID()
-		} else {
-			existingAppWithClientID, clientCheckErr := as.AppStore.GetOAuthApplication(clientID)
-			if clientCheckErr != nil && !errors.Is(clientCheckErr, constants.ApplicationNotFoundError) {
-				logger.Error("Failed to check existing application by client ID", log.Error(clientCheckErr),
-					log.String("clientID", clientID))
-				return nil, &constants.ErrorInternalServerError
-			}
-			if existingAppWithClientID != nil {
-				return nil, &constants.ErrorApplicationAlreadyExistsWithClientID
-			}
-		}
-
-		// TODO: Implement a proper client secret generation function
-		if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" {
-			inboundAuthConfig.OAuthAppConfig.ClientSecret = sysutils.GenerateUUID()
-		}
+	if svcErr := validateAuthFlowGraphID(app); svcErr != nil {
+		return nil, svcErr
 	}
-
-	if err := validateAuthFlowGraphID(app); err != nil {
-		return nil, err
-	}
-	if err := validateRegistrationFlowGraphID(app); err != nil {
-		return nil, err
+	if svcErr := validateRegistrationFlowGraphID(app); svcErr != nil {
+		return nil, svcErr
 	}
 
 	if app.URL != "" && !sysutils.IsValidURI(app.URL) {
@@ -130,9 +106,9 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 	appID := sysutils.GenerateUUID()
 
 	// Validate and prepare the certificate if provided.
-	cert, err := as.getValidatedCertificateForCreate(appID, app)
-	if err != nil {
-		return nil, err
+	cert, svcErr := as.getValidatedCertificateForCreate(appID, app)
+	if svcErr != nil {
+		return nil, svcErr
 	}
 
 	processedDTO := &model.ApplicationProcessedDTO{
@@ -162,9 +138,9 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 	}
 
 	// Create the application certificate if provided.
-	returnCert, err := as.createApplicationCertificate(cert)
-	if err != nil {
-		return nil, err
+	returnCert, svcErr := as.createApplicationCertificate(cert)
+	if svcErr != nil {
+		return nil, svcErr
 	}
 
 	// Create the application.
@@ -345,34 +321,9 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		}
 	}
 
-	inboundAuthConfig, svcErr := validateOAuthParamsForCreateAndUpdate(app)
+	inboundAuthConfig, svcErr := validateAndProcessInboundAuthConfig(as.AppStore, app, existingApp, logger)
 	if svcErr != nil {
 		return nil, svcErr
-	}
-
-	// If the client ID is changed, check if an application with the new client ID already exists.
-	if inboundAuthConfig != nil {
-		newClientID := inboundAuthConfig.OAuthAppConfig.ClientID
-		existingClientID := existingApp.InboundAuthConfig[0].OAuthAppConfig.ClientID
-		if newClientID == "" {
-			// TODO: Implement a proper client ID generation function.
-			inboundAuthConfig.OAuthAppConfig.ClientID = sysutils.GenerateUUID()
-		} else if newClientID != existingClientID {
-			existingAppWithClientID, clientCheckErr := as.AppStore.GetOAuthApplication(newClientID)
-			if clientCheckErr != nil && !errors.Is(clientCheckErr, constants.ApplicationNotFoundError) {
-				logger.Error("Failed to check existing application by client ID", log.Error(clientCheckErr),
-					log.String("clientID", newClientID))
-				return nil, &constants.ErrorInternalServerError
-			}
-			if existingAppWithClientID != nil {
-				return nil, &constants.ErrorApplicationAlreadyExistsWithClientID
-			}
-		}
-
-		// TODO: Implement a proper client secret generation function
-		if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" {
-			inboundAuthConfig.OAuthAppConfig.ClientSecret = sysutils.GenerateUUID()
-		}
 	}
 
 	if svcErr := validateAuthFlowGraphID(app); svcErr != nil {
@@ -512,12 +463,9 @@ func validateRegistrationFlowGraphID(app *model.ApplicationDTO) *serviceerror.Se
 	return nil
 }
 
-// TODO: Check usages for app create and update to reflect the changes.
-
 // validateOAuthParamsForCreateAndUpdate validates the OAuth parameters for creating or updating an application.
 func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.InboundAuthConfigDTO,
 	*serviceerror.ServiceError) {
-
 	// TODO: Validate the logic here whether it is okay to generate client id/ secret or set empty.
 	if len(app.InboundAuthConfig) == 0 {
 		return nil, nil
@@ -566,6 +514,65 @@ func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.In
 	}
 
 	return &inboundAuthConfig, nil
+}
+
+// validateAndProcessInboundAuthConfig validates and processes inbound auth configuration for
+// creating or updating an application.
+func validateAndProcessInboundAuthConfig(appStore store.ApplicationStoreInterface, app *model.ApplicationDTO,
+	existingApp *model.ApplicationProcessedDTO, logger *log.Logger) (
+	*model.InboundAuthConfigDTO, *serviceerror.ServiceError) {
+	inboundAuthConfig, err := validateOAuthParamsForCreateAndUpdate(app)
+	if err != nil {
+		return nil, err
+	}
+
+	if inboundAuthConfig == nil {
+		return nil, nil
+	}
+
+	clientID := inboundAuthConfig.OAuthAppConfig.ClientID
+
+	// For update operation
+	if existingApp != nil && len(existingApp.InboundAuthConfig) > 0 {
+		existingClientID := existingApp.InboundAuthConfig[0].OAuthAppConfig.ClientID
+
+		if clientID == "" {
+			// TODO: Improve the client id generation logic.
+			inboundAuthConfig.OAuthAppConfig.ClientID = sysutils.GenerateUUID()
+		} else if clientID != existingClientID {
+			existingAppWithClientID, clientCheckErr := appStore.GetOAuthApplication(clientID)
+			if clientCheckErr != nil && !errors.Is(clientCheckErr, constants.ApplicationNotFoundError) {
+				logger.Error("Failed to check existing application by client ID", log.Error(clientCheckErr),
+					log.String("clientID", clientID))
+				return nil, &constants.ErrorInternalServerError
+			}
+			if existingAppWithClientID != nil {
+				return nil, &constants.ErrorApplicationAlreadyExistsWithClientID
+			}
+		}
+	} else { // For create operation
+		if clientID == "" {
+			// TODO: Improve the client id generation logic.
+			inboundAuthConfig.OAuthAppConfig.ClientID = sysutils.GenerateUUID()
+		} else {
+			existingAppWithClientID, clientCheckErr := appStore.GetOAuthApplication(clientID)
+			if clientCheckErr != nil && !errors.Is(clientCheckErr, constants.ApplicationNotFoundError) {
+				logger.Error("Failed to check existing application by client ID", log.Error(clientCheckErr),
+					log.String("clientID", clientID))
+				return nil, &constants.ErrorInternalServerError
+			}
+			if existingAppWithClientID != nil {
+				return nil, &constants.ErrorApplicationAlreadyExistsWithClientID
+			}
+		}
+	}
+
+	// TODO: Improve the client secret generation logic.
+	if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" {
+		inboundAuthConfig.OAuthAppConfig.ClientSecret = sysutils.GenerateUUID()
+	}
+
+	return inboundAuthConfig, nil
 }
 
 // getDefaultAuthFlowGraphID returns the configured default authentication flow graph ID.
