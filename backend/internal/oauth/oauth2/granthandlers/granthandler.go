@@ -26,8 +26,8 @@ import (
 
 // GrantHandlerInterface defines the interface for handling OAuth 2.0 grants.
 type GrantHandlerInterface interface {
-	ValidateGrant(tokenRequest *model.TokenRequest, oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse
-	HandleGrant(tokenRequest *model.TokenRequest, oauthApp *appmodel.OAuthAppConfigProcessed,
+	ValidateGrant(tokenRequest *model.TokenRequest, oauthApp *appmodel.OAuthAppConfigProcessedDTO) *model.ErrorResponse
+	HandleGrant(tokenRequest *model.TokenRequest, oauthApp *appmodel.OAuthAppConfigProcessedDTO,
 		ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse)
 }
 

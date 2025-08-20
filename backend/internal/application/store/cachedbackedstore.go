@@ -31,7 +31,7 @@ import (
 type CachedBackedApplicationStore struct {
 	AppByIDCache   cache.CacheInterface[*model.ApplicationProcessedDTO]
 	AppByNameCache cache.CacheInterface[*model.ApplicationProcessedDTO]
-	OAuthAppCache  cache.CacheInterface[*model.OAuthAppConfigProcessed]
+	OAuthAppCache  cache.CacheInterface[*model.OAuthAppConfigProcessedDTO]
 	Store          ApplicationStoreInterface
 }
 
@@ -40,7 +40,7 @@ func NewCachedBackedApplicationStore() ApplicationStoreInterface {
 	return &CachedBackedApplicationStore{
 		AppByIDCache:   cache.GetCache[*model.ApplicationProcessedDTO]("ApplicationByIDCache"),
 		AppByNameCache: cache.GetCache[*model.ApplicationProcessedDTO]("ApplicationByNameCache"),
-		OAuthAppCache:  cache.GetCache[*model.OAuthAppConfigProcessed]("OAuthAppCache"),
+		OAuthAppCache:  cache.GetCache[*model.OAuthAppConfigProcessedDTO]("OAuthAppCache"),
 		Store:          NewApplicationStore(),
 	}
 }
@@ -65,7 +65,7 @@ func (as *CachedBackedApplicationStore) GetApplicationList() ([]model.BasicAppli
 }
 
 // GetOAuthApplication retrieves an OAuth application by client ID, using cache if available.
-func (as *CachedBackedApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, error) {
+func (as *CachedBackedApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessedDTO, error) {
 	cacheKey := cache.CacheKey{
 		Key: clientID,
 	}
@@ -208,7 +208,7 @@ func (as *CachedBackedApplicationStore) cacheApplication(app *model.ApplicationP
 }
 
 // cacheOAuthApplication caches the OAuth application configuration if it exists.
-func (as *CachedBackedApplicationStore) cacheOAuthApplication(oAuthAppConfig *model.OAuthAppConfigProcessed) {
+func (as *CachedBackedApplicationStore) cacheOAuthApplication(oAuthAppConfig *model.OAuthAppConfigProcessedDTO) {
 	if oAuthAppConfig == nil || oAuthAppConfig.ClientID == "" {
 		return
 	}

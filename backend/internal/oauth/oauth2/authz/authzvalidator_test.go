@@ -32,7 +32,7 @@ import (
 type AuthorizationValidatorTestSuite struct {
 	suite.Suite
 	validator AuthorizationValidatorInterface
-	oauthApp  *appmodel.OAuthAppConfigProcessed
+	oauthApp  *appmodel.OAuthAppConfigProcessedDTO
 }
 
 func TestAuthorizationValidatorTestSuite(t *testing.T) {
@@ -42,7 +42,7 @@ func TestAuthorizationValidatorTestSuite(t *testing.T) {
 func (suite *AuthorizationValidatorTestSuite) SetupTest() {
 	suite.validator = NewAuthorizationValidator()
 
-	suite.oauthApp = &appmodel.OAuthAppConfigProcessed{
+	suite.oauthApp = &appmodel.OAuthAppConfigProcessedDTO{
 		ClientID:           "test-client-id",
 		HashedClientSecret: "hashed-secret",
 		RedirectURIs:       []string{"https://client.example.com/callback"},
@@ -111,7 +111,7 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRe
 
 func (suite *AuthorizationValidatorTestSuite) TestValidateAuthzRequest_CodeGrantNotAllowed() {
 	// Create an app that doesn't allow authorization code grant type
-	restrictedApp := &appmodel.OAuthAppConfigProcessed{
+	restrictedApp := &appmodel.OAuthAppConfigProcessedDTO{
 		ClientID:           "test-client-id",
 		HashedClientSecret: "hashed-secret",
 		RedirectURIs:       []string{"https://client.example.com/callback"},
@@ -155,7 +155,7 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRe
 
 func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRequest_UnsupportedResponseType() {
 	// Create an app that doesn't support "code" response type
-	restrictedApp := &appmodel.OAuthAppConfigProcessed{
+	restrictedApp := &appmodel.OAuthAppConfigProcessedDTO{
 		ClientID:           "test-client-id",
 		HashedClientSecret: "hashed-secret",
 		RedirectURIs:       []string{"https://client.example.com/callback"},

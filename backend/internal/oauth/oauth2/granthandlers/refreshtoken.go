@@ -48,7 +48,7 @@ func newRefreshTokenGrantHandler() RefreshTokenGrantHandlerInterface {
 
 // ValidateGrant validates the refresh token grant request.
 func (h *refreshTokenGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse {
+	oauthApp *appmodel.OAuthAppConfigProcessedDTO) *model.ErrorResponse {
 	if constants.GrantType(tokenRequest.GrantType) != constants.GrantTypeRefreshToken {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorUnsupportedGrantType,
@@ -73,7 +73,7 @@ func (h *refreshTokenGrantHandler) ValidateGrant(tokenRequest *model.TokenReques
 
 // HandleGrant processes the refresh token grant request and generates a new token response.
 func (h *refreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (
+	oauthApp *appmodel.OAuthAppConfigProcessedDTO, ctx *model.TokenContext) (
 	*model.TokenResponseDTO, *model.ErrorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "RefreshTokenGrantHandler"))
 

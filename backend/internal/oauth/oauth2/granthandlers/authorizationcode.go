@@ -47,7 +47,7 @@ func newAuthorizationCodeGrantHandler() GrantHandlerInterface {
 
 // ValidateGrant validates the authorization code grant request.
 func (h *authorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthAppConfigProcessed) *model.ErrorResponse {
+	oauthApp *appmodel.OAuthAppConfigProcessedDTO) *model.ErrorResponse {
 	if tokenRequest.GrantType == "" {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorInvalidRequest,
@@ -95,7 +95,7 @@ func (h *authorizationCodeGrantHandler) ValidateGrant(tokenRequest *model.TokenR
 
 // HandleGrant processes the authorization code grant request and generates a token response.
 func (h *authorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
-	oauthApp *appmodel.OAuthAppConfigProcessed, ctx *model.TokenContext) (
+	oauthApp *appmodel.OAuthAppConfigProcessedDTO, ctx *model.TokenContext) (
 	*model.TokenResponseDTO, *model.ErrorResponse) {
 	authCode, err := h.AuthZStore.GetAuthorizationCode(tokenRequest.ClientID, tokenRequest.Code)
 	if err != nil || authCode.Code == "" {

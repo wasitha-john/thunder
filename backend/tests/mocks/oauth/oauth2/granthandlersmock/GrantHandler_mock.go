@@ -38,7 +38,7 @@ func (_m *GrantHandlerMock) EXPECT() *GrantHandlerMock_Expecter {
 }
 
 // HandleGrant provides a mock function for the type GrantHandlerMock
-func (_mock *GrantHandlerMock) HandleGrant(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessed, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
+func (_mock *GrantHandlerMock) HandleGrant(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessedDTO, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	ret := _mock.Called(tokenRequest, oauthApp, ctx)
 
 	if len(ret) == 0 {
@@ -47,17 +47,17 @@ func (_mock *GrantHandlerMock) HandleGrant(tokenRequest *model.TokenRequest, oau
 
 	var r0 *model.TokenResponseDTO
 	var r1 *model.ErrorResponse
-	if returnFunc, ok := ret.Get(0).(func(*model.TokenRequest, *model0.OAuthAppConfigProcessed, *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse)); ok {
+	if returnFunc, ok := ret.Get(0).(func(*model.TokenRequest, *model0.OAuthAppConfigProcessedDTO, *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse)); ok {
 		return returnFunc(tokenRequest, oauthApp, ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(*model.TokenRequest, *model0.OAuthAppConfigProcessed, *model.TokenContext) *model.TokenResponseDTO); ok {
+	if returnFunc, ok := ret.Get(0).(func(*model.TokenRequest, *model0.OAuthAppConfigProcessedDTO, *model.TokenContext) *model.TokenResponseDTO); ok {
 		r0 = returnFunc(tokenRequest, oauthApp, ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.TokenResponseDTO)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(*model.TokenRequest, *model0.OAuthAppConfigProcessed, *model.TokenContext) *model.ErrorResponse); ok {
+	if returnFunc, ok := ret.Get(1).(func(*model.TokenRequest, *model0.OAuthAppConfigProcessedDTO, *model.TokenContext) *model.ErrorResponse); ok {
 		r1 = returnFunc(tokenRequest, oauthApp, ctx)
 	} else {
 		if ret.Get(1) != nil {
@@ -80,15 +80,15 @@ func (_e *GrantHandlerMock_Expecter) HandleGrant(tokenRequest interface{}, oauth
 	return &GrantHandlerMock_HandleGrant_Call{Call: _e.mock.On("HandleGrant", tokenRequest, oauthApp, ctx)}
 }
 
-func (_c *GrantHandlerMock_HandleGrant_Call) Run(run func(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessed, ctx *model.TokenContext)) *GrantHandlerMock_HandleGrant_Call {
+func (_c *GrantHandlerMock_HandleGrant_Call) Run(run func(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessedDTO, ctx *model.TokenContext)) *GrantHandlerMock_HandleGrant_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *model.TokenRequest
 		if args[0] != nil {
 			arg0 = args[0].(*model.TokenRequest)
 		}
-		var arg1 *model0.OAuthAppConfigProcessed
+		var arg1 *model0.OAuthAppConfigProcessedDTO
 		if args[1] != nil {
-			arg1 = args[1].(*model0.OAuthAppConfigProcessed)
+			arg1 = args[1].(*model0.OAuthAppConfigProcessedDTO)
 		}
 		var arg2 *model.TokenContext
 		if args[2] != nil {
@@ -108,13 +108,13 @@ func (_c *GrantHandlerMock_HandleGrant_Call) Return(tokenResponseDTO *model.Toke
 	return _c
 }
 
-func (_c *GrantHandlerMock_HandleGrant_Call) RunAndReturn(run func(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessed, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse)) *GrantHandlerMock_HandleGrant_Call {
+func (_c *GrantHandlerMock_HandleGrant_Call) RunAndReturn(run func(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessedDTO, ctx *model.TokenContext) (*model.TokenResponseDTO, *model.ErrorResponse)) *GrantHandlerMock_HandleGrant_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ValidateGrant provides a mock function for the type GrantHandlerMock
-func (_mock *GrantHandlerMock) ValidateGrant(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessed) *model.ErrorResponse {
+func (_mock *GrantHandlerMock) ValidateGrant(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessedDTO) *model.ErrorResponse {
 	ret := _mock.Called(tokenRequest, oauthApp)
 
 	if len(ret) == 0 {
@@ -122,7 +122,7 @@ func (_mock *GrantHandlerMock) ValidateGrant(tokenRequest *model.TokenRequest, o
 	}
 
 	var r0 *model.ErrorResponse
-	if returnFunc, ok := ret.Get(0).(func(*model.TokenRequest, *model0.OAuthAppConfigProcessed) *model.ErrorResponse); ok {
+	if returnFunc, ok := ret.Get(0).(func(*model.TokenRequest, *model0.OAuthAppConfigProcessedDTO) *model.ErrorResponse); ok {
 		r0 = returnFunc(tokenRequest, oauthApp)
 	} else {
 		if ret.Get(0) != nil {
@@ -144,15 +144,15 @@ func (_e *GrantHandlerMock_Expecter) ValidateGrant(tokenRequest interface{}, oau
 	return &GrantHandlerMock_ValidateGrant_Call{Call: _e.mock.On("ValidateGrant", tokenRequest, oauthApp)}
 }
 
-func (_c *GrantHandlerMock_ValidateGrant_Call) Run(run func(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessed)) *GrantHandlerMock_ValidateGrant_Call {
+func (_c *GrantHandlerMock_ValidateGrant_Call) Run(run func(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessedDTO)) *GrantHandlerMock_ValidateGrant_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *model.TokenRequest
 		if args[0] != nil {
 			arg0 = args[0].(*model.TokenRequest)
 		}
-		var arg1 *model0.OAuthAppConfigProcessed
+		var arg1 *model0.OAuthAppConfigProcessedDTO
 		if args[1] != nil {
-			arg1 = args[1].(*model0.OAuthAppConfigProcessed)
+			arg1 = args[1].(*model0.OAuthAppConfigProcessedDTO)
 		}
 		run(
 			arg0,
@@ -167,7 +167,7 @@ func (_c *GrantHandlerMock_ValidateGrant_Call) Return(errorResponse *model.Error
 	return _c
 }
 
-func (_c *GrantHandlerMock_ValidateGrant_Call) RunAndReturn(run func(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessed) *model.ErrorResponse) *GrantHandlerMock_ValidateGrant_Call {
+func (_c *GrantHandlerMock_ValidateGrant_Call) RunAndReturn(run func(tokenRequest *model.TokenRequest, oauthApp *model0.OAuthAppConfigProcessedDTO) *model.ErrorResponse) *GrantHandlerMock_ValidateGrant_Call {
 	_c.Call.Return(run)
 	return _c
 }

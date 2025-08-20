@@ -205,19 +205,26 @@ To try out the Client Credentials flow, follow these steps:
     -d '{
         "name": "Test Sample App",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "client_credentials"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
-        "auth_flow_graph_id": "auth_flow_config_basic"
+        "auth_flow_graph_id": "auth_flow_config_basic",
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -259,19 +266,26 @@ To try out the Client Credentials flow, follow these steps:
     -d '{
         "name": "Test Sample App",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "client_credentials"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
-        "auth_flow_graph_id": "auth_flow_config_basic"
+        "auth_flow_graph_id": "auth_flow_config_basic",
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -325,22 +339,26 @@ To try out the Client Credentials flow, follow these steps:
     -d '{
         "name": "Test Sample App",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "authorization_code"
-        ],
-        "response_types": [
-            "code"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
-        "auth_flow_graph_id": "auth_flow_config_basic"
+        "auth_flow_graph_id": "auth_flow_config_basic",
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -429,23 +447,26 @@ To try out the Client Credentials flow, follow these steps:
     -d '{
         "name": "Test Sample App",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "authorization_code",
-            "refresh_token"
-        ],
-        "response_types": [
-            "code"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
-        "auth_flow_graph_id": "auth_flow_config_basic"
+        "auth_flow_graph_id": "auth_flow_config_basic",
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -549,11 +570,6 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "App Native Login 1",
         "description": "Sample application for App native login",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
         "auth_flow_graph_id": "auth_flow_config_basic"
     }'
     ```
@@ -565,24 +581,31 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Test SPA",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "client_credentials",
-            "authorization_code",
-            "refresh_token"
-        ],
-        "response_types": [
-            "code"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
-        "auth_flow_graph_id": "auth_flow_config_basic"
+        "auth_flow_graph_id": "auth_flow_config_basic",
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials",
+                        "authorization_code",
+                        "refresh_token"
+                    ],
+                    "response_types": [
+                        "code"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -732,11 +755,6 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "App Native Login 1",
         "description": "Sample application for App native login",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
         "auth_flow_graph_id": "auth_flow_config_google"
     }'
     ```
@@ -748,24 +766,31 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Test SPA",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "client_credentials",
-            "authorization_code",
-            "refresh_token"
-        ],
-        "response_types": [
-            "code"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
-        "auth_flow_graph_id": "auth_flow_config_google"
+        "auth_flow_graph_id": "auth_flow_config_google",
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials",
+                        "authorization_code",
+                        "refresh_token"
+                    ],
+                    "response_types": [
+                        "code"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -929,11 +954,6 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "App Native Login 1",
         "description": "Sample application for App native login",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
         "auth_flow_graph_id": "auth_flow_config_github"
     }'
     ```
@@ -945,24 +965,31 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Test SPA",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "client_credentials",
-            "authorization_code",
-            "refresh_token"
-        ],
-        "response_types": [
-            "code"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
-        "auth_flow_graph_id": "auth_flow_config_github"
+        "auth_flow_graph_id": "auth_flow_config_github",
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials",
+                        "authorization_code",
+                        "refresh_token"
+                    ],
+                    "response_types": [
+                        "code"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -1077,11 +1104,6 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "App Native Login 1",
         "description": "Sample application for App native login",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
         "auth_flow_graph_id": "auth_flow_config_sms"
     }'
     ```
@@ -1093,24 +1115,31 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Test SPA",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "client_credentials",
-            "authorization_code",
-            "refresh_token"
-        ],
-        "response_types": [
-            "code"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
-        "auth_flow_graph_id": "auth_flow_config_sms"
+        "auth_flow_graph_id": "auth_flow_config_sms",
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials",
+                        "authorization_code",
+                        "refresh_token"
+                    ],
+                    "response_types": [
+                        "code"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -1191,6 +1220,26 @@ curl -kL https://localhost:8090/oauth2/jwks
   > Note: Refer [Registration Flow Customization Guide](/docs/content/customize-registration-flow.md) for more details on customizing registration flows.
 
 <details>
+<summary><h4>Enabling Self Registration</h4></summary>
+
+<p>Thunder allows you to control whether users can self-register for your application using the application management API. By default, self-registration is disabled when you create an application.</p>
+
+<p>To enable self-registration, set the `is_registration_flow_enabled` property to `true`. This can be done using the following cURL command:</p>
+
+```bash
+curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
+-d '{
+    "name": "Test SPA",
+    "description": "Initial testing App",
+    "auth_flow_graph_id": "auth_flow_config_basic",
+    "registration_flow_graph_id": "registration_flow_config_basic",
+    "is_registration_flow_enabled": true
+}'
+```
+
+</details>
+
+<details>
 <summary><h4>Register with Username and Password</h4></summary>
 
 1. **Configure an Application with Username/Password Registration**
@@ -1202,13 +1251,9 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "App Native Login 1",
         "description": "Sample application for App native login",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
         "auth_flow_graph_id": "auth_flow_config_basic",
-        "registration_flow_graph_id": "registration_flow_config_basic"
+        "registration_flow_graph_id": "registration_flow_config_basic",
+        "is_registration_flow_enabled": true
     }'
     ```
 
@@ -1219,25 +1264,33 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Test SPA",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "client_credentials",
-            "authorization_code",
-            "refresh_token"
-        ],
-        "response_types": [
-            "code"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
         "auth_flow_graph_id": "auth_flow_config_basic",
-        "registration_flow_graph_id": "registration_flow_config_basic"
+        "registration_flow_graph_id": "registration_flow_config_basic",
+        "is_registration_flow_enabled": true,
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials",
+                        "authorization_code",
+                        "refresh_token"
+                    ],
+                    "response_types": [
+                        "code"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -1438,13 +1491,9 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "App Native Login 1",
         "description": "Sample application for App native login",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
         "auth_flow_graph_id": "auth_flow_config_google",
-        "registration_flow_graph_id": "registration_flow_config_google"
+        "registration_flow_graph_id": "registration_flow_config_google",
+        "is_registration_flow_enabled": true
     }'
     ```
 
@@ -1455,25 +1504,33 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Test SPA",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "client_credentials",
-            "authorization_code",
-            "refresh_token"
-        ],
-        "response_types": [
-            "code"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
         "auth_flow_graph_id": "auth_flow_config_google",
-        "registration_flow_graph_id": "registration_flow_config_google"
+        "registration_flow_graph_id": "registration_flow_config_google",
+        "is_registration_flow_enabled": true,
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials",
+                        "authorization_code",
+                        "refresh_token"
+                    ],
+                    "response_types": [
+                        "code"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -1644,13 +1701,9 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "App Native Login 1",
         "description": "Sample application for App native login",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
         "auth_flow_graph_id": "auth_flow_config_github",
-        "registration_flow_graph_id": "registration_flow_config_github"
+        "registration_flow_graph_id": "registration_flow_config_github",
+        "is_registration_flow_enabled": true
     }'
     ```
 
@@ -1661,25 +1714,33 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Test SPA",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "client_credentials",
-            "authorization_code",
-            "refresh_token"
-        ],
-        "response_types": [
-            "code"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
         "auth_flow_graph_id": "auth_flow_config_github",
-        "registration_flow_graph_id": "registration_flow_config_github"
+        "registration_flow_graph_id": "registration_flow_config_github",
+        "is_registration_flow_enabled": true,
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials",
+                        "authorization_code",
+                        "refresh_token"
+                    ],
+                    "response_types": [
+                        "code"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -1800,13 +1861,9 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "App Native Login 1",
         "description": "Sample application for App native login",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
         "auth_flow_graph_id": "auth_flow_config_sms",
-        "registration_flow_graph_id": "registration_flow_config_sms"
+        "registration_flow_graph_id": "registration_flow_config_sms",
+        "is_registration_flow_enabled": true
     }'
     ```
 
@@ -1817,25 +1874,33 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Test SPA",
         "description": "Initial testing App",
-        "client_id": "<client_id>",
-        "client_secret": "<client_secret>",
-        "redirect_uris": [
-            "https://localhost:3000"
-        ],
-        "grant_types": [
-            "client_credentials",
-            "authorization_code",
-            "refresh_token"
-        ],
-        "response_types": [
-            "code"
-        ],
-        "token_endpoint_auth_method": [
-            "client_secret_basic",
-            "client_secret_post"
-        ],
         "auth_flow_graph_id": "auth_flow_config_sms",
-        "registration_flow_graph_id": "registration_flow_config_sms"
+        "registration_flow_graph_id": "registration_flow_config_sms",
+        "is_registration_flow_enabled": true,
+        "inbound_auth_config": [
+            {
+                "type": "oauth2",
+                "config": {
+                    "client_id": "<client_id>",
+                    "client_secret": "<client_secret>",
+                    "redirect_uris": [
+                        "https://localhost:3000"
+                    ],
+                    "grant_types": [
+                        "client_credentials",
+                        "authorization_code",
+                        "refresh_token"
+                    ],
+                    "response_types": [
+                        "code"
+                    ],
+                    "token_endpoint_auth_method": [
+                        "client_secret_basic",
+                        "client_secret_post"
+                    ]
+                }
+            }
+        ]
     }'
     ```
 
@@ -1946,31 +2011,6 @@ curl -kL https://localhost:8090/oauth2/jwks
     ```
 
     If the registration is successful, you will receive a response with the auth assertion.
-
-</details>
-
-<details>
-<summary><h4>Disabling Self Registration</h4></summary>
-
-<p>Thunder allows you to control whether users can self-register for your application using the application management API. By default, self-registration is enabled when you create an application.</p>
-
-<p>To disable self-registration, set the `is_registration_flow_enabled` property to `false`. This can be done using the following cURL command:</p>
-
-```bash
-curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
--d '{
-    "name": "Test SPA",
-    "description": "Initial testing App",
-    "client_id": "<client_id>",
-    "client_secret": "<client_secret>",
-    "redirect_uris": [
-        "https://localhost:3000"
-    ],
-    "auth_flow_graph_id": "auth_flow_config_basic",
-    "registration_flow_graph_id": "registration_flow_config_basic",
-    "is_registration_flow_enabled": false
-}'
-```
 
 </details>
 

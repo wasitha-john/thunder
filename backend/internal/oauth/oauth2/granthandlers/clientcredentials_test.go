@@ -41,7 +41,7 @@ type ClientCredentialsGrantHandlerTestSuite struct {
 	suite.Suite
 	mockJWTService *jwtmock.JWTServiceInterfaceMock
 	handler        *clientCredentialsGrantHandler
-	oauthApp       *appmodel.OAuthAppConfigProcessed
+	oauthApp       *appmodel.OAuthAppConfigProcessedDTO
 }
 
 func TestClientCredentialsGrantHandlerSuite(t *testing.T) {
@@ -66,7 +66,7 @@ func (suite *ClientCredentialsGrantHandlerTestSuite) SetupTest() {
 		JWTService: suite.mockJWTService,
 	}
 
-	suite.oauthApp = &appmodel.OAuthAppConfigProcessed{
+	suite.oauthApp = &appmodel.OAuthAppConfigProcessedDTO{
 		AppID:              "app123",
 		ClientID:           "client123",
 		HashedClientSecret: "hashedsecret123",

@@ -287,12 +287,8 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
 --data '{
     "name": "My Application",
     "description": "Application with custom registration flow",
-    "client_id": "<client_id>",
-    "client_secret": "<client_secret>",
-    "redirect_uris": [
-        "https://localhost:3000"
-    ],
     "auth_flow_graph_id": "custom_auth_flow",
-    "registration_flow_graph_id": "custom_registration_flow"
+    "registration_flow_graph_id": "custom_registration_flow",
+    "is_registration_flow_enabled": true
 }'
 ```

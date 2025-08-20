@@ -41,7 +41,7 @@ import (
 type ApplicationServiceInterface interface {
 	CreateApplication(app *model.ApplicationDTO) (*model.ApplicationDTO, *serviceerror.ServiceError)
 	GetApplicationList() (*model.ApplicationListResponse, *serviceerror.ServiceError)
-	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed, *serviceerror.ServiceError)
+	GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessedDTO, *serviceerror.ServiceError)
 	GetApplication(appID string) (*model.ApplicationProcessedDTO, *serviceerror.ServiceError)
 	UpdateApplication(appID string, app *model.ApplicationDTO) (*model.ApplicationDTO, *serviceerror.ServiceError)
 	DeleteApplication(appID string) *serviceerror.ServiceError
@@ -90,16 +90,26 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 	}
 
 	// Check if an application with the same client ID already exists
-	clientID := inboundAuthConfig.OAuthAppConfig.ClientID
-	if clientID != "" {
-		existingAppWithClientID, clientCheckErr := as.AppStore.GetOAuthApplication(clientID)
-		if clientCheckErr != nil && !errors.Is(clientCheckErr, constants.ApplicationNotFoundError) {
-			logger.Error("Failed to check existing application by client ID", log.Error(clientCheckErr),
-				log.String("clientID", clientID))
-			return nil, &constants.ErrorInternalServerError
+	if inboundAuthConfig != nil {
+		clientID := inboundAuthConfig.OAuthAppConfig.ClientID
+		if clientID == "" {
+			// TODO: Implement a proper client ID generation function.
+			inboundAuthConfig.OAuthAppConfig.ClientID = sysutils.GenerateUUID()
+		} else {
+			existingAppWithClientID, clientCheckErr := as.AppStore.GetOAuthApplication(clientID)
+			if clientCheckErr != nil && !errors.Is(clientCheckErr, constants.ApplicationNotFoundError) {
+				logger.Error("Failed to check existing application by client ID", log.Error(clientCheckErr),
+					log.String("clientID", clientID))
+				return nil, &constants.ErrorInternalServerError
+			}
+			if existingAppWithClientID != nil {
+				return nil, &constants.ErrorApplicationAlreadyExistsWithClientID
+			}
 		}
-		if existingAppWithClientID != nil {
-			return nil, &constants.ErrorApplicationAlreadyExistsWithClientID
+
+		// TODO: Implement a proper client secret generation function
+		if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" {
+			inboundAuthConfig.OAuthAppConfig.ClientSecret = sysutils.GenerateUUID()
 		}
 	}
 
@@ -125,18 +135,6 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		return nil, err
 	}
 
-	processedInboundAuthConfig := model.InboundAuthConfigProcessed{
-		Type: constants.OAuthInboundAuthType,
-		OAuthAppConfig: &model.OAuthAppConfigProcessed{
-			AppID:                   appID,
-			ClientID:                inboundAuthConfig.OAuthAppConfig.ClientID,
-			HashedClientSecret:      hash.HashString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
-			RedirectURIs:            inboundAuthConfig.OAuthAppConfig.RedirectURIs,
-			GrantTypes:              inboundAuthConfig.OAuthAppConfig.GrantTypes,
-			ResponseTypes:           inboundAuthConfig.OAuthAppConfig.ResponseTypes,
-			TokenEndpointAuthMethod: inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod,
-		},
-	}
 	processedDTO := &model.ApplicationProcessedDTO{
 		ID:                        appID,
 		Name:                      app.Name,
@@ -146,7 +144,21 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		IsRegistrationFlowEnabled: app.IsRegistrationFlowEnabled,
 		URL:                       app.URL,
 		LogoURL:                   app.LogoURL,
-		InboundAuthConfig:         []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
+	}
+	if inboundAuthConfig != nil {
+		processedInboundAuthConfig := model.InboundAuthConfigProcessedDTO{
+			Type: constants.OAuthInboundAuthType,
+			OAuthAppConfig: &model.OAuthAppConfigProcessedDTO{
+				AppID:                   appID,
+				ClientID:                inboundAuthConfig.OAuthAppConfig.ClientID,
+				HashedClientSecret:      hash.HashString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
+				RedirectURIs:            inboundAuthConfig.OAuthAppConfig.RedirectURIs,
+				GrantTypes:              inboundAuthConfig.OAuthAppConfig.GrantTypes,
+				ResponseTypes:           inboundAuthConfig.OAuthAppConfig.ResponseTypes,
+				TokenEndpointAuthMethod: inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod,
+			},
+		}
+		processedDTO.InboundAuthConfig = []model.InboundAuthConfigProcessedDTO{processedInboundAuthConfig}
 	}
 
 	// Create the application certificate if provided.
@@ -181,7 +193,9 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 		URL:                       app.URL,
 		LogoURL:                   app.LogoURL,
 		Certificate:               returnCert,
-		InboundAuthConfig:         []model.InboundAuthConfig{*inboundAuthConfig},
+	}
+	if inboundAuthConfig != nil {
+		returnApp.InboundAuthConfig = []model.InboundAuthConfigDTO{*inboundAuthConfig}
 	}
 
 	return returnApp, nil
@@ -231,7 +245,7 @@ func buildBasicApplicationResponse(app model.BasicApplicationDTO) model.BasicApp
 }
 
 // GetOAuthApplication retrieves the OAuth application based on the client id.
-func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessed,
+func (as *ApplicationService) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessedDTO,
 	*serviceerror.ServiceError) {
 	if clientID == "" {
 		return nil, &constants.ErrorInvalidClientID
@@ -337,17 +351,27 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 	}
 
 	// If the client ID is changed, check if an application with the new client ID already exists.
-	newClientID := inboundAuthConfig.OAuthAppConfig.ClientID
-	existingClientID := existingApp.InboundAuthConfig[0].OAuthAppConfig.ClientID
-	if newClientID != existingClientID {
-		existingAppWithClientID, clientCheckErr := as.AppStore.GetOAuthApplication(newClientID)
-		if clientCheckErr != nil && !errors.Is(clientCheckErr, constants.ApplicationNotFoundError) {
-			logger.Error("Failed to check existing application by client ID", log.Error(clientCheckErr),
-				log.String("clientID", newClientID))
-			return nil, &constants.ErrorInternalServerError
+	if inboundAuthConfig != nil {
+		newClientID := inboundAuthConfig.OAuthAppConfig.ClientID
+		existingClientID := existingApp.InboundAuthConfig[0].OAuthAppConfig.ClientID
+		if newClientID == "" {
+			// TODO: Implement a proper client ID generation function.
+			inboundAuthConfig.OAuthAppConfig.ClientID = sysutils.GenerateUUID()
+		} else if newClientID != existingClientID {
+			existingAppWithClientID, clientCheckErr := as.AppStore.GetOAuthApplication(newClientID)
+			if clientCheckErr != nil && !errors.Is(clientCheckErr, constants.ApplicationNotFoundError) {
+				logger.Error("Failed to check existing application by client ID", log.Error(clientCheckErr),
+					log.String("clientID", newClientID))
+				return nil, &constants.ErrorInternalServerError
+			}
+			if existingAppWithClientID != nil {
+				return nil, &constants.ErrorApplicationAlreadyExistsWithClientID
+			}
 		}
-		if existingAppWithClientID != nil {
-			return nil, &constants.ErrorApplicationAlreadyExistsWithClientID
+
+		// TODO: Implement a proper client secret generation function
+		if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" {
+			inboundAuthConfig.OAuthAppConfig.ClientSecret = sysutils.GenerateUUID()
 		}
 	}
 
@@ -370,18 +394,6 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		return nil, svcErr
 	}
 
-	processedInboundAuthConfig := model.InboundAuthConfigProcessed{
-		Type: constants.OAuthInboundAuthType,
-		OAuthAppConfig: &model.OAuthAppConfigProcessed{
-			AppID:                   appID,
-			ClientID:                inboundAuthConfig.OAuthAppConfig.ClientID,
-			HashedClientSecret:      hash.HashString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
-			RedirectURIs:            inboundAuthConfig.OAuthAppConfig.RedirectURIs,
-			GrantTypes:              inboundAuthConfig.OAuthAppConfig.GrantTypes,
-			ResponseTypes:           inboundAuthConfig.OAuthAppConfig.ResponseTypes,
-			TokenEndpointAuthMethod: inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod,
-		},
-	}
 	processedDTO := &model.ApplicationProcessedDTO{
 		ID:                        appID,
 		Name:                      app.Name,
@@ -391,7 +403,21 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		IsRegistrationFlowEnabled: app.IsRegistrationFlowEnabled,
 		URL:                       app.URL,
 		LogoURL:                   app.LogoURL,
-		InboundAuthConfig:         []model.InboundAuthConfigProcessed{processedInboundAuthConfig},
+	}
+	if inboundAuthConfig != nil {
+		processedInboundAuthConfig := model.InboundAuthConfigProcessedDTO{
+			Type: constants.OAuthInboundAuthType,
+			OAuthAppConfig: &model.OAuthAppConfigProcessedDTO{
+				AppID:                   appID,
+				ClientID:                inboundAuthConfig.OAuthAppConfig.ClientID,
+				HashedClientSecret:      hash.HashString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
+				RedirectURIs:            inboundAuthConfig.OAuthAppConfig.RedirectURIs,
+				GrantTypes:              inboundAuthConfig.OAuthAppConfig.GrantTypes,
+				ResponseTypes:           inboundAuthConfig.OAuthAppConfig.ResponseTypes,
+				TokenEndpointAuthMethod: inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod,
+			},
+		}
+		processedDTO.InboundAuthConfig = []model.InboundAuthConfigProcessedDTO{processedInboundAuthConfig}
 	}
 
 	storeErr := as.AppStore.UpdateApplication(existingApp, processedDTO)
@@ -416,7 +442,9 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 		URL:                       app.URL,
 		LogoURL:                   app.LogoURL,
 		Certificate:               returnCert,
-		InboundAuthConfig:         []model.InboundAuthConfig{*inboundAuthConfig},
+	}
+	if inboundAuthConfig != nil {
+		returnApp.InboundAuthConfig = []model.InboundAuthConfigDTO{*inboundAuthConfig}
 	}
 
 	return returnApp, nil
@@ -484,11 +512,19 @@ func validateRegistrationFlowGraphID(app *model.ApplicationDTO) *serviceerror.Se
 	return nil
 }
 
+// TODO: Check usages for app create and update to reflect the changes.
+
 // validateOAuthParamsForCreateAndUpdate validates the OAuth parameters for creating or updating an application.
-func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.InboundAuthConfig,
+func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.InboundAuthConfigDTO,
 	*serviceerror.ServiceError) {
+
+	// TODO: Validate the logic here whether it is okay to generate client id/ secret or set empty.
+	if len(app.InboundAuthConfig) == 0 {
+		return nil, nil
+	}
+
 	// TODO: Need to refactor when supporting other/multiple inbound auth types.
-	if len(app.InboundAuthConfig) == 0 || app.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+	if app.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
 		return nil, &constants.ErrorInvalidInboundAuthConfig
 	}
 	inboundAuthConfig := app.InboundAuthConfig[0]
@@ -497,12 +533,6 @@ func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.In
 	}
 
 	oauthAppConfig := inboundAuthConfig.OAuthAppConfig
-	if oauthAppConfig.ClientID == "" {
-		return nil, &constants.ErrorInvalidClientID
-	}
-	if oauthAppConfig.ClientSecret == "" {
-		return nil, &constants.ErrorInvalidClientSecret
-	}
 	if len(oauthAppConfig.RedirectURIs) == 0 {
 		return nil, &constants.ErrorInvalidRedirectURIs
 	}

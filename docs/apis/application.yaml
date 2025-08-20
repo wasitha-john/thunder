@@ -89,18 +89,6 @@ paths:
             example:
               name: "My Web Application"
               description: "Customer portal application"
-              client_id: "myapp_client_id"
-              client_secret: "myapp_client_secret"
-              redirect_uris:
-                - "https://myapp.example.com/callback"
-                - "https://myapp.example.com/oauth/callback"
-              grant_types:
-                - "authorization_code"
-                - "refresh_token"
-              response_types:
-                - "code"
-              token_endpoint_auth_method:
-                - "client_secret_basic"
               auth_flow_graph_id: "auth_flow_config_basic"
               registration_flow_graph_id: "registration_flow_config_basic"
               is_registration_flow_enabled: true
@@ -109,6 +97,21 @@ paths:
               certificate:
                 type: "JWKS_URI"
                 value: "https://myapp.example.com/.well-known/jwks"
+              inbound_auth_config:
+                - type: "oauth2"
+                  config:
+                    client_id: "myapp_client_id"
+                    client_secret: "myapp_client_secret"
+                    redirect_uris:
+                      - "https://myapp.example.com/callback"
+                      - "https://myapp.example.com/oauth/callback"
+                    grant_types:
+                      - "authorization_code"
+                      - "refresh_token"
+                    response_types:
+                      - "code"
+                    token_endpoint_auth_method:
+                      - "client_secret_basic"
       responses:
         "201":
           description: Application created
@@ -121,17 +124,6 @@ paths:
                 name: "My Web Application"
                 description: "Customer portal application"
                 client_id: "myapp_client_id"
-                client_secret: "myapp_client_secret"
-                redirect_uris:
-                  - "https://myapp.example.com/callback"
-                  - "https://myapp.example.com/oauth/callback"
-                grant_types:
-                  - "authorization_code"
-                  - "refresh_token"
-                response_types:
-                  - "code"
-                token_endpoint_auth_method:
-                  - "client_secret_basic"
                 auth_flow_graph_id: "auth_flow_config_basic"
                 registration_flow_graph_id: "registration_flow_config_basic"
                 is_registration_flow_enabled: true
@@ -140,6 +132,21 @@ paths:
                 certificate:
                   type: "JWKS_URI"
                   value: "https://myapp.example.com/.well-known/jwks"
+                inbound_auth_config:
+                  - type: "oauth2"
+                    config:
+                      client_id: "myapp_client_id"
+                      client_secret: "myapp_client_secret"
+                      redirect_uris:
+                        - "https://myapp.example.com/callback"
+                        - "https://myapp.example.com/oauth/callback"
+                      grant_types:
+                        - "authorization_code"
+                        - "refresh_token"
+                      response_types:
+                        - "code"
+                      token_endpoint_auth_method:
+                        - "client_secret_basic"
         "400":
           description: Bad request
           content:
@@ -203,16 +210,6 @@ paths:
                 name: "My Web Application"
                 description: "Customer portal application"
                 client_id: "myapp_client_id"
-                redirect_uris:
-                  - "https://myapp.example.com/callback"
-                  - "https://myapp.example.com/oauth/callback"
-                grant_types:
-                  - "authorization_code"
-                  - "refresh_token"
-                response_types:
-                  - "code"
-                token_endpoint_auth_method:
-                  - "client_secret_basic"
                 auth_flow_graph_id: "auth_flow_config_basic"
                 registration_flow_graph_id: "registration_flow_config_basic"
                 is_registration_flow_enabled: true
@@ -221,6 +218,20 @@ paths:
                 certificate:
                   type: "JWKS_URI"
                   value: "https://myapp.example.com/.well-known/jwks"
+                inbound_auth_config:
+                  - type: "oauth2"
+                    config:
+                      client_id: "myapp_client_id"
+                      redirect_uris:
+                        - "https://myapp.example.com/callback"
+                        - "https://myapp.example.com/oauth/callback"
+                      grant_types:
+                        - "authorization_code"
+                        - "refresh_token"
+                      response_types:
+                        - "code"
+                      token_endpoint_auth_method:
+                        - "client_secret_basic"
         "400":
           description: Bad request
           content:
@@ -275,20 +286,6 @@ paths:
             example:
               name: "Updated Web Application"
               description: "Updated customer portal application"
-              client_id: "myapp_client_id"
-              client_secret: "myapp_updated_secret"
-              redirect_uris:
-                - "https://myapp.example.com/callback"
-                - "https://myapp.example.com/oauth/callback"
-                - "https://staging.myapp.example.com/callback"
-              grant_types:
-                - "authorization_code"
-                - "refresh_token"
-                - "client_credentials"
-              response_types:
-                - "code"
-              token_endpoint_auth_method:
-                - "client_secret_basic"
               auth_flow_graph_id: "auth_flow_config_advanced"
               registration_flow_graph_id: "registration_flow_config_advanced"
               is_registration_flow_enabled: true
@@ -297,6 +294,23 @@ paths:
               certificate:
                 type: "JWKS_URI"
                 value: "https://myapp.example.com/.well-known/jwks"
+              inbound_auth_config:
+                - type: "oauth2"
+                  config:
+                    client_id: "myapp_client_id"
+                    client_secret: "myapp_updated_secret"
+                    redirect_uris:
+                      - "https://myapp.example.com/callback"
+                      - "https://myapp.example.com/oauth/callback"
+                      - "https://staging.myapp.example.com/callback"
+                    grant_types:
+                      - "authorization_code"
+                      - "refresh_token"
+                      - "client_credentials"
+                    response_types:
+                      - "code"
+                    token_endpoint_auth_method:
+                      - "client_secret_basic"
       responses:
         "200":
           description: Application updated
@@ -309,19 +323,6 @@ paths:
                 name: "Updated Web Application"
                 description: "Updated customer portal application"
                 client_id: "myapp_client_id"
-                client_secret: "myapp_updated_secret"
-                redirect_uris:
-                  - "https://myapp.example.com/callback"
-                  - "https://myapp.example.com/oauth/callback"
-                  - "https://staging.myapp.example.com/callback"
-                grant_types:
-                  - "authorization_code"
-                  - "refresh_token"
-                  - "client_credentials"
-                response_types:
-                  - "code"
-                token_endpoint_auth_method:
-                  - "client_secret_basic"
                 auth_flow_graph_id: "auth_flow_config_advanced"
                 registration_flow_graph_id: "registration_flow_config_advanced"
                 is_registration_flow_enabled: true
@@ -330,6 +331,23 @@ paths:
                 certificate:
                   type: "JWKS_URI"
                   value: "https://myapp.example.com/.well-known/jwks"
+                inbound_auth_config:
+                  - type: "oauth2"
+                    config:
+                      client_id: "myapp_client_id"
+                      client_secret: "myapp_updated_secret"
+                      redirect_uris:
+                        - "https://myapp.example.com/callback"
+                        - "https://myapp.example.com/oauth/callback"
+                        - "https://staging.myapp.example.com/callback"
+                      grant_types:
+                        - "authorization_code"
+                        - "refresh_token"
+                        - "client_credentials"
+                      response_types:
+                        - "code"
+                      token_endpoint_auth_method:
+                        - "client_secret_basic"
         "400":
           description: Bad request
           content:
@@ -433,7 +451,7 @@ components:
   schemas:
     ApplicationRequest:
       type: object
-      required: [name, client_id, redirect_uris, grant_types]
+      required: [name]
       properties:
         name:
           type: string
@@ -443,44 +461,6 @@ components:
           type: string
           description: A brief description of the application.
           example: "Customer portal application"
-        client_id:
-          type: string
-          description: The client ID for the application.
-          example: "myapp_client_id"
-        client_secret:
-          type: string
-          description: The client secret for the application.
-          example: "myapp_client_secret"
-        redirect_uris:
-          type: array
-          items:
-            type: string
-            format: uri
-          description: A list of redirect URIs for the application.
-          example: ["https://myapp.example.com/callback", "https://myapp.example.com/oauth/callback"]
-          minItems: 1
-        grant_types:
-          type: array
-          items:
-            type: string
-            enum: ["authorization_code", "client_credentials", "refresh_token", "implicit"]
-          description: A list of grant types supported by the application.
-          example: ["authorization_code", "refresh_token"]
-          minItems: 1
-        response_types:
-          type: array
-          items:
-            type: string
-            enum: ["code", "token", "id_token", "code token", "code id_token", "token id_token", "code token id_token"]
-          description: A list of response types supported by the application.
-          example: ["code"]
-        token_endpoint_auth_method:
-          type: array
-          items:
-            type: string
-            enum: ["client_secret_basic", "client_secret_post", "client_secret_jwt", "private_key_jwt", "none"]
-          description: A list of token endpoint authentication methods supported by the application.
-          example: ["client_secret_basic"]
         auth_flow_graph_id:
           type: string
           description: The ID of the authentication flow graph.
@@ -506,6 +486,11 @@ components:
           example: "https://myapp.example.com/logo.png"
         certificate:
           $ref: '#/components/schemas/Certificate'
+        inbound_auth_config:
+          type: array
+          items:
+            $ref: '#/components/schemas/InboundAuthConfigComplete'
+          description: Inbound authentication configuration for the application.
 
     ApplicationCompleteResponse:
       type: object
@@ -527,38 +512,6 @@ components:
           type: string
           description: The client ID for the application.
           example: "myapp_client_id"
-        client_secret:
-          type: string
-          description: The client secret for the application.
-          example: "myapp_client_secret"
-        redirect_uris:
-          type: array
-          items:
-            type: string
-            format: uri
-          description: A list of redirect URIs for the application.
-          example: ["https://myapp.example.com/callback", "https://myapp.example.com/oauth/callback"]
-        grant_types:
-          type: array
-          items:
-            type: string
-            enum: ["authorization_code", "client_credentials", "refresh_token", "implicit"]
-          description: A list of grant types supported by the application.
-          example: ["authorization_code", "refresh_token"]
-        response_types:
-          type: array
-          items:
-            type: string
-            enum: ["code", "token", "id_token", "code token", "code id_token", "token id_token", "code token id_token"]
-          description: A list of response types supported by the application.
-          example: ["code"]
-        token_endpoint_auth_method:
-          type: array
-          items:
-            type: string
-            enum: ["client_secret_basic", "client_secret_post", "client_secret_jwt", "private_key_jwt", "none"]
-          description: A list of token endpoint authentication methods supported by the application.
-          example: ["client_secret_basic"]
         auth_flow_graph_id:
           type: string
           description: The ID of the authentication flow graph.
@@ -583,6 +536,11 @@ components:
           example: "https://myapp.example.com/logo.png"
         certificate:
           $ref: '#/components/schemas/Certificate'
+        inbound_auth_config:
+          type: array
+          items:
+            $ref: '#/components/schemas/InboundAuthConfigComplete'
+          description: Inbound authentication configuration for the application.
 
     ApplicationGetResponse:
       type: object
@@ -604,34 +562,6 @@ components:
           type: string
           description: The client ID for the application.
           example: "myapp_client_id"
-        redirect_uris:
-          type: array
-          items:
-            type: string
-            format: uri
-          description: A list of redirect URIs for the application.
-          example: ["https://myapp.example.com/callback", "https://myapp.example.com/oauth/callback"]
-        grant_types:
-          type: array
-          items:
-            type: string
-            enum: ["authorization_code", "client_credentials", "refresh_token", "implicit"]
-          description: A list of grant types supported by the application.
-          example: ["authorization_code", "refresh_token"]
-        response_types:
-          type: array
-          items:
-            type: string
-            enum: ["code", "token", "id_token", "code token", "code id_token", "token id_token", "code token id_token"]
-          description: A list of response types supported by the application.
-          example: ["code"]
-        token_endpoint_auth_method:
-          type: array
-          items:
-            type: string
-            enum: ["client_secret_basic", "client_secret_post", "client_secret_jwt", "private_key_jwt", "none"]
-          description: A list of token endpoint authentication methods supported by the application.
-          example: ["client_secret_basic"]
         auth_flow_graph_id:
           type: string
           description: The ID of the authentication flow graph.
@@ -656,6 +586,11 @@ components:
           example: "https://myapp.example.com/logo.png"
         certificate:
           $ref: '#/components/schemas/Certificate'
+        inbound_auth_config:
+          type: array
+          items:
+            $ref: '#/components/schemas/InboundAuthConfig'
+          description: Inbound authentication configuration for the application.
 
     BasicApplicationResponse:
       type: object
@@ -721,6 +656,106 @@ components:
           type: string
           description: The value of the certificate.
           example: "https://myapp.example.com/.well-known/jwks"
+
+    InboundAuthConfig:
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of inbound authentication.
+          enum:
+            - "oauth2"
+          example: "oauth2"
+        config:
+          $ref: '#/components/schemas/OAuthAppConfig'
+
+    InboundAuthConfigComplete:
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of inbound authentication.
+          enum:
+            - "oauth2"
+          example: "oauth2"
+        config:
+          $ref: '#/components/schemas/OAuthAppConfigComplete'
+
+    OAuthAppConfig:
+      type: object
+      properties:
+        client_id:
+          type: string
+          description: The client ID for the OAuth application.
+          example: "myapp_client_id"
+        redirect_uris:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: A list of redirect URIs for the OAuth application.
+          example: ["https://myapp.example.com/callback", "https://myapp.example.com/oauth/callback"]
+        grant_types:
+          type: array
+          items:
+            type: string
+            enum: ["authorization_code", "client_credentials", "refresh_token", "implicit", "password"]
+          description: A list of grant types supported by the OAuth application.
+          example: ["authorization_code", "refresh_token"]
+        response_types:
+          type: array
+          items:
+            type: string
+            enum: ["code", "token"]
+          description: A list of response types supported by the OAuth application.
+          example: ["code"]
+        token_endpoint_auth_method:
+          type: array
+          items:
+            type: string
+            enum: ["client_secret_basic", "client_secret_post", "none"]
+          description: A list of token endpoint authentication methods supported by the OAuth application.
+          example: ["client_secret_basic"]
+
+    OAuthAppConfigComplete:
+      type: object
+      properties:
+        client_id:
+          type: string
+          description: The client ID for the OAuth application.
+          example: "myapp_client_id"
+        client_secret:
+          type: string
+          description: The client secret for the OAuth application.
+          example: "myapp_client_secret"
+        redirect_uris:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: A list of redirect URIs for the OAuth application.
+          example: ["https://myapp.example.com/callback", "https://myapp.example.com/oauth/callback"]
+        grant_types:
+          type: array
+          items:
+            type: string
+            enum: ["authorization_code", "client_credentials", "refresh_token", "implicit", "password"]
+          description: A list of grant types supported by the OAuth application.
+          example: ["authorization_code", "refresh_token"]
+        response_types:
+          type: array
+          items:
+            type: string
+            enum: ["code", "token"]
+          description: A list of response types supported by the OAuth application.
+          example: ["code"]
+        token_endpoint_auth_method:
+          type: array
+          items:
+            type: string
+            enum: ["client_secret_basic", "client_secret_post", "none"]
+          description: A list of token endpoint authentication methods supported by the OAuth application.
+          example: ["client_secret_basic"]
 
     Error:
       type: object

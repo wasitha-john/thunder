@@ -67,18 +67,6 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		return
 	}
 
-	// TODO: Need to refactor when supporting other/multiple inbound auth types.
-	inboundAuthConfig := model.InboundAuthConfig{
-		Type: constants.OAuthInboundAuthType,
-		OAuthAppConfig: &model.OAuthAppConfig{
-			ClientID:                appRequest.ClientID,
-			ClientSecret:            appRequest.ClientSecret,
-			RedirectURIs:            appRequest.RedirectURIs,
-			GrantTypes:              appRequest.GrantTypes,
-			ResponseTypes:           appRequest.ResponseTypes,
-			TokenEndpointAuthMethod: appRequest.TokenEndpointAuthMethod,
-		},
-	}
 	appDTO := model.ApplicationDTO{
 		Name:                      appRequest.Name,
 		Description:               appRequest.Description,
@@ -88,7 +76,28 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		URL:                       appRequest.URL,
 		LogoURL:                   appRequest.LogoURL,
 		Certificate:               appRequest.Certificate,
-		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
+	}
+	if len(appRequest.InboundAuthConfig) > 0 {
+		inboundAuthConfigDTOs := make([]model.InboundAuthConfigDTO, 0)
+		for _, config := range appRequest.InboundAuthConfig {
+			if config.Type != constants.OAuthInboundAuthType || config.OAuthAppConfig == nil {
+				continue
+			}
+
+			inboundAuthConfigDTO := model.InboundAuthConfigDTO{
+				Type: config.Type,
+				OAuthAppConfig: &model.OAuthAppConfigDTO{
+					ClientID:                config.OAuthAppConfig.ClientID,
+					ClientSecret:            config.OAuthAppConfig.ClientSecret,
+					RedirectURIs:            config.OAuthAppConfig.RedirectURIs,
+					GrantTypes:              config.OAuthAppConfig.GrantTypes,
+					ResponseTypes:           config.OAuthAppConfig.ResponseTypes,
+					TokenEndpointAuthMethod: config.OAuthAppConfig.TokenEndpointAuthMethod,
+				},
+			}
+			inboundAuthConfigDTOs = append(inboundAuthConfigDTOs, inboundAuthConfigDTO)
+		}
+		appDTO.InboundAuthConfig = inboundAuthConfigDTOs
 	}
 
 	// Create the app using the application service.
@@ -99,79 +108,92 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		return
 	}
 
-	// TODO: Need to refactor when supporting other/multiple inbound auth types.
-	if len(createdAppDTO.InboundAuthConfig) == 0 ||
-		createdAppDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
-		logger.Error("Unsupported inbound authentication type returned",
-			log.String("type", string(createdAppDTO.InboundAuthConfig[0].Type)))
-
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusInternalServerError)
-
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInternalServerError.Code,
-			Message:     constants.ErrorInternalServerError.Error,
-			Description: constants.ErrorInternalServerError.ErrorDescription,
-		}
-		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
-			logger.Error("Error encoding error response", log.Error(encodeErr))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	returnInboundAuthConfig := createdAppDTO.InboundAuthConfig[0]
-	if returnInboundAuthConfig.OAuthAppConfig == nil {
-		logger.Error("OAuth application configuration is nil")
-
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusInternalServerError)
-
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInternalServerError.Code,
-			Message:     constants.ErrorInternalServerError.Error,
-			Description: constants.ErrorInternalServerError.ErrorDescription,
-		}
-		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
-			logger.Error("Error encoding error response", log.Error(encodeErr))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
-	if len(redirectURIs) == 0 {
-		redirectURIs = []string{}
-	}
-	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
-	if len(grantTypes) == 0 {
-		grantTypes = []oauth2const.GrantType{}
-	}
-	responseTypes := returnInboundAuthConfig.OAuthAppConfig.ResponseTypes
-	if len(responseTypes) == 0 {
-		responseTypes = []oauth2const.ResponseType{}
-	}
-	tokenAuthMethods := returnInboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod
-	if len(tokenAuthMethods) == 0 {
-		tokenAuthMethods = []oauth2const.TokenEndpointAuthMethod{}
-	}
-
 	returnApp := model.ApplicationCompleteResponse{
 		ID:                        createdAppDTO.ID,
 		Name:                      createdAppDTO.Name,
 		Description:               createdAppDTO.Description,
-		ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
-		ClientSecret:              returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
-		RedirectURIs:              redirectURIs,
-		GrantTypes:                grantTypes,
-		ResponseTypes:             responseTypes,
-		TokenEndpointAuthMethod:   tokenAuthMethods,
 		AuthFlowGraphID:           createdAppDTO.AuthFlowGraphID,
 		RegistrationFlowGraphID:   createdAppDTO.RegistrationFlowGraphID,
 		IsRegistrationFlowEnabled: createdAppDTO.IsRegistrationFlowEnabled,
 		URL:                       createdAppDTO.URL,
 		LogoURL:                   createdAppDTO.LogoURL,
 		Certificate:               createdAppDTO.Certificate,
+	}
+
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(createdAppDTO.InboundAuthConfig) > 0 {
+		if createdAppDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+			logger.Error("Unsupported inbound authentication type returned",
+				log.String("type", string(createdAppDTO.InboundAuthConfig[0].Type)))
+
+			w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+			w.WriteHeader(http.StatusInternalServerError)
+
+			errResp := apierror.ErrorResponse{
+				Code:        constants.ErrorInternalServerError.Code,
+				Message:     constants.ErrorInternalServerError.Error,
+				Description: constants.ErrorInternalServerError.ErrorDescription,
+			}
+			if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+				logger.Error("Error encoding error response", log.Error(encodeErr))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		returnInboundAuthConfig := createdAppDTO.InboundAuthConfig[0]
+		if returnInboundAuthConfig.OAuthAppConfig == nil {
+			logger.Error("OAuth application configuration is nil")
+
+			w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+			w.WriteHeader(http.StatusInternalServerError)
+
+			errResp := apierror.ErrorResponse{
+				Code:        constants.ErrorInternalServerError.Code,
+				Message:     constants.ErrorInternalServerError.Error,
+				Description: constants.ErrorInternalServerError.ErrorDescription,
+			}
+			if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+				logger.Error("Error encoding error response", log.Error(encodeErr))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+		if len(redirectURIs) == 0 {
+			redirectURIs = []string{}
+		}
+		grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+		if len(grantTypes) == 0 {
+			grantTypes = []oauth2const.GrantType{}
+		}
+		responseTypes := returnInboundAuthConfig.OAuthAppConfig.ResponseTypes
+		if len(responseTypes) == 0 {
+			responseTypes = []oauth2const.ResponseType{}
+		}
+		tokenAuthMethods := returnInboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod
+		if len(tokenAuthMethods) == 0 {
+			tokenAuthMethods = []oauth2const.TokenEndpointAuthMethod{}
+		}
+
+		returnInboundAuthConfigs := make([]model.InboundAuthConfigComplete, 0)
+		for _, config := range createdAppDTO.InboundAuthConfig {
+			oAuthAppConfig := model.OAuthAppConfigComplete{
+				ClientID:                config.OAuthAppConfig.ClientID,
+				ClientSecret:            config.OAuthAppConfig.ClientSecret,
+				RedirectURIs:            redirectURIs,
+				GrantTypes:              grantTypes,
+				ResponseTypes:           responseTypes,
+				TokenEndpointAuthMethod: tokenAuthMethods,
+			}
+			returnInboundAuthConfigs = append(returnInboundAuthConfigs, model.InboundAuthConfigComplete{
+				Type:           config.Type,
+				OAuthAppConfig: &oAuthAppConfig,
+			})
+		}
+		returnApp.InboundAuthConfig = returnInboundAuthConfigs
+		returnApp.ClientID = createdAppDTO.InboundAuthConfig[0].OAuthAppConfig.ClientID
 	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
@@ -233,77 +255,91 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 		return
 	}
 
-	// TODO: Need to refactor when supporting other/multiple inbound auth types.
-	if len(appDTO.InboundAuthConfig) == 0 || appDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
-		logger.Error("Unsupported inbound authentication type returned",
-			log.String("type", string(appDTO.InboundAuthConfig[0].Type)))
-
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusInternalServerError)
-
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInternalServerError.Code,
-			Message:     constants.ErrorInternalServerError.Error,
-			Description: constants.ErrorInternalServerError.ErrorDescription,
-		}
-		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
-			logger.Error("Error encoding error response", log.Error(encodeErr))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	returnInboundAuthConfig := appDTO.InboundAuthConfig[0]
-	if returnInboundAuthConfig.OAuthAppConfig == nil {
-		logger.Error("OAuth application configuration is nil")
-
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusInternalServerError)
-
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInternalServerError.Code,
-			Message:     constants.ErrorInternalServerError.Error,
-			Description: constants.ErrorInternalServerError.ErrorDescription,
-		}
-		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
-			logger.Error("Error encoding error response", log.Error(encodeErr))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
-	if len(redirectURIs) == 0 {
-		redirectURIs = []string{}
-	}
-	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
-	if len(grantTypes) == 0 {
-		grantTypes = []oauth2const.GrantType{}
-	}
-	responseTypes := returnInboundAuthConfig.OAuthAppConfig.ResponseTypes
-	if len(responseTypes) == 0 {
-		responseTypes = []oauth2const.ResponseType{}
-	}
-	tokenAuthMethods := returnInboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod
-	if len(tokenAuthMethods) == 0 {
-		tokenAuthMethods = []oauth2const.TokenEndpointAuthMethod{}
-	}
-
 	returnApp := model.ApplicationGetResponse{
 		ID:                        appDTO.ID,
 		Name:                      appDTO.Name,
 		Description:               appDTO.Description,
-		ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
-		RedirectURIs:              redirectURIs,
-		GrantTypes:                grantTypes,
-		ResponseTypes:             responseTypes,
-		TokenEndpointAuthMethod:   tokenAuthMethods,
 		AuthFlowGraphID:           appDTO.AuthFlowGraphID,
 		RegistrationFlowGraphID:   appDTO.RegistrationFlowGraphID,
 		IsRegistrationFlowEnabled: appDTO.IsRegistrationFlowEnabled,
 		URL:                       appDTO.URL,
 		LogoURL:                   appDTO.LogoURL,
 		Certificate:               appDTO.Certificate,
+	}
+
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(appDTO.InboundAuthConfig) > 0 {
+		if appDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+			logger.Error("Unsupported inbound authentication type returned",
+				log.String("type", string(appDTO.InboundAuthConfig[0].Type)))
+
+			w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+			w.WriteHeader(http.StatusInternalServerError)
+
+			errResp := apierror.ErrorResponse{
+				Code:        constants.ErrorInternalServerError.Code,
+				Message:     constants.ErrorInternalServerError.Error,
+				Description: constants.ErrorInternalServerError.ErrorDescription,
+			}
+			if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+				logger.Error("Error encoding error response", log.Error(encodeErr))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		returnInboundAuthConfig := appDTO.InboundAuthConfig[0]
+		if returnInboundAuthConfig.OAuthAppConfig == nil {
+			logger.Error("OAuth application configuration is nil")
+
+			w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+			w.WriteHeader(http.StatusInternalServerError)
+
+			errResp := apierror.ErrorResponse{
+				Code:        constants.ErrorInternalServerError.Code,
+				Message:     constants.ErrorInternalServerError.Error,
+				Description: constants.ErrorInternalServerError.ErrorDescription,
+			}
+			if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+				logger.Error("Error encoding error response", log.Error(encodeErr))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+		if len(redirectURIs) == 0 {
+			redirectURIs = []string{}
+		}
+		grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+		if len(grantTypes) == 0 {
+			grantTypes = []oauth2const.GrantType{}
+		}
+		responseTypes := returnInboundAuthConfig.OAuthAppConfig.ResponseTypes
+		if len(responseTypes) == 0 {
+			responseTypes = []oauth2const.ResponseType{}
+		}
+		tokenAuthMethods := returnInboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod
+		if len(tokenAuthMethods) == 0 {
+			tokenAuthMethods = []oauth2const.TokenEndpointAuthMethod{}
+		}
+
+		returnInboundAuthConfigs := make([]model.InboundAuthConfig, 0)
+		for _, config := range appDTO.InboundAuthConfig {
+			oAuthAppConfig := model.OAuthAppConfig{
+				ClientID:                config.OAuthAppConfig.ClientID,
+				RedirectURIs:            redirectURIs,
+				GrantTypes:              grantTypes,
+				ResponseTypes:           responseTypes,
+				TokenEndpointAuthMethod: tokenAuthMethods,
+			}
+			returnInboundAuthConfigs = append(returnInboundAuthConfigs, model.InboundAuthConfig{
+				Type:           config.Type,
+				OAuthAppConfig: &oAuthAppConfig,
+			})
+		}
+		returnApp.InboundAuthConfig = returnInboundAuthConfigs
+		returnApp.ClientID = appDTO.InboundAuthConfig[0].OAuthAppConfig.ClientID
 	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
@@ -354,18 +390,6 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		return
 	}
 
-	// TODO: Need to refactor when supporting other/multiple inbound auth types.
-	inboundAuthConfig := model.InboundAuthConfig{
-		Type: constants.OAuthInboundAuthType,
-		OAuthAppConfig: &model.OAuthAppConfig{
-			ClientID:                appRequest.ClientID,
-			ClientSecret:            appRequest.ClientSecret,
-			RedirectURIs:            appRequest.RedirectURIs,
-			GrantTypes:              appRequest.GrantTypes,
-			ResponseTypes:           appRequest.ResponseTypes,
-			TokenEndpointAuthMethod: appRequest.TokenEndpointAuthMethod,
-		},
-	}
 	updateReqAppDTO := model.ApplicationDTO{
 		ID:                        id,
 		Name:                      appRequest.Name,
@@ -376,7 +400,28 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		URL:                       appRequest.URL,
 		LogoURL:                   appRequest.LogoURL,
 		Certificate:               appRequest.Certificate,
-		InboundAuthConfig:         []model.InboundAuthConfig{inboundAuthConfig},
+	}
+	if len(appRequest.InboundAuthConfig) > 0 {
+		inboundAuthConfigDTOs := make([]model.InboundAuthConfigDTO, 0)
+		for _, config := range appRequest.InboundAuthConfig {
+			if config.Type != constants.OAuthInboundAuthType || config.OAuthAppConfig == nil {
+				continue
+			}
+
+			inboundAuthConfigDTO := model.InboundAuthConfigDTO{
+				Type: config.Type,
+				OAuthAppConfig: &model.OAuthAppConfigDTO{
+					ClientID:                config.OAuthAppConfig.ClientID,
+					ClientSecret:            config.OAuthAppConfig.ClientSecret,
+					RedirectURIs:            config.OAuthAppConfig.RedirectURIs,
+					GrantTypes:              config.OAuthAppConfig.GrantTypes,
+					ResponseTypes:           config.OAuthAppConfig.ResponseTypes,
+					TokenEndpointAuthMethod: config.OAuthAppConfig.TokenEndpointAuthMethod,
+				},
+			}
+			inboundAuthConfigDTOs = append(inboundAuthConfigDTOs, inboundAuthConfigDTO)
+		}
+		updateReqAppDTO.InboundAuthConfig = inboundAuthConfigDTOs
 	}
 
 	// Update the application using the application service.
@@ -387,79 +432,92 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		return
 	}
 
-	// TODO: Need to refactor when supporting other/multiple inbound auth types.
-	if len(updatedAppDTO.InboundAuthConfig) == 0 ||
-		updatedAppDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
-		logger.Error("Unsupported inbound authentication type returned",
-			log.String("type", string(updatedAppDTO.InboundAuthConfig[0].Type)))
-
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusInternalServerError)
-
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInternalServerError.Code,
-			Message:     constants.ErrorInternalServerError.Error,
-			Description: constants.ErrorInternalServerError.ErrorDescription,
-		}
-		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
-			logger.Error("Error encoding error response", log.Error(encodeErr))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	returnInboundAuthConfig := updatedAppDTO.InboundAuthConfig[0]
-	if returnInboundAuthConfig.OAuthAppConfig == nil {
-		logger.Error("OAuth application configuration is nil")
-
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusInternalServerError)
-
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInternalServerError.Code,
-			Message:     constants.ErrorInternalServerError.Error,
-			Description: constants.ErrorInternalServerError.ErrorDescription,
-		}
-		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
-			logger.Error("Error encoding error response", log.Error(encodeErr))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
-	if len(redirectURIs) == 0 {
-		redirectURIs = []string{}
-	}
-	grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
-	if len(grantTypes) == 0 {
-		grantTypes = []oauth2const.GrantType{}
-	}
-	responseTypes := returnInboundAuthConfig.OAuthAppConfig.ResponseTypes
-	if len(responseTypes) == 0 {
-		responseTypes = []oauth2const.ResponseType{}
-	}
-	tokenAuthMethods := returnInboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod
-	if len(tokenAuthMethods) == 0 {
-		tokenAuthMethods = []oauth2const.TokenEndpointAuthMethod{}
-	}
-
 	returnApp := model.ApplicationCompleteResponse{
 		ID:                        updatedAppDTO.ID,
 		Name:                      updatedAppDTO.Name,
 		Description:               updatedAppDTO.Description,
-		ClientID:                  returnInboundAuthConfig.OAuthAppConfig.ClientID,
-		ClientSecret:              returnInboundAuthConfig.OAuthAppConfig.ClientSecret,
-		RedirectURIs:              redirectURIs,
-		GrantTypes:                grantTypes,
-		ResponseTypes:             responseTypes,
-		TokenEndpointAuthMethod:   tokenAuthMethods,
 		AuthFlowGraphID:           updatedAppDTO.AuthFlowGraphID,
 		RegistrationFlowGraphID:   updatedAppDTO.RegistrationFlowGraphID,
 		IsRegistrationFlowEnabled: updatedAppDTO.IsRegistrationFlowEnabled,
 		URL:                       updatedAppDTO.URL,
 		LogoURL:                   updatedAppDTO.LogoURL,
 		Certificate:               updatedAppDTO.Certificate,
+	}
+
+	// TODO: Need to refactor when supporting other/multiple inbound auth types.
+	if len(updatedAppDTO.InboundAuthConfig) > 0 {
+		if updatedAppDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+			logger.Error("Unsupported inbound authentication type returned",
+				log.String("type", string(updatedAppDTO.InboundAuthConfig[0].Type)))
+
+			w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+			w.WriteHeader(http.StatusInternalServerError)
+
+			errResp := apierror.ErrorResponse{
+				Code:        constants.ErrorInternalServerError.Code,
+				Message:     constants.ErrorInternalServerError.Error,
+				Description: constants.ErrorInternalServerError.ErrorDescription,
+			}
+			if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+				logger.Error("Error encoding error response", log.Error(encodeErr))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		returnInboundAuthConfig := updatedAppDTO.InboundAuthConfig[0]
+		if returnInboundAuthConfig.OAuthAppConfig == nil {
+			logger.Error("OAuth application configuration is nil")
+
+			w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+			w.WriteHeader(http.StatusInternalServerError)
+
+			errResp := apierror.ErrorResponse{
+				Code:        constants.ErrorInternalServerError.Code,
+				Message:     constants.ErrorInternalServerError.Error,
+				Description: constants.ErrorInternalServerError.ErrorDescription,
+			}
+			if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
+				logger.Error("Error encoding error response", log.Error(encodeErr))
+				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		redirectURIs := returnInboundAuthConfig.OAuthAppConfig.RedirectURIs
+		if len(redirectURIs) == 0 {
+			redirectURIs = []string{}
+		}
+		grantTypes := returnInboundAuthConfig.OAuthAppConfig.GrantTypes
+		if len(grantTypes) == 0 {
+			grantTypes = []oauth2const.GrantType{}
+		}
+		responseTypes := returnInboundAuthConfig.OAuthAppConfig.ResponseTypes
+		if len(responseTypes) == 0 {
+			responseTypes = []oauth2const.ResponseType{}
+		}
+		tokenAuthMethods := returnInboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod
+		if len(tokenAuthMethods) == 0 {
+			tokenAuthMethods = []oauth2const.TokenEndpointAuthMethod{}
+		}
+
+		returnInboundAuthConfigs := make([]model.InboundAuthConfigComplete, 0)
+		for _, config := range updatedAppDTO.InboundAuthConfig {
+			oAuthAppConfig := model.OAuthAppConfigComplete{
+				ClientID:                config.OAuthAppConfig.ClientID,
+				ClientSecret:            config.OAuthAppConfig.ClientSecret,
+				RedirectURIs:            redirectURIs,
+				GrantTypes:              grantTypes,
+				ResponseTypes:           responseTypes,
+				TokenEndpointAuthMethod: tokenAuthMethods,
+			}
+			returnInboundAuthConfigs = append(returnInboundAuthConfigs, model.InboundAuthConfigComplete{
+				Type:           config.Type,
+				OAuthAppConfig: &oAuthAppConfig,
+			})
+		}
+		returnApp.InboundAuthConfig = returnInboundAuthConfigs
+		returnApp.ClientID = updatedAppDTO.InboundAuthConfig[0].OAuthAppConfig.ClientID
 	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
