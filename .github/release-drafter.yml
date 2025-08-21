@@ -1,0 +1,21 @@
+name-template: 'v$NEXT_MINOR_VERSION'
+tag-template: 'v$NEXT_MINOR_VERSION'
+change-template: '- $TITLE (#$NUMBER) by @$AUTHOR'
+change-title-escapes: '<>&'
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'Type/New Feature'
+  - title: '✨ Improvements'
+    labels:
+      - 'Type/Improvement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'Type/Bug'
+  - title: 'Other Changes'
+    labels: []
+exclude-labels:
+  - 'skip-changelog'
+include-labels: []
+no-changes-template: '- No significant changes.'
+template: "$CHANGES"
