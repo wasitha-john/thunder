@@ -34,7 +34,7 @@ type OAuthAppConfig struct {
 	RedirectURIs            []string                              `json:"redirect_uris"`
 	GrantTypes              []oauth2const.GrantType               `json:"grant_types"`
 	ResponseTypes           []oauth2const.ResponseType            `json:"response_types"`
-	TokenEndpointAuthMethod []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_method"`
+	TokenEndpointAuthMethod []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_methods"`
 }
 
 // OAuthAppConfigComplete represents the complete structure for OAuth application configuration.
@@ -44,7 +44,7 @@ type OAuthAppConfigComplete struct {
 	RedirectURIs            []string                              `json:"redirect_uris"`
 	GrantTypes              []oauth2const.GrantType               `json:"grant_types"`
 	ResponseTypes           []oauth2const.ResponseType            `json:"response_types"`
-	TokenEndpointAuthMethod []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_method"`
+	TokenEndpointAuthMethod []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_methods"`
 }
 
 // OAuthAppConfigDTO represents the data transfer object for OAuth application configuration.

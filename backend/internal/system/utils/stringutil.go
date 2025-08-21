@@ -142,3 +142,12 @@ func BoolToNumString(b bool) string {
 func NumStringToBool(s string) bool {
 	return s == "1"
 }
+
+// ConvertToStringSlice converts a slice of custom string types to a slice of strings.
+func ConvertToStringSlice[T ~string](items []T) []string {
+	result := make([]string, len(items))
+	for i, item := range items {
+		result[i] = string(item)
+	}
+	return result
+}

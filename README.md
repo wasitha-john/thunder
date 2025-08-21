@@ -218,7 +218,7 @@ To try out the Client Credentials flow, follow these steps:
                     "grant_types": [
                         "client_credentials"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -279,7 +279,7 @@ To try out the Client Credentials flow, follow these steps:
                     "grant_types": [
                         "client_credentials"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -352,7 +352,7 @@ To try out the Client Credentials flow, follow these steps:
                     "grant_types": [
                         "client_credentials"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -460,7 +460,7 @@ To try out the Client Credentials flow, follow these steps:
                     "grant_types": [
                         "client_credentials"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -599,7 +599,7 @@ curl -kL https://localhost:8090/oauth2/jwks
                     "response_types": [
                         "code"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -784,7 +784,7 @@ curl -kL https://localhost:8090/oauth2/jwks
                     "response_types": [
                         "code"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -983,7 +983,7 @@ curl -kL https://localhost:8090/oauth2/jwks
                     "response_types": [
                         "code"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -1133,7 +1133,7 @@ curl -kL https://localhost:8090/oauth2/jwks
                     "response_types": [
                         "code"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -1284,7 +1284,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
                     "response_types": [
                         "code"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -1524,7 +1524,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
                     "response_types": [
                         "code"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -1734,7 +1734,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
                     "response_types": [
                         "code"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]
@@ -1894,7 +1894,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
                     "response_types": [
                         "code"
                     ],
-                    "token_endpoint_auth_method": [
+                    "token_endpoint_auth_methods": [
                         "client_secret_basic",
                         "client_secret_post"
                     ]

@@ -6,8 +6,9 @@ INSERT INTO SP_APP (APP_NAME, APP_ID, DESCRIPTION, AUTH_FLOW_GRAPH_ID, REGISTRAT
 VALUES ('Test SPA', '550e8400-e29b-41d4-a716-446655440000', 'Initial testing App', 'auth_flow_config_basic', 'registration_flow_config_basic')
 ON CONFLICT (APP_ID) DO NOTHING;
 
-INSERT INTO IDN_OAUTH_CONSUMER_APPS (CONSUMER_KEY, CONSUMER_SECRET, APP_ID, CALLBACK_URIS, GRANT_TYPES, RESPONSE_TYPES, TOKEN_ENDPOINT_AUTH_METHODS)
-VALUES ('client123', 'fcf730b6d95236ecd3c9fc2d92d7b6b2bb061514961aec041d6c7a7192f592e4', '550e8400-e29b-41d4-a716-446655440000', 'https://localhost:3000', 'client_credentials,authorization_code,refresh_token', 'code', 'client_secret_basic,client_secret_post')
+INSERT INTO IDN_OAUTH_CONSUMER_APPS (CONSUMER_KEY, CONSUMER_SECRET, APP_ID, OAUTH_CONFIG_JSON)
+VALUES ('client123', 'fcf730b6d95236ecd3c9fc2d92d7b6b2bb061514961aec041d6c7a7192f592e4', '550e8400-e29b-41d4-a716-446655440000', 
+'{"redirect_uris":["https://localhost:3000"],"grant_types":["client_credentials","authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_methods":["client_secret_basic","client_secret_post"]}')
 ON CONFLICT (CONSUMER_KEY) DO NOTHING;
 
 INSERT INTO SP_INBOUND_AUTH (INBOUND_AUTH_KEY, INBOUND_AUTH_TYPE, APP_ID)
