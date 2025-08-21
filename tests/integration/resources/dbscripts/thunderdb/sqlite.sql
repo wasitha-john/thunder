@@ -141,6 +141,16 @@ CREATE TABLE CERTIFICATE (
     UNIQUE (REF_TYPE, REF_ID)
 );
 
+-- Table to store user schemas.
+CREATE TABLE USER_SCHEMAS (
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+    SCHEMA_ID VARCHAR(36) UNIQUE NOT NULL,
+    NAME VARCHAR(255) UNIQUE NOT NULL,
+    SCHEMA_DEF TEXT NOT NULL,
+    CREATED_AT TEXT DEFAULT (datetime('now')),
+    UPDATED_AT TEXT DEFAULT (datetime('now'))
+);
+
 -- Insert sample data into the tables.
 INSERT INTO SP_APP (APP_NAME, APP_ID, DESCRIPTION, AUTH_FLOW_GRAPH_ID, REGISTRATION_FLOW_GRAPH_ID) VALUES ('Test SPA', '550e8400-e29b-41d4-a716-446655440000', 'Initial testing App', 'auth_flow_config_basic', 'registration_flow_config_basic');
 
@@ -183,3 +193,9 @@ VALUES
 ('456e8400-e29b-41d4-a716-446655440002', '456e8400-e29b-41d4-a716-446655440001', 'engineering', 'Engineering', 'Engineering department', datetime('now'), datetime('now')),
 ('456e8400-e29b-41d4-a716-446655440003', '456e8400-e29b-41d4-a716-446655440001', 'sales', 'Sales', 'Sales department', datetime('now'), datetime('now')),
 ('456e8400-e29b-41d4-a716-446655440004', '456e8400-e29b-41d4-a716-446655440002', 'frontend', 'Frontend Team', 'Frontend development team', datetime('now'), datetime('now'));
+
+-- Insert sample user schemas
+INSERT INTO USER_SCHEMAS (SCHEMA_ID, NAME, SCHEMA_DEF, CREATED_AT, UPDATED_AT)
+VALUES
+('550e8400-e29b-41d4-a716-446655440100', 'basic-user-schema', '{"type": "object", "properties": {"firstName": {"type": "string"}, "lastName": {"type": "string"}, "email": {"type": "string", "regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$"}}, "required": ["firstName", "lastName", "email"]}', datetime('now'), datetime('now')),
+('550e8400-e29b-41d4-a716-446655440101', 'employee-profile-schema', '{"type": "object", "properties": {"personalInfo": {"type": "object", "properties": {"firstName": {"type": "string"}, "lastName": {"type": "string"}, "dateOfBirth": {"type": "string", "regex": "^\\\\d{4}-\\\\d{2}-\\\\d{2}$"}}}, "workInfo": {"type": "object", "properties": {"department": {"type": "string"}, "position": {"type": "string"}, "startDate": {"type": "string", "regex": "^\\\\d{4}-\\\\d{2}-\\\\d{2}$"}}}, "contact": {"type": "object", "properties": {"email": {"type": "string", "regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$"}, "phone": {"type": "string"}}}, "credentials": {"type": "object", "properties": {"password": {"type": "string", "regex": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\\\\\\\d)(?=.*[!@#$%^&*()_+\\\\\\\\-=\\\\\\\\[\\\\\\\\]{};'':\"\\\\\\\\\\\\\\\\|,.<>\\\\\\\\/?]).{8,}$"}}}}, "required": ["personalInfo", "workInfo", "contact", "credentials"]}', datetime('now'), datetime('now'));
