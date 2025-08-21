@@ -39,6 +39,18 @@ func GetJWTTokenValidityPeriod() int64 {
 	return validityPeriod
 }
 
+// GetJWTTokenIssuer retrieves the JWT token issuer from the configuration.
+func GetJWTTokenIssuer() string {
+	conf := config.GetThunderRuntime().Config
+	issuer := conf.OAuth.JWT.Issuer
+
+	if issuer == "" {
+		issuer = defaultIssuer
+	}
+
+	return issuer
+}
+
 // DecodeJWT decodes a JWT string and returns its header and payload as maps.
 func DecodeJWT(token string) (map[string]interface{}, map[string]interface{}, error) {
 	parts := strings.SplitN(token, ".", 3)

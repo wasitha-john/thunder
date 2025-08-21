@@ -75,6 +75,7 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		IsRegistrationFlowEnabled: appRequest.IsRegistrationFlowEnabled,
 		URL:                       appRequest.URL,
 		LogoURL:                   appRequest.LogoURL,
+		Token:                     appRequest.Token,
 		Certificate:               appRequest.Certificate,
 	}
 	if len(appRequest.InboundAuthConfig) > 0 {
@@ -93,6 +94,7 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 					GrantTypes:              config.OAuthAppConfig.GrantTypes,
 					ResponseTypes:           config.OAuthAppConfig.ResponseTypes,
 					TokenEndpointAuthMethod: config.OAuthAppConfig.TokenEndpointAuthMethod,
+					Token:                   config.OAuthAppConfig.Token,
 				},
 			}
 			inboundAuthConfigDTOs = append(inboundAuthConfigDTOs, inboundAuthConfigDTO)
@@ -117,6 +119,7 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		IsRegistrationFlowEnabled: createdAppDTO.IsRegistrationFlowEnabled,
 		URL:                       createdAppDTO.URL,
 		LogoURL:                   createdAppDTO.LogoURL,
+		Token:                     createdAppDTO.Token,
 		Certificate:               createdAppDTO.Certificate,
 	}
 
@@ -208,6 +211,7 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 		IsRegistrationFlowEnabled: appDTO.IsRegistrationFlowEnabled,
 		URL:                       appDTO.URL,
 		LogoURL:                   appDTO.LogoURL,
+		Token:                     appDTO.Token,
 		Certificate:               appDTO.Certificate,
 	}
 
@@ -276,6 +280,7 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 				GrantTypes:              grantTypes,
 				ResponseTypes:           responseTypes,
 				TokenEndpointAuthMethod: tokenAuthMethods,
+				Token:                   config.OAuthAppConfig.Token,
 			}
 			returnInboundAuthConfigs = append(returnInboundAuthConfigs, model.InboundAuthConfig{
 				Type:           config.Type,
@@ -343,6 +348,7 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		IsRegistrationFlowEnabled: appRequest.IsRegistrationFlowEnabled,
 		URL:                       appRequest.URL,
 		LogoURL:                   appRequest.LogoURL,
+		Token:                     appRequest.Token,
 		Certificate:               appRequest.Certificate,
 	}
 	if len(appRequest.InboundAuthConfig) > 0 {
@@ -361,6 +367,7 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 					GrantTypes:              config.OAuthAppConfig.GrantTypes,
 					ResponseTypes:           config.OAuthAppConfig.ResponseTypes,
 					TokenEndpointAuthMethod: config.OAuthAppConfig.TokenEndpointAuthMethod,
+					Token:                   config.OAuthAppConfig.Token,
 				},
 			}
 			inboundAuthConfigDTOs = append(inboundAuthConfigDTOs, inboundAuthConfigDTO)
@@ -385,6 +392,7 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		IsRegistrationFlowEnabled: updatedAppDTO.IsRegistrationFlowEnabled,
 		URL:                       updatedAppDTO.URL,
 		LogoURL:                   updatedAppDTO.LogoURL,
+		Token:                     updatedAppDTO.Token,
 		Certificate:               updatedAppDTO.Certificate,
 	}
 
@@ -492,6 +500,7 @@ func (ah *ApplicationHandler) processInboundAuthConfig(logger *log.Logger, appDT
 				GrantTypes:              grantTypes,
 				ResponseTypes:           responseTypes,
 				TokenEndpointAuthMethod: tokenAuthMethods,
+				Token:                   config.OAuthAppConfig.Token,
 			}
 			returnInboundAuthConfigs = append(returnInboundAuthConfigs, model.InboundAuthConfigComplete{
 				Type:           config.Type,

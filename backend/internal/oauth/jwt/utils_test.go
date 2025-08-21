@@ -53,6 +53,7 @@ func (suite *JWTUtilsTestSuite) TestGetJWTTokenValidityPeriod() {
 		{
 			name: "WithDefaultValue",
 			configSetup: func() {
+				config.ResetThunderRuntime()
 				err := config.InitializeThunderRuntime("", &config.Config{
 					OAuth: config.OAuthConfig{
 						JWT: config.JWTConfig{
@@ -67,6 +68,7 @@ func (suite *JWTUtilsTestSuite) TestGetJWTTokenValidityPeriod() {
 		{
 			name: "WithCustomValue",
 			configSetup: func() {
+				config.ResetThunderRuntime()
 				err := config.InitializeThunderRuntime("", &config.Config{
 					OAuth: config.OAuthConfig{
 						JWT: config.JWTConfig{
@@ -86,6 +88,54 @@ func (suite *JWTUtilsTestSuite) TestGetJWTTokenValidityPeriod() {
 
 			validity := GetJWTTokenValidityPeriod()
 			assert.Equal(t, tc.expectedValidity, validity)
+		})
+	}
+}
+
+func (suite *JWTUtilsTestSuite) TestGetJWTTokenIssuer() {
+	tests := []struct {
+		name           string
+		configSetup    func()
+		expectedIssuer string
+	}{
+		{
+			name: "WithDefaultValue",
+			configSetup: func() {
+				config.ResetThunderRuntime()
+				err := config.InitializeThunderRuntime("", &config.Config{
+					OAuth: config.OAuthConfig{
+						JWT: config.JWTConfig{
+							Issuer: "",
+						},
+					},
+				})
+				assert.NoError(suite.T(), err)
+			},
+			expectedIssuer: "thunder",
+		},
+		{
+			name: "WithCustomValue",
+			configSetup: func() {
+				config.ResetThunderRuntime()
+				err := config.InitializeThunderRuntime("", &config.Config{
+					OAuth: config.OAuthConfig{
+						JWT: config.JWTConfig{
+							Issuer: "custom-issuer",
+						},
+					},
+				})
+				assert.NoError(suite.T(), err)
+			},
+			expectedIssuer: "custom-issuer",
+		},
+	}
+
+	for _, tc := range tests {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			tc.configSetup()
+
+			issuer := GetJWTTokenIssuer()
+			assert.Equal(t, tc.expectedIssuer, issuer)
 		})
 	}
 }
