@@ -146,11 +146,6 @@ func (suite *RefreshTokenGrantHandlerTestSuite) TestValidateGrant_MissingClientI
 	assert.Equal(suite.T(), "Client ID is required", err.ErrorDescription)
 }
 
-func (suite *RefreshTokenGrantHandlerTestSuite) TestHandleGrant_Success() {
-	// Skip this test as it requires complex mocking of JWT utils functions that are not easily mockable
-	suite.T().Skip("Complex integration test - requires mocking JWT utils functions")
-}
-
 func (suite *RefreshTokenGrantHandlerTestSuite) TestHandleGrant_InvalidSignature() {
 	// Mock JWT service to return nil public key (simulating signature verification failure)
 	suite.mockJWTService.On("GetPublicKey").Return(nil)
@@ -165,11 +160,6 @@ func (suite *RefreshTokenGrantHandlerTestSuite) TestHandleGrant_InvalidSignature
 	assert.NotNil(suite.T(), err)
 	assert.Equal(suite.T(), constants.ErrorServerError, err.Error)
 	assert.Equal(suite.T(), "Server public key not available", err.ErrorDescription)
-}
-
-func (suite *RefreshTokenGrantHandlerTestSuite) TestHandleGrant_JWTGenerationError() {
-	// Skip this test as it requires complex mocking of JWT utils functions that are not easily mockable
-	suite.T().Skip("Complex integration test - requires mocking JWT utils functions")
 }
 
 func (suite *RefreshTokenGrantHandlerTestSuite) TestIssueRefreshToken_Success() {
