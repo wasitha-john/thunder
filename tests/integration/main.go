@@ -99,7 +99,15 @@ func runTests() error {
 		return fmt.Errorf("failed to clean test cache: %w", err)
 	}
 
-	cmd = exec.Command("go", "test", "-p=1", "-v", "./...")
+	_, err = exec.LookPath("gotestsum")
+	if err == nil {
+		fmt.Println("Running integration tests using gotestsum...")
+		cmd = exec.Command("gotestsum", "--format", "testname", "--", "-p=1", "./...")
+	} else {
+		fmt.Println("Running integration tests using go test...")
+		cmd = exec.Command("go", "test", "-p=1", "-v", "./...")
+	}
+
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

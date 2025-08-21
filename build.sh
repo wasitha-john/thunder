@@ -368,9 +368,18 @@ function package_sample_app() {
 
 function test_unit() {
     echo "================================================================"
-    echo "Running unit tests..."
+    echo "Preparing to run unit tests..."
     cd "$BACKEND_BASE_DIR" || exit 1
-    go test -v -cover ./... || { echo "There are unit test failures."; exit 1; }
+    
+    # Use gotestsum if available, otherwise fall back to go test
+    if command -v gotestsum &> /dev/null; then
+        echo "Running unit tests using gotestsum..."
+        gotestsum -- -v -cover ./... || { echo "There are unit test failures."; exit 1; }
+    else
+        echo "Running unit tests using go test..."
+        go test -v -cover ./... || { echo "There are unit test failures."; exit 1; }
+    fi
+    
     echo "================================================================"
 }
 
