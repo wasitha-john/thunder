@@ -1,4 +1,4 @@
-name: Issue Chat Notification
+name: "💬 Issue Chat Notification"
 
 on:
   issues:

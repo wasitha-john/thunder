@@ -44,7 +44,7 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: ✅ Set Sample Apps Version
+      - name: 🏷️ Set Sample Apps Version
         run: |
           # Get the product version input
           SAMPLE_VERSION="${{ github.event.inputs.version }}"
@@ -57,11 +57,19 @@ jobs:
           echo "✅ Sample version set to '$SAMPLE_VERSION'"
           echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
 
-      - name: 📝 Update Product Version
+      - name: 🏷️ Update Product Version
         run: |
           # Store version with v prefix in version.txt
           VERSION="${{ env.VERSION }}"
           echo "$VERSION" > version.txt
+
+      - name: 📝 Generate Changelog (Release Drafter)
+        id: changelog
+        uses: release-drafter/release-drafter@v5
+        with:
+          config-name: release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: ⚙️ Set up Go Environment
         uses: ./.github/actions/setup-go
@@ -211,9 +219,15 @@ jobs:
           # Extract license section including header
           LICENSE=$(grep -A 5 "^## License" README.md)
           
+          # Add changelog from Release Drafter before features
+          CHANGELOG="${{ steps.changelog.outputs.body }}"
+
           # Combine for release description
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
           echo "$INTRO" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "## ♻️ What's Changed" >> $GITHUB_ENV
+          echo "$CHANGELOG" >> $GITHUB_ENV
           echo "" >> $GITHUB_ENV
           echo "$FEATURES" >> $GITHUB_ENV
           echo "" >> $GITHUB_ENV
