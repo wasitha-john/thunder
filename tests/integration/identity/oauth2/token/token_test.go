@@ -76,7 +76,7 @@ func (ts *TokenTestSuite) SetupSuite() {
 						"authorization_code",
 						"refresh_token",
 					},
-					"token_endpoint_auth_method": []string{
+					"token_endpoint_auth_methods": []string{
 						"client_secret_basic",
 						"client_secret_post",
 					},

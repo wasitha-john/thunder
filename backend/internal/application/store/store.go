@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
@@ -35,6 +34,14 @@ import (
 	"github.com/asgardeo/thunder/internal/system/utils"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
+
+// oAuthConfig is the structure for unmarshaling OAuth configuration JSON.
+type oAuthConfig struct {
+	RedirectURIs            []string `json:"redirect_uris"`
+	GrantTypes              []string `json:"grant_types"`
+	ResponseTypes           []string `json:"response_types"`
+	TokenEndpointAuthMethod []string `json:"token_endpoint_auth_methods"`
+}
 
 // ApplicationStoreInterface defines the interface for application data persistence operations.
 type ApplicationStoreInterface interface {
@@ -183,47 +190,44 @@ func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAp
 		return nil, errors.New("failed to parse consumer_secret as string")
 	}
 
-	var redirectURIs []string
-	if row["callback_uris"] != nil {
-		if uris, ok := row["callback_uris"].(string); ok {
-			redirectURIs = utils.ParseStringArray(uris, ",")
-		} else {
-			return nil, errors.New("failed to parse callback_uris as string")
-		}
+	// Extract OAuth JSON data
+	var oauthConfigJSON string
+	if row["oauth_config_json"] == nil {
+		oauthConfigJSON = "{}"
+	} else if v, ok := row["oauth_config_json"].(string); ok {
+		oauthConfigJSON = v
+	} else if v, ok := row["oauth_config_json"].([]byte); ok {
+		oauthConfigJSON = string(v)
+	} else {
+		return nil, fmt.Errorf("failed to parse oauth_config_json as string or []byte")
 	}
 
-	var grantTypes []oauth2const.GrantType
-	if row["grant_types"] != nil {
-		if grants, ok := row["grant_types"].(string); ok {
-			grantTypes = utils.ParseTypedStringArray[oauth2const.GrantType](grants, ",")
-		} else {
-			return nil, errors.New("failed to parse grant_types as string")
-		}
+	var oAuthConfig oAuthConfig
+	if err := json.Unmarshal([]byte(oauthConfigJSON), &oAuthConfig); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal oauth config JSON: %w", err)
 	}
 
-	var responseTypes []oauth2const.ResponseType
-	if row["response_types"] != nil {
-		if responses, ok := row["response_types"].(string); ok {
-			responseTypes = utils.ParseTypedStringArray[oauth2const.ResponseType](responses, ",")
-		} else {
-			return nil, errors.New("failed to parse response_types as string")
-		}
+	// Convert the typed arrays to the required types
+	grantTypes := make([]oauth2const.GrantType, 0)
+	for _, gt := range oAuthConfig.GrantTypes {
+		grantTypes = append(grantTypes, oauth2const.GrantType(gt))
 	}
 
-	var tokenEndpointAuthMethods []oauth2const.TokenEndpointAuthMethod
-	if row["token_endpoint_auth_methods"] != nil {
-		if methods, ok := row["token_endpoint_auth_methods"].(string); ok {
-			tokenEndpointAuthMethods = utils.ParseTypedStringArray[oauth2const.TokenEndpointAuthMethod](methods, ",")
-		} else {
-			return nil, errors.New("failed to parse token_endpoint_auth_methods as string")
-		}
+	responseTypes := make([]oauth2const.ResponseType, 0)
+	for _, rt := range oAuthConfig.ResponseTypes {
+		responseTypes = append(responseTypes, oauth2const.ResponseType(rt))
+	}
+
+	tokenEndpointAuthMethods := make([]oauth2const.TokenEndpointAuthMethod, 0)
+	for _, am := range oAuthConfig.TokenEndpointAuthMethod {
+		tokenEndpointAuthMethods = append(tokenEndpointAuthMethods, oauth2const.TokenEndpointAuthMethod(am))
 	}
 
 	return &model.OAuthAppConfigProcessedDTO{
 		AppID:                   appID,
 		ClientID:                clientID,
 		HashedClientSecret:      hashedClientSecret,
-		RedirectURIs:            redirectURIs,
+		RedirectURIs:            oAuthConfig.RedirectURIs,
 		GrantTypes:              grantTypes,
 		ResponseTypes:           responseTypes,
 		TokenEndpointAuthMethod: tokenEndpointAuthMethods,
@@ -306,7 +310,7 @@ func (st *ApplicationStore) UpdateApplication(existingApp, updatedApp *model.App
 			clientID = existingApp.InboundAuthConfig[0].OAuthAppConfig.ClientID
 		}
 		queries = append(queries, deleteOAuthAppQuery(clientID))
-	} else {
+	} else if len(updatedApp.InboundAuthConfig) > 0 {
 		queries = append(queries, createOAuthAppQuery(updatedApp, QueryCreateOAuthApplication))
 	}
 
@@ -338,43 +342,6 @@ func (st *ApplicationStore) DeleteApplication(id string) error {
 	return nil
 }
 
-// getProcessedOAuthParams extracts oauth configuration strings from the inbound auth configs.
-func getProcessedOAuthParams(inboundAuthConfig model.InboundAuthConfigProcessedDTO) (string, string, string, string) {
-	callBackURIs := ""
-	if len(inboundAuthConfig.OAuthAppConfig.RedirectURIs) > 0 {
-		callBackURIs = strings.Join(inboundAuthConfig.OAuthAppConfig.RedirectURIs, ",")
-	}
-
-	grantTypes := ""
-	if len(inboundAuthConfig.OAuthAppConfig.GrantTypes) > 0 {
-		strs := make([]string, len(inboundAuthConfig.OAuthAppConfig.GrantTypes))
-		for i, g := range inboundAuthConfig.OAuthAppConfig.GrantTypes {
-			strs[i] = string(g)
-		}
-		grantTypes = strings.Join(strs, ",")
-	}
-
-	responseTypes := ""
-	if len(inboundAuthConfig.OAuthAppConfig.ResponseTypes) > 0 {
-		strs := make([]string, len(inboundAuthConfig.OAuthAppConfig.ResponseTypes))
-		for i, r := range inboundAuthConfig.OAuthAppConfig.ResponseTypes {
-			strs[i] = string(r)
-		}
-		responseTypes = strings.Join(strs, ",")
-	}
-
-	tokenAuthMethods := ""
-	if len(inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod) > 0 {
-		strs := make([]string, len(inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod))
-		for i, m := range inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod {
-			strs[i] = string(m)
-		}
-		tokenAuthMethods = strings.Join(strs, ",")
-	}
-
-	return callBackURIs, grantTypes, responseTypes, tokenAuthMethods
-}
-
 // getAppJSONDataBytes constructs the JSON data bytes for the application.
 func getAppJSONDataBytes(app *model.ApplicationProcessedDTO) ([]byte, error) {
 	jsonData := map[string]interface{}{
@@ -388,16 +355,40 @@ func getAppJSONDataBytes(app *model.ApplicationProcessedDTO) ([]byte, error) {
 	return jsonDataBytes, nil
 }
 
+// getOAuthConfigJSONBytes constructs the OAuth configuration JSON data bytes.
+func getOAuthConfigJSONBytes(inboundAuthConfig model.InboundAuthConfigProcessedDTO) ([]byte, error) {
+	oauthConfig := oAuthConfig{
+		RedirectURIs:  inboundAuthConfig.OAuthAppConfig.RedirectURIs,
+		GrantTypes:    sysutils.ConvertToStringSlice(inboundAuthConfig.OAuthAppConfig.GrantTypes),
+		ResponseTypes: sysutils.ConvertToStringSlice(inboundAuthConfig.OAuthAppConfig.ResponseTypes),
+		TokenEndpointAuthMethod: sysutils.ConvertToStringSlice(
+			inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod),
+	}
+
+	oauthConfigJSONBytes, err := json.Marshal(oauthConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal OAuth configuration JSON: %w", err)
+	}
+	return oauthConfigJSONBytes, nil
+}
+
 // createOAuthAppQuery creates a query function for creating or updating an OAuth application.
 func createOAuthAppQuery(app *model.ApplicationProcessedDTO,
 	oauthAppMgtQuery dbmodel.DBQuery) func(tx dbmodel.TxInterface) error {
 	inboundAuthConfig := app.InboundAuthConfig[0]
-	callBackURIs, grantTypes, responseTypes, tokenAuthMethods := getProcessedOAuthParams(inboundAuthConfig)
+	clientID := inboundAuthConfig.OAuthAppConfig.ClientID
+	clientSecret := inboundAuthConfig.OAuthAppConfig.HashedClientSecret
+
+	// Generate the OAuth config JSON
+	oauthConfigJSON, err := getOAuthConfigJSONBytes(inboundAuthConfig)
+	if err != nil {
+		return func(tx dbmodel.TxInterface) error {
+			return err
+		}
+	}
 
 	return func(tx dbmodel.TxInterface) error {
-		_, err := tx.Exec(oauthAppMgtQuery.Query, app.ID, inboundAuthConfig.OAuthAppConfig.ClientID,
-			inboundAuthConfig.OAuthAppConfig.HashedClientSecret, callBackURIs, grantTypes, responseTypes,
-			tokenAuthMethods)
+		_, err := tx.Exec(oauthAppMgtQuery.Query, app.ID, clientID, clientSecret, oauthConfigJSON)
 		return err
 	}
 }
@@ -537,44 +528,38 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 			return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse consumer_secret as string")
 		}
 
-		var redirectURIs []string
-		if row["callback_uris"] != nil {
-			if uris, ok := row["callback_uris"].(string); ok {
-				redirectURIs = utils.ParseStringArray(uris, ",")
-			} else {
-				return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse callback_uris as string")
-			}
+		// Extract OAuth JSON data from the row.
+		var oauthConfigJSON string
+		if row["oauth_config_json"] == nil {
+			oauthConfigJSON = "{}"
+		} else if v, ok := row["oauth_config_json"].(string); ok {
+			oauthConfigJSON = v
+		} else if v, ok := row["oauth_config_json"].([]byte); ok {
+			oauthConfigJSON = string(v)
+		} else {
+			return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse oauth_config_json as string or []byte")
 		}
 
+		var oauthConfig oAuthConfig
+		if err := json.Unmarshal([]byte(oauthConfigJSON), &oauthConfig); err != nil {
+			return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to unmarshal oauth config JSON: %w", err)
+		}
+
+		// Convert the typed arrays to the required types
 		var grantTypes []oauth2const.GrantType
-		if row["grant_types"] != nil {
-			if grants, ok := row["grant_types"].(string); ok {
-				grantTypes = utils.ParseTypedStringArray[oauth2const.GrantType](grants, ",")
-			} else {
-				return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse grant_types as string")
-			}
+		for _, gt := range oauthConfig.GrantTypes {
+			grantTypes = append(grantTypes, oauth2const.GrantType(gt))
 		}
 
 		var responseTypes []oauth2const.ResponseType
-		if row["response_types"] != nil {
-			if responses, ok := row["response_types"].(string); ok {
-				responseTypes = utils.ParseTypedStringArray[oauth2const.ResponseType](responses, ",")
-			} else {
-				return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse response_types as string")
-			}
+		for _, rt := range oauthConfig.ResponseTypes {
+			responseTypes = append(responseTypes, oauth2const.ResponseType(rt))
 		}
 
 		var tokenEndpointAuthMethods []oauth2const.TokenEndpointAuthMethod
-		if row["token_endpoint_auth_methods"] != nil {
-			if methods, ok := row["token_endpoint_auth_methods"].(string); ok {
-				tokenEndpointAuthMethods = utils.ParseTypedStringArray[oauth2const.TokenEndpointAuthMethod](
-					methods, ",")
-			} else {
-				return model.ApplicationProcessedDTO{}, fmt.Errorf(
-					"failed to parse token_endpoint_auth_methods as string")
-			}
+		for _, am := range oauthConfig.TokenEndpointAuthMethod {
+			tokenEndpointAuthMethods = append(tokenEndpointAuthMethods, oauth2const.TokenEndpointAuthMethod(am))
 		}
-
 		// TODO: Need to refactor when supporting other/multiple inbound auth types.
 		inboundAuthConfig := model.InboundAuthConfigProcessedDTO{
 			Type: constants.OAuthInboundAuthType,
@@ -582,7 +567,7 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 				AppID:                   basicApp.ID,
 				ClientID:                basicApp.ClientID,
 				HashedClientSecret:      hashedClientSecret,
-				RedirectURIs:            redirectURIs,
+				RedirectURIs:            oauthConfig.RedirectURIs,
 				GrantTypes:              grantTypes,
 				ResponseTypes:           responseTypes,
 				TokenEndpointAuthMethod: tokenEndpointAuthMethods,

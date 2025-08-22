@@ -30,16 +30,15 @@ var (
 	// QueryCreateOAuthApplication is the query to create a new OAuth application.
 	QueryCreateOAuthApplication = dbmodel.DBQuery{
 		ID: "ASQ-APP_MGT-02",
-		Query: "INSERT INTO IDN_OAUTH_CONSUMER_APPS (APP_ID, CONSUMER_KEY, CONSUMER_SECRET, CALLBACK_URIS, " +
-			"GRANT_TYPES, RESPONSE_TYPES, TOKEN_ENDPOINT_AUTH_METHODS) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		Query: "INSERT INTO IDN_OAUTH_CONSUMER_APPS (APP_ID, CONSUMER_KEY, CONSUMER_SECRET, OAUTH_CONFIG_JSON) " +
+			"VALUES ($1, $2, $3, $4)",
 	}
 	// QueryGetApplicationByAppID is the query to retrieve application details by app ID.
 	QueryGetApplicationByAppID = dbmodel.DBQuery{
 		ID: "ASQ-APP_MGT-03",
 		Query: "SELECT sp.APP_ID, sp.APP_NAME, sp.DESCRIPTION, sp.AUTH_FLOW_GRAPH_ID, " +
 			"sp.REGISTRATION_FLOW_GRAPH_ID, sp.IS_REGISTRATION_FLOW_ENABLED, sp.APP_JSON, " +
-			"oauth.CONSUMER_KEY, oauth.CONSUMER_SECRET, oauth.CALLBACK_URIS, oauth.GRANT_TYPES, " +
-			"oauth.RESPONSE_TYPES, oauth.TOKEN_ENDPOINT_AUTH_METHODS " +
+			"oauth.CONSUMER_KEY, oauth.CONSUMER_SECRET, oauth.OAUTH_CONFIG_JSON " +
 			"FROM SP_APP sp LEFT JOIN IDN_OAUTH_CONSUMER_APPS oauth ON sp.APP_ID = oauth.APP_ID " +
 			"WHERE sp.APP_ID = $1",
 	}
@@ -48,16 +47,15 @@ var (
 		ID: "ASQ-APP_MGT-04",
 		Query: "SELECT sp.APP_ID, sp.APP_NAME, sp.DESCRIPTION, sp.AUTH_FLOW_GRAPH_ID, " +
 			"sp.REGISTRATION_FLOW_GRAPH_ID, sp.IS_REGISTRATION_FLOW_ENABLED, sp.APP_JSON, " +
-			"oauth.CONSUMER_KEY, oauth.CONSUMER_SECRET, oauth.CALLBACK_URIS, " +
-			"oauth.GRANT_TYPES, oauth.RESPONSE_TYPES, oauth.TOKEN_ENDPOINT_AUTH_METHODS " +
+			"oauth.CONSUMER_KEY, oauth.CONSUMER_SECRET, oauth.OAUTH_CONFIG_JSON " +
 			"FROM SP_APP sp LEFT JOIN IDN_OAUTH_CONSUMER_APPS oauth ON sp.APP_ID = oauth.APP_ID " +
 			"WHERE sp.APP_NAME = $1",
 	}
 	// QueryGetOAuthApplicationByClientID is the query to retrieve oauth application details by client ID.
 	QueryGetOAuthApplicationByClientID = dbmodel.DBQuery{
 		ID: "ASQ-APP_MGT-05",
-		Query: "SELECT APP_ID, CONSUMER_KEY, CONSUMER_SECRET, CALLBACK_URIS, GRANT_TYPES, RESPONSE_TYPES, " +
-			"TOKEN_ENDPOINT_AUTH_METHODS FROM IDN_OAUTH_CONSUMER_APPS WHERE CONSUMER_KEY = $1",
+		Query: "SELECT APP_ID, CONSUMER_KEY, CONSUMER_SECRET, OAUTH_CONFIG_JSON FROM IDN_OAUTH_CONSUMER_APPS " +
+			"WHERE CONSUMER_KEY = $1",
 	}
 	// QueryGetApplicationList is the query to list all the applications.
 	QueryGetApplicationList = dbmodel.DBQuery{
@@ -76,8 +74,8 @@ var (
 	// QueryUpdateOAuthApplicationByAppID is the query to update OAuth application details by app ID.
 	QueryUpdateOAuthApplicationByAppID = dbmodel.DBQuery{
 		ID: "ASQ-APP_MGT-08",
-		Query: "UPDATE IDN_OAUTH_CONSUMER_APPS SET CONSUMER_KEY=$2, CONSUMER_SECRET=$3, CALLBACK_URIS=$4, " +
-			"GRANT_TYPES=$5, RESPONSE_TYPES=$6, TOKEN_ENDPOINT_AUTH_METHODS=$7 WHERE APP_ID=$1",
+		Query: "UPDATE IDN_OAUTH_CONSUMER_APPS SET CONSUMER_KEY=$2, CONSUMER_SECRET=$3, OAUTH_CONFIG_JSON=$4 " +
+			"WHERE APP_ID=$1",
 	}
 	// QueryDeleteApplicationByAppID is the query to delete an application by app ID.
 	QueryDeleteApplicationByAppID = dbmodel.DBQuery{

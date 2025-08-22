@@ -53,7 +53,7 @@ type OAuthAppConfig struct {
 	RedirectURIs            []string `json:"redirect_uris"`
 	GrantTypes              []string `json:"grant_types"`
 	ResponseTypes           []string `json:"response_types"`
-	TokenEndpointAuthMethod []string `json:"token_endpoint_auth_method"`
+	TokenEndpointAuthMethod []string `json:"token_endpoint_auth_methods"`
 }
 
 // ApplicationList represents the response structure for listing applications.
