@@ -94,6 +94,10 @@ paths:
               is_registration_flow_enabled: true
               url: "https://myapp.example.com"
               logo_url: "https://myapp.example.com/logo.png"
+              token:
+                issuer: "thunder"
+                validity_period: 3600
+                user_attributes: ["email", "username"]
               certificate:
                 type: "JWKS_URI"
                 value: "https://myapp.example.com/.well-known/jwks"
@@ -110,8 +114,13 @@ paths:
                       - "refresh_token"
                     response_types:
                       - "code"
-                    token_endpoint_auth_method:
+                    token_endpoint_auth_methods:
                       - "client_secret_basic"
+                    token:
+                      access_token:
+                        issuer: "thunder"
+                        validity_period: 3600
+                        user_attributes: ["email", "username"]
       responses:
         "201":
           description: Application created
@@ -129,6 +138,10 @@ paths:
                 is_registration_flow_enabled: true
                 url: "https://myapp.example.com"
                 logo_url: "https://myapp.example.com/logo.png"
+                token:
+                  issuer: "thunder"
+                  validity_period: 3600
+                  user_attributes: ["email", "username"]
                 certificate:
                   type: "JWKS_URI"
                   value: "https://myapp.example.com/.well-known/jwks"
@@ -145,8 +158,13 @@ paths:
                         - "refresh_token"
                       response_types:
                         - "code"
-                      token_endpoint_auth_method:
+                      token_endpoint_auth_methods:
                         - "client_secret_basic"
+                      token:
+                        access_token:
+                          issuer: "thunder"
+                          validity_period: 3600
+                          user_attributes: ["email", "username"]
         "400":
           description: Bad request
           content:
@@ -215,6 +233,10 @@ paths:
                 is_registration_flow_enabled: true
                 url: "https://myapp.example.com"
                 logo_url: "https://myapp.example.com/logo.png"
+                token:
+                  issuer: "thunder"
+                  validity_period: 3600
+                  user_attributes: ["email", "username"]
                 certificate:
                   type: "JWKS_URI"
                   value: "https://myapp.example.com/.well-known/jwks"
@@ -230,8 +252,13 @@ paths:
                         - "refresh_token"
                       response_types:
                         - "code"
-                      token_endpoint_auth_method:
+                      token_endpoint_auth_methods:
                         - "client_secret_basic"
+                      token:
+                        access_token:
+                          issuer: "thunder"
+                          validity_period: 3600
+                          user_attributes: ["email", "username"]
         "400":
           description: Bad request
           content:
@@ -291,6 +318,10 @@ paths:
               is_registration_flow_enabled: true
               url: "https://myapp.example.com"
               logo_url: "https://myapp.example.com/updated-logo.png"
+              token:
+                issuer: "thunder"
+                validity_period: 3600
+                user_attributes: ["email", "username"]
               certificate:
                 type: "JWKS_URI"
                 value: "https://myapp.example.com/.well-known/jwks"
@@ -309,8 +340,13 @@ paths:
                       - "client_credentials"
                     response_types:
                       - "code"
-                    token_endpoint_auth_method:
+                    token_endpoint_auth_methods:
                       - "client_secret_basic"
+                    token:
+                      access_token:
+                        issuer: "thunder"
+                        validity_period: 3600
+                        user_attributes: ["email", "username"]
       responses:
         "200":
           description: Application updated
@@ -328,6 +364,10 @@ paths:
                 is_registration_flow_enabled: true
                 url: "https://myapp.example.com"
                 logo_url: "https://myapp.example.com/updated-logo.png"
+                token:
+                  issuer: "thunder"
+                  validity_period: 3600
+                  user_attributes: ["email", "username"]
                 certificate:
                   type: "JWKS_URI"
                   value: "https://myapp.example.com/.well-known/jwks"
@@ -346,8 +386,13 @@ paths:
                         - "client_credentials"
                       response_types:
                         - "code"
-                      token_endpoint_auth_method:
+                      token_endpoint_auth_methods:
                         - "client_secret_basic"
+                      token:
+                        access_token:
+                          issuer: "thunder"
+                          validity_period: 3600
+                          user_attributes: ["email", "username"]
         "400":
           description: Bad request
           content:
@@ -484,6 +529,8 @@ components:
           format: uri
           description: The URL of the application's logo.
           example: "https://myapp.example.com/logo.png"
+        token:
+          $ref: '#/components/schemas/TokenConfig'
         certificate:
           $ref: '#/components/schemas/Certificate'
         inbound_auth_config:
@@ -534,6 +581,8 @@ components:
           format: uri
           description: The URL of the application's logo.
           example: "https://myapp.example.com/logo.png"
+        token:
+          $ref: '#/components/schemas/TokenConfig'
         certificate:
           $ref: '#/components/schemas/Certificate'
         inbound_auth_config:
@@ -584,6 +633,8 @@ components:
           format: uri
           description: The URL of the application's logo.
           example: "https://myapp.example.com/logo.png"
+        token:
+          $ref: '#/components/schemas/TokenConfig'
         certificate:
           $ref: '#/components/schemas/Certificate'
         inbound_auth_config:
@@ -640,6 +691,24 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/BasicApplicationResponse'
+
+    TokenConfig:
+      type: object
+      properties:
+        issuer:
+          type: string
+          description: The issuer of the token.
+          example: "thunder"
+        validity_period:
+          type: integer
+          description: The validity period of the token in seconds.
+          example: 3600
+        user_attributes:
+          type: array
+          items:
+            type: string
+          description: The user attributes to include in the token.
+          example: ["email", "username"]
 
     Certificate:
       type: object
@@ -709,13 +778,18 @@ components:
             enum: ["code", "token"]
           description: A list of response types supported by the OAuth application.
           example: ["code"]
-        token_endpoint_auth_method:
+        token_endpoint_auth_methods:
           type: array
           items:
             type: string
             enum: ["client_secret_basic", "client_secret_post", "none"]
           description: A list of token endpoint authentication methods supported by the OAuth application.
           example: ["client_secret_basic"]
+        token:
+          type: object
+          properties:
+            access_token:
+              $ref: '#/components/schemas/TokenConfig'
 
     OAuthAppConfigComplete:
       type: object
@@ -749,13 +823,18 @@ components:
             enum: ["code", "token"]
           description: A list of response types supported by the OAuth application.
           example: ["code"]
-        token_endpoint_auth_method:
+        token_endpoint_auth_methods:
           type: array
           items:
             type: string
             enum: ["client_secret_basic", "client_secret_post", "none"]
           description: A list of token endpoint authentication methods supported by the OAuth application.
           example: ["client_secret_basic"]
+        token:
+          type: object
+          properties:
+            access_token:
+              $ref: '#/components/schemas/TokenConfig'
 
     Error:
       type: object

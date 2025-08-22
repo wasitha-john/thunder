@@ -35,6 +35,7 @@ type OAuthAppConfig struct {
 	GrantTypes              []oauth2const.GrantType               `json:"grant_types"`
 	ResponseTypes           []oauth2const.ResponseType            `json:"response_types"`
 	TokenEndpointAuthMethod []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_methods"`
+	Token                   *OAuthTokenConfig                     `json:"token,omitempty"`
 }
 
 // OAuthAppConfigComplete represents the complete structure for OAuth application configuration.
@@ -45,6 +46,7 @@ type OAuthAppConfigComplete struct {
 	GrantTypes              []oauth2const.GrantType               `json:"grant_types"`
 	ResponseTypes           []oauth2const.ResponseType            `json:"response_types"`
 	TokenEndpointAuthMethod []oauth2const.TokenEndpointAuthMethod `json:"token_endpoint_auth_methods"`
+	Token                   *OAuthTokenConfig                     `json:"token,omitempty"`
 }
 
 // OAuthAppConfigDTO represents the data transfer object for OAuth application configuration.
@@ -56,6 +58,7 @@ type OAuthAppConfigDTO struct {
 	GrantTypes              []oauth2const.GrantType
 	ResponseTypes           []oauth2const.ResponseType
 	TokenEndpointAuthMethod []oauth2const.TokenEndpointAuthMethod
+	Token                   *OAuthTokenConfig
 }
 
 // IsAllowedGrantType checks if the provided grant type is allowed.
@@ -87,6 +90,7 @@ type OAuthAppConfigProcessedDTO struct {
 	GrantTypes              []oauth2const.GrantType
 	ResponseTypes           []oauth2const.ResponseType
 	TokenEndpointAuthMethod []oauth2const.TokenEndpointAuthMethod
+	Token                   *OAuthTokenConfig
 }
 
 // IsAllowedGrantType checks if the provided grant type is allowed.

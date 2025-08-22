@@ -24,6 +24,18 @@ import (
 	certconst "github.com/asgardeo/thunder/internal/cert/constants"
 )
 
+// TokenConfig represents the token configuration structure.
+type TokenConfig struct {
+	Issuer         string   `json:"issuer"`
+	ValidityPeriod int64    `json:"validity_period"`
+	UserAttributes []string `json:"user_attributes"`
+}
+
+// OAuthTokenConfig represents the OAuth token configuration structure with access_token wrapper.
+type OAuthTokenConfig struct {
+	AccessToken *TokenConfig `json:"access_token,omitempty"`
+}
+
 // ApplicationDTO represents the data transfer object for application service operations.
 type ApplicationDTO struct {
 	ID                        string
@@ -36,6 +48,7 @@ type ApplicationDTO struct {
 	URL     string
 	LogoURL string
 
+	Token             *TokenConfig
 	Certificate       *ApplicationCertificate
 	InboundAuthConfig []InboundAuthConfigDTO
 }
@@ -63,6 +76,7 @@ type ApplicationProcessedDTO struct {
 	URL     string
 	LogoURL string
 
+	Token             *TokenConfig
 	Certificate       *ApplicationCertificate
 	InboundAuthConfig []InboundAuthConfigProcessedDTO
 }
@@ -96,6 +110,7 @@ type ApplicationRequest struct {
 	IsRegistrationFlowEnabled bool                        `json:"is_registration_flow_enabled"`
 	URL                       string                      `json:"url,omitempty"`
 	LogoURL                   string                      `json:"logo_url,omitempty"`
+	Token                     *TokenConfig                `json:"token,omitempty"`
 	Certificate               *ApplicationCertificate     `json:"certificate,omitempty"`
 	InboundAuthConfig         []InboundAuthConfigComplete `json:"inbound_auth_config,omitempty"`
 }
@@ -111,6 +126,7 @@ type ApplicationCompleteResponse struct {
 	IsRegistrationFlowEnabled bool                        `json:"is_registration_flow_enabled"`
 	URL                       string                      `json:"url,omitempty"`
 	LogoURL                   string                      `json:"logo_url,omitempty"`
+	Token                     *TokenConfig                `json:"token,omitempty"`
 	Certificate               *ApplicationCertificate     `json:"certificate,omitempty"`
 	InboundAuthConfig         []InboundAuthConfigComplete `json:"inbound_auth_config,omitempty"`
 }
@@ -126,6 +142,7 @@ type ApplicationGetResponse struct {
 	IsRegistrationFlowEnabled bool                    `json:"is_registration_flow_enabled"`
 	URL                       string                  `json:"url,omitempty"`
 	LogoURL                   string                  `json:"logo_url,omitempty"`
+	Token                     *TokenConfig            `json:"token,omitempty"`
 	Certificate               *ApplicationCertificate `json:"certificate,omitempty"`
 	InboundAuthConfig         []InboundAuthConfig     `json:"inbound_auth_config,omitempty"`
 }

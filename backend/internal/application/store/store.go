@@ -37,10 +37,23 @@ import (
 
 // oAuthConfig is the structure for unmarshaling OAuth configuration JSON.
 type oAuthConfig struct {
-	RedirectURIs            []string `json:"redirect_uris"`
-	GrantTypes              []string `json:"grant_types"`
-	ResponseTypes           []string `json:"response_types"`
-	TokenEndpointAuthMethod []string `json:"token_endpoint_auth_methods"`
+	RedirectURIs            []string          `json:"redirect_uris"`
+	GrantTypes              []string          `json:"grant_types"`
+	ResponseTypes           []string          `json:"response_types"`
+	TokenEndpointAuthMethod []string          `json:"token_endpoint_auth_methods"`
+	Token                   *oAuthTokenConfig `json:"token,omitempty"`
+}
+
+// oAuthTokenConfig represents the OAuth token configuration structure for JSON marshaling/unmarshaling.
+type oAuthTokenConfig struct {
+	AccessToken *tokenConfig `json:"access_token,omitempty"`
+}
+
+// tokenConfig represents the token configuration structure for JSON marshaling/unmarshaling.
+type tokenConfig struct {
+	Issuer         string   `json:"issuer,omitempty"`
+	ValidityPeriod int64    `json:"validity_period,omitempty"`
+	UserAttributes []string `json:"user_attributes,omitempty"`
 }
 
 // ApplicationStoreInterface defines the interface for application data persistence operations.
@@ -223,6 +236,18 @@ func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAp
 		tokenEndpointAuthMethods = append(tokenEndpointAuthMethods, oauth2const.TokenEndpointAuthMethod(am))
 	}
 
+	// Convert token config if present
+	var oauthTokenConfig *model.OAuthTokenConfig
+	if oAuthConfig.Token != nil && oAuthConfig.Token.AccessToken != nil {
+		oauthTokenConfig = &model.OAuthTokenConfig{
+			AccessToken: &model.TokenConfig{
+				Issuer:         oAuthConfig.Token.AccessToken.Issuer,
+				ValidityPeriod: oAuthConfig.Token.AccessToken.ValidityPeriod,
+				UserAttributes: oAuthConfig.Token.AccessToken.UserAttributes,
+			},
+		}
+	}
+
 	return &model.OAuthAppConfigProcessedDTO{
 		AppID:                   appID,
 		ClientID:                clientID,
@@ -231,6 +256,7 @@ func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAp
 		GrantTypes:              grantTypes,
 		ResponseTypes:           responseTypes,
 		TokenEndpointAuthMethod: tokenEndpointAuthMethods,
+		Token:                   oauthTokenConfig,
 	}, nil
 }
 
@@ -348,6 +374,24 @@ func getAppJSONDataBytes(app *model.ApplicationProcessedDTO) ([]byte, error) {
 		"url":      app.URL,
 		"logo_url": app.LogoURL,
 	}
+
+	// Include token config if present
+	if app.Token != nil {
+		tokenData := map[string]interface{}{}
+		if app.Token.Issuer != "" {
+			tokenData["issuer"] = app.Token.Issuer
+		}
+		if app.Token.ValidityPeriod != 0 {
+			tokenData["validity_period"] = app.Token.ValidityPeriod
+		}
+		if len(app.Token.UserAttributes) > 0 {
+			tokenData["user_attributes"] = app.Token.UserAttributes
+		}
+		if len(tokenData) > 0 {
+			jsonData["token"] = tokenData
+		}
+	}
+
 	jsonDataBytes, err := json.Marshal(jsonData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal application JSON: %w", err)
@@ -363,6 +407,17 @@ func getOAuthConfigJSONBytes(inboundAuthConfig model.InboundAuthConfigProcessedD
 		ResponseTypes: sysutils.ConvertToStringSlice(inboundAuthConfig.OAuthAppConfig.ResponseTypes),
 		TokenEndpointAuthMethod: sysutils.ConvertToStringSlice(
 			inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod),
+	}
+
+	// Include token config if present
+	if inboundAuthConfig.OAuthAppConfig.Token != nil && inboundAuthConfig.OAuthAppConfig.Token.AccessToken != nil {
+		oauthConfig.Token = &oAuthTokenConfig{
+			AccessToken: &tokenConfig{
+				Issuer:         inboundAuthConfig.OAuthAppConfig.Token.AccessToken.Issuer,
+				ValidityPeriod: inboundAuthConfig.OAuthAppConfig.Token.AccessToken.ValidityPeriod,
+				UserAttributes: inboundAuthConfig.OAuthAppConfig.Token.AccessToken.UserAttributes,
+			},
+		}
 	}
 
 	oauthConfigJSONBytes, err := json.Marshal(oauthConfig)
@@ -511,6 +566,28 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		return model.ApplicationProcessedDTO{}, fmt.Errorf("failed to parse logo_url from app JSON")
 	}
 
+	// Extract token config from app JSON if present
+	var rootTokenConfig *model.TokenConfig
+	if tokenData, exists := appJSONData["token"]; exists && tokenData != nil {
+		if tokenMap, ok := tokenData.(map[string]interface{}); ok {
+			rootTokenConfig = &model.TokenConfig{}
+			if issuer, ok := tokenMap["issuer"].(string); ok {
+				rootTokenConfig.Issuer = issuer
+			}
+			if validityPeriod, ok := tokenMap["validity_period"].(float64); ok {
+				vp := int64(validityPeriod)
+				rootTokenConfig.ValidityPeriod = vp
+			}
+			if userAttrs, ok := tokenMap["user_attributes"].([]interface{}); ok {
+				for _, attr := range userAttrs {
+					if attrStr, ok := attr.(string); ok {
+						rootTokenConfig.UserAttributes = append(rootTokenConfig.UserAttributes, attrStr)
+					}
+				}
+			}
+		}
+	}
+
 	application := model.ApplicationProcessedDTO{
 		ID:                        basicApp.ID,
 		Name:                      basicApp.Name,
@@ -520,6 +597,7 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		IsRegistrationFlowEnabled: basicApp.IsRegistrationFlowEnabled,
 		URL:                       url,
 		LogoURL:                   logoURL,
+		Token:                     rootTokenConfig,
 	}
 
 	if basicApp.ClientID != "" {
@@ -560,6 +638,19 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 		for _, am := range oauthConfig.TokenEndpointAuthMethod {
 			tokenEndpointAuthMethods = append(tokenEndpointAuthMethods, oauth2const.TokenEndpointAuthMethod(am))
 		}
+
+		// Extract token config from OAuth config if present
+		var oauthTokenConfig *model.OAuthTokenConfig
+		if oauthConfig.Token != nil && oauthConfig.Token.AccessToken != nil {
+			oauthTokenConfig = &model.OAuthTokenConfig{
+				AccessToken: &model.TokenConfig{
+					Issuer:         oauthConfig.Token.AccessToken.Issuer,
+					ValidityPeriod: oauthConfig.Token.AccessToken.ValidityPeriod,
+					UserAttributes: oauthConfig.Token.AccessToken.UserAttributes,
+				},
+			}
+		}
+
 		// TODO: Need to refactor when supporting other/multiple inbound auth types.
 		inboundAuthConfig := model.InboundAuthConfigProcessedDTO{
 			Type: constants.OAuthInboundAuthType,
@@ -571,6 +662,7 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 				GrantTypes:              grantTypes,
 				ResponseTypes:           responseTypes,
 				TokenEndpointAuthMethod: tokenEndpointAuthMethods,
+				Token:                   oauthTokenConfig,
 			},
 		}
 		application.InboundAuthConfig = []model.InboundAuthConfigProcessedDTO{inboundAuthConfig}

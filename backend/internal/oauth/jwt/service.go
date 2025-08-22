@@ -40,6 +40,7 @@ import (
 )
 
 const defaultTokenValidity = 3600 // default validity period of 1 hour
+const defaultIssuer = "thunder"
 
 var (
 	instance *JWTService
