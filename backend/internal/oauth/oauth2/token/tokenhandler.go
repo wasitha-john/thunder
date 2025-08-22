@@ -257,31 +257,39 @@ func extractClientIDAndSecret(r *http.Request, w http.ResponseWriter) (
 				"Invalid client credentials", http.StatusUnauthorized, nil)
 			return "", "", "", false
 		}
-
-		if clientID != "" && clientSecret != "" {
-			tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretBasic
-		}
 	}
 
 	// Check for client credentials in the request body.
 	clientIDFromBody := r.FormValue(constants.RequestParamClientID)
 	clientSecretFromBody := r.FormValue(constants.RequestParamClientSecret)
 
-	if clientIDFromBody != "" && clientSecretFromBody != "" {
-		if clientID != "" && clientSecret != "" {
-			utils.WriteJSONError(w, constants.ErrorInvalidRequest,
-				"Authorization information is provided in both header and body", http.StatusBadRequest, nil)
-			return "", "", "", false
-		}
+	if (clientID != "" || clientSecret != "") && (clientIDFromBody != "" || clientSecretFromBody != "") {
+		utils.WriteJSONError(w, constants.ErrorInvalidRequest,
+			"Authorization information is provided in both header and body", http.StatusBadRequest, nil)
+		return "", "", "", false
+	}
 
+	if clientID != "" && clientSecret != "" {
+		tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretBasic
+	}
+
+	if clientIDFromBody != "" {
 		clientID = clientIDFromBody
-		clientSecret = clientSecretFromBody
-		tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretPost
+		if clientSecretFromBody != "" {
+			clientSecret = clientSecretFromBody
+			tokenAuthMethod = constants.TokenEndpointAuthMethodClientSecretPost
+		}
 	}
 
 	if clientID == "" {
-		utils.WriteJSONError(w, constants.ErrorInvalidRequest, "Missing client_id parameter",
-			http.StatusBadRequest, nil)
+		utils.WriteJSONError(w, constants.ErrorInvalidClient, "Missing client_id parameter",
+			http.StatusUnauthorized, nil)
+		return "", "", "", false
+	}
+
+	if clientSecret == "" {
+		utils.WriteJSONError(w, constants.ErrorInvalidClient, "Missing client_secret parameter",
+			http.StatusUnauthorized, nil)
 		return "", "", "", false
 	}
 
