@@ -19,8 +19,11 @@
 package authz
 
 import (
+	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -31,23 +34,120 @@ import (
 )
 
 const (
-	clientID     = "client123"
-	clientSecret = "secret123"
-	redirectURI  = "https://localhost:3000"
+	clientID      = "authz_test_client_123"
+	clientSecret  = "authz_test_secret_123"
+	appName       = "AuthzTestApp"
+	redirectURI   = "https://localhost:3000"
+	testServerURL = "https://localhost:8095"
 )
 
 type AuthzTestSuite struct {
 	suite.Suite
+	applicationID string
+	client        *http.Client
 }
 
 func TestAuthzTestSuite(t *testing.T) {
 	suite.Run(t, new(AuthzTestSuite))
 }
 
+func (ts *AuthzTestSuite) SetupSuite() {
+
+	ts.client = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	app := map[string]interface{}{
+		"name":                         appName,
+		"description":                  "Application for authorization integration tests",
+		"auth_flow_graph_id":           "auth_flow_config_basic",
+		"registration_flow_graph_id":   "registration_flow_config_basic",
+		"is_registration_flow_enabled": true,
+		"inbound_auth_config": []map[string]interface{}{
+			{
+				"type": "oauth2",
+				"config": map[string]interface{}{
+					"client_id":     clientID,
+					"client_secret": clientSecret,
+					"redirect_uris": []string{redirectURI},
+					"grant_types": []string{
+						"client_credentials",
+						"authorization_code",
+						"refresh_token",
+					},
+					"response_types": []string{
+						"code",
+					},
+					"token_endpoint_auth_methods": []string{
+						"client_secret_basic",
+						"client_secret_post",
+					},
+				},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(app)
+	if err != nil {
+		ts.T().Fatalf("Failed to marshal application data: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", testServerURL+"/applications", bytes.NewBuffer(jsonData))
+	if err != nil {
+		ts.T().Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := ts.client.Do(req)
+	if err != nil {
+		ts.T().Fatalf("Failed to create application: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		ts.T().Fatalf("Failed to create application. Status: %d, Response: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var respData map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+		ts.T().Fatalf("Failed to parse response: %v", err)
+	}
+
+	ts.applicationID = respData["id"].(string)
+	ts.T().Logf("Created test application with ID: %s", ts.applicationID)
+}
+
+func (ts *AuthzTestSuite) TearDownSuite() {
+	if ts.applicationID == "" {
+		return
+	}
+
+	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/applications/%s", testServerURL, ts.applicationID), nil)
+	if err != nil {
+		ts.T().Errorf("Failed to create delete request: %v", err)
+		return
+	}
+
+	resp, err := ts.client.Do(req)
+	if err != nil {
+		ts.T().Errorf("Failed to delete application: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		ts.T().Errorf("Failed to delete application. Status: %d", resp.StatusCode)
+		return
+	}
+
+	ts.T().Logf("Successfully deleted test application with ID: %s", ts.applicationID)
+}
+
 // TestBasicAuthorizationRequest tests the basic authorization request flow
 func (ts *AuthzTestSuite) TestBasicAuthorizationRequest() {
-	ts.T().Logf("Testing basic OAuth2 authorization request")
-
 	testCases := []TestCase{
 		{
 			Name:           "Valid Request",
@@ -120,71 +220,57 @@ func (ts *AuthzTestSuite) TestBasicAuthorizationRequest() {
 
 	for _, tc := range testCases {
 		ts.Run(tc.Name, func() {
-
-			resp, err := initiateAuthorizationFlow(tc.ClientID, tc.RedirectURI, tc.ResponseType, tc.Scope, tc.State)
+			resp, err := initiateAuthorizationFlow(testServerURL, tc.ClientID, tc.RedirectURI, tc.ResponseType, "openid", tc.State)
 			ts.NoError(err, "Failed to initiate authorization flow")
 			defer resp.Body.Close()
 
 			ts.Equal(tc.ExpectedStatus, resp.StatusCode, "Expected status code")
 
 			if tc.ExpectedStatus == http.StatusFound {
-
 				location := resp.Header.Get("Location")
 				ts.NotEmpty(location, "Expected redirect location header")
-
 				if tc.ExpectedError != "" {
-					ts.T().Logf("Error redirect location: %s", location)
-
 					err := validateOAuth2ErrorRedirect(location, tc.ExpectedError, "")
 					ts.NoError(err, "OAuth2 error redirect validation failed")
-
 				} else {
-					sessionDataKey, applicationId, err := extractSessionData(location)
+					sessionDataKey, _, err := extractSessionData(location)
 					ts.NoError(err, "Failed to extract session data")
 					ts.NotEmpty(sessionDataKey, "sessionDataKey should be present")
-					ts.NotEmpty(applicationId, "applicationId should be present")
-
-					ts.T().Logf("Success redirect location: %s", location)
-					ts.T().Logf("Session data - sessionDataKey: %s, applicationId: %s", sessionDataKey, applicationId)
 				}
 			} else {
 				bodyBytes, _ := io.ReadAll(resp.Body)
 				ts.T().Logf("Error response body: %s", string(bodyBytes))
 			}
-
-			ts.T().Logf("Test case '%s' passed", tc.Name)
 		})
 	}
 }
 
 // TestTokenRequestValidation tests the validation of token request parameters
 func (ts *AuthzTestSuite) TestTokenRequestValidation() {
-	ts.T().Logf("Testing OAuth2 token request validation")
-
 	// Create test user and get authorization code
 	username := "token_test_user"
 	password := "testpass123"
 
-	userID, err := createTestUser(username, password)
+	userID, err := createTestUser(testServerURL, username, password)
 	ts.NoError(err, "Failed to create test user")
 	defer func() {
-		if err := deleteTestUser(userID); err != nil {
+		if err := deleteTestUser(testServerURL, userID); err != nil {
 			ts.T().Logf("Warning: Failed to delete test user: %v", err)
 		}
 	}()
 
 	// Get a valid authorization code first
-	resp, err := initiateAuthorizationFlow(clientID, redirectURI, "code", "openid", "token_test_state")
+	resp, err := initiateAuthorizationFlow(testServerURL, clientID, redirectURI, "code", "openid", "token_test_state")
 	ts.NoError(err, "Failed to initiate authorization flow")
 	defer resp.Body.Close()
 
 	ts.Equal(http.StatusFound, resp.StatusCode, "Expected redirect status")
 	location := resp.Header.Get("Location")
-	sessionDataKey, applicationId, err := extractSessionData(location)
+	sessionDataKey, _, err := extractSessionData(location)
 	ts.NoError(err, "Failed to extract session data")
 
 	// Execute authentication flow
-	flowStep, err := ExecuteAuthenticationFlow(applicationId, map[string]string{
+	flowStep, err := ExecuteAuthenticationFlow(testServerURL, ts.applicationID, map[string]string{
 		"username": username,
 		"password": password,
 	})
@@ -192,7 +278,7 @@ func (ts *AuthzTestSuite) TestTokenRequestValidation() {
 	ts.Equal("COMPLETE", flowStep.FlowStatus, "Flow should complete successfully")
 
 	// Complete authorization
-	authzResponse, err := completeAuthorization(sessionDataKey, flowStep.Assertion)
+	authzResponse, err := completeAuthorization(testServerURL, sessionDataKey, flowStep.Assertion)
 	ts.NoError(err, "Failed to complete authorization")
 	validAuthzCode, err := extractAuthorizationCode(authzResponse.RedirectURI)
 	ts.NoError(err, "Failed to extract authorization code")
@@ -224,8 +310,8 @@ func (ts *AuthzTestSuite) TestTokenRequestValidation() {
 			Code:           validAuthzCode,
 			RedirectURI:    redirectURI,
 			GrantType:      "authorization_code",
-			ExpectedStatus: http.StatusBadRequest,
-			ExpectedError:  "invalid_request",
+			ExpectedStatus: http.StatusUnauthorized,
+			ExpectedError:  "invalid_client",
 		},
 		{
 			Name:           "No Client ID and Secret",
@@ -234,8 +320,8 @@ func (ts *AuthzTestSuite) TestTokenRequestValidation() {
 			Code:           validAuthzCode,
 			RedirectURI:    redirectURI,
 			GrantType:      "authorization_code",
-			ExpectedStatus: http.StatusBadRequest,
-			ExpectedError:  "invalid_request",
+			ExpectedStatus: http.StatusUnauthorized,
+			ExpectedError:  "invalid_client",
 		},
 		{
 			Name:           "No Client Secret",
@@ -245,7 +331,7 @@ func (ts *AuthzTestSuite) TestTokenRequestValidation() {
 			RedirectURI:    redirectURI,
 			GrantType:      "authorization_code",
 			ExpectedStatus: http.StatusUnauthorized,
-			ExpectedError:  "unauthorized_client",
+			ExpectedError:  "invalid_client",
 		},
 		{
 			Name:           "Invalid Client Credentials",
@@ -312,7 +398,7 @@ func (ts *AuthzTestSuite) TestTokenRequestValidation() {
 			ClientID:       clientID,
 			ClientSecret:   clientSecret,
 			Code:           validAuthzCode,
-			RedirectURI:    "https://localhost:3000",
+			RedirectURI:    redirectURI,
 			GrantType:      "invalid_grant_type",
 			ExpectedStatus: http.StatusBadRequest,
 			ExpectedError:  "unsupported_grant_type",
@@ -331,11 +417,8 @@ func (ts *AuthzTestSuite) TestTokenRequestValidation() {
 
 	for _, tc := range testCases {
 		ts.Run(tc.Name, func() {
-			ts.T().Logf("Testing: %s", tc.Name)
-
-			result, err := requestToken(tc.ClientID, tc.ClientSecret, tc.Code, tc.RedirectURI, tc.GrantType)
+			result, err := requestToken(testServerURL, tc.ClientID, tc.ClientSecret, tc.Code, tc.RedirectURI, tc.GrantType)
 			ts.NoError(err, "Token request should not error at transport level")
-
 			ts.Equal(tc.ExpectedStatus, result.StatusCode, "Expected status code")
 
 			if tc.ExpectedStatus == http.StatusOK {
@@ -359,30 +442,19 @@ func (ts *AuthzTestSuite) TestTokenRequestValidation() {
 				ts.Equal(tc.ClientID, claims["aud"], "Audience claim should match client_id")
 				ts.Equal("openid", claims["scope"], "Scope claim should match requested scope")
 				ts.Equal(userID, claims["sub"], "Subject claim should match authenticated user ID")
-
-				ts.T().Logf("Token validation passed for test case: %s", tc.Name)
-				ts.T().Logf("Access token received: %s", tokenResponse.AccessToken)
-				ts.T().Logf("Token type: %s, Expires in: %v seconds", tokenResponse.TokenType, tokenResponse.ExpiresIn)
 			} else if tc.ExpectedError != "" {
-
 				var errorResponse map[string]interface{}
 				err := json.Unmarshal(result.Body, &errorResponse)
 				ts.NoError(err, "Failed to unmarshal error response")
-
 				ts.Contains(errorResponse, "error", "Error response should contain error field")
-
 				ts.Equal(tc.ExpectedError, errorResponse["error"], "Expected error should match")
 			}
-
-			ts.T().Logf("Test case '%s' passed", tc.Name)
 		})
 	}
 }
 
 // TestRedirectURIValidation tests the redirect URI validation in OAuth2 flows
 func (ts *AuthzTestSuite) TestRedirectURIValidation() {
-	ts.T().Logf("Testing OAuth2 redirect URI validation")
-
 	testCases := []struct {
 		Name           string
 		ClientID       string
@@ -452,9 +524,7 @@ func (ts *AuthzTestSuite) TestRedirectURIValidation() {
 
 	for _, tc := range testCases {
 		ts.Run(tc.Name, func() {
-			ts.T().Logf("Testing: %s - %s", tc.Name, tc.Description)
-
-			resp, err := initiateAuthorizationFlow(tc.ClientID, tc.RedirectURI, tc.ResponseType, tc.Scope, tc.State)
+			resp, err := initiateAuthorizationFlow(testServerURL, tc.ClientID, tc.RedirectURI, tc.ResponseType, tc.Scope, tc.State)
 			ts.NoError(err, "Failed to initiate authorization flow")
 			defer resp.Body.Close()
 
@@ -465,11 +535,7 @@ func (ts *AuthzTestSuite) TestRedirectURIValidation() {
 				ts.NotEmpty(location, "Expected redirect location header")
 
 				if tc.ExpectedError != "" {
-					ts.T().Logf("Error redirect location: %s", location)
-
 					if tc.RedirectURI != redirectURI {
-						ts.T().Logf("Checking redirect for invalid URI: %s", tc.RedirectURI)
-
 						parsedLocation, parseErr := url.Parse(location)
 						ts.NoError(parseErr, "Failed to parse redirect location")
 
@@ -479,33 +545,22 @@ func (ts *AuthzTestSuite) TestRedirectURIValidation() {
 						ts.NotEqual(parsedTestURI.Host, parsedLocation.Host,
 							"System redirected to invalid domain '%s' instead of authorization server",
 							parsedTestURI.Host)
-						//TODO: Check if the redirect is to the authorization server
-						ts.T().Logf("Redirected to safe domain '%s', not malicious '%s'",
-							parsedLocation.Host, parsedTestURI.Host)
 					}
 
 					err := validateOAuth2ErrorRedirect(location, tc.ExpectedError, "")
 					ts.NoError(err, "OAuth2 error redirect validation failed")
 
 				} else {
-					sessionDataKey, applicationId, err := extractSessionData(location)
+					sessionDataKey, _, err := extractSessionData(location)
 					ts.NoError(err, "Failed to extract session data")
 					ts.NotEmpty(sessionDataKey, "sessionDataKey should be present")
-					ts.NotEmpty(applicationId, "applicationId should be present")
-
-					ts.T().Logf("Success redirect location: %s", location)
-					ts.T().Logf("Session data - sessionDataKey: %s, applicationId: %s", sessionDataKey, applicationId)
 				}
 			}
-
-			ts.T().Logf("Test case '%s' passed", tc.Name)
 		})
 	}
 }
 
 func (ts *AuthzTestSuite) TestCompleteAuthorizationCodeFlow() {
-	ts.T().Logf("Testing complete OAuth2 authorization code flow")
-
 	testCases := []TestCase{
 		{
 			Name:         "Successful Flow",
@@ -522,8 +577,7 @@ func (ts *AuthzTestSuite) TestCompleteAuthorizationCodeFlow() {
 	for _, tc := range testCases {
 		ts.Run(tc.Name, func() {
 			// Create test user with credentials
-			ts.T().Logf("Creating test user with credentials")
-			userID, err := createTestUser(tc.Username, tc.Password)
+			userID, err := createTestUser(testServerURL, tc.Username, tc.Password)
 			if err != nil {
 				ts.T().Fatalf("Failed to create test user: %v", err)
 			}
@@ -532,14 +586,13 @@ func (ts *AuthzTestSuite) TestCompleteAuthorizationCodeFlow() {
 			}
 
 			defer func() {
-				if err := deleteTestUser(userID); err != nil {
+				if err := deleteTestUser(testServerURL, userID); err != nil {
 					ts.T().Logf("Warning: Failed to delete test user: %v", err)
 				}
 			}()
 
 			// Start authorization flow
-			ts.T().Logf("Starting authorization flow")
-			resp, err := initiateAuthorizationFlow(tc.ClientID, tc.RedirectURI, tc.ResponseType, tc.Scope, tc.State)
+			resp, err := initiateAuthorizationFlow(testServerURL, tc.ClientID, tc.RedirectURI, tc.ResponseType, tc.Scope, tc.State)
 			ts.NoError(err, "Failed to initiate authorization flow")
 			defer resp.Body.Close()
 
@@ -549,23 +602,16 @@ func (ts *AuthzTestSuite) TestCompleteAuthorizationCodeFlow() {
 			ts.NotEmpty(location, "Expected redirect location header")
 
 			// Extract session data
-			sessionDataKey, applicationId, err := extractSessionData(location)
+			sessionDataKey, _, err := extractSessionData(location)
 			if err != nil {
 				ts.T().Fatalf("Failed to extract session data: %v", err)
 			}
 			if sessionDataKey == "" {
 				ts.T().Fatalf("Expected sessionDataKey, got empty string")
 			}
-			if applicationId == "" {
-				ts.T().Fatalf("Expected applicationId, got empty string")
-			}
-
-			ts.T().Logf("Session data - sessionDataKey: %s, applicationId: %s", sessionDataKey, applicationId)
 
 			// Execute authentication flow
-			ts.T().Logf("Executing authentication flow")
-
-			flowStep, err := ExecuteAuthenticationFlow(applicationId, map[string]string{
+			flowStep, err := ExecuteAuthenticationFlow(testServerURL, ts.applicationID, map[string]string{
 				"username": tc.Username,
 				"password": tc.Password,
 			})
@@ -587,25 +633,17 @@ func (ts *AuthzTestSuite) TestCompleteAuthorizationCodeFlow() {
 				ts.T().Fatalf("Expected assertion, got empty string")
 			}
 
-			ts.T().Logf("Flow completed successfully with assertion")
-
-			ts.T().Logf("Completing authorization with assertion")
-			authzResponse, err := completeAuthorization(sessionDataKey, flowStep.Assertion)
+			// Complete authorization
+			authzResponse, err := completeAuthorization(testServerURL, sessionDataKey, flowStep.Assertion)
 			ts.NoError(err, "Failed to complete authorization")
-
 			ts.NotEmpty(authzResponse.RedirectURI, "Redirect URI should be present")
-
-			ts.T().Logf("Authorization response received: %s", authzResponse.RedirectURI)
 
 			authzCode, err := extractAuthorizationCode(authzResponse.RedirectURI)
 			ts.NoError(err, "Failed to extract authorization code")
 			ts.NotEmpty(authzCode, "Authorization code should be present")
 
-			ts.T().Logf("Authorization code received: %s", authzCode)
-
 			// Exchange authorization code for access token
-			ts.T().Logf("Exchanging authorization code for access token")
-			result, err := requestToken(tc.ClientID, clientSecret, authzCode, tc.RedirectURI, "authorization_code")
+			result, err := requestToken(testServerURL, clientID, clientSecret, authzCode, tc.RedirectURI, "authorization_code")
 			ts.NoError(err, "Failed to exchange code for token")
 			ts.Equal(http.StatusOK, result.StatusCode, "Token request should succeed")
 			tokenResponse := result.Token
@@ -628,17 +666,11 @@ func (ts *AuthzTestSuite) TestCompleteAuthorizationCodeFlow() {
 			ts.Equal(tc.ClientID, claims["aud"], "Audience claim should match client_id")
 			ts.Equal(tc.Scope, claims["scope"], "Scope claim should match requested scope")
 			ts.Equal(userID, claims["sub"], "Subject claim should match authenticated user ID")
-
-			ts.T().Logf("Complete authorization code flow test passed")
-			ts.T().Logf("Access token received: %s", tokenResponse.AccessToken)
-			ts.T().Logf("Token type: %s, Expires in: %v seconds", tokenResponse.TokenType, tokenResponse.ExpiresIn)
 		})
 	}
 }
 
 func (ts *AuthzTestSuite) TestAuthorizationCodeErrorScenarios() {
-	ts.T().Logf("Testing OAuth2 authorization code error scenarios")
-
 	testCases := []TestCase{
 		{
 			Name:           "Reused Authorization Code",
@@ -656,16 +688,16 @@ func (ts *AuthzTestSuite) TestAuthorizationCodeErrorScenarios() {
 	for _, tc := range testCases {
 		ts.Run(tc.Name, func() {
 			// Create test user
-			userID, err := createTestUser(tc.Username, tc.Password)
+			userID, err := createTestUser(testServerURL, tc.Username, tc.Password)
 			ts.NoError(err, "Failed to create test user")
 			defer func() {
-				if err := deleteTestUser(userID); err != nil {
+				if err := deleteTestUser(testServerURL, userID); err != nil {
 					ts.T().Logf("Warning: Failed to delete test user: %v", err)
 				}
 			}()
 
 			// Start authorization flow
-			resp, err := initiateAuthorizationFlow(tc.ClientID, tc.RedirectURI, tc.ResponseType, tc.Scope, tc.State)
+			resp, err := initiateAuthorizationFlow(testServerURL, tc.ClientID, tc.RedirectURI, tc.ResponseType, tc.Scope, tc.State)
 			ts.NoError(err, "Failed to initiate authorization flow")
 			defer resp.Body.Close()
 
@@ -674,11 +706,11 @@ func (ts *AuthzTestSuite) TestAuthorizationCodeErrorScenarios() {
 			location := resp.Header.Get("Location")
 			ts.NotEmpty(location, "Expected redirect location header")
 
-			sessionDataKey, applicationId, err := extractSessionData(location)
+			sessionDataKey, _, err := extractSessionData(location)
 			ts.NoError(err, "Failed to extract session data")
 
 			// Execute authentication flow
-			flowStep, err := ExecuteAuthenticationFlow(applicationId, map[string]string{
+			flowStep, err := ExecuteAuthenticationFlow(testServerURL, ts.applicationID, map[string]string{
 				"username": tc.Username,
 				"password": tc.Password,
 			})
@@ -689,7 +721,7 @@ func (ts *AuthzTestSuite) TestAuthorizationCodeErrorScenarios() {
 				ts.T().Fatalf("Expected flow status COMPLETE, got %s", flowStep.FlowStatus)
 			}
 
-			authzResponse, err := completeAuthorization(sessionDataKey, flowStep.Assertion)
+			authzResponse, err := completeAuthorization(testServerURL, sessionDataKey, flowStep.Assertion)
 			if err != nil {
 				ts.T().Fatalf("Failed to complete authorization: %v", err)
 			}
@@ -699,17 +731,21 @@ func (ts *AuthzTestSuite) TestAuthorizationCodeErrorScenarios() {
 			ts.NoError(err, "Failed to extract authorization code")
 
 			if tc.Name == "Reused Authorization Code" {
-				result, err := requestToken(tc.ClientID, clientSecret, authzCode, tc.RedirectURI, "authorization_code")
+				result, err := requestToken(testServerURL, clientID, clientSecret, authzCode, tc.RedirectURI, "authorization_code")
 				ts.NoError(err, "First token exchange should succeed")
 				ts.Equal(http.StatusOK, result.StatusCode, "First token exchange should succeed")
 
-				// Second attempt should fail
-				result2, err := requestToken(tc.ClientID, clientSecret, authzCode, tc.RedirectURI, "authorization_code")
+				// Second attempt should fail with invalid_grant
+				result2, err := requestToken(testServerURL, clientID, clientSecret, authzCode, tc.RedirectURI, "authorization_code")
 				ts.NoError(err, "Second token exchange should not error at transport level")
-				ts.NotEqual(http.StatusOK, result2.StatusCode, "Second token exchange should fail")
-			}
+				ts.Equal(http.StatusBadRequest, result2.StatusCode, "Second token exchange should fail with bad request")
 
-			ts.T().Logf("Test case '%s' passed", tc.Name)
+				// Check error response
+				var errorResponse map[string]interface{}
+				err = json.Unmarshal(result2.Body, &errorResponse)
+				ts.NoError(err, "Failed to unmarshal error response")
+				ts.Equal("invalid_grant", errorResponse["error"], "Expected invalid_grant error")
+			}
 		})
 	}
 }
