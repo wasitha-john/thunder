@@ -28,7 +28,6 @@ import (
 	"time"
 
 	appprovider "github.com/asgardeo/thunder/internal/application/provider"
-	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/store"
@@ -40,7 +39,7 @@ import (
 	sessionutils "github.com/asgardeo/thunder/internal/oauth/session/utils"
 	"github.com/asgardeo/thunder/internal/system/config"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
-	jwtutils "github.com/asgardeo/thunder/internal/system/crypto/jwt/utils"
+	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
@@ -511,7 +510,7 @@ func (ah *AuthorizeHandler) verifyAssertionSignature(assertion string, logger *l
 		logger.Error("Server public key is not available for JWT assertion verification")
 		return errors.New("Internal server error")
 	}
-	if err := jwtutils.VerifyJWTSignature(assertion, pubKey); err != nil {
+	if err := ah.JWTService.VerifyJWTSignature(assertion, pubKey); err != nil {
 		return errors.New("Invalid assertion signature")
 	}
 

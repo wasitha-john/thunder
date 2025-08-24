@@ -210,3 +210,117 @@ func (_c *JWTServiceInterfaceMock_Init_Call) RunAndReturn(run func() error) *JWT
 	_c.Call.Return(run)
 	return _c
 }
+
+// VerifyJWTSignature provides a mock function for the type JWTServiceInterfaceMock
+func (_mock *JWTServiceInterfaceMock) VerifyJWTSignature(jwtToken string, jwtPublicKey *rsa.PublicKey) error {
+	ret := _mock.Called(jwtToken, jwtPublicKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyJWTSignature")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string, *rsa.PublicKey) error); ok {
+		r0 = returnFunc(jwtToken, jwtPublicKey)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// JWTServiceInterfaceMock_VerifyJWTSignature_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyJWTSignature'
+type JWTServiceInterfaceMock_VerifyJWTSignature_Call struct {
+	*mock.Call
+}
+
+// VerifyJWTSignature is a helper method to define mock.On call
+//   - jwtToken string
+//   - jwtPublicKey *rsa.PublicKey
+func (_e *JWTServiceInterfaceMock_Expecter) VerifyJWTSignature(jwtToken interface{}, jwtPublicKey interface{}) *JWTServiceInterfaceMock_VerifyJWTSignature_Call {
+	return &JWTServiceInterfaceMock_VerifyJWTSignature_Call{Call: _e.mock.On("VerifyJWTSignature", jwtToken, jwtPublicKey)}
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWTSignature_Call) Run(run func(jwtToken string, jwtPublicKey *rsa.PublicKey)) *JWTServiceInterfaceMock_VerifyJWTSignature_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 *rsa.PublicKey
+		if args[1] != nil {
+			arg1 = args[1].(*rsa.PublicKey)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWTSignature_Call) Return(err error) *JWTServiceInterfaceMock_VerifyJWTSignature_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWTSignature_Call) RunAndReturn(run func(jwtToken string, jwtPublicKey *rsa.PublicKey) error) *JWTServiceInterfaceMock_VerifyJWTSignature_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VerifyJWTSignatureWithJWKS provides a mock function for the type JWTServiceInterfaceMock
+func (_mock *JWTServiceInterfaceMock) VerifyJWTSignatureWithJWKS(jwtToken string, jwksURL string) error {
+	ret := _mock.Called(jwtToken, jwksURL)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyJWTSignatureWithJWKS")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = returnFunc(jwtToken, jwksURL)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyJWTSignatureWithJWKS'
+type JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call struct {
+	*mock.Call
+}
+
+// VerifyJWTSignatureWithJWKS is a helper method to define mock.On call
+//   - jwtToken string
+//   - jwksURL string
+func (_e *JWTServiceInterfaceMock_Expecter) VerifyJWTSignatureWithJWKS(jwtToken interface{}, jwksURL interface{}) *JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call {
+	return &JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call{Call: _e.mock.On("VerifyJWTSignatureWithJWKS", jwtToken, jwksURL)}
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call) Run(run func(jwtToken string, jwksURL string)) *JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call) Return(err error) *JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call) RunAndReturn(run func(jwtToken string, jwksURL string) error) *JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call {
+	_c.Call.Return(run)
+	return _c
+}

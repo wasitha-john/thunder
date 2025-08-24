@@ -31,7 +31,7 @@ import (
 	oauthmodel "github.com/asgardeo/thunder/internal/executor/oauth/model"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
-	jwtutils "github.com/asgardeo/thunder/internal/system/crypto/jwt/utils"
+	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
 )
@@ -48,7 +48,8 @@ type OIDCAuthExecutorInterface interface {
 // OIDCAuthExecutor implements the OIDCAuthExecutorInterface for handling generic OIDC authentication flows.
 type OIDCAuthExecutor struct {
 	*identify.IdentifyingExecutor
-	internal oauth.OAuthExecutorInterface
+	internal   oauth.OAuthExecutorInterface
+	JWTService jwt.JWTServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*OIDCAuthExecutor)(nil)
@@ -78,6 +79,7 @@ func NewOIDCAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, p
 	return &OIDCAuthExecutor{
 		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
 		internal:            base,
+		JWTService:          jwt.GetJWTService(),
 	}
 }
 
@@ -311,7 +313,7 @@ func (o *OIDCAuthExecutor) ValidateIDToken(execResp *flowmodel.ExecutorResponse,
 
 	// Verify the id token signature.
 	if o.GetJWKSEndpoint() != "" {
-		signErr := jwtutils.VerifyJWTSignatureWithJWKS(idToken, o.GetJWKSEndpoint())
+		signErr := o.JWTService.VerifyJWTSignatureWithJWKS(idToken, o.GetJWKSEndpoint())
 		if signErr != nil {
 			execResp.Status = flowconst.ExecFailure
 			execResp.FailureReason = "ID token signature verification failed: " + signErr.Error()
@@ -327,7 +329,7 @@ func (o *OIDCAuthExecutor) GetIDTokenClaims(execResp *flowmodel.ExecutorResponse
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Extracting claims from the ID token")
 
-	claims, err := jwtutils.ParseJWTClaims(idToken)
+	claims, err := jwt.DecodeJWTPayload(idToken)
 	if err != nil {
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "Failed to parse ID token claims: " + err.Error()

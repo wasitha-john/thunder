@@ -32,7 +32,7 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/tests/mocks/oauth/jwtmock"
+	"github.com/asgardeo/thunder/tests/mocks/jwtmock"
 )
 
 type RefreshTokenGrantHandlerTestSuite struct {

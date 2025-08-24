@@ -30,10 +30,10 @@ import (
 	certconst "github.com/asgardeo/thunder/internal/cert/constants"
 	certmodel "github.com/asgardeo/thunder/internal/cert/model"
 	"github.com/asgardeo/thunder/internal/flow/flowmgt"
-	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )

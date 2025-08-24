@@ -23,12 +23,12 @@ import (
 	"time"
 
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
-	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	authzconstants "github.com/asgardeo/thunder/internal/oauth/oauth2/authz/constants"
 	authzmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/store"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
+	"github.com/asgardeo/thunder/internal/system/jwt"
 )
 
 // authorizationCodeGrantHandler handles the authorization code grant type.

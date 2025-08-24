@@ -24,11 +24,10 @@ import (
 	"time"
 
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
-	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	"github.com/asgardeo/thunder/internal/system/config"
-	jwtutils "github.com/asgardeo/thunder/internal/system/crypto/jwt/utils"
+	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
@@ -246,7 +245,7 @@ func (h *refreshTokenGrantHandler) verifyRefreshTokenSignature(refreshToken stri
 			ErrorDescription: "Server public key not available",
 		}
 	}
-	if err := jwtutils.VerifyJWTSignature(refreshToken, pubKey); err != nil {
+	if err := h.JWTService.VerifyJWTSignature(refreshToken, pubKey); err != nil {
 		logger.Error("Failed to verify refresh token signature", log.Error(err))
 		return &model.ErrorResponse{
 			Error:            constants.ErrorInvalidRequest,
@@ -260,7 +259,7 @@ func (h *refreshTokenGrantHandler) verifyRefreshTokenSignature(refreshToken stri
 // getValidatedClaims validates the claims in the refresh token and returns them if valid.
 func (h *refreshTokenGrantHandler) getValidatedClaims(refreshToken, clientID string,
 	logger *log.Logger) (map[string]interface{}, *model.ErrorResponse) {
-	claims, err := jwtutils.ParseJWTClaims(refreshToken)
+	claims, err := jwt.DecodeJWTPayload(refreshToken)
 	if err != nil {
 		logger.Error("Failed to parse refresh token claims", log.Error(err))
 		return nil, &model.ErrorResponse{

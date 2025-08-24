@@ -28,14 +28,20 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/system/config"
+	httpservice "github.com/asgardeo/thunder/internal/system/http"
+	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
 
@@ -52,6 +58,8 @@ type JWTServiceInterface interface {
 	Init() error
 	GetPublicKey() *rsa.PublicKey
 	GenerateJWT(sub, aud string, validityPeriod int64, claims map[string]string) (string, int64, error)
+	VerifyJWTSignature(jwtToken string, jwtPublicKey *rsa.PublicKey) error
+	VerifyJWTSignatureWithJWKS(jwtToken string, jwksURL string) error
 }
 
 // JWTService implements the JWTServiceInterface for generating and managing JWT tokens.
@@ -61,7 +69,7 @@ type JWTService struct {
 }
 
 // GetJWTService returns a singleton instance of JWTService.
-func GetJWTService() *JWTService {
+func GetJWTService() JWTServiceInterface {
 	once.Do(func() {
 		instance = &JWTService{
 			SystemCertificateService: cert.NewSystemCertificateService(),
@@ -199,4 +207,96 @@ func (js *JWTService) GenerateJWT(sub, aud string, validityPeriod int64, claims 
 	signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
 
 	return signingInput + "." + signatureBase64, iat.Unix(), nil
+}
+
+// VerifyJWTSignature verifies the signature of a JWT token using the provided public key.
+func (js *JWTService) VerifyJWTSignature(jwtToken string, jwtPublicKey *rsa.PublicKey) error {
+	parts := strings.Split(jwtToken, ".")
+	if len(parts) != 3 {
+		return errors.New("invalid JWT token format")
+	}
+
+	// Decode the signature
+	signature, err := base64.RawURLEncoding.DecodeString(parts[2])
+	if err != nil {
+		return fmt.Errorf("failed to decode JWT signature: %w", err)
+	}
+
+	// Create the signing input
+	signingInput := parts[0] + "." + parts[1]
+
+	// Hash the signing input
+	hashed := sha256.Sum256([]byte(signingInput))
+
+	// Verify the signature
+	return rsa.VerifyPKCS1v15(jwtPublicKey, crypto.SHA256, hashed[:], signature)
+}
+
+// VerifyJWTSignatureWithJWKS verifies the signature of a JWT token using a JWK Set (JWKS) endpoint.
+func (js *JWTService) VerifyJWTSignatureWithJWKS(jwtToken string, jwksURL string) error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "JWTService"))
+
+	// Get the key ID from the JWT header
+	header, err := DecodeJWTHeader(jwtToken)
+	if err != nil {
+		return fmt.Errorf("failed to parse JWT header: %w", err)
+	}
+
+	kid, ok := header["kid"].(string)
+	if !ok {
+		return fmt.Errorf("JWT header missing 'kid' claim")
+	}
+
+	// Fetch the JWK Set from the JWKS endpoint
+	client := httpservice.NewHTTPClientWithTimeout(10 * time.Second)
+	resp, err := client.Get(jwksURL)
+	if err != nil {
+		return fmt.Errorf("failed to fetch JWKS: %w", err)
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Error("Failed to close response body", log.Error(closeErr))
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to fetch JWKS, status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read JWKS response: %w", err)
+	}
+
+	var jwks struct {
+		Keys []map[string]interface{} `json:"keys"`
+	}
+	if err := json.Unmarshal(body, &jwks); err != nil {
+		return fmt.Errorf("failed to parse JWKS: %w", err)
+	}
+
+	// Find the key with matching kid
+	var jwk map[string]interface{}
+	for _, key := range jwks.Keys {
+		if keyID, ok := key["kid"].(string); ok && keyID == kid {
+			jwk = key
+			break
+		}
+	}
+	if jwk == nil {
+		return fmt.Errorf("no matching key found in JWKS")
+	}
+
+	// Convert JWK to RSA public key
+	pubKey, err := jwkToRSAPublicKey(jwk)
+	if err != nil {
+		return fmt.Errorf("failed to convert JWK to RSA public key: %w", err)
+	}
+
+	// Verify JWT signature
+	if err := js.VerifyJWTSignature(jwtToken, pubKey); err != nil {
+		return fmt.Errorf("invalid token signature: %w", err)
+	}
+
+	return nil
 }
