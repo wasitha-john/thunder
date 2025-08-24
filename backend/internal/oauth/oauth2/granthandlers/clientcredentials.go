@@ -23,9 +23,9 @@ import (
 	"time"
 
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
-	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
+	"github.com/asgardeo/thunder/internal/system/jwt"
 )
 
 // clientCredentialsGrantHandler handles the client credentials grant type.

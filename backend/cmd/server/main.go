@@ -31,11 +31,10 @@ import (
 	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/flow"
 	"github.com/asgardeo/thunder/internal/system/cache"
-	"github.com/asgardeo/thunder/internal/system/managers"
-
-	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/system/config"
+	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
+	"github.com/asgardeo/thunder/internal/system/managers"
 )
 
 func main() {

@@ -25,12 +25,13 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/introspect"
-	"github.com/asgardeo/thunder/tests/mocks/oauth/jwtmock"
+	"github.com/asgardeo/thunder/tests/mocks/jwtmock"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -109,6 +110,9 @@ func (s *TokenIntrospectionServiceTestSuite) TestIntrospectToken_InvalidSignatur
 	signatureEncoded := base64.RawURLEncoding.EncodeToString(signature)
 
 	invalidToken := signingInput + "." + signatureEncoded
+
+	s.jwtServiceMock.On("VerifyJWTSignature", invalidToken, &s.privateKey.PublicKey).Return(
+		errors.New("invalid signature"))
 
 	// Test with a token having invalid signature
 	response, err := s.introspectService.IntrospectToken(invalidToken, "")
@@ -213,6 +217,14 @@ func (s *TokenIntrospectionServiceTestSuite) TestIntrospectToken() {
 				token = tc.token
 			} else if tc.tokenFn != nil {
 				token = tc.tokenFn(s)
+			}
+
+			// Mock VerifyJWTSignature based on test case
+			if tc.name == "InvalidTokenFormat" {
+				s.jwtServiceMock.On("VerifyJWTSignature", token, &s.privateKey.PublicKey).Return(
+					errors.New("invalid token format"))
+			} else {
+				s.jwtServiceMock.On("VerifyJWTSignature", token, &s.privateKey.PublicKey).Return(nil)
 			}
 
 			response, err := s.introspectService.IntrospectToken(token, "")

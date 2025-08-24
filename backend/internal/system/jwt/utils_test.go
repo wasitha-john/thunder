@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package utils
+package jwt
 
 import (
 	"crypto"
@@ -25,14 +25,14 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
-	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/asgardeo/thunder/internal/system/config"
 )
 
 type JWTUtilsTestSuite struct {
@@ -49,8 +49,14 @@ func TestJWTUtilsSuite(t *testing.T) {
 }
 
 func (suite *JWTUtilsTestSuite) SetupTest() {
+	err := config.InitializeThunderRuntime("", &config.Config{
+		OAuth: config.OAuthConfig{
+			JWT: config.JWTConfig{},
+		},
+	})
+	assert.NoError(suite.T(), err)
+
 	// Generate RSA key pair for testing
-	var err error
 	suite.rsaPrivateKey, err = rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		suite.T().Fatalf("Failed to generate RSA key: %v", err)
@@ -62,9 +68,6 @@ func (suite *JWTUtilsTestSuite) SetupTest() {
 
 	// Create an invalid JWT token
 	suite.invalidJWT = "invalid.jwt.token"
-
-	// Create a mock HTTP server for JWKS
-	suite.testServer = suite.mockJWKSServer()
 }
 
 func (suite *JWTUtilsTestSuite) TearDownTest() {
@@ -106,8 +109,174 @@ func (suite *JWTUtilsTestSuite) createValidJWT() string {
 	return headerBase64 + "." + payloadBase64 + "." + signatureBase64
 }
 
+func (suite *JWTUtilsTestSuite) TestGetJWTTokenValidityPeriod() {
+	tests := []struct {
+		name             string
+		configSetup      func()
+		expectedValidity int64
+	}{
+		{
+			name: "WithDefaultValue",
+			configSetup: func() {
+				config.ResetThunderRuntime()
+				err := config.InitializeThunderRuntime("", &config.Config{
+					OAuth: config.OAuthConfig{
+						JWT: config.JWTConfig{
+							ValidityPeriod: 0,
+						},
+					},
+				})
+				assert.NoError(suite.T(), err)
+			},
+			expectedValidity: defaultTokenValidity,
+		},
+		{
+			name: "WithCustomValue",
+			configSetup: func() {
+				config.ResetThunderRuntime()
+				err := config.InitializeThunderRuntime("", &config.Config{
+					OAuth: config.OAuthConfig{
+						JWT: config.JWTConfig{
+							ValidityPeriod: 3600,
+						},
+					},
+				})
+				assert.NoError(suite.T(), err)
+			},
+			expectedValidity: 3600,
+		},
+	}
+
+	for _, tc := range tests {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			tc.configSetup()
+
+			validity := GetJWTTokenValidityPeriod()
+			assert.Equal(t, tc.expectedValidity, validity)
+		})
+	}
+}
+
+func (suite *JWTUtilsTestSuite) TestGetJWTTokenIssuer() {
+	tests := []struct {
+		name           string
+		configSetup    func()
+		expectedIssuer string
+	}{
+		{
+			name: "WithDefaultValue",
+			configSetup: func() {
+				config.ResetThunderRuntime()
+				err := config.InitializeThunderRuntime("", &config.Config{
+					OAuth: config.OAuthConfig{
+						JWT: config.JWTConfig{
+							Issuer: "",
+						},
+					},
+				})
+				assert.NoError(suite.T(), err)
+			},
+			expectedIssuer: "thunder",
+		},
+		{
+			name: "WithCustomValue",
+			configSetup: func() {
+				config.ResetThunderRuntime()
+				err := config.InitializeThunderRuntime("", &config.Config{
+					OAuth: config.OAuthConfig{
+						JWT: config.JWTConfig{
+							Issuer: "custom-issuer",
+						},
+					},
+				})
+				assert.NoError(suite.T(), err)
+			},
+			expectedIssuer: "custom-issuer",
+		},
+	}
+
+	for _, tc := range tests {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			tc.configSetup()
+
+			issuer := GetJWTTokenIssuer()
+			assert.Equal(t, tc.expectedIssuer, issuer)
+		})
+	}
+}
+
+func (suite *JWTUtilsTestSuite) TestDecodeJWT() {
+	tests := []struct {
+		name            string
+		token           string
+		expectError     bool
+		expectedHeader  map[string]interface{}
+		expectedPayload map[string]interface{}
+		errorContains   string
+	}{
+		{
+			name: "WithValidToken",
+			token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+				"eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.signature",
+			expectError:    false,
+			expectedHeader: map[string]interface{}{"alg": "HS256", "typ": "JWT"},
+			expectedPayload: map[string]interface{}{"sub": "1234567890", "name": "John Doe",
+				"iat": float64(1516239022)},
+		},
+		{
+			name:          "WithInvalidTokenFormat",
+			token:         "part1.part2",
+			expectError:   true,
+			errorContains: "invalid JWT format",
+		},
+		{
+			name:        "WithInvalidBase64InHeader",
+			token:       "invalid_base64.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature",
+			expectError: true,
+		},
+		{
+			name:        "WithInvalidBase64InPayload",
+			token:       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid_base64.signature",
+			expectError: true,
+		},
+		{
+			name:        "WithInvalidJSONInHeader",
+			token:       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVH0.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature",
+			expectError: true,
+		},
+		{
+			name:        "WithInvalidJSONInPayload",
+			token:       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0c.signature",
+			expectError: true,
+		},
+		{
+			name:          "EmptyToken",
+			token:         "",
+			expectError:   true,
+			errorContains: "invalid JWT format",
+		},
+	}
+
+	for _, tc := range tests {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			header, payload, err := DecodeJWT(tc.token)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.errorContains != "" {
+					assert.Contains(t, err.Error(), tc.errorContains)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedHeader, header)
+				assert.Equal(t, tc.expectedPayload, payload)
+			}
+		})
+	}
+}
+
 func (suite *JWTUtilsTestSuite) TestParseJWTClaims() {
-	claims, err := ParseJWTClaims(suite.validJWT)
+	claims, err := DecodeJWTPayload(suite.validJWT)
 
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), claims)
@@ -127,7 +296,7 @@ func (suite *JWTUtilsTestSuite) TestParseJWTClaimsInvalid() {
 
 	for _, tc := range testCases {
 		suite.T().Run(tc.name, func(t *testing.T) {
-			claims, err := ParseJWTClaims(tc.token)
+			claims, err := DecodeJWTPayload(tc.token)
 
 			assert.Error(t, err)
 			assert.Nil(t, claims)
@@ -135,36 +304,8 @@ func (suite *JWTUtilsTestSuite) TestParseJWTClaimsInvalid() {
 	}
 }
 
-func (suite *JWTUtilsTestSuite) TestVerifyJWTSignature() {
-	err := VerifyJWTSignature(suite.validJWT, suite.rsaPublicKey)
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *JWTUtilsTestSuite) TestVerifyJWTSignatureWrongKey() {
-	wrongKey, _ := rsa.GenerateKey(rand.Reader, 2048)
-	err := VerifyJWTSignature(suite.validJWT, &wrongKey.PublicKey)
-	assert.Error(suite.T(), err)
-}
-
-func (suite *JWTUtilsTestSuite) TestVerifyJWTSignatureInvalidToken() {
-	err := VerifyJWTSignature("invalid.token", suite.rsaPublicKey)
-	assert.Error(suite.T(), err)
-}
-
-func (suite *JWTUtilsTestSuite) TestVerifyJWTSignatureTamperedToken() {
-	parts := []string{}
-	for _, part := range []string{"header", "payload", "signature"} {
-		jsonData, _ := json.Marshal(map[string]string{"tampered": part})
-		parts = append(parts, base64.RawURLEncoding.EncodeToString(jsonData))
-	}
-	tamperedToken := parts[0] + "." + parts[1] + "." + parts[2]
-
-	err := VerifyJWTSignature(tamperedToken, suite.rsaPublicKey)
-	assert.Error(suite.T(), err)
-}
-
 func (suite *JWTUtilsTestSuite) TestParseJWTHeader() {
-	header, err := ParseJWTHeader(suite.validJWT)
+	header, err := DecodeJWTHeader(suite.validJWT)
 
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), header)
@@ -174,7 +315,7 @@ func (suite *JWTUtilsTestSuite) TestParseJWTHeader() {
 }
 
 func (suite *JWTUtilsTestSuite) TestParseJWTHeaderInvalid() {
-	header, err := ParseJWTHeader(suite.invalidJWT)
+	header, err := DecodeJWTHeader(suite.invalidJWT)
 
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), header)
@@ -195,7 +336,7 @@ func (suite *JWTUtilsTestSuite) TestJWKToRSAPublicKey() {
 		"kid": "test-key-id",
 	}
 
-	pubKey, err := JWKToRSAPublicKey(jwk)
+	pubKey, err := jwkToRSAPublicKey(jwk)
 
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), pubKey)
@@ -219,136 +360,16 @@ func (suite *JWTUtilsTestSuite) TestJWKToRSAPublicKeyInvalid() {
 		{"MissingE", map[string]interface{}{"n": n}},
 		{"InvalidN", map[string]interface{}{"n": "invalid@base64!", "e": e}},
 		{"InvalidE", map[string]interface{}{"n": n, "e": "invalid@base64!"}},
+		{"NonStringN", map[string]interface{}{"n": 123, "e": e}},
+		{"NonStringE", map[string]interface{}{"n": n, "e": 456}},
 	}
 
 	for _, tc := range invalidTestCases {
 		suite.T().Run(tc.name, func(t *testing.T) {
-			pubKey, err := JWKToRSAPublicKey(tc.jwk)
+			pubKey, err := jwkToRSAPublicKey(tc.jwk)
 
 			assert.Error(t, err)
 			assert.Nil(t, pubKey)
 		})
 	}
-}
-
-func (suite *JWTUtilsTestSuite) TestVerifyJWTSignatureWithJWKS() {
-	err := VerifyJWTSignatureWithJWKS(suite.validJWT, suite.testServer.URL)
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *JWTUtilsTestSuite) TestVerifyJWTSignatureWithJWKSInvalidToken() {
-	testCases := []struct {
-		name  string
-		token string
-	}{
-		{"EmptyToken", ""},
-		{"MalformedToken", "not.valid.jwt"},
-		{"InvalidFormat", "header.payload"},                 // Missing signature part
-		{"CorruptedHeader", "aGVhZGVyCg.payload.signature"}, // Non-decodable header
-	}
-
-	for _, tc := range testCases {
-		suite.T().Run(tc.name, func(t *testing.T) {
-			err := VerifyJWTSignatureWithJWKS(tc.token, suite.testServer.URL)
-			assert.Error(t, err)
-		})
-	}
-}
-
-func (suite *JWTUtilsTestSuite) TestVerifyJWTSignatureWithJWKSKeyIDNotFound() {
-	nonExistentKidJWT := suite.createJWTWithCustomHeader(map[string]interface{}{
-		"alg": "RS256",
-		"typ": "JWT",
-		"kid": "non-existent-key-id",
-	})
-
-	err := VerifyJWTSignatureWithJWKS(nonExistentKidJWT, suite.testServer.URL)
-	assert.Error(suite.T(), err)
-	assert.Contains(suite.T(), err.Error(), "no matching key found")
-}
-
-func (suite *JWTUtilsTestSuite) TestVerifyJWTSignatureWithJWKSNoKeyID() {
-	noKidJWT := suite.createJWTWithCustomHeader(map[string]interface{}{
-		"alg": "RS256",
-		"typ": "JWT",
-		// No kid field
-	})
-
-	err := VerifyJWTSignatureWithJWKS(noKidJWT, suite.testServer.URL)
-	assert.Error(suite.T(), err)
-	assert.Contains(suite.T(), err.Error(), "missing 'kid' claim")
-}
-
-// Helper method to create a JWT with a custom header
-func (suite *JWTUtilsTestSuite) createJWTWithCustomHeader(header map[string]interface{}) string {
-	// Create payload
-	payload := map[string]interface{}{
-		"sub":  "1234567890",
-		"name": "Test User",
-		"iat":  time.Now().Unix(),
-		"exp":  time.Now().Add(time.Hour).Unix(),
-	}
-
-	headerJSON, _ := json.Marshal(header)
-	payloadJSON, _ := json.Marshal(payload)
-
-	// Encode header and payload
-	headerBase64 := base64.RawURLEncoding.EncodeToString(headerJSON)
-	payloadBase64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
-
-	// Create signature input
-	signingInput := headerBase64 + "." + payloadBase64
-
-	// Sign
-	hashed := sha256.Sum256([]byte(signingInput))
-	signature, err := rsa.SignPKCS1v15(rand.Reader, suite.rsaPrivateKey, crypto.SHA256, hashed[:])
-	if err != nil {
-		suite.T().Fatalf("Failed to sign JWT: %v", err)
-	}
-
-	// Encode signature
-	signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
-
-	// Create full JWT
-	return headerBase64 + "." + payloadBase64 + "." + signatureBase64
-}
-
-// Helper method to create mock JWKS data
-func (suite *JWTUtilsTestSuite) createMockJWKSData() string {
-	n := base64.RawURLEncoding.EncodeToString(suite.rsaPublicKey.N.Bytes())
-
-	// Convert exponent to bytes
-	eBytes := []byte{1, 0, 1} // 65537 in big-endian
-	e := base64.RawURLEncoding.EncodeToString(eBytes)
-
-	jwk := map[string]interface{}{
-		"kty": "RSA",
-		"n":   n,
-		"e":   e,
-		"kid": "test-key-id",
-		"use": "sig",
-		"alg": "RS256",
-	}
-
-	jwks := map[string]interface{}{
-		"keys": []interface{}{jwk},
-	}
-
-	jwksData, _ := json.Marshal(jwks)
-	return string(jwksData)
-}
-
-// Helper method to mock a JWKS server
-func (suite *JWTUtilsTestSuite) mockJWKSServer() *httptest.Server {
-	jwksData := suite.createMockJWKSData()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if _, err := fmt.Fprintln(w, jwksData); err != nil {
-			suite.T().Errorf("Failed to write JWKS response: %v", err)
-		}
-	}))
-
-	return server
 }

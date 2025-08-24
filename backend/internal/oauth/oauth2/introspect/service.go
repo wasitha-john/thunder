@@ -24,9 +24,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/asgardeo/thunder/internal/oauth/jwt"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
-	jwtutils "github.com/asgardeo/thunder/internal/system/crypto/jwt/utils"
+	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
@@ -89,7 +88,7 @@ func (s *TokenIntrospectionService) verifyTokenSignature(logger *log.Logger, tok
 		logger.Error("Server public key is not available for JWT verification")
 		return false, errors.New("public key is not available")
 	}
-	if err := jwtutils.VerifyJWTSignature(token, pubKey); err != nil {
+	if err := s.jwtService.VerifyJWTSignature(token, pubKey); err != nil {
 		logger.Debug("Failed to verify token signature", log.Error(err))
 		return false, nil
 	}
