@@ -395,6 +395,144 @@ func (suite *CacheTestSuite) TestGetCacheType() {
 	}
 }
 
+func (suite *CacheTestSuite) TestGetCacheSize() {
+	testCases := []struct {
+		name              string
+		cacheConfig       config.CacheConfig
+		cacheProperty     config.CacheProperty
+		expectedCacheSize int
+	}{
+		{
+			name: "PropertySize",
+			cacheConfig: config.CacheConfig{
+				Size: 500,
+			},
+			cacheProperty: config.CacheProperty{
+				Size: 200,
+			},
+			expectedCacheSize: 200,
+		},
+		{
+			name: "ConfigSize",
+			cacheConfig: config.CacheConfig{
+				Size: 500,
+			},
+			cacheProperty:     config.CacheProperty{},
+			expectedCacheSize: 500,
+		},
+		{
+			name:              "DefaultSize",
+			cacheConfig:       config.CacheConfig{},
+			cacheProperty:     config.CacheProperty{},
+			expectedCacheSize: 1000,
+		},
+		{
+			name: "ZeroPropertySize",
+			cacheConfig: config.CacheConfig{
+				Size: 500,
+			},
+			cacheProperty: config.CacheProperty{
+				Size: 0,
+			},
+			expectedCacheSize: 500,
+		},
+		{
+			name: "NegativePropertySize",
+			cacheConfig: config.CacheConfig{
+				Size: 500,
+			},
+			cacheProperty: config.CacheProperty{
+				Size: -1,
+			},
+			expectedCacheSize: 500,
+		},
+		{
+			name: "ZeroConfigSize",
+			cacheConfig: config.CacheConfig{
+				Size: 0,
+			},
+			cacheProperty:     config.CacheProperty{},
+			expectedCacheSize: 1000,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			size := getCacheSize(tc.cacheConfig, tc.cacheProperty)
+			assert.Equal(t, tc.expectedCacheSize, size)
+		})
+	}
+}
+
+func (suite *CacheTestSuite) TestGetCacheTTL() {
+	testCases := []struct {
+		name             string
+		cacheConfig      config.CacheConfig
+		cacheProperty    config.CacheProperty
+		expectedCacheTTL int
+	}{
+		{
+			name: "PropertyTTL",
+			cacheConfig: config.CacheConfig{
+				TTL: 1800,
+			},
+			cacheProperty: config.CacheProperty{
+				TTL: 900,
+			},
+			expectedCacheTTL: 900,
+		},
+		{
+			name: "ConfigTTL",
+			cacheConfig: config.CacheConfig{
+				TTL: 1800,
+			},
+			cacheProperty:    config.CacheProperty{},
+			expectedCacheTTL: 1800,
+		},
+		{
+			name:             "DefaultTTL",
+			cacheConfig:      config.CacheConfig{},
+			cacheProperty:    config.CacheProperty{},
+			expectedCacheTTL: 3600,
+		},
+		{
+			name: "ZeroPropertyTTL",
+			cacheConfig: config.CacheConfig{
+				TTL: 1800,
+			},
+			cacheProperty: config.CacheProperty{
+				TTL: 0,
+			},
+			expectedCacheTTL: 1800,
+		},
+		{
+			name: "NegativePropertyTTL",
+			cacheConfig: config.CacheConfig{
+				TTL: 1800,
+			},
+			cacheProperty: config.CacheProperty{
+				TTL: -1,
+			},
+			expectedCacheTTL: 1800,
+		},
+		{
+			name: "ZeroConfigTTL",
+			cacheConfig: config.CacheConfig{
+				TTL: 0,
+			},
+			cacheProperty:    config.CacheProperty{},
+			expectedCacheTTL: 3600,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			ttl := getCacheTTL(tc.cacheConfig, tc.cacheProperty)
+			assert.Equal(t, tc.expectedCacheTTL, ttl)
+		})
+	}
+}
+
 func (suite *CacheTestSuite) TestCacheWithFailingOperations() {
 	t := suite.T()
 

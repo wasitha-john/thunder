@@ -97,7 +97,7 @@ func (suite *InMemoryCacheTestSuite) TestNewInMemoryCache() {
 				// Check if default values are set for zero inputs
 				expectedSize := tc.size
 				if expectedSize <= 0 {
-					expectedSize = defaultCacheSize
+					expectedSize = 1000
 				}
 				assert.Equal(t, expectedSize, stats.MaxSize)
 			}

@@ -84,6 +84,8 @@ type CacheProperty struct {
 type CacheConfig struct {
 	Disabled        bool            `yaml:"disabled" json:"disabled"`
 	Type            string          `yaml:"type" json:"type"`
+	Size            int             `yaml:"size" json:"size"`
+	TTL             int             `yaml:"ttl" json:"ttl"`
 	EvictionPolicy  string          `yaml:"eviction_policy" json:"eviction_policy"`
 	CleanupInterval int             `yaml:"cleanup_interval" json:"cleanup_interval"`
 	Properties      []CacheProperty `yaml:"properties,omitempty" json:"properties,omitempty"`
