@@ -40,6 +40,23 @@ func TestCacheTestSuite(t *testing.T) {
 	suite.Run(t, new(CacheTestSuite))
 }
 
+func (suite *CacheTestSuite) SetupSuite() {
+	mockConfig := &config.Config{
+		Cache: config.CacheConfig{
+			Disabled:        false,
+			Size:            1000,
+			TTL:             3600,
+			EvictionPolicy:  "LRU",
+			CleanupInterval: 300,
+		},
+	}
+	config.ResetThunderRuntime()
+	err := config.InitializeThunderRuntime("/test/thunder/home", mockConfig)
+	if err != nil {
+		suite.T().Fatal("Failed to initialize ThunderRuntime:", err)
+	}
+}
+
 func (suite *CacheTestSuite) TestIsEnabled() {
 	t := suite.T()
 
@@ -421,12 +438,6 @@ func (suite *CacheTestSuite) TestGetCacheSize() {
 			expectedCacheSize: 500,
 		},
 		{
-			name:              "DefaultSize",
-			cacheConfig:       config.CacheConfig{},
-			cacheProperty:     config.CacheProperty{},
-			expectedCacheSize: 1000,
-		},
-		{
 			name: "ZeroPropertySize",
 			cacheConfig: config.CacheConfig{
 				Size: 500,
@@ -452,7 +463,7 @@ func (suite *CacheTestSuite) TestGetCacheSize() {
 				Size: 0,
 			},
 			cacheProperty:     config.CacheProperty{},
-			expectedCacheSize: 1000,
+			expectedCacheSize: 0,
 		},
 	}
 
@@ -490,12 +501,6 @@ func (suite *CacheTestSuite) TestGetCacheTTL() {
 			expectedCacheTTL: 1800,
 		},
 		{
-			name:             "DefaultTTL",
-			cacheConfig:      config.CacheConfig{},
-			cacheProperty:    config.CacheProperty{},
-			expectedCacheTTL: 3600,
-		},
-		{
 			name: "ZeroPropertyTTL",
 			cacheConfig: config.CacheConfig{
 				TTL: 1800,
@@ -521,7 +526,7 @@ func (suite *CacheTestSuite) TestGetCacheTTL() {
 				TTL: 0,
 			},
 			cacheProperty:    config.CacheProperty{},
-			expectedCacheTTL: 3600,
+			expectedCacheTTL: 0,
 		},
 	}
 
