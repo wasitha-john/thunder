@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/asgardeo/thunder/internal/system/config"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )

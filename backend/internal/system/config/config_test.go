@@ -77,10 +77,10 @@ oauth:
 	defaultFile := filepath.Join(tempDir, "default.json")
 	userFile := filepath.Join(tempDir, "user.yaml")
 
-	err := os.WriteFile(defaultFile, []byte(defaultContent), 0644)
+	err := os.WriteFile(defaultFile, []byte(defaultContent), 0600)
 	assert.NoError(suite.T(), err)
 
-	err = os.WriteFile(userFile, []byte(userContent), 0644)
+	err = os.WriteFile(userFile, []byte(userContent), 0600)
 	assert.NoError(suite.T(), err)
 
 	// Test loading the configuration with defaults.
@@ -113,7 +113,7 @@ server:
 	tempDir := suite.T().TempDir()
 	userFile := filepath.Join(tempDir, "user.yaml")
 
-	err := os.WriteFile(userFile, []byte(userContent), 0644)
+	err := os.WriteFile(userFile, []byte(userContent), 0600)
 	assert.NoError(suite.T(), err)
 
 	// Test loading the configuration without defaults (empty defaults path).
@@ -136,7 +136,7 @@ func (suite *ConfigTestSuite) TestLoadConfigWithDefaults_ErrorCases() {
 
 	// Test with non-existent defaults file.
 	userFile := filepath.Join(tempDir, "user.yaml")
-	err = os.WriteFile(userFile, []byte("server:\n  hostname: test"), 0644)
+	err = os.WriteFile(userFile, []byte("server:\n  hostname: test"), 0600)
 	assert.NoError(suite.T(), err)
 
 	_, err = LoadConfig(userFile, "non-existent-defaults.json")
@@ -144,7 +144,7 @@ func (suite *ConfigTestSuite) TestLoadConfigWithDefaults_ErrorCases() {
 
 	// Test with invalid JSON defaults file.
 	invalidDefaultsFile := filepath.Join(tempDir, "invalid.json")
-	err = os.WriteFile(invalidDefaultsFile, []byte("invalid json"), 0644)
+	err = os.WriteFile(invalidDefaultsFile, []byte("invalid json"), 0600)
 	assert.NoError(suite.T(), err)
 
 	_, err = LoadConfig(userFile, invalidDefaultsFile)
@@ -551,7 +551,7 @@ server:
 	tempDir := suite.T().TempDir()
 	userFile := filepath.Join(tempDir, "test-config.yaml")
 
-	err := os.WriteFile(userFile, []byte(userContent), 0644)
+	err := os.WriteFile(userFile, []byte(userContent), 0600)
 	assert.NoError(suite.T(), err)
 
 	// Test normal loading - file closing works fine
@@ -568,7 +568,7 @@ func (suite *ConfigTestSuite) TestLoadConfig_InvalidYAML() {
 	tempDir := suite.T().TempDir()
 	userFile := filepath.Join(tempDir, "invalid.yaml")
 
-	err := os.WriteFile(userFile, []byte(invalidYAMLContent), 0644)
+	err := os.WriteFile(userFile, []byte(invalidYAMLContent), 0600)
 	assert.NoError(suite.T(), err)
 
 	// Test loading invalid YAML should return error

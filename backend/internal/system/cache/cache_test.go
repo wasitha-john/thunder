@@ -412,6 +412,7 @@ func (suite *CacheTestSuite) TestGetCacheType() {
 	}
 }
 
+//nolint:dupl // Testing different functions with similar test patterns
 func (suite *CacheTestSuite) TestGetCacheSize() {
 	testCases := []struct {
 		name              string
@@ -475,6 +476,7 @@ func (suite *CacheTestSuite) TestGetCacheSize() {
 	}
 }
 
+//nolint:dupl // Testing different functions with similar test patterns
 func (suite *CacheTestSuite) TestGetCacheTTL() {
 	testCases := []struct {
 		name             string
