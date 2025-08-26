@@ -29,17 +29,20 @@ import (
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
+	userservice "github.com/asgardeo/thunder/internal/user/service"
 )
 
 // refreshTokenGrantHandler handles the refresh token grant type.
 type refreshTokenGrantHandler struct {
-	JWTService jwt.JWTServiceInterface
+	JWTService  jwt.JWTServiceInterface
+	UserService userservice.UserServiceInterface
 }
 
 // newRefreshTokenGrantHandler creates a new instance of RefreshTokenGrantHandler.
 func newRefreshTokenGrantHandler() RefreshTokenGrantHandlerInterface {
 	return &refreshTokenGrantHandler{
-		JWTService: jwt.GetJWTService(),
+		JWTService:  jwt.GetJWTService(),
+		UserService: userservice.GetUserService(),
 	}
 }
 
@@ -92,9 +95,10 @@ func (h *refreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 		return nil, errResp
 	}
 
-	// Extract sub and aud from the refresh token claims if available
+	// Extract access token claims from the refresh token claims if available
 	sub := ""
 	aud := ""
+	userAttributes := map[string]interface{}{}
 	if val, ok := refreshTokenClaims["access_token_sub"]; ok && val != "" {
 		if subVal, ok := val.(string); ok {
 			sub = subVal
@@ -105,18 +109,40 @@ func (h *refreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 			aud = audVal
 		}
 	}
+	if val, ok := refreshTokenClaims["access_token_user_attributes"]; ok && val != "" {
+		if attrs, ok := val.(map[string]interface{}); ok {
+			userAttributes = attrs
+		}
+	}
 
 	conf := config.GetThunderRuntime().Config
 
-	// Get validity period
-	validityPeriod := conf.OAuth.JWT.ValidityPeriod
+	// Get token configuration from OAuth app
+	iss := ""
+	validityPeriod := int64(0)
+	if oauthApp.Token != nil && oauthApp.Token.AccessToken != nil {
+		iss = oauthApp.Token.AccessToken.Issuer
+		validityPeriod = oauthApp.Token.AccessToken.ValidityPeriod
+	}
+	if iss == "" {
+		iss = conf.OAuth.JWT.Issuer
+	}
+	if validityPeriod == 0 {
+		validityPeriod = conf.OAuth.JWT.ValidityPeriod
+	}
 
 	// Issue new access token
-	jwtClaims := make(map[string]string)
+	jwtClaims := make(map[string]interface{})
 	if len(newTokenScopes) > 0 {
 		jwtClaims["scope"] = strings.Join(newTokenScopes, " ")
 	}
-	accessToken, iat, err := h.JWTService.GenerateJWT(sub, aud, validityPeriod, jwtClaims)
+	if len(userAttributes) > 0 {
+		for k, v := range userAttributes {
+			jwtClaims[k] = v
+		}
+	}
+
+	accessToken, iat, err := h.JWTService.GenerateJWT(sub, aud, iss, validityPeriod, jwtClaims)
 	if err != nil {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
@@ -149,8 +175,7 @@ func (h *refreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 		}
 
 		logger.Debug("Renewing refresh token", log.String("client_id", tokenRequest.ClientID))
-		errResp := h.IssueRefreshToken(tokenResponse, refreshTokenCtx, tokenRequest.ClientID,
-			tokenGrantType, refreshTokenScopes)
+		errResp := h.IssueRefreshToken(tokenResponse, oauthApp, refreshTokenCtx, tokenGrantType, refreshTokenScopes)
 		if errResp != nil && errResp.Error != "" {
 			errResp.ErrorDescription = "Error while issuing refresh token: " + errResp.ErrorDescription
 			logger.Error("Failed to issue refresh token", log.String("error", errResp.Error))
@@ -178,7 +203,8 @@ func (h *refreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 
 // IssueRefreshToken generates a new refresh token for the given OAuth application and scopes.
 func (h *refreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenResponseDTO,
-	ctx *model.TokenContext, clientID, grantType string, scopes []string) *model.ErrorResponse {
+	oauthApp *appmodel.OAuthAppConfigProcessedDTO, ctx *model.TokenContext,
+	grantType string, scopes []string) *model.ErrorResponse {
 	// Extract sub and aud from the context attributes if available
 	sub := ""
 	aud := ""
@@ -191,13 +217,23 @@ func (h *refreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 		}
 	}
 
-	// Get validity period
-	conf := config.GetThunderRuntime().Config
-	validityPeriod := conf.OAuth.RefreshToken.ValidityPeriod
+	// Get token configuration from OAuth app
+	iss := ""
+	validityPeriod := int64(0)
+	if oauthApp.Token != nil && oauthApp.Token.AccessToken != nil {
+		iss = oauthApp.Token.AccessToken.Issuer
+		validityPeriod = oauthApp.Token.AccessToken.ValidityPeriod
+	}
+	if iss == "" {
+		iss = config.GetThunderRuntime().Config.OAuth.JWT.Issuer
+	}
+	if validityPeriod == 0 {
+		validityPeriod = config.GetThunderRuntime().Config.OAuth.JWT.ValidityPeriod
+	}
 
 	// Generate a JWT token for the refresh token.
-	claims := map[string]string{
-		"client_id":  clientID,
+	claims := map[string]interface{}{
+		"client_id":  oauthApp.ClientID,
 		"grant_type": grantType,
 		"scopes":     strings.Join(scopes, " "),
 	}
@@ -207,8 +243,12 @@ func (h *refreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 	if aud != "" {
 		claims["access_token_aud"] = aud
 	}
+	if oauthApp.Token != nil && oauthApp.Token.AccessToken != nil &&
+		len(oauthApp.Token.AccessToken.UserAttributes) > 0 && len(tokenResponse.AccessToken.UserAttributes) > 0 {
+		claims["access_token_user_attributes"] = tokenResponse.AccessToken.UserAttributes
+	}
 
-	token, iat, err := h.JWTService.GenerateJWT(clientID, clientID, validityPeriod, claims)
+	token, iat, err := h.JWTService.GenerateJWT(oauthApp.ClientID, oauthApp.ClientID, iss, validityPeriod, claims)
 	if err != nil {
 		return &model.ErrorResponse{
 			Error:            constants.ErrorServerError,
@@ -225,7 +265,7 @@ func (h *refreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 		IssuedAt:  iat,
 		ExpiresIn: validityPeriod,
 		Scopes:    scopes,
-		ClientID:  clientID,
+		ClientID:  oauthApp.ClientID,
 	}
 	return nil
 }

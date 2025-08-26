@@ -80,9 +80,14 @@ func (a *AuthAssertExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.Exe
 			tokenSub = ctx.AuthenticatedUser.UserID
 		}
 
+		jwtClaims := make(map[string]interface{})
+		for k, v := range ctx.AuthenticatedUser.Attributes {
+			jwtClaims[k] = v
+		}
+
 		jwtConfig := config.GetThunderRuntime().Config.OAuth.JWT
-		token, _, err := a.JWTService.GenerateJWT(tokenSub, ctx.AppID, jwtConfig.ValidityPeriod,
-			ctx.AuthenticatedUser.Attributes)
+		token, _, err := a.JWTService.GenerateJWT(tokenSub, ctx.AppID, jwtConfig.Issuer,
+			jwtConfig.ValidityPeriod, jwtClaims)
 		if err != nil {
 			logger.Error("Failed to generate JWT token", log.Error(err))
 			return nil, errors.New("failed to generate JWT token: " + err.Error())
