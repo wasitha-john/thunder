@@ -95,7 +95,7 @@ func (ash *UserSchemaHandler) HandleUserSchemaPostRequest(w http.ResponseWriter,
 		errResp := apierror.ErrorResponse{
 			Code:        constants.ErrorInvalidRequestFormat.Code,
 			Message:     constants.ErrorInvalidRequestFormat.Error,
-			Description: "Failed to parse request body: " + err.Error(), // Revisit
+			Description: "Failed to parse request body",
 		}
 
 		if err := json.NewEncoder(w).Encode(errResp); err != nil {
@@ -113,7 +113,7 @@ func (ash *UserSchemaHandler) HandleUserSchemaPostRequest(w http.ResponseWriter,
 		return
 	}
 
-	if buildUserSchemaResponse(w, createdUserSchema, logger, http.StatusCreated) {
+	if !buildUserSchemaResponse(w, createdUserSchema, logger, http.StatusCreated) {
 		return
 	}
 
@@ -136,7 +136,7 @@ func (ash *UserSchemaHandler) HandleUserSchemaGetRequest(w http.ResponseWriter, 
 		return
 	}
 
-	if buildUserSchemaResponse(w, userSchema, logger, http.StatusOK) {
+	if !buildUserSchemaResponse(w, userSchema, logger, http.StatusOK) {
 		return
 	}
 
@@ -163,7 +163,7 @@ func (ash *UserSchemaHandler) HandleUserSchemaPutRequest(w http.ResponseWriter, 
 		return
 	}
 
-	if buildUserSchemaResponse(w, updatedUserSchema, logger, http.StatusOK) {
+	if !buildUserSchemaResponse(w, updatedUserSchema, logger, http.StatusOK) {
 		return
 	}
 
@@ -237,8 +237,6 @@ func handleError(w http.ResponseWriter, logger *log.Logger, svcErr *serviceerror
 		Description: svcErr.ErrorDescription,
 	}
 
-	logger.Error("Request failed", log.String("errorCode", errResp.Code), log.String("errorMessage", errResp.Message))
-
 	if err := json.NewEncoder(w).Encode(errResp); err != nil {
 		logger.Error("Error encoding error response", log.Error(err))
 		http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
@@ -277,7 +275,7 @@ func validateUpdateUserSchemaRequest(
 		errResp := apierror.ErrorResponse{
 			Code:        constants.ErrorInvalidRequestFormat.Code,
 			Message:     constants.ErrorInvalidRequestFormat.Error,
-			Description: "Failed to parse request body: " + err.Error(),
+			Description: "Failed to parse request body",
 		}
 
 		if err := json.NewEncoder(w).Encode(errResp); err != nil {
@@ -291,36 +289,28 @@ func validateUpdateUserSchemaRequest(
 	return sanitizedRequest, false
 }
 
-func buildUserSchemaResponse(w http.ResponseWriter, userSchema *model.UserSchema, logger *log.Logger, statusCode int) bool {
+func buildUserSchemaResponse(
+	w http.ResponseWriter, userSchema *model.UserSchema, logger *log.Logger, statusCode int) bool {
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(statusCode)
 
 	if err := json.NewEncoder(w).Encode(userSchema); err != nil {
 		logger.Error("Error encoding response", log.Error(err))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 // sanitizeCreateUserSchemaRequest sanitizes the create user schema request input.
 func (ash *UserSchemaHandler) sanitizeCreateUserSchemaRequest(
 	request model.CreateUserSchemaRequest,
 ) model.CreateUserSchemaRequest {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, userSchemaLoggerComponentName))
-
-	originalName := request.Name
 	sanitizedName := sysutils.SanitizeString(request.Name)
-
-	if originalName != sanitizedName {
-		logger.Debug("Sanitized user schema name in create request",
-			log.String("original", log.MaskString(originalName)),
-			log.String("sanitized", log.MaskString(sanitizedName)))
-	}
 
 	return model.CreateUserSchemaRequest{
 		Name:   sanitizedName,
-		Schema: request.Schema, // Schema is validated separately, no need to sanitize JSON
+		Schema: request.Schema,
 	}
 }
 

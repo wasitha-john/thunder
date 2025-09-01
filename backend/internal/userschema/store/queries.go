@@ -24,88 +24,43 @@ import "github.com/asgardeo/thunder/internal/system/database/model"
 var (
 	// QueryGetUserSchemaCount retrieves the total count of user schemas.
 	QueryGetUserSchemaCount = model.DBQuery{
-		ID: "ASQ-USER_SCHEMA-001",
-		PostgresQuery: `
-			SELECT COUNT(*) AS total 
-			FROM user_schemas`,
-		SQLiteQuery: `
-			SELECT COUNT(*) AS total 
-			FROM user_schemas`,
+		ID:    "ASQ-USER_SCHEMA-001",
+		Query: `SELECT COUNT(*) AS total FROM USER_SCHEMAS`,
 	}
 
 	// QueryGetUserSchemaList retrieves a paginated list of user schemas.
 	QueryGetUserSchemaList = model.DBQuery{
-		ID: "ASQ-USER_SCHEMA-002",
-		PostgresQuery: `
-			SELECT schema_id, name
-			FROM user_schemas
-			ORDER BY name
-			LIMIT $1 OFFSET $2`,
-		SQLiteQuery: `
-			SELECT schema_id, name
-			FROM user_schemas
-			ORDER BY name
-			LIMIT ? OFFSET ?`,
+		ID:    "ASQ-USER_SCHEMA-002",
+		Query: `SELECT SCHEMA_ID, NAME FROM USER_SCHEMAS ORDER BY NAME LIMIT $1 OFFSET $2`,
 	}
 
 	// QueryCreateUserSchema creates a new user schema.
 	QueryCreateUserSchema = model.DBQuery{
-		ID: "ASQ-USER_SCHEMA-003",
-		PostgresQuery: `
-			INSERT INTO user_schemas (schema_id, name, schema_def)
-			VALUES ($1, $2, $3)`,
-		SQLiteQuery: `
-			INSERT INTO user_schemas (schema_id, name, schema_def)
-			VALUES (?, ?, ?)`,
+		ID:    "ASQ-USER_SCHEMA-003",
+		Query: `INSERT INTO USER_SCHEMAS (SCHEMA_ID, NAME, SCHEMA_DEF) VALUES ($1, $2, $3)`,
 	}
 
 	// QueryGetUserSchemaByID retrieves a user schema by its ID.
 	QueryGetUserSchemaByID = model.DBQuery{
-		ID: "ASQ-USER_SCHEMA-004",
-		PostgresQuery: `
-			SELECT schema_id, name, schema_def
-			FROM user_schemas
-			WHERE schema_id = $1`,
-		SQLiteQuery: `
-			SELECT schema_id, name, schema_def
-			FROM user_schemas
-			WHERE schema_id = ?`,
+		ID:    "ASQ-USER_SCHEMA-004",
+		Query: `SELECT SCHEMA_ID, NAME, SCHEMA_DEF FROM USER_SCHEMAS WHERE SCHEMA_ID = $1`,
 	}
 
 	// QueryGetUserSchemaByName retrieves a user schema by its name.
 	QueryGetUserSchemaByName = model.DBQuery{
-		ID: "ASQ-USER_SCHEMA-005",
-		PostgresQuery: `
-			SELECT schema_id, name, schema_def
-			FROM user_schemas
-			WHERE name = $1`,
-		SQLiteQuery: `
-			SELECT schema_id, name, schema_def
-			FROM user_schemas
-			WHERE name = ?`,
+		ID:    "ASQ-USER_SCHEMA-005",
+		Query: `SELECT SCHEMA_ID, NAME, SCHEMA_DEF FROM USER_SCHEMAS WHERE NAME = $1`,
 	}
 
 	// QueryUpdateUserSchemaByID updates a user schema by its ID.
 	QueryUpdateUserSchemaByID = model.DBQuery{
-		ID: "ASQ-USER_SCHEMA-006",
-		PostgresQuery: `
-			UPDATE user_schemas
-			SET name = $2, schema_def = $3
-			WHERE schema_id = $1`,
-		SQLiteQuery: `
-			UPDATE user_schemas
-			SET name = ?, schema_def = ?
-			WHERE schema_id = ?`,
+		ID:    "ASQ-USER_SCHEMA-006",
+		Query: `UPDATE USER_SCHEMAS SET NAME = $1, SCHEMA_DEF = $2 WHERE SCHEMA_ID = $3`,
 	}
 
 	// QueryDeleteUserSchemaByID deletes a user schema by its ID.
 	QueryDeleteUserSchemaByID = model.DBQuery{
-		ID: "ASQ-USER_SCHEMA-007",
-		PostgresQuery: `
-			DELETE FROM user_schemas
-			WHERE schema_id = $1`,
-		SQLiteQuery: `
-			DELETE FROM user_schemas
-			WHERE schema_id = ?`,
+		ID:    "ASQ-USER_SCHEMA-007",
+		Query: `DELETE FROM USER_SCHEMAS WHERE SCHEMA_ID = $1`,
 	}
 )

@@ -180,7 +180,7 @@ func UpdateUserSchemaByID(schemaID string, userSchema model.UserSchema) error {
 		}
 	}()
 
-	_, err = dbClient.Query(QueryUpdateUserSchemaByID, schemaID, userSchema.Name, string(userSchema.Schema))
+	_, err = dbClient.Query(QueryUpdateUserSchemaByID, userSchema.Name, string(userSchema.Schema), schemaID)
 	if err != nil {
 		return fmt.Errorf("failed to update user schema: %w", err)
 	}
@@ -202,9 +202,13 @@ func DeleteUserSchemaByID(schemaID string) error {
 		}
 	}()
 
-	_, err = dbClient.Query(QueryDeleteUserSchemaByID, schemaID)
+	rowsAffected, err := dbClient.Execute(QueryDeleteUserSchemaByID, schemaID)
 	if err != nil {
 		return fmt.Errorf("failed to delete user schema: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		logger.Debug("user not found with id: " + schemaID)
 	}
 
 	return nil

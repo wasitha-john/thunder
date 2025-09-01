@@ -63,12 +63,12 @@ func (us *UserSchemaService) GetUserSchemaList(limit, offset int) (
 
 	totalCount, err := store.GetUserSchemaListCount()
 	if err != nil {
-		return nil, logErrorAndReturnServerError(logger, "Failed to get user schema list count", err)
+		return nil, logAndReturnServerError(logger, "Failed to get user schema list count", err)
 	}
 
 	userSchemas, err := store.GetUserSchemaList(limit, offset)
 	if err != nil {
-		return nil, logErrorAndReturnServerError(logger, "Failed to get user schema list", err)
+		return nil, logAndReturnServerError(logger, "Failed to get user schema list", err)
 	}
 
 	response := &model.UserSchemaListResponse{
@@ -87,7 +87,6 @@ func (us *UserSchemaService) CreateUserSchema(request model.CreateUserSchemaRequ
 	*model.UserSchema, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, userSchemaLoggerComponentName))
 
-	// Validate the request
 	if request.Name == "" {
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
@@ -96,20 +95,17 @@ func (us *UserSchemaService) CreateUserSchema(request model.CreateUserSchemaRequ
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
 
-	// Validate the JSON schema
 	if err := validateJSONSchema(request.Schema); err != nil {
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
 
-	// Check if a schema with the same name already exists
 	_, err := store.GetUserSchemaByName(request.Name)
 	if err == nil {
 		return nil, &constants.ErrorUserSchemaNameConflict
 	} else if !errors.Is(err, constants.ErrUserSchemaNotFound) {
-		return nil, logErrorAndReturnServerError(logger, "Failed to check existing user schema", err)
+		return nil, logAndReturnServerError(logger, "Failed to check existing user schema", err)
 	}
 
-	// Generate a new schema ID
 	schemaID := utils.GenerateUUID()
 
 	userSchema := model.UserSchema{
@@ -118,12 +114,9 @@ func (us *UserSchemaService) CreateUserSchema(request model.CreateUserSchemaRequ
 		Schema: request.Schema,
 	}
 
-	// Create the user schema
 	if err := store.CreateUserSchema(userSchema); err != nil {
-		return nil, logErrorAndReturnServerError(logger, "Failed to create user schema", err)
+		return nil, logAndReturnServerError(logger, "Failed to create user schema", err)
 	}
-
-	logger.Info("User schema created successfully", log.String("schemaID", schemaID), log.String("name", request.Name))
 
 	return &userSchema, nil
 }
@@ -141,7 +134,7 @@ func (us *UserSchemaService) GetUserSchema(schemaID string) (*model.UserSchema, 
 		if errors.Is(err, constants.ErrUserSchemaNotFound) {
 			return nil, &constants.ErrorUserSchemaNotFound
 		}
-		return nil, logErrorAndReturnServerError(logger, "Failed to get user schema", err)
+		return nil, logAndReturnServerError(logger, "Failed to get user schema", err)
 	}
 
 	return &userSchema, nil
@@ -156,7 +149,6 @@ func (us *UserSchemaService) UpdateUserSchema(schemaID string, request model.Upd
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
 
-	// Validate the request
 	if request.Name == "" {
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
@@ -165,27 +157,24 @@ func (us *UserSchemaService) UpdateUserSchema(schemaID string, request model.Upd
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
 
-	// Validate the JSON schema
 	if err := validateJSONSchema(request.Schema); err != nil {
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
 
-	// Check if the schema exists
 	existingSchema, err := store.GetUserSchemaByID(schemaID)
 	if err != nil {
 		if errors.Is(err, constants.ErrUserSchemaNotFound) {
 			return nil, &constants.ErrorUserSchemaNotFound
 		}
-		return nil, logErrorAndReturnServerError(logger, "Failed to get existing user schema", err)
+		return nil, logAndReturnServerError(logger, "Failed to get existing user schema", err)
 	}
 
-	// Check if another schema with the same name exists (excluding the current one)
 	if request.Name != existingSchema.Name {
 		_, err := store.GetUserSchemaByName(request.Name)
 		if err == nil {
 			return nil, &constants.ErrorUserSchemaNameConflict
 		} else if !errors.Is(err, constants.ErrUserSchemaNotFound) {
-			return nil, logErrorAndReturnServerError(logger, "Failed to check existing user schema", err)
+			return nil, logAndReturnServerError(logger, "Failed to check existing user schema", err)
 		}
 	}
 
@@ -195,12 +184,9 @@ func (us *UserSchemaService) UpdateUserSchema(schemaID string, request model.Upd
 		Schema: request.Schema,
 	}
 
-	// Update the user schema
 	if err := store.UpdateUserSchemaByID(schemaID, userSchema); err != nil {
-		return nil, logErrorAndReturnServerError(logger, "Failed to update user schema", err)
+		return nil, logAndReturnServerError(logger, "Failed to update user schema", err)
 	}
-
-	logger.Info("User schema updated successfully", log.String("schemaID", schemaID), log.String("name", request.Name))
 
 	return &userSchema, nil
 }
@@ -213,24 +199,9 @@ func (us *UserSchemaService) DeleteUserSchema(schemaID string) *serviceerror.Ser
 		return &constants.ErrorInvalidUserSchemaRequest
 	}
 
-	// Check if the schema exists
-	_, err := store.GetUserSchemaByID(schemaID)
-	if err != nil {
-		if errors.Is(err, constants.ErrUserSchemaNotFound) {
-			return &constants.ErrorUserSchemaNotFound
-		}
-		return logErrorAndReturnServerError(logger, "Failed to get user schema", err)
-	}
-
-	// TODO: Check if there are existing users using this schema type
-	// This would require a query to check if any users have the schema's name as their type
-
-	// Delete the user schema
 	if err := store.DeleteUserSchemaByID(schemaID); err != nil {
-		return logErrorAndReturnServerError(logger, "Failed to delete user schema", err)
+		return logAndReturnServerError(logger, "Failed to delete user schema", err)
 	}
-
-	logger.Info("User schema deleted successfully", log.String("schemaID", schemaID))
 
 	return nil
 }
@@ -288,13 +259,11 @@ func buildPaginationLinks(limit, offset, totalCount int) []model.Link {
 // validateJSONSchema validates that the schema is a valid JSON Schema according to the API specification.
 // The schema must be a properties-only object following the UserSchema specification in user.yaml.
 func validateJSONSchema(schema json.RawMessage) error {
-	// Parse the schema into a map
 	var schemaMap map[string]interface{}
 	if err := json.Unmarshal(schema, &schemaMap); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	// Schema cannot be empty - it must contain at least one property definition
 	if len(schemaMap) == 0 {
 		return fmt.Errorf("schema cannot be empty - must contain at least one property definition")
 	}
@@ -318,7 +287,6 @@ func validateUserSchemaProperty(propDef interface{}) error {
 		return fmt.Errorf("property definition must be an object")
 	}
 
-	// Check for required type field
 	propType, exists := propMap["type"]
 	if !exists {
 		return fmt.Errorf("missing required 'type' field")
@@ -330,11 +298,11 @@ func validateUserSchemaProperty(propDef interface{}) error {
 	}
 
 	switch typeStr {
-	case "string", "number", "boolean":
+	case model.TypeString, model.TypeNumber, model.TypeBoolean:
 		return validateLeafProperty(propMap)
-	case "object":
+	case model.TypeObject:
 		return validateObjectProperty(propMap)
-	case "array":
+	case model.TypeArray:
 		return validateArrayProperty(propMap)
 	default:
 		return fmt.Errorf("invalid type '%s', must be one of: string, number, boolean, object, array", typeStr)
@@ -356,27 +324,37 @@ func validateLeafProperty(propMap map[string]interface{}) error {
 		}
 	}
 
-	// Validate unique field if present
 	if unique, exists := propMap["unique"]; exists {
 		if _, ok := unique.(bool); !ok {
 			return fmt.Errorf("'unique' field must be a boolean")
 		}
 	}
 
-	// Validate enum field if present
 	if enum, exists := propMap["enum"]; exists {
 		enumArray, ok := enum.([]interface{})
 		if !ok {
 			return fmt.Errorf("'enum' field must be an array")
 		}
-		for i, item := range enumArray {
-			if _, ok := item.(string); !ok {
-				return fmt.Errorf("'enum' array item at index %d must be a string", i)
-			}
+		if len(enumArray) == 0 {
+			return fmt.Errorf("'enum' array cannot be empty")
+		}
+
+		// Get the expected type from the property's type field
+		propertyType, exists := propMap["type"]
+		if !exists {
+			return fmt.Errorf("missing required 'type' field")
+		}
+
+		expectedType, ok := propertyType.(string)
+		if !ok {
+			return fmt.Errorf("'type' field must be a string")
+		}
+
+		if err := validateEnumItemsType(expectedType, enumArray); err != nil {
+			return err
 		}
 	}
 
-	// Validate regex field if present
 	if regex, exists := propMap["regex"]; exists {
 		if _, ok := regex.(string); !ok {
 			return fmt.Errorf("'regex' field must be a string")
@@ -388,7 +366,6 @@ func validateLeafProperty(propMap map[string]interface{}) error {
 
 // validateObjectProperty validates object property definitions.
 func validateObjectProperty(propMap map[string]interface{}) error {
-	// Check for invalid properties
 	allowedFields := map[string]bool{
 		"type":       true,
 		"properties": true,
@@ -399,7 +376,6 @@ func validateObjectProperty(propMap map[string]interface{}) error {
 		}
 	}
 
-	// Check for required properties field
 	properties, exists := propMap["properties"]
 	if !exists {
 		return fmt.Errorf("missing required 'properties' field for object type")
@@ -410,7 +386,6 @@ func validateObjectProperty(propMap map[string]interface{}) error {
 		return fmt.Errorf("'properties' field must be an object")
 	}
 
-	// Recursively validate nested properties
 	for nestedPropName, nestedPropDef := range propertiesMap {
 		if err := validateUserSchemaProperty(nestedPropDef); err != nil {
 			return fmt.Errorf("invalid nested property '%s': %w", nestedPropName, err)
@@ -422,10 +397,19 @@ func validateObjectProperty(propMap map[string]interface{}) error {
 
 // validateArrayProperty validates array property definitions.
 func validateArrayProperty(propMap map[string]interface{}) error {
-	// Check for required items field
 	items, exists := propMap["items"]
 	if !exists {
 		return fmt.Errorf("missing required 'items' field for array type")
+	}
+
+	allowedFields := map[string]bool{
+		"type":  true,
+		"items": true,
+	}
+	for field := range propMap {
+		if !allowedFields[field] {
+			return fmt.Errorf("invalid field '%s' for array property", field)
+		}
 	}
 
 	itemsMap, ok := items.(map[string]interface{})
@@ -433,7 +417,6 @@ func validateArrayProperty(propMap map[string]interface{}) error {
 		return fmt.Errorf("'items' field must be an object")
 	}
 
-	// Check for required type field in items
 	itemType, exists := itemsMap["type"]
 	if !exists {
 		return fmt.Errorf("missing required 'type' field in items definition")
@@ -445,81 +428,59 @@ func validateArrayProperty(propMap map[string]interface{}) error {
 	}
 
 	switch itemTypeStr {
-	case "string", "number", "boolean":
-		return validateArrayLeafItems(itemsMap)
-	case "object":
-		return validateArrayObjectItems(itemsMap)
+	case model.TypeString, model.TypeNumber, model.TypeBoolean:
+		return validateArrayLeafItems(itemTypeStr, itemsMap)
+	case model.TypeObject:
+		return validateObjectProperty(itemsMap)
 	default:
 		return fmt.Errorf("invalid items type '%s', must be one of: string, number, boolean, object", itemTypeStr)
 	}
 }
 
 // validateArrayLeafItems validates array items for leaf types (string, number, boolean).
-func validateArrayLeafItems(itemsMap map[string]interface{}) error {
-	// Check for invalid properties
-	allowedFields := map[string]bool{
-		"type": true,
-		"enum": true,
-	}
-	for field := range itemsMap {
-		if !allowedFields[field] {
-			return fmt.Errorf("invalid field '%s' for array leaf items", field)
-		}
-	}
-
-	// Validate enum field if present
-	if enum, exists := itemsMap["enum"]; exists {
-		enumArray, ok := enum.([]interface{})
+func validateArrayLeafItems(itemType string, itemsMap map[string]interface{}) error {
+	itemEnum, exists := itemsMap["enum"]
+	if exists {
+		itemEnumArray, ok := itemEnum.([]interface{})
 		if !ok {
 			return fmt.Errorf("'enum' field in items must be an array")
 		}
-		for i, item := range enumArray {
-			// TODO: Enum can be numbers as well
+		if len(itemEnumArray) == 0 {
+			return fmt.Errorf("'enum' array in items cannot be empty")
+		}
+		return validateEnumItemsType(itemType, itemEnumArray)
+	}
+	return nil
+}
+
+// validateEnumItemsType validates array enum items for leaf types (string, number, boolean).
+func validateEnumItemsType(expectedType string, enumArray []interface{}) error {
+	for i, item := range enumArray {
+		switch expectedType {
+		case model.TypeString:
 			if _, ok := item.(string); !ok {
-				return fmt.Errorf("'enum' array item at index %d in items must be a string", i)
+				return fmt.Errorf("'enum' array item at index %d must be a string to match property type", i)
 			}
+		case model.TypeNumber:
+			switch item.(type) {
+			case float64, int:
+				// Valid number type
+			default:
+				return fmt.Errorf("'enum' array item at index %d must be a number to match property type", i)
+			}
+		case model.TypeBoolean:
+			if _, ok := item.(bool); !ok {
+				return fmt.Errorf("'enum' array item at index %d must be a boolean to match property type", i)
+			}
+		default:
+			return fmt.Errorf("invalid property type '%s' for enum validation", expectedType)
 		}
 	}
-
 	return nil
 }
 
-// validateArrayObjectItems validates array items for object types.
-func validateArrayObjectItems(itemsMap map[string]interface{}) error {
-	// Check for invalid properties
-	allowedFields := map[string]bool{
-		"type":       true,
-		"properties": true,
-	}
-	for field := range itemsMap {
-		if !allowedFields[field] {
-			return fmt.Errorf("invalid field '%s' for array object items", field)
-		}
-	}
-
-	// Check for required properties field
-	properties, exists := itemsMap["properties"]
-	if !exists {
-		return fmt.Errorf("missing required 'properties' field for array object items")
-	}
-
-	propertiesMap, ok := properties.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("'properties' field in items must be an object")
-	}
-
-	// Recursively validate nested properties
-	for nestedPropName, nestedPropDef := range propertiesMap {
-		if err := validateUserSchemaProperty(nestedPropDef); err != nil {
-			return fmt.Errorf("invalid nested property '%s' in array items: %w", nestedPropName, err)
-		}
-	}
-
-	return nil
-}
-
-// logErrorAndReturnServerError logs the error and returns a server error.
-func logErrorAndReturnServerError(
+// logAndReturnServerError logs the error and returns a server error.
+func logAndReturnServerError(
 	logger *log.Logger,
 	message string,
 	err error,

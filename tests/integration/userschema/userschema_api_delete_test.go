@@ -104,21 +104,13 @@ func (ts *DeleteUserSchemaTestSuite) TestDeleteUserSchemaNotFound() {
 	}
 	defer resp.Body.Close()
 
-	ts.Assert().Equal(http.StatusNotFound, resp.StatusCode, "Should return 404 Not Found for non-existent schema")
+	ts.Assert().Equal(http.StatusNoContent, resp.StatusCode, "Should return 204 No Content for non-existent schema (idempotent behavior)")
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		ts.T().Fatalf("Failed to read response body: %v", err)
 	}
-
-	var errorResp ErrorResponse
-	err = json.Unmarshal(bodyBytes, &errorResp)
-	if err != nil {
-		ts.T().Fatalf("Failed to unmarshal error response: %v", err)
-	}
-
-	ts.Assert().NotEmpty(errorResp.Code, "Error should have code")
-	ts.Assert().NotEmpty(errorResp.Message, "Error should have message")
+	ts.Assert().Empty(bodyBytes, "204 response should have no content body")
 }
 
 // TestDeleteUserSchemaWithInvalidID tests DELETE /user-schemas/{id} with invalid ID formats
@@ -131,17 +123,17 @@ func (ts *DeleteUserSchemaTestSuite) TestDeleteUserSchemaWithInvalidID() {
 		{
 			name:           "invalid UUID format",
 			schemaID:       "invalid-uuid-format",
-			expectedStatus: http.StatusNotFound,
+			expectedStatus: http.StatusNoContent,
 		},
 		{
 			name:           "special characters in ID",
 			schemaID:       "schema@#$%^&*()",
-			expectedStatus: http.StatusNotFound,
+			expectedStatus: http.StatusNoContent,
 		},
 		{
 			name:           "very long ID",
 			schemaID:       "very-long-id-that-exceeds-normal-uuid-length-and-should-be-handled-properly",
-			expectedStatus: http.StatusNotFound,
+			expectedStatus: http.StatusNoContent,
 		},
 	}
 
@@ -160,27 +152,16 @@ func (ts *DeleteUserSchemaTestSuite) TestDeleteUserSchemaWithInvalidID() {
 			}
 			defer resp.Body.Close()
 
-			// Should handle invalid IDs gracefully
-			ts.Assert().True(resp.StatusCode == http.StatusBadRequest ||
-				resp.StatusCode == http.StatusNotFound,
-				"Should handle invalid ID appropriately for case: %s, got status: %d", tc.name, resp.StatusCode)
+			// DELETE should be idempotent and return 204 even for invalid IDs
+			ts.Assert().Equal(http.StatusNoContent, resp.StatusCode, 
+				"Should return 204 No Content for invalid ID (idempotent behavior) for case: %s", tc.name)
 
-			// For error responses, verify error structure
-			if resp.StatusCode >= 400 {
-				bodyBytes, err := io.ReadAll(resp.Body)
-				if err != nil {
-					t.Fatalf("Failed to read response body: %v", err)
-				}
-
-				var errorResp ErrorResponse
-				err = json.Unmarshal(bodyBytes, &errorResp)
-				if err != nil {
-					t.Fatalf("Failed to unmarshal error response: %v", err)
-				}
-
-				ts.Assert().NotEmpty(errorResp.Code, "Error should have code")
-				ts.Assert().NotEmpty(errorResp.Message, "Error should have message")
+			// Verify response has no content body for 204
+			bodyBytes, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("Failed to read response body: %v", err)
 			}
+			ts.Assert().Empty(bodyBytes, "204 response should have no content body")
 		})
 	}
 }
@@ -223,7 +204,7 @@ func (ts *DeleteUserSchemaTestSuite) TestDeleteUserSchemaIdempotency() {
 	}
 	defer resp2.Body.Close()
 
-	ts.Assert().Equal(http.StatusNotFound, resp2.StatusCode, "Second deletion should return 404 Not Found")
+	ts.Assert().Equal(http.StatusNoContent, resp2.StatusCode, "Second deletion should return 204 No Content (idempotent behavior)")
 }
 
 // TestDeleteUserSchemaMultiple tests deleting multiple schemas

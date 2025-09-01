@@ -651,13 +651,13 @@ paths:
                 invalid-limit:
                   summary: Invalid limit parameter
                   value:
-                    code: "USR-1011"
+                    code: "USRS-1005"
                     message: "Invalid pagination parameter"
                     description: "The limit parameter must be a positive integer"
                 invalid-offset:
                   summary: Invalid offset parameter
                   value:
-                    code: "USR-1012"
+                    code: "USRS-1006"
                     message: "Invalid pagination parameter"
                     description: "The offset parameter must be a non-negative integer"
         "500":
@@ -732,14 +732,14 @@ paths:
                 invalid-request-format:
                   summary: Invalid request format
                   value:
-                    code: "USR-2001"
+                    code: "USRS-1001"
                     message: "Invalid request format"
                     description: "The request body is malformed or contains invalid data"
                 invalid-attribute-definition:
                   summary: Invalid attribute definition
                   value:
-                    code: "USR-2002"
-                    message: "Invalid attribute definition"
+                    code: "USRS-1004"
+                    message: "Invalid user schema request"
                     description: "One or more attribute definitions are invalid"
         "409":
           description: Conflict
@@ -748,9 +748,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                code: "USR-2003"
-                message: "User type already exists"
-                description: "A schema for this user type already exists"
+                code: "USRS-1003"
+                message: "User schema name conflict"
+                description: "A user schema with the same name already exists"
         "500":
           description: Internal server error
 
@@ -838,9 +838,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                code: "USR-2004"
+                code: "USRS-1002"
                 message: "User schema not found"
-                description: "The user schema with the specified ID does not exist"
+                description: "The user schema with the specified id does not exist"
         "500":
           description: Internal server error
 
@@ -915,14 +915,14 @@ paths:
                 invalid-request-format:
                   summary: Invalid request format
                   value:
-                    code: "USR-2001"
+                    code: "USRS-1001"
                     message: "Invalid request format"
                     description: "The request body is malformed or contains invalid data"
                 invalid-attribute-definition:
                   summary: Invalid attribute definition
                   value:
-                    code: "USR-2002"
-                    message: "Invalid attribute definition"
+                    code: "USRS-1004"
+                    message: "Invalid user schema request"
                     description: "One or more attribute definitions are invalid"
         "404":
           description: User schema not found
@@ -931,9 +931,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                code: "USR-2004"
+                code: "USRS-1002"
                 message: "User schema not found"
-                description: "The user schema with the specified ID does not exist"
+                description: "The user schema with the specified id does not exist"
+        "409":
+          description: User schema name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "USRS-1003"
+                message: "User schema name conflict"
+                description: "A user schema with the same name already exists"
         "500":
           description: Internal server error
 
@@ -962,19 +972,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                code: "USR-2005"
-                message: "Cannot delete schema"
+                code: "USRS-1004"
+                message: "Invalid user schema request"
                 description: "Cannot delete schema because users of this type exist"
-        "404":
-          description: User schema not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                code: "USR-2004"
-                message: "User schema not found"
-                description: "The user schema with the specified ID does not exist"
         "500":
           description: Internal server error
 

@@ -209,7 +209,7 @@ func (ts *GetUserSchemaTestSuite) TestGetUserSchemaWithInvalidID() {
 
 				// Only try to unmarshal as JSON if the content type indicates JSON
 				contentType := resp.Header.Get("Content-Type")
-				if len(bodyBytes) > 0 && (contentType == "" || !strings.Contains(contentType, "application/json")) {
+				if len(bodyBytes) > 0 && (contentType != "" && !strings.Contains(contentType, "application/json")) {
 					// Non-JSON response (likely HTML), just verify we got an error status
 					t.Logf("Received non-JSON error response with content type: %s", contentType)
 					return
