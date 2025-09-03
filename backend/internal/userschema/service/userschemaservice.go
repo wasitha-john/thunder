@@ -42,6 +42,7 @@ type UserSchemaServiceInterface interface {
 	UpdateUserSchema(schemaID string, request model.UpdateUserSchemaRequest) (
 		*model.UserSchema, *serviceerror.ServiceError)
 	DeleteUserSchema(schemaID string) *serviceerror.ServiceError
+	ValidateUser(userType string, userAttributes json.RawMessage) *serviceerror.ServiceError
 }
 
 // UserSchemaService is the default implementation of the UserSchemaServiceInterface.
@@ -487,4 +488,213 @@ func logAndReturnServerError(
 ) *serviceerror.ServiceError {
 	logger.Error(message, log.Error(err))
 	return &constants.ErrorInternalServerError
+}
+
+// ValidateUser validates user attributes against the user schema for the given user type.
+func (us *UserSchemaService) ValidateUser(userType string, userAttributes json.RawMessage) *serviceerror.ServiceError {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, userSchemaLoggerComponentName))
+
+	if userType == "" {
+		logger.Debug("User type is empty, skipping schema validation")
+		return nil
+	}
+
+	if userAttributes == nil {
+		logger.Debug("User has no attributes to validate")
+		return nil
+	}
+
+	if len(userAttributes) == 0 {
+		logger.Debug("User has no attributes to validate")
+		return nil
+	}
+
+	
+	userSchema, err := store.GetUserSchemaByName(userType)
+	if err != nil {
+		if errors.Is(err, constants.ErrUserSchemaNotFound) {
+			logger.Debug("No schema found for user type, skipping validation", log.String("userType", userType))
+			return nil // Allow users without schema
+		}
+		return logAndReturnServerError(logger, "Failed to get user schema", err)
+	}
+
+	if err := validateUserAttributesAgainstSchema(userAttributes, userSchema.Schema); err != nil {
+		logger.Debug("Schema validation failed", log.Error(err), log.String("userType", userType))
+		return &constants.ErrorUserValidationFailed
+	}
+
+	logger.Debug("Schema validation successful", log.String("userType", userType))
+	return nil
+}
+
+// validateUserAttributesAgainstSchema validates the user attributes against the JSON schema.
+func validateUserAttributesAgainstSchema(attributes json.RawMessage, schema json.RawMessage) error {
+	var userAttrs map[string]interface{}
+	if err := json.Unmarshal(attributes, &userAttrs); err != nil {
+		return fmt.Errorf("failed to unmarshal user attributes: %w", err)
+	}
+
+	var schemaMap map[string]interface{}
+	if err := json.Unmarshal(schema, &schemaMap); err != nil {
+		return fmt.Errorf("failed to unmarshal schema: %w", err)
+	}
+
+	// Validate each property in the schema
+	for propName, propDef := range schemaMap {
+		propDefMap, ok := propDef.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Check if property exists in user attributes
+		userValue, exists := userAttrs[propName]
+		if !exists {
+			continue // Property is optional by default
+		}
+
+		// Validate the property type and constraints
+		if err := validateUserProperty(propName, userValue, propDefMap); err != nil {
+			return fmt.Errorf("validation failed for property '%s': %w", propName, err)
+		}
+	}
+
+	return nil
+}
+
+// validateUserProperty validates a single property against its schema definition.
+func validateUserProperty(propName string, value interface{}, propDef map[string]interface{}) error {
+	propType, exists := propDef["type"]
+	if !exists {
+		return nil // No type constraint
+	}
+
+	typeStr, ok := propType.(string)
+	if !ok {
+		return nil // Invalid type definition, skip validation
+	}
+
+	// Validate type
+	switch typeStr {
+	case "string":
+		if _, ok := value.(string); !ok {
+			return fmt.Errorf("expected string but got %T", value)
+		}
+		return validateUserStringProperty(value.(string), propDef)
+	case "number":
+		switch value.(type) {
+		case float64, int, int64:
+			// Valid number types
+		default:
+			return fmt.Errorf("expected number but got %T", value)
+		}
+		return validateUserNumberProperty(value, propDef)
+	case "boolean":
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("expected boolean but got %T", value)
+		}
+	case "object":
+		valueMap, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("expected object but got %T", value)
+		}
+		return validateUserObjectProperty(valueMap, propDef)
+	case "array":
+		valueArray, ok := value.([]interface{})
+		if !ok {
+			return fmt.Errorf("expected array but got %T", value)
+		}
+		return validateUserArrayProperty(valueArray, propDef)
+	}
+
+	return nil
+}
+
+// validateUserStringProperty validates string-specific constraints.
+func validateUserStringProperty(value string, propDef map[string]interface{}) error {
+	// Validate enum constraint
+	if enumValue, exists := propDef["enum"]; exists {
+		enumArray, ok := enumValue.([]interface{})
+		if ok {
+			for _, enumItem := range enumArray {
+				if enumItem == value {
+					return nil
+				}
+			}
+			return fmt.Errorf("value '%s' is not in allowed enum values", value)
+		}
+	}
+
+	// Additional string validations can be added here (regex, length, etc.)
+	return nil
+}
+
+// validateUserNumberProperty validates number-specific constraints.
+func validateUserNumberProperty(value interface{}, propDef map[string]interface{}) error {
+	// Validate enum constraint
+	if enumValue, exists := propDef["enum"]; exists {
+		enumArray, ok := enumValue.([]interface{})
+		if ok {
+			for _, enumItem := range enumArray {
+				if enumItem == value {
+					return nil
+				}
+			}
+			return fmt.Errorf("value is not in allowed enum values")
+		}
+	}
+
+	// Additional number validations can be added here (min, max, etc.)
+	return nil
+}
+
+// validateUserObjectProperty validates object-specific constraints.
+func validateUserObjectProperty(value map[string]interface{}, propDef map[string]interface{}) error {
+	properties, exists := propDef["properties"]
+	if !exists {
+		return nil
+	}
+
+	propertiesMap, ok := properties.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	// Validate nested properties
+	for nestedPropName, nestedPropDef := range propertiesMap {
+		nestedPropDefMap, ok := nestedPropDef.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		if nestedValue, exists := value[nestedPropName]; exists {
+			if err := validateUserProperty(nestedPropName, nestedValue, nestedPropDefMap); err != nil {
+				return fmt.Errorf("nested property validation failed: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateUserArrayProperty validates array-specific constraints.
+func validateUserArrayProperty(value []interface{}, propDef map[string]interface{}) error {
+	items, exists := propDef["items"]
+	if !exists {
+		return nil
+	}
+
+	itemsMap, ok := items.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	// Validate each array item
+	for i, item := range value {
+		if err := validateUserProperty(fmt.Sprintf("[%d]", i), item, itemsMap); err != nil {
+			return fmt.Errorf("array item validation failed at index %d: %w", i, err)
+		}
+	}
+
+	return nil
 }
