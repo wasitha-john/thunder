@@ -226,7 +226,7 @@ jobs:
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
           echo "$INTRO" >> $GITHUB_ENV
           echo "" >> $GITHUB_ENV
-          echo "## ♻️ What's Changed" >> $GITHUB_ENV
+          echo "## 🔀 What's Changed" >> $GITHUB_ENV
           echo "$CHANGELOG" >> $GITHUB_ENV
           echo "" >> $GITHUB_ENV
           echo "$FEATURES" >> $GITHUB_ENV
