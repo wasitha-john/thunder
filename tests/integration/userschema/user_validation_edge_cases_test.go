@@ -49,25 +49,16 @@ func (ts *UserValidationEdgeCasesTestSuite) SetupSuite() {
 	ts.createdSchemas = []string{}
 	ts.createdUsers = []string{}
 
-	employeeSchemaID := ts.createEmployeeSchema()
-	ts.createdSchemas = append(ts.createdSchemas, employeeSchemaID)
-
-	numericSchemaID := ts.createSchemaWithNumbers()
-	ts.createdSchemas = append(ts.createdSchemas, numericSchemaID)
-
-	statusSchemaID := ts.createSchemaWithStringEnum()
-	ts.createdSchemas = append(ts.createdSchemas, statusSchemaID)
-
-	mixedSchemaID := ts.createSchemaWithMixedEnum()
-	ts.createdSchemas = append(ts.createdSchemas, mixedSchemaID)
+	ts.createEmployeeSchema()
+	ts.createSchemaWithNumbers()
+	ts.createSchemaWithStringEnum()
+	ts.createSchemaWithMixedEnum()
 }
 
 func (ts *UserValidationEdgeCasesTestSuite) TearDownSuite() {
-	// Clean up created users first
 	for _, userID := range ts.createdUsers {
 		ts.deleteUser(userID)
 	}
-	// Then clean up created schemas
 	for _, schemaID := range ts.createdSchemas {
 		ts.deleteSchema(schemaID)
 	}
@@ -163,7 +154,7 @@ func (ts *UserValidationEdgeCasesTestSuite) TestCreateUserWithNumberValidation()
 		}`),
 	}
 
-	ts.createUserAndExpectError(createUserReq2, "USRS-1007")
+	ts.createUserAndExpectError(createUserReq2, "USR-1019")
 }
 
 // TestCreateUserWithStringEnumValidation tests string enum validation
@@ -193,7 +184,7 @@ func (ts *UserValidationEdgeCasesTestSuite) TestCreateUserWithStringEnumValidati
 		}`),
 	}
 
-	ts.createUserAndExpectError(createUserReq2, "USRS-1007")
+	ts.createUserAndExpectError(createUserReq2, "USR-1019")
 }
 
 // TestCreateUserWithMixedEnumValidation tests mixed type enum validation
@@ -223,7 +214,7 @@ func (ts *UserValidationEdgeCasesTestSuite) TestCreateUserWithMixedEnumValidatio
 		}`),
 	}
 
-	ts.createUserAndExpectError(createUserReq2, "USRS-1007")
+	ts.createUserAndExpectError(createUserReq2, "USR-1019")
 }
 
 // TestUpdateUserChangeType tests updating user to different type with different schema
@@ -266,7 +257,7 @@ func (ts *UserValidationEdgeCasesTestSuite) TestUpdateUserChangeType() {
 		}`),
 	}
 
-	ts.updateUserAndExpectError(userID, updateUserReq2, "USRS-1007")
+	ts.updateUserAndExpectError(userID, updateUserReq2, "USR-1019")
 }
 
 // Helper methods to create different schema types

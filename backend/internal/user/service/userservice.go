@@ -170,7 +170,7 @@ func (as *UserService) CreateUser(user *model.User) (*model.User, *serviceerror.
 		return nil, &constants.ErrorInvalidRequestFormat
 	}
 
-	if svcErr := as.userSchemaService.ValidateUser(user.Type, user.Attributes); svcErr != nil {
+	if svcErr := as.validateUserAndUniqueness(user.Type, user.Attributes, logger); svcErr != nil {
 		return nil, svcErr
 	}
 
@@ -305,7 +305,7 @@ func (as *UserService) UpdateUser(userID string, user *model.User) (*model.User,
 		return nil, &constants.ErrorInvalidRequestFormat
 	}
 
-	if svcErr := as.userSchemaService.ValidateUser(user.Type, user.Attributes); svcErr != nil {
+	if svcErr := as.validateUserAndUniqueness(user.Type, user.Attributes, logger); svcErr != nil {
 		return nil, svcErr
 	}
 
@@ -506,6 +506,41 @@ func (as *UserService) ValidateUserIDs(userIDs []string) ([]string, *serviceerro
 	}
 
 	return invalidUserIDs, nil
+}
+
+// validateUserAndUniqueness validates the user schema and checks for uniqueness.
+func (as *UserService) validateUserAndUniqueness(
+	userType string, attributes []byte, logger *log.Logger,
+) *serviceerror.ServiceError {
+	isValid, svcErr := as.userSchemaService.ValidateUser(userType, attributes)
+	if svcErr != nil {
+		return logErrorAndReturnServerError(logger, "Failed to validate user schema", nil)
+	}
+	if !isValid {
+		return &constants.ErrorSchemaValidationFailed
+	}
+
+	isValid, svcErr = as.userSchemaService.ValidateUserUniqueness(userType, attributes,
+		func(filters map[string]interface{}) (*string, error) {
+			userID, svcErr := as.IdentifyUser(filters)
+			if svcErr != nil {
+				if svcErr.Code == constants.ErrorUserNotFound.Code {
+					return nil, nil
+				} else {
+					return nil, errors.New(svcErr.Error)
+				}
+			}
+			return userID, nil
+		})
+	if svcErr != nil {
+		return logErrorAndReturnServerError(logger, "Failed to validate user schema", nil)
+	}
+
+	if !isValid {
+		return &constants.ErrorAttributeConflict
+	}
+
+	return nil
 }
 
 // validateAndProcessHandlePath validates and processes the handle path.
