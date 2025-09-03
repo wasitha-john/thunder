@@ -349,8 +349,9 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 		name          string
 		sub           string
 		aud           string
+		iss           string
 		validity      int64
-		claims        map[string]string
+		claims        map[string]interface{}
 		setupMock     func()
 		setupService  func() *JWTService
 		expectError   bool
@@ -360,8 +361,9 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 			name:     "Success",
 			sub:      "test-subject",
 			aud:      "test-audience",
+			iss:      "test-issuer",
 			validity: 3600,
-			claims: map[string]string{
+			claims: map[string]interface{}{
 				"name":  "John Doe",
 				"email": "john@example.com",
 			},
@@ -377,8 +379,24 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 			name:     "DefaultValidity",
 			sub:      "test-subject",
 			aud:      "test-audience",
+			iss:      "test-issuer",
 			validity: 0, // Should use default
-			claims:   map[string]string{},
+			claims:   map[string]interface{}{},
+			setupMock: func() {
+				suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil).Once()
+			},
+			setupService: func() *JWTService {
+				return suite.jwtService
+			},
+			expectError: false,
+		},
+		{
+			name:     "DefaultIssuer",
+			sub:      "test-subject",
+			aud:      "test-audience",
+			iss:      "", // Should use default
+			validity: 3600,
+			claims:   map[string]interface{}{},
 			setupMock: func() {
 				suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil).Once()
 			},
@@ -391,6 +409,7 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 			name:      "NilPrivateKey",
 			sub:       "sub",
 			aud:       "aud",
+			iss:       "iss",
 			validity:  3600,
 			claims:    nil,
 			setupMock: func() {},
@@ -407,6 +426,7 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 			name:     "GetCertificateKidError",
 			sub:      "sub",
 			aud:      "aud",
+			iss:      "iss",
 			validity: 3600,
 			claims:   nil,
 			setupMock: func() {
@@ -422,6 +442,7 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 			name:     "WithEmptyClaims",
 			sub:      "test-subject",
 			aud:      "test-audience",
+			iss:      "test-issuer",
 			validity: 1800,
 			claims:   nil,
 			setupMock: func() {
@@ -436,6 +457,7 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 			name:     "SigningError",
 			sub:      "sub",
 			aud:      "aud",
+			iss:      "iss",
 			validity: 3600,
 			claims:   nil,
 			setupMock: func() {
@@ -456,7 +478,7 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 			tc.setupMock()
 			jwtService := tc.setupService()
 
-			token, iat, err := jwtService.GenerateJWT(tc.sub, tc.aud, tc.validity, tc.claims)
+			token, iat, err := jwtService.GenerateJWT(tc.sub, tc.aud, tc.iss, tc.validity, tc.claims)
 
 			if tc.expectError {
 				assert.Error(t, err)
@@ -497,8 +519,13 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 
 				assert.Equal(t, tc.sub, payload["sub"])
 				assert.Equal(t, tc.aud, payload["aud"])
-				assert.Equal(t, "https://test.thunder.io", payload["iss"])
 				assert.NotEmpty(t, payload["jti"])
+
+				if tc.iss != "" {
+					assert.Equal(t, tc.iss, payload["iss"])
+				} else {
+					assert.Equal(t, config.GetThunderRuntime().Config.OAuth.JWT.Issuer, payload["iss"])
+				}
 
 				if tc.claims != nil {
 					for k, v := range tc.claims {
@@ -529,7 +556,7 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 
 func (suite *JWTServiceTestSuite) TestVerifyJWTSignature() {
 	suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil).Once()
-	validToken, _, err := suite.jwtService.GenerateJWT("test-subject", "test-audience", 3600, nil)
+	validToken, _, err := suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
 	assert.NoError(suite.T(), err)
 
 	wrongKey, _ := rsa.GenerateKey(rand.Reader, 2048)
@@ -569,7 +596,7 @@ func (suite *JWTServiceTestSuite) TestVerifyJWTSignature() {
 func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKS() {
 	suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil).Once()
 
-	token, _, err := suite.jwtService.GenerateJWT("test-subject", "test-audience", 3600, nil)
+	token, _, err := suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
 	assert.NoError(suite.T(), err)
 
 	testServer := suite.mockJWKSServer()
@@ -736,7 +763,7 @@ func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKSHTTPErrors() {
 				token = strings.Join(parts, ".")
 			} else {
 				suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil).Once()
-				token, _, _ = suite.jwtService.GenerateJWT("test-subject", "test-audience", 3600, nil)
+				token, _, _ = suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
 			}
 
 			err := suite.jwtService.VerifyJWTSignatureWithJWKS(token, testServer.URL)
@@ -749,7 +776,7 @@ func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKSHTTPErrors() {
 func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKSNetworkError() {
 	// Test with invalid URL to trigger network error
 	suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil).Once()
-	token, _, err := suite.jwtService.GenerateJWT("test-subject", "test-audience", 3600, nil)
+	token, _, err := suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
 	assert.NoError(suite.T(), err)
 
 	err = suite.jwtService.VerifyJWTSignatureWithJWKS(token, "http://localhost:99999/invalid")
