@@ -23,6 +23,16 @@ CREATE TABLE USER (
     UPDATED_AT  TEXT DEFAULT (datetime('now'))
 );
 
+-- Table to store User Schemas
+CREATE TABLE USER_SCHEMAS (
+    ID          INTEGER PRIMARY KEY AUTOINCREMENT,
+    SCHEMA_ID   VARCHAR(36) UNIQUE NOT NULL,
+    NAME        VARCHAR(100) UNIQUE NOT NULL,
+    SCHEMA_DEF  TEXT NOT NULL,
+    CREATED_AT  TEXT DEFAULT (datetime('now')),
+    UPDATED_AT  TEXT DEFAULT (datetime('now'))
+);
+
 -- Table to store Groups
 CREATE TABLE "GROUP" (
     ID          INTEGER PRIMARY KEY AUTOINCREMENT,
