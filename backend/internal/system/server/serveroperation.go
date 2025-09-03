@@ -92,16 +92,16 @@ func (ops *ServerOperationService) getAllowedOrigins() ([]string, error) {
 		}
 		if len(results) == 0 {
 			logger.Debug("No allowed origins found")
-			return []string{}, nil
+			originList = []string{}
+		} else {
+			row := results[0]
+			allowedOrigins, ok := row["allowed_origins"].(string)
+			if !ok {
+				logger.Error("Failed to parse allowed_origins as string")
+				return nil, errors.New("failed to parse allowed_origins as string")
+			}
+			originList = utils.ParseStringArray(allowedOrigins, ",")
 		}
-
-		row := results[0]
-		allowedOrigins, ok := row["allowed_origins"].(string)
-		if !ok {
-			logger.Error("Failed to parse allowed_origins as string")
-			return nil, err
-		}
-		originList = utils.ParseStringArray(allowedOrigins, ",")
 
 		if err := ops.OriginCache.Set(cacheKey, originList); err != nil {
 			logger.Error("Failed to cache allowed origins", log.Error(err))
