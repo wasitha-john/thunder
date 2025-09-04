@@ -45,12 +45,14 @@ oauth:
   refresh_token:
     renew_on_grant: false
     validity_period: 86400
-  allowed_origins:
-    - "https://localhost:3000"
-    - "https://localhost:9001"
-    - "https://localhost:9090"
 
 flow:
   graph_directory: "repository/resources/graphs/"
   authn:
     default_flow: "auth_flow_config_basic"
+
+cors:
+  allowed_origins:
+    - "https://localhost:3000"
+    - "https://localhost:9001"
+    - "https://localhost:9090"

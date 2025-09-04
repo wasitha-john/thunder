@@ -70,7 +70,7 @@ func (ops *ServerOperationService) getAllowedOrigins() []string {
 	if !ok {
 		// Get origins from configuration
 		runtimeConfig := config.GetThunderRuntime()
-		originList = runtimeConfig.Config.OAuth.AllowedOrigins
+		originList = runtimeConfig.Config.CORS.AllowedOrigins
 
 		if len(originList) == 0 {
 			logger.Debug("No allowed origins configured in deployment.yaml")

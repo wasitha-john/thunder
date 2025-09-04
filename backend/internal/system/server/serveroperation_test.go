@@ -49,7 +49,7 @@ func (suite *ServerOperationServiceTestSuite) SetupTest() {
 			EvictionPolicy:  "LRU",
 			CleanupInterval: 300,
 		},
-		OAuth: config.OAuthConfig{
+		CORS: config.CORSConfig{
 			AllowedOrigins: []string{"http://example.com", "https://wso2.com"},
 		},
 	}
