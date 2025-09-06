@@ -47,9 +47,9 @@ var (
 )
 
 var (
-	githubAuthTestAppID = "placeholder-github-auth-app-id"
-	githubAuthTestOUID  = "placeholder-github-auth-ou-id"
-	githubAuthTestIDPID = "placeholder-github-auth-idp-id"
+	githubAuthTestAppID string
+	githubAuthTestOUID  string
+	githubAuthTestIDPID string
 )
 
 type GithubAuthFlowTestSuite struct {

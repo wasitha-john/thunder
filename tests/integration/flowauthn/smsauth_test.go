@@ -65,9 +65,9 @@ var (
 )
 
 var (
-	smsAuthTestAppID = "placeholder-sms-auth-app-id"
-	smsAuthTestOUID  = "placeholder-sms-auth-ou-id"
-	smsAuthTestIDPID = "placeholder-sms-auth-idp-id"
+	smsAuthTestAppID string
+	smsAuthTestOUID  string
+	smsAuthTestIDPID string
 )
 
 // NotificationSenderRequest represents the request to create a message notification sender.

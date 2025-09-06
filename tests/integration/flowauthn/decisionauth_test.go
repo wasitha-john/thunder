@@ -76,9 +76,9 @@ var (
 )
 
 var (
-	decisionTestAppID = "placeholder-decision-app-id"
-	decisionTestOUID  = "placeholder-decision-ou-id"
-	decisionTestIDPID = "placeholder-decision-idp-id"
+	decisionTestAppID string
+	decisionTestOUID  string
+	decisionTestIDPID string
 )
 
 type DecisionAndMFAFlowTestSuite struct {

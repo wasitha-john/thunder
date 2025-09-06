@@ -46,9 +46,9 @@ var (
 )
 
 var (
-	testAppID = "placeholder-app-id" // Will be overridden in SetupSuite
-	testOUID  = "placeholder-ou-id"  // Will be overridden in SetupSuite
-	testIDPID = "placeholder-idp-id" // Will be overridden in SetupSuite
+	testAppID string
+	testOUID  string
+	testIDPID string
 )
 
 type BasicRegistrationFlowTestSuite struct {

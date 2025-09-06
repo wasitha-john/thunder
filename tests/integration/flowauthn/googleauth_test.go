@@ -47,9 +47,9 @@ var (
 )
 
 var (
-	googleAuthTestAppID = "placeholder-google-auth-app-id"
-	googleAuthTestOUID  = "placeholder-google-auth-ou-id"
-	googleAuthTestIDPID = "placeholder-google-auth-idp-id"
+	googleAuthTestAppID string
+	googleAuthTestOUID  string
+	googleAuthTestIDPID string
 )
 
 type GoogleAuthFlowTestSuite struct {
