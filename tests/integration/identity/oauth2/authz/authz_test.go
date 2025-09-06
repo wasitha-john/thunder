@@ -41,6 +41,11 @@ const (
 	testServerURL = "https://localhost:8095"
 )
 
+var (
+	testOUID  string
+	testIDPID string
+)
+
 type AuthzTestSuite struct {
 	suite.Suite
 	applicationID string
@@ -118,6 +123,53 @@ func (ts *AuthzTestSuite) SetupSuite() {
 
 	ts.applicationID = respData["id"].(string)
 	ts.T().Logf("Created test application with ID: %s", ts.applicationID)
+
+	// Create Local IDP for OAuth2 tests
+	idpID, err := createLocalIdp()
+	if err != nil {
+		ts.T().Fatalf("Failed to create Local IDP during setup: %v", err)
+	}
+	testIDPID = idpID
+	ts.T().Logf("Created Local IDP with ID: %s", testIDPID)
+
+	// Create test organization unit for user creation
+	ouData := map[string]interface{}{
+		"handle":      "oauth2-authz-test-ou",
+		"name":        "OAuth2 Authorization Test OU",
+		"description": "Organization unit for OAuth2 authorization testing",
+		"parent":      nil,
+	}
+
+	ouJSON, err := json.Marshal(ouData)
+	if err != nil {
+		ts.T().Fatalf("Failed to marshal OU data: %v", err)
+	}
+
+	ouReqBody := bytes.NewReader(ouJSON)
+	ouReq, err := http.NewRequest("POST", testServerURL+"/organization-units", ouReqBody)
+	if err != nil {
+		ts.T().Fatalf("Failed to create OU request: %v", err)
+	}
+	ouReq.Header.Set("Content-Type", "application/json")
+
+	ouResp, err := ts.client.Do(ouReq)
+	if err != nil {
+		ts.T().Fatalf("Failed to send OU request: %v", err)
+	}
+	defer ouResp.Body.Close()
+
+	if ouResp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := io.ReadAll(ouResp.Body)
+		ts.T().Fatalf("Failed to create OU. Status: %d, Response: %s", ouResp.StatusCode, string(bodyBytes))
+	}
+
+	var ouRespData map[string]interface{}
+	if err := json.NewDecoder(ouResp.Body).Decode(&ouRespData); err != nil {
+		ts.T().Fatalf("Failed to parse OU response: %v", err)
+	}
+
+	testOUID = ouRespData["id"].(string)
+	ts.T().Logf("Created test organization unit with ID: %s", testOUID)
 }
 
 func (ts *AuthzTestSuite) TearDownSuite() {
@@ -144,6 +196,37 @@ func (ts *AuthzTestSuite) TearDownSuite() {
 	}
 
 	ts.T().Logf("Successfully deleted test application with ID: %s", ts.applicationID)
+
+	// Delete test organization unit
+	if testOUID != "" {
+		ouReq, err := http.NewRequest("DELETE", fmt.Sprintf("%s/organization-units/%s", testServerURL, testOUID), nil)
+		if err != nil {
+			ts.T().Errorf("Failed to create OU delete request: %v", err)
+			return
+		}
+
+		ouResp, err := ts.client.Do(ouReq)
+		if err != nil {
+			ts.T().Errorf("Failed to delete organization unit: %v", err)
+			return
+		}
+		defer ouResp.Body.Close()
+
+		if ouResp.StatusCode != http.StatusNoContent {
+			ts.T().Errorf("Failed to delete organization unit. Status: %d", ouResp.StatusCode)
+		} else {
+			ts.T().Logf("Successfully deleted test organization unit with ID: %s", testOUID)
+		}
+	}
+
+	// Delete Local IDP
+	if testIDPID != "" {
+		if err := deleteIdp(testIDPID); err != nil {
+			ts.T().Errorf("Failed to delete Local IDP during teardown: %v", err)
+		} else {
+			ts.T().Logf("Successfully deleted Local IDP with ID: %s", testIDPID)
+		}
+	}
 }
 
 // TestBasicAuthorizationRequest tests the basic authorization request flow
@@ -251,7 +334,7 @@ func (ts *AuthzTestSuite) TestTokenRequestValidation() {
 	username := "token_test_user"
 	password := "testpass123"
 
-	userID, err := createTestUser(testServerURL, username, password)
+	userID, err := createTestUser(testServerURL, username, password, testOUID)
 	ts.NoError(err, "Failed to create test user")
 	defer func() {
 		if err := deleteTestUser(testServerURL, userID); err != nil {
@@ -577,7 +660,7 @@ func (ts *AuthzTestSuite) TestCompleteAuthorizationCodeFlow() {
 	for _, tc := range testCases {
 		ts.Run(tc.Name, func() {
 			// Create test user with credentials
-			userID, err := createTestUser(testServerURL, tc.Username, tc.Password)
+			userID, err := createTestUser(testServerURL, tc.Username, tc.Password, testOUID)
 			if err != nil {
 				ts.T().Fatalf("Failed to create test user: %v", err)
 			}
@@ -688,7 +771,7 @@ func (ts *AuthzTestSuite) TestAuthorizationCodeErrorScenarios() {
 	for _, tc := range testCases {
 		ts.Run(tc.Name, func() {
 			// Create test user
-			userID, err := createTestUser(testServerURL, tc.Username, tc.Password)
+			userID, err := createTestUser(testServerURL, tc.Username, tc.Password, testOUID)
 			ts.NoError(err, "Failed to create test user")
 			defer func() {
 				if err := deleteTestUser(testServerURL, userID); err != nil {

@@ -103,9 +103,9 @@ type FlowStep struct {
 }
 
 // createTestUser creates a test user with the given credentials
-func createTestUser(testServerURL string, username, password string) (string, error) {
+func createTestUser(testServerURL string, username, password, ouID string) (string, error) {
 	userData := User{
-		OrganizationUnit: "456e8400-e29b-41d4-a716-446655440001",
+		OrganizationUnit: ouID,
 		Type:             "person",
 		Attributes: map[string]interface{}{
 			"username":  username,
@@ -440,4 +440,100 @@ func validateOAuth2ErrorRedirect(location string, expectedError string, expected
 	}
 
 	return fmt.Errorf("no error parameters found in redirect URL (neither 'error'/'error_description' nor 'errorCode'/'errorMessage')")
+}
+
+// IDP structures for OAuth2 tests
+type IDPProperty struct {
+	Name     string `json:"name"`
+	Value    string `json:"value"`
+	IsSecret bool   `json:"is_secret"`
+}
+
+type IDP struct {
+	ID          string        `json:"id,omitempty"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Properties  []IDPProperty `json:"properties"`
+}
+
+// createIdp creates an identity provider via API
+func createIdp(idp IDP) (string, error) {
+	idpJSON, err := json.Marshal(idp)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal IDP: %w", err)
+	}
+
+	reqBody := bytes.NewReader(idpJSON)
+	req, err := http.NewRequest("POST", testServerURL+"/identity-providers", reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		responseBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("expected status 201, got %d. Response: %s", resp.StatusCode, string(responseBody))
+	}
+
+	var createdIdp map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&createdIdp)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse response body: %w", err)
+	}
+
+	id, ok := createdIdp["id"].(string)
+	if !ok {
+		return "", fmt.Errorf("response does not contain id")
+	}
+	return id, nil
+}
+
+// deleteIdp deletes an identity provider via API
+func deleteIdp(idpID string) error {
+	req, err := http.NewRequest("DELETE", testServerURL+"/identity-providers/"+idpID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		responseBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("expected status 200 or 204, got %d. Response: %s", resp.StatusCode, string(responseBody))
+	}
+	return nil
+}
+
+// createLocalIdp creates a Local identity provider for testing
+func createLocalIdp() (string, error) {
+	localIdp := IDP{
+		Name:        "Local",
+		Description: "Local Identity Provider for testing",
+		Properties: []IDPProperty{
+			{Name: "type", Value: "local", IsSecret: false},
+		},
+	}
+	return createIdp(localIdp)
 }
