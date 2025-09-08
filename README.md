@@ -64,17 +64,7 @@ Follow these steps to download the latest release of WSO2 Thunder and run it loc
     cd thunder-<version>-<os>-<arch>/
     ```
 
-3. **Seed the database with initial data**
-
-    Thunder uses an embedded sqlite database by default. To seed the database with initial data, run the following command:
-
-    ```bash
-    ./scripts/seed_data.sh -type sqlite -seed dbscripts/thunderdb/seed_data_sqlite.sql -path repository/database/thunderdb.db
-    ```
-
-    This will insert the initial data into the database, including the default user, application, and identity provider configurations.
-
-4. **Start the product**
+3. **Start the product**
 
     Start the product using the following command:
 
@@ -147,14 +137,55 @@ To quickly get started with Thunder, you can use the sample app provided with th
     cd thunder-sample-app-<version>-<os>-<arch>/
     ```
 
-3. Configure the sample app
+3. **Create required entities for the sample app**
 
-    Open the `runtime.json` file in the thunder-sample-app-<version>-<os>-<arch>/app directory and update the configurations as per your setup. The default configurations should work for most cases, but you can customize the following properties:
+    Before using the sample app, you need to create the required entities. Follow these steps:
 
-    - `applicationID`: The ID of the application you want to use for authentication. By default, it is set to `550e8400-e29b-41d4-a716-446655440000`.
-    - `flowEndpoint`: The root endpoint for the flow execution API. By default, it is set to `https://localhost:8090/flow`.
+    a. **Create a Local Identity Provider** (required for basic authentication):
 
-4. Start the sample app
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers \
+    -d '{
+        "name": "Local",
+        "description": "Local Identity Provider for basic authentication"
+    }'
+    ```
+
+    b. **Create an Application**:
+
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
+    -d '{
+        "name": "Sample App",
+        "description": "Sample application for testing",
+        "url": "https://localhost:3000",
+        "logo_url": "https://localhost:3000/logo.png",
+        "auth_flow_graph_id": "auth_flow_config_basic",
+        "registration_flow_graph_id": "registration_flow_config_basic",
+        "is_registration_flow_enabled": true,
+        "inbound_auth_config": [{
+            "type": "oauth2",
+            "config": {
+                "client_id": "sample_app_client",
+                "client_secret": "sample_app_secret",
+                "redirect_uris": ["https://localhost:3000"],
+                "grant_types": ["authorization_code", "client_credentials"],
+                "response_types": ["code"],
+                "token_endpoint_auth_methods": ["client_secret_basic", "client_secret_post"]
+            }
+        }]
+    }'
+    ```
+
+    Note the `id` from the response - you'll need it for the sample app configuration.
+
+4. **Configure the sample app**
+
+    Open the `runtime.json` file in the thunder-sample-app-<version>-<os>-<arch>/app directory and update the configurations:
+    - `applicationID`: Use the application ID from step 3b
+    - `flowEndpoint`: The root endpoint for the flow execution API (default: `https://localhost:8090/flow`)
+
+5. **Start the sample app**
 
     ```bash
     sh start.sh
@@ -198,7 +229,7 @@ To try out the Client Credentials flow, follow these steps:
 
 1. Create a Client Application
 
-   Create a client application in the system to use for the Client Credentials flow. You can use the following cURL command to create a new application. Alternatively, you can use the initial application created with the data seeding script.
+   Create a client application in the system to use for the Client Credentials flow. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -259,7 +290,7 @@ To try out the Client Credentials flow, follow these steps:
 
 1. **Create a Client Application**
 
-    Create a client application in the system to use for the Client Credentials flow. You can use the following cURL command to create a new application. Alternatively, you can use the initial application created with the data seeding script.
+    Create a client application in the system to use for the Client Credentials flow. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -332,7 +363,7 @@ To try out the Client Credentials flow, follow these steps:
 
 2. **Create a Client Application**
 
-    Create a client application in the system to use for the Authorization Code flow. You can use the following cURL command to create a new application. Alternatively, you can use the initial application created with the data seeding script.
+    Create a client application in the system to use for the Authorization Code flow. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -364,12 +395,23 @@ To try out the Client Credentials flow, follow these steps:
 
 3. **Create a User**
 
-    Create a user in the system if you haven't already. You can use the following cURL command to create a user with the required attributes.
+    Create a user in the system if you haven't already. First, create an organization unit, then create a user with the required attributes.
+
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/organization-units \
+    -d '{
+        "name": "Asgard",
+        "description": "Realm of the gods",
+        "handle": "asgard"
+    }'
+    ```
+
+    Note the `id` from the response above, then use it in the user creation:
 
     ```bash
     curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
     -d '{
-        "organizationUnit": "456e8400-e29b-41d4-a716-446655440001",
+        "organizationUnit": "{ou-id-from-above}",
         "type": "superhuman",
         "attributes": {
             "username": "thor",
@@ -440,7 +482,7 @@ To try out the Client Credentials flow, follow these steps:
 
 1. **Create a Client Application**
 
-    Create a client application in the system to use for the Refresh Token flow. You can use the following cURL command to create a new application. Alternatively, you can use the initial application created with the data seeding script.
+    Create a client application in the system to use for the Refresh Token flow. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -534,12 +576,23 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 1. **Create a User**
 
-    Create a user in the system if you haven't already. You can use the following cURL command to create a user with the required attributes.
+    Create a user in the system if you haven't already. First, create an organization unit, then create a user with the required attributes.
+
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/organization-units \
+    -d '{
+        "name": "Asgard",
+        "description": "Realm of the gods",
+        "handle": "asgard"
+    }'
+    ```
+
+    Note the `id` from the response above, then use it in the user creation:
 
     ```bash
     curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
     -d '{
-        "organizationUnit": "456e8400-e29b-41d4-a716-446655440001",
+        "organizationUnit": "{ou-id-from-above}",
         "type": "superhuman",
         "attributes": {
             "username": "thor",
@@ -563,7 +616,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 2. **Configure an Application with Username/Password Login**
 
-    Create an application or update the initial application created with the data seeding script to use the username/password login template. You can use the following cURL command to create a new application.
+    Create an application to use the username/password login template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -574,40 +627,6 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
-
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
-    -d '{
-        "name": "Test SPA",
-        "description": "Initial testing App",
-        "auth_flow_graph_id": "auth_flow_config_basic",
-        "inbound_auth_config": [
-            {
-                "type": "oauth2",
-                "config": {
-                    "client_id": "<client_id>",
-                    "client_secret": "<client_secret>",
-                    "redirect_uris": [
-                        "https://localhost:3000"
-                    ],
-                    "grant_types": [
-                        "client_credentials",
-                        "authorization_code",
-                        "refresh_token"
-                    ],
-                    "response_types": [
-                        "code"
-                    ],
-                    "token_endpoint_auth_methods": [
-                        "client_secret_basic",
-                        "client_secret_post"
-                    ]
-                }
-            }
-        ]
-    }'
-    ```
 
 3. **Start the Login Flow**
 
@@ -748,7 +767,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 4. **Configure an Application with Google Login**
 
-    Create an application or update the initial application created with the data seeding script to use the Google login template. You can use the following cURL command to create a new application.
+    Create an application to use the Google login template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -759,40 +778,6 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
-
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
-    -d '{
-        "name": "Test SPA",
-        "description": "Initial testing App",
-        "auth_flow_graph_id": "auth_flow_config_google",
-        "inbound_auth_config": [
-            {
-                "type": "oauth2",
-                "config": {
-                    "client_id": "<client_id>",
-                    "client_secret": "<client_secret>",
-                    "redirect_uris": [
-                        "https://localhost:3000"
-                    ],
-                    "grant_types": [
-                        "client_credentials",
-                        "authorization_code",
-                        "refresh_token"
-                    ],
-                    "response_types": [
-                        "code"
-                    ],
-                    "token_endpoint_auth_methods": [
-                        "client_secret_basic",
-                        "client_secret_post"
-                    ]
-                }
-            }
-        ]
-    }'
-    ```
 
 5. **Start the Login Flow**
 
@@ -947,7 +932,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 4. **Configure an Application with GitHub Login**
 
-    Create an application or update the initial application created with the data seeding script to use the Github login template. You can use the following cURL command to create a new application.
+    Create an application to use the Github login template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -958,40 +943,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
-    -d '{
-        "name": "Test SPA",
-        "description": "Initial testing App",
-        "auth_flow_graph_id": "auth_flow_config_github",
-        "inbound_auth_config": [
-            {
-                "type": "oauth2",
-                "config": {
-                    "client_id": "<client_id>",
-                    "client_secret": "<client_secret>",
-                    "redirect_uris": [
-                        "https://localhost:3000"
-                    ],
-                    "grant_types": [
-                        "client_credentials",
-                        "authorization_code",
-                        "refresh_token"
-                    ],
-                    "response_types": [
-                        "code"
-                    ],
-                    "token_endpoint_auth_methods": [
-                        "client_secret_basic",
-                        "client_secret_post"
-                    ]
-                }
-            }
-        ]
-    }'
-    ```
 
 5. **Start the Login Flow**
 
@@ -1097,7 +1049,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 4. **Configure an Application with SMS OTP Login**
 
-    Create an application or update the initial application created with the data seeding script to use the SMS OTP login template. You can use the following cURL command to create a new application.
+    Create an application to use the SMS OTP login template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -1108,49 +1060,27 @@ curl -kL https://localhost:8090/oauth2/jwks
     }'
     ```
 
-    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
-    -d '{
-        "name": "Test SPA",
-        "description": "Initial testing App",
-        "auth_flow_graph_id": "auth_flow_config_sms",
-        "inbound_auth_config": [
-            {
-                "type": "oauth2",
-                "config": {
-                    "client_id": "<client_id>",
-                    "client_secret": "<client_secret>",
-                    "redirect_uris": [
-                        "https://localhost:3000"
-                    ],
-                    "grant_types": [
-                        "client_credentials",
-                        "authorization_code",
-                        "refresh_token"
-                    ],
-                    "response_types": [
-                        "code"
-                    ],
-                    "token_endpoint_auth_methods": [
-                        "client_secret_basic",
-                        "client_secret_post"
-                    ]
-                }
-            }
-        ]
-    }'
-    ```
 
 5. **Create a User with Mobile Number**
 
-    Create a user in the system with a mobile number attribute to receive SMS OTP. You can use the following cURL command to create a user with the required attributes.
+    Create a user in the system with a mobile number attribute to receive SMS OTP. First, create an organization unit, then create a user with the required attributes.
+
+    ```bash
+    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/organization-units \
+    -d '{
+        "name": "Asgard",
+        "description": "Realm of the gods",
+        "handle": "asgard"
+    }'
+    ```
+
+    Note the `id` from the response above, then use it in the user creation:
 
     ```bash
     curl -kL -H 'Content-Type: application/json' https://localhost:8090/users \
     -d '{
-        "organizationUnit": "456e8400-e29b-41d4-a716-446655440001",
+        "organizationUnit": "{ou-id-from-above}",
         "type": "superhuman",
         "attributes": {
             "username": "thor",
@@ -1224,18 +1154,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 <p>Thunder allows you to control whether users can self-register for your application using the application management API. By default, self-registration is disabled when you create an application.</p>
 
-<p>To enable self-registration, set the `is_registration_flow_enabled` property to `true`. This can be done using the following cURL command:</p>
-
-```bash
-curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
--d '{
-    "name": "Test SPA",
-    "description": "Initial testing App",
-    "auth_flow_graph_id": "auth_flow_config_basic",
-    "registration_flow_graph_id": "registration_flow_config_basic",
-    "is_registration_flow_enabled": true
-}'
-```
+<p>To enable self-registration, set the `is_registration_flow_enabled` property to `true` when creating or updating an application.</p>
 
 </details>
 
@@ -1244,7 +1163,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
 
 1. **Configure an Application with Username/Password Registration**
 
-    Create an application or update the initial application created with the data seeding script to use the username/password registration template. You can use the following cURL command to create a new application.
+    Create an application to use the username/password registration template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -1257,42 +1176,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
     }'
     ```
 
-    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
-    -d '{
-        "name": "Test SPA",
-        "description": "Initial testing App",
-        "auth_flow_graph_id": "auth_flow_config_basic",
-        "registration_flow_graph_id": "registration_flow_config_basic",
-        "is_registration_flow_enabled": true,
-        "inbound_auth_config": [
-            {
-                "type": "oauth2",
-                "config": {
-                    "client_id": "<client_id>",
-                    "client_secret": "<client_secret>",
-                    "redirect_uris": [
-                        "https://localhost:3000"
-                    ],
-                    "grant_types": [
-                        "client_credentials",
-                        "authorization_code",
-                        "refresh_token"
-                    ],
-                    "response_types": [
-                        "code"
-                    ],
-                    "token_endpoint_auth_methods": [
-                        "client_secret_basic",
-                        "client_secret_post"
-                    ]
-                }
-            }
-        ]
-    }'
-    ```
 
 2. **Start the Registration Flow**
 
@@ -1484,7 +1368,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
 
 4. **Configure an Application with Google Sign Up**
 
-    Create an application or update the initial application created with the data seeding script to use the Google sign up template. You can use the following cURL command to create a new application.
+    Create an application to use the Google sign up template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -1497,42 +1381,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
     }'
     ```
 
-    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
-    -d '{
-        "name": "Test SPA",
-        "description": "Initial testing App",
-        "auth_flow_graph_id": "auth_flow_config_google",
-        "registration_flow_graph_id": "registration_flow_config_google",
-        "is_registration_flow_enabled": true,
-        "inbound_auth_config": [
-            {
-                "type": "oauth2",
-                "config": {
-                    "client_id": "<client_id>",
-                    "client_secret": "<client_secret>",
-                    "redirect_uris": [
-                        "https://localhost:3000"
-                    ],
-                    "grant_types": [
-                        "client_credentials",
-                        "authorization_code",
-                        "refresh_token"
-                    ],
-                    "response_types": [
-                        "code"
-                    ],
-                    "token_endpoint_auth_methods": [
-                        "client_secret_basic",
-                        "client_secret_post"
-                    ]
-                }
-            }
-        ]
-    }'
-    ```
 
 5. **Start the Registration Flow**
 
@@ -1694,7 +1543,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
 
 4. **Configure an Application with GitHub Sign Up**
 
-    Create an application or update the initial application created with the data seeding script to use the GitHub sign up template. You can use the following cURL command to create a new application.
+    Create an application to use the GitHub sign up template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -1707,42 +1556,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
     }'
     ```
 
-    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
-    -d '{
-        "name": "Test SPA",
-        "description": "Initial testing App",
-        "auth_flow_graph_id": "auth_flow_config_github",
-        "registration_flow_graph_id": "registration_flow_config_github",
-        "is_registration_flow_enabled": true,
-        "inbound_auth_config": [
-            {
-                "type": "oauth2",
-                "config": {
-                    "client_id": "<client_id>",
-                    "client_secret": "<client_secret>",
-                    "redirect_uris": [
-                        "https://localhost:3000"
-                    ],
-                    "grant_types": [
-                        "client_credentials",
-                        "authorization_code",
-                        "refresh_token"
-                    ],
-                    "response_types": [
-                        "code"
-                    ],
-                    "token_endpoint_auth_methods": [
-                        "client_secret_basic",
-                        "client_secret_post"
-                    ]
-                }
-            }
-        ]
-    }'
-    ```
 
 5. **Start the Registration Flow**
 
@@ -1854,7 +1668,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
 
 4. **Configure an Application with SMS OTP Registration**
 
-    Create an application or update the initial application created with the data seeding script to use the SMS OTP registration template. You can use the following cURL command to create a new application.
+    Create an application to use the SMS OTP registration template. You can use the following cURL command to create a new application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -1867,42 +1681,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
     }'
     ```
 
-    Alternatively, you can update the initial application created with the data seeding script with the following cURL command:
 
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications/550e8400-e29b-41d4-a716-446655440000 \
-    -d '{
-        "name": "Test SPA",
-        "description": "Initial testing App",
-        "auth_flow_graph_id": "auth_flow_config_sms",
-        "registration_flow_graph_id": "registration_flow_config_sms",
-        "is_registration_flow_enabled": true,
-        "inbound_auth_config": [
-            {
-                "type": "oauth2",
-                "config": {
-                    "client_id": "<client_id>",
-                    "client_secret": "<client_secret>",
-                    "redirect_uris": [
-                        "https://localhost:3000"
-                    ],
-                    "grant_types": [
-                        "client_credentials",
-                        "authorization_code",
-                        "refresh_token"
-                    ],
-                    "response_types": [
-                        "code"
-                    ],
-                    "token_endpoint_auth_methods": [
-                        "client_secret_basic",
-                        "client_secret_post"
-                    ]
-                }
-            }
-        ]
-    }'
-    ```
 
 5. **Start the Registration Flow**
 
@@ -2095,7 +1874,7 @@ curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json
   ```
   VITE_REACT_APP_SERVER_FLOW_ENDPOINT=https://localhost:8090/flow
   VITE_REACT_APPLICATIONS_ENDPOINT=https://localhost:8090/applications
-  VITE_REACT_APP_AUTH_APP_ID=550e8400-e29b-41d4-a716-446655440000
+  VITE_REACT_APP_AUTH_APP_ID={your-application-id}
   VITE_REACT_APP_REDIRECT_BASED_LOGIN=false
   ```
 
@@ -2231,30 +2010,6 @@ The product will now use the PostgreSQL database for its operations.
 
 </details>
 
-<details>
-<summary><h3>Seeding the Database with Initial Data</h3></summary>
-
-Thunder provides a script to seed your database with initial data, including default users, applications, and identity provider configurations.
-
-#### For SQLite
-
-If you are using the default SQLite configuration, simply run the seed script from the distribution directory:
-
-```bash
-./scripts/seed_data.sh -type sqlite -seed dbscripts/thunderdb/seed_data_sqlite.sql -path repository/database/thunderdb.db
-```
-
-#### For PostgreSQL
-
-If you are using PostgreSQL, first ensure your database is set up and configured as described in the previous section. Then, run the seed script with the required flags:
-
-```bash
-./scripts/seed_data.sh -type postgres -seed dbscripts/thunderdb/seed_data_postgres.sql -host <host> -port <port> -name thunderdb -username <username> -password <password>
-```
-
-Replace `<host>`, `<port>`, `<username>`, and `<password>` with your PostgreSQL connection details.
-
-</details>
 </details>
 
 ---
