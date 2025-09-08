@@ -353,8 +353,8 @@ func (_c *UserServiceInterfaceMock_GetUser_Call) RunAndReturn(run func(userID st
 }
 
 // GetUserList provides a mock function for the type UserServiceInterfaceMock
-func (_mock *UserServiceInterfaceMock) GetUserList(limit int, offset int) (*model.UserListResponse, *serviceerror.ServiceError) {
-	ret := _mock.Called(limit, offset)
+func (_mock *UserServiceInterfaceMock) GetUserList(limit int, offset int, filters map[string]interface{}) (*model.UserListResponse, *serviceerror.ServiceError) {
+	ret := _mock.Called(limit, offset, filters)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUserList")
@@ -362,18 +362,18 @@ func (_mock *UserServiceInterfaceMock) GetUserList(limit int, offset int) (*mode
 
 	var r0 *model.UserListResponse
 	var r1 *serviceerror.ServiceError
-	if returnFunc, ok := ret.Get(0).(func(int, int) (*model.UserListResponse, *serviceerror.ServiceError)); ok {
-		return returnFunc(limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(int, int, map[string]interface{}) (*model.UserListResponse, *serviceerror.ServiceError)); ok {
+		return returnFunc(limit, offset, filters)
 	}
-	if returnFunc, ok := ret.Get(0).(func(int, int) *model.UserListResponse); ok {
-		r0 = returnFunc(limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(int, int, map[string]interface{}) *model.UserListResponse); ok {
+		r0 = returnFunc(limit, offset, filters)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.UserListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(int, int) *serviceerror.ServiceError); ok {
-		r1 = returnFunc(limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(int, int, map[string]interface{}) *serviceerror.ServiceError); ok {
+		r1 = returnFunc(limit, offset, filters)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(*serviceerror.ServiceError)
@@ -390,11 +390,12 @@ type UserServiceInterfaceMock_GetUserList_Call struct {
 // GetUserList is a helper method to define mock.On call
 //   - limit int
 //   - offset int
-func (_e *UserServiceInterfaceMock_Expecter) GetUserList(limit interface{}, offset interface{}) *UserServiceInterfaceMock_GetUserList_Call {
-	return &UserServiceInterfaceMock_GetUserList_Call{Call: _e.mock.On("GetUserList", limit, offset)}
+//   - filters map[string]interface{}
+func (_e *UserServiceInterfaceMock_Expecter) GetUserList(limit interface{}, offset interface{}, filters interface{}) *UserServiceInterfaceMock_GetUserList_Call {
+	return &UserServiceInterfaceMock_GetUserList_Call{Call: _e.mock.On("GetUserList", limit, offset, filters)}
 }
 
-func (_c *UserServiceInterfaceMock_GetUserList_Call) Run(run func(limit int, offset int)) *UserServiceInterfaceMock_GetUserList_Call {
+func (_c *UserServiceInterfaceMock_GetUserList_Call) Run(run func(limit int, offset int, filters map[string]interface{})) *UserServiceInterfaceMock_GetUserList_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 int
 		if args[0] != nil {
@@ -404,9 +405,14 @@ func (_c *UserServiceInterfaceMock_GetUserList_Call) Run(run func(limit int, off
 		if args[1] != nil {
 			arg1 = args[1].(int)
 		}
+		var arg2 map[string]interface{}
+		if args[2] != nil {
+			arg2 = args[2].(map[string]interface{})
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -417,14 +423,14 @@ func (_c *UserServiceInterfaceMock_GetUserList_Call) Return(userListResponse *mo
 	return _c
 }
 
-func (_c *UserServiceInterfaceMock_GetUserList_Call) RunAndReturn(run func(limit int, offset int) (*model.UserListResponse, *serviceerror.ServiceError)) *UserServiceInterfaceMock_GetUserList_Call {
+func (_c *UserServiceInterfaceMock_GetUserList_Call) RunAndReturn(run func(limit int, offset int, filters map[string]interface{}) (*model.UserListResponse, *serviceerror.ServiceError)) *UserServiceInterfaceMock_GetUserList_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetUsersByPath provides a mock function for the type UserServiceInterfaceMock
-func (_mock *UserServiceInterfaceMock) GetUsersByPath(handlePath string, limit int, offset int) (*model.UserListResponse, *serviceerror.ServiceError) {
-	ret := _mock.Called(handlePath, limit, offset)
+func (_mock *UserServiceInterfaceMock) GetUsersByPath(handlePath string, limit int, offset int, filters map[string]interface{}) (*model.UserListResponse, *serviceerror.ServiceError) {
+	ret := _mock.Called(handlePath, limit, offset, filters)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUsersByPath")
@@ -432,18 +438,18 @@ func (_mock *UserServiceInterfaceMock) GetUsersByPath(handlePath string, limit i
 
 	var r0 *model.UserListResponse
 	var r1 *serviceerror.ServiceError
-	if returnFunc, ok := ret.Get(0).(func(string, int, int) (*model.UserListResponse, *serviceerror.ServiceError)); ok {
-		return returnFunc(handlePath, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(string, int, int, map[string]interface{}) (*model.UserListResponse, *serviceerror.ServiceError)); ok {
+		return returnFunc(handlePath, limit, offset, filters)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, int, int) *model.UserListResponse); ok {
-		r0 = returnFunc(handlePath, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(string, int, int, map[string]interface{}) *model.UserListResponse); ok {
+		r0 = returnFunc(handlePath, limit, offset, filters)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.UserListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, int, int) *serviceerror.ServiceError); ok {
-		r1 = returnFunc(handlePath, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(string, int, int, map[string]interface{}) *serviceerror.ServiceError); ok {
+		r1 = returnFunc(handlePath, limit, offset, filters)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(*serviceerror.ServiceError)
@@ -461,11 +467,12 @@ type UserServiceInterfaceMock_GetUsersByPath_Call struct {
 //   - handlePath string
 //   - limit int
 //   - offset int
-func (_e *UserServiceInterfaceMock_Expecter) GetUsersByPath(handlePath interface{}, limit interface{}, offset interface{}) *UserServiceInterfaceMock_GetUsersByPath_Call {
-	return &UserServiceInterfaceMock_GetUsersByPath_Call{Call: _e.mock.On("GetUsersByPath", handlePath, limit, offset)}
+//   - filters map[string]interface{}
+func (_e *UserServiceInterfaceMock_Expecter) GetUsersByPath(handlePath interface{}, limit interface{}, offset interface{}, filters interface{}) *UserServiceInterfaceMock_GetUsersByPath_Call {
+	return &UserServiceInterfaceMock_GetUsersByPath_Call{Call: _e.mock.On("GetUsersByPath", handlePath, limit, offset, filters)}
 }
 
-func (_c *UserServiceInterfaceMock_GetUsersByPath_Call) Run(run func(handlePath string, limit int, offset int)) *UserServiceInterfaceMock_GetUsersByPath_Call {
+func (_c *UserServiceInterfaceMock_GetUsersByPath_Call) Run(run func(handlePath string, limit int, offset int, filters map[string]interface{})) *UserServiceInterfaceMock_GetUsersByPath_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -479,10 +486,15 @@ func (_c *UserServiceInterfaceMock_GetUsersByPath_Call) Run(run func(handlePath 
 		if args[2] != nil {
 			arg2 = args[2].(int)
 		}
+		var arg3 map[string]interface{}
+		if args[3] != nil {
+			arg3 = args[3].(map[string]interface{})
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -493,7 +505,7 @@ func (_c *UserServiceInterfaceMock_GetUsersByPath_Call) Return(userListResponse 
 	return _c
 }
 
-func (_c *UserServiceInterfaceMock_GetUsersByPath_Call) RunAndReturn(run func(handlePath string, limit int, offset int) (*model.UserListResponse, *serviceerror.ServiceError)) *UserServiceInterfaceMock_GetUsersByPath_Call {
+func (_c *UserServiceInterfaceMock_GetUsersByPath_Call) RunAndReturn(run func(handlePath string, limit int, offset int, filters map[string]interface{}) (*model.UserListResponse, *serviceerror.ServiceError)) *UserServiceInterfaceMock_GetUsersByPath_Call {
 	_c.Call.Return(run)
 	return _c
 }

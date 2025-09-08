@@ -32,6 +32,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/limitQueryParam'
         - $ref: '#/components/parameters/offsetQueryParam'
+        - $ref: '#/components/parameters/filterParam'
       responses:
         "200":
           description: List of users
@@ -100,6 +101,12 @@ paths:
                     code: "USR-1012"
                     message: "Invalid pagination parameter"
                     description: "The offset parameter must be a non-negative integer"
+                invalid-filter:
+                  summary: Invalid filter parameter
+                  value:
+                    code: "USR-1020"
+                    message: "Invalid filter parameter"
+                    description: "The filter format is invalid"
         "500":
           description: Internal server error
     post:
@@ -418,6 +425,7 @@ paths:
           example: "engineering/frontend"
         - $ref: '#/components/parameters/limitQueryParam'
         - $ref: '#/components/parameters/offsetQueryParam'
+        - $ref: '#/components/parameters/filterParam'
       responses:
         "200":
           description: List of users in the organization unit
@@ -454,6 +462,12 @@ paths:
                     code: "USR-1012"
                     message: "Invalid pagination parameter"
                     description: "The offset parameter must be a non-negative integer"
+                invalid-filter:
+                  summary: Invalid filter parameter
+                  value:
+                    code: "USR-1020"
+                    message: "Invalid filter parameter"
+                    description: "The filter format is invalid"
         "404":
           description: Organization unit not found
           content:
@@ -1038,7 +1052,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                code: "USR-1019"
+                code: "USR-1018"
                 message: "Authentication failed"
                 description: "Invalid credentials provided"
         "404":
@@ -1083,6 +1097,30 @@ components:
       schema:
         type: integer
         default: 0
+    filterParam:
+      in: query
+      name: filter
+      required: false
+      description: |
+        Filter users by attribute values.
+        Supported operators: eq (ie. equals).
+        Format: `attribute operator "value"`.
+        Examples:
+        - `username eq "john.doe"` - Users with username = "john.doe"'
+        - `age eq 25` - Users with age = 25
+        - `address.city eq "Mountain View"` - Users with address.city = "Mountain View"
+      schema:
+        type: string
+      examples:
+        simple-string:
+          summary: Simple string filter
+          value: 'username eq "john.doe"'
+        simple-number:
+          summary: Simple number filter
+          value: 'age eq 25'
+        complex:
+          summary: Complex filtering
+          value: 'address.city eq "Mountain View"'
   schemas:
     User:
       type: object
