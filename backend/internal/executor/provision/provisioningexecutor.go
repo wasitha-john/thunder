@@ -301,7 +301,7 @@ func (p *ProvisioningExecutor) createUserInStore(flowID string,
 	// TODO: Use a hard coded ou for the moment. This needs to be resolved properly
 	//  when the support is implemented.
 	user := usermodel.User{
-		OrganizationUnit: "456e8400-e29b-41d4-a716-446655440001",
+		OrganizationUnit: "00000000-0000-0000-0000-000000000000", // This should be configurable
 	}
 
 	// Takes the user type from the context, if available.
