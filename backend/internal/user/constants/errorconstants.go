@@ -132,6 +132,13 @@ var (
 		Error:            "Schema validation failed",
 		ErrorDescription: "User attributes do not conform to the required schema",
 	}
+	// ErrorInvalidFilter is the error returned when the filter parameter is invalid.
+	ErrorInvalidFilter = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "USR-1020",
+		Error:            "Invalid filter parameter",
+		ErrorDescription: "The filter format is invalid",
+	}
 )
 
 // Server errors for user management operations.

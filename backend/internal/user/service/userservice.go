@@ -49,8 +49,9 @@ var supportedCredentialFields = map[string]struct{}{
 
 // UserServiceInterface defines the interface for the user service.
 type UserServiceInterface interface {
-	GetUserList(limit, offset int) (*model.UserListResponse, *serviceerror.ServiceError)
-	GetUsersByPath(handlePath string, limit, offset int) (*model.UserListResponse, *serviceerror.ServiceError)
+	GetUserList(limit, offset int, filters map[string]interface{}) (*model.UserListResponse, *serviceerror.ServiceError)
+	GetUsersByPath(handlePath string, limit, offset int,
+		filters map[string]interface{}) (*model.UserListResponse, *serviceerror.ServiceError)
 	CreateUser(user *model.User) (*model.User, *serviceerror.ServiceError)
 	CreateUserByPath(handlePath string, request model.CreateUserByPathRequest) (*model.User, *serviceerror.ServiceError)
 	GetUser(userID string) (*model.User, *serviceerror.ServiceError)
@@ -77,19 +78,20 @@ func GetUserService() UserServiceInterface {
 }
 
 // GetUserList lists the users.
-func (as *UserService) GetUserList(limit, offset int) (*model.UserListResponse, *serviceerror.ServiceError) {
+func (as *UserService) GetUserList(limit, offset int,
+	filters map[string]interface{}) (*model.UserListResponse, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
 	if err := validatePaginationParams(limit, offset); err != nil {
 		return nil, err
 	}
 
-	totalCount, err := store.GetUserListCount()
+	totalCount, err := store.GetUserListCount(filters)
 	if err != nil {
 		return nil, logErrorAndReturnServerError(logger, "Failed to get user list count", err)
 	}
 
-	users, err := store.GetUserList(limit, offset)
+	users, err := store.GetUserList(limit, offset, filters)
 	if err != nil {
 		return nil, logErrorAndReturnServerError(logger, "Failed to get user list", err)
 	}
@@ -115,7 +117,7 @@ func (as *UserService) GetUserList(limit, offset int) (*model.UserListResponse, 
 
 // GetUsersByPath retrieves a list of users by hierarchical handle path.
 func (as *UserService) GetUsersByPath(
-	handlePath string, limit, offset int,
+	handlePath string, limit, offset int, filters map[string]interface{},
 ) (*model.UserListResponse, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Getting users by path", log.String("path", handlePath))

@@ -81,7 +81,7 @@ func (ts *UserAPITestSuite) SetupSuite() {
 	testUser.OrganizationUnit = testOUID
 
 	// Create the test user
-	userID, err := createUser(ts, testUser)
+	userID, err := createUser(testUser)
 	if err != nil {
 		ts.T().Fatalf("Failed to create user during setup: %v", err)
 	}
@@ -369,11 +369,11 @@ func retrieveAndValidateUserDetails(ts *UserAPITestSuite, expectedUser User) {
 	}
 }
 
-func createUser(ts *UserAPITestSuite, user User) (string, error) {
+func createUser(user User) (string, error) {
 
 	userJSON, err := json.Marshal(user)
 	if err != nil {
-		ts.T().Fatalf("Failed to marshal user template: %v", err)
+		return "", fmt.Errorf("failed to marshal user template: %w", err)
 	}
 
 	reqBody := bytes.NewReader(userJSON)
