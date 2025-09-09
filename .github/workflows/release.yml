@@ -271,23 +271,23 @@ jobs:
           cd ../../../..
           echo "✅ Updated sample apps version to $NEXT_VERSION"
 
-      - name: 📈 Commit and Push Version Update
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+      # - name: 📈 Commit and Push Version Update
+      #   run: |
+      #     git config --local user.email "action@github.com"
+      #     git config --local user.name "GitHub Action"
           
-          NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
+      #     NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
           
-          # Add and commit the version changes
-          git add version.txt samples/apps/oauth/package.json samples/apps/oauth/server/package.json
+      #     # Add and commit the version changes
+      #     git add version.txt samples/apps/oauth/package.json samples/apps/oauth/server/package.json
 
-          if ! git diff --cached --quiet; then
-              git commit -m "[Release] Update version to ${NEXT_VERSION} for the next development iteration"
-              git push origin HEAD:main
-              echo "✅ Pushed version update to main branch"
-          else
-            echo "✅ No changes to commit"
-          fi
+      #     if ! git diff --cached --quiet; then
+      #         git commit -m "[Release] Update version to ${NEXT_VERSION} for the next development iteration"
+      #         git push origin HEAD:main
+      #         echo "✅ Pushed version update to main branch"
+      #     else
+      #       echo "✅ No changes to commit"
+      #     fi
 
   # Platform-specific sample app packaging jobs
   package-samples-linux:
