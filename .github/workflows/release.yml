@@ -44,18 +44,7 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: 🏷️ Set Sample Apps Version
-        run: |
-          # Get the product version input
-          SAMPLE_VERSION="${{ github.event.inputs.version }}"
-          
-          # Remove 'v' prefix if present
-          if [[ $SAMPLE_VERSION == v* ]]; then
-            SAMPLE_VERSION="${SAMPLE_VERSION#v}"
-          fi
-          
-          echo "✅ Sample version set to '$SAMPLE_VERSION'"
-          echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
+      # Note: Sample app version setting moved to platform-specific jobs
 
       - name: 🏷️ Update Product Version
         run: |
@@ -100,13 +89,39 @@ jobs:
       - name: 🧹 Clean Previous Builds
         run: make clean_all
 
+      - name: 🔐 Generate Shared Certificates
+        run: |
+          echo "🔐 Generating shared SSL certificates for all components..."
+          # Ensure the certificate directory exists
+          mkdir -p target/out/.cert
+          
+          # Generate certificates 
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout target/out/.cert/server.key \
+            -out target/out/.cert/server.cert \
+            -subj "/O=WSO2/OU=Thunder/CN=localhost"
+          
+          echo "✅ Shared certificates generated:"
+          ls -la target/out/.cert/
+          echo "📄 Certificate info:"
+          openssl x509 -in target/out/.cert/server.cert -text -noout | head -10
+
+      - name: 📦 Upload Shared Certificates 
+        uses: actions/upload-artifact@v4
+        with:
+          name: thunder-certificates
+          path: |
+            target/out/.cert/server.cert
+            target/out/.cert/server.key
+          if-no-files-found: error
+
       - name: 🔨 Build Thunder Release Artifacts
         run: |
           # Define platform matrix as arrays
           PLATFORMS=(
             "windows:amd64"
             "linux:amd64"
-            "linux:arm"
+            "linux:arm64"
             "darwin:amd64"
             "darwin:arm64"
           )
@@ -128,68 +143,21 @@ jobs:
           
           echo "✅ Thunder built for all platforms successfully!"
 
-      - name: ⚙️ Set up Node.js Environment
-        uses: ./.github/actions/setup-node
-        with:
-          node-version: '20'
-          package-manager: 'npm'
-          dependency-path: 'samples/apps/oauth'
+      # Note: Node.js setup and sample app version updates moved to platform-specific jobs
 
-      - name: 📝 Update Sample Apps Version
-        run: |
-          # Get the clean sample version without v prefix
-          SAMPLE_VERSION="${{ env.SAMPLE_VERSION }}"
-          echo "📝 Setting sample apps version to $SAMPLE_VERSION"
-          
-          # Update the main sample app package.json
-          cd samples/apps/oauth
-          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
-          
-          # Update the server package.json
-          cd server
-          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
-          
-          cd ../../../..
-          echo "✅ Updated sample apps version to $SAMPLE_VERSION"
-
-      - name: 🔨 Build Sample Release Artifacts
-        run: |
-          make build_samples
-
-          # Define platform matrix as arrays
-          PLATFORMS=(
-            "win:x64"
-            "linux:x64"
-            "linux:arm64"
-            "macos:x64"
-            "macos:arm64"
-          )
-
-          # Loop through the platform matrix
-          for platform in "${PLATFORMS[@]}"; do
-            # Split the platform string into OS and ARCH
-            OS="${platform%%:*}"
-            ARCH="${platform#*:}"
-            
-            echo "🔨 Building Samples for $OS/$ARCH..."
-            make package_samples OS=$OS ARCH=$ARCH
-            
-            # Optional: Add a small delay to prevent resource contention
-            sleep 1
-          done
-
-          echo "✅ Sample built for all platforms successfully!"
+      # Note: Sample app packaging moved to platform-specific jobs below
 
       - name: 📝 Read Updated Version
         id: version
         run: echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
 
-      - name: 📦 Upload All Distribution Artifacts
+      - name: 📦 Upload Backend Distribution Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: thunder-distribution
           path: target/dist/*.zip
           if-no-files-found: error
+
 
       - name: 🏷️ Create Git Tag
         run: |
@@ -203,38 +171,6 @@ jobs:
 
           git tag -a "$TAG_VERSION" -m "Release $TAG_VERSION"
           git push origin "$TAG_VERSION"
-
-      - name: 📝 Extract README Content for Release
-        id: readme_extract
-        run: |
-          # Extract introduction (everything before first --- divider)
-          INTRO=$(awk 'BEGIN{flag=1} /^---$/{flag=0; exit} flag{print}' README.md)
-          
-          # Extract Features section
-          FEATURES=$(sed -n '/^## 🚀 Features/,/^---$/p' README.md | head -n -1)
-          
-          # Extract Quick Start section
-          QUICKSTART=$(sed -n '/^## ⚡ Quickstart/,/^---$/p' README.md | head -n -1)
-          
-          # Extract license section including header
-          LICENSE=$(grep -A 5 "^## License" README.md)
-          
-          # Add changelog from Release Drafter before features
-          CHANGELOG="${{ steps.changelog.outputs.body }}"
-
-          # Combine for release description
-          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-          echo "$INTRO" >> $GITHUB_ENV
-          echo "" >> $GITHUB_ENV
-          echo "## 🔀 What's Changed" >> $GITHUB_ENV
-          echo "$CHANGELOG" >> $GITHUB_ENV
-          echo "" >> $GITHUB_ENV
-          echo "$FEATURES" >> $GITHUB_ENV
-          echo "" >> $GITHUB_ENV
-          echo "$QUICKSTART" >> $GITHUB_ENV
-          echo "" >> $GITHUB_ENV
-          echo "$LICENSE" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
 
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -272,33 +208,7 @@ jobs:
           echo "📦 Image available at: ${IMAGE_NAME}:${DOCKER_VERSION}"
           echo "📦 Image available at: ${IMAGE_NAME}:latest"
 
-      - name: 📦 Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.VERSION }}
-          name: Thunder ${{ env.VERSION }}
-          draft: false
-          prerelease: ${{ contains(env.VERSION, '-') }}
-          files: target/dist/*.zip
-          body: ${{ env.RELEASE_BODY }}
-          generate_release_notes: false
-      
-      - name: 🔔 Set Release Info
-        id: release_info
-        run: |
-          RELEASE_VERSION="${{ steps.version.outputs.version }}"
-          echo "release_name=Thunder ${RELEASE_VERSION}" >> $GITHUB_OUTPUT
-          echo "release_tag=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
-          echo "release_url=https://github.com/${{ github.repository }}/releases/tag/${RELEASE_VERSION}" >> $GITHUB_OUTPUT
-      
-      - name: 🔔 Send Release Notification
-        uses: ./.github/actions/release-notification
-        with:
-          webhook: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
-          release-name: ${{ steps.release_info.outputs.release_name }}
-          release-tag: ${{ steps.release_info.outputs.release_tag }}
-          release-url: ${{ steps.release_info.outputs.release_url }}
+      # Note: GitHub release creation moved to finalize-release job
 
       - name: 📝 Calculate Next Version
         id: next_version
@@ -338,6 +248,13 @@ jobs:
           echo "$NEXT_VERSION" > version.txt
           echo "✅ Updated version.txt to $NEXT_VERSION"
 
+      - name: ⚙️ Set up Node.js for Version Update
+        uses: ./.github/actions/setup-node
+        with:
+          node-version: '20'
+          package-manager: 'npm'
+          dependency-path: 'samples/apps/oauth'
+
       - name: 🏷️ Update Sample Apps Version
         run: |
           NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
@@ -371,3 +288,264 @@ jobs:
           else
             echo "✅ No changes to commit"
           fi
+
+  # Platform-specific sample app packaging jobs
+  package-samples-linux:
+    name: 📦 Package Linux & Windows Samples
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: ⚙️ Set up Go Environment
+        uses: ./.github/actions/setup-go
+
+      - name: ⚙️ Set up Node.js Environment
+        uses: ./.github/actions/setup-node
+        with:
+          node-version: '20'
+          package-manager: 'npm'
+          dependency-path: 'samples/apps/oauth'
+
+      - name: 📥 Download Shared Certificates
+        uses: actions/download-artifact@v4
+        with:
+          name: thunder-certificates
+          path: target/out/.cert/
+
+      - name: 🏷️ Set Sample Apps Version
+        run: |
+          # Get the product version from the previous job
+          SAMPLE_VERSION="${{ github.event.inputs.version }}"
+          
+          # Remove 'v' prefix if present
+          if [[ $SAMPLE_VERSION == v* ]]; then
+            SAMPLE_VERSION="${SAMPLE_VERSION#v}"
+          fi
+          
+          echo "✅ Sample version set to '$SAMPLE_VERSION'"
+          echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
+
+      - name: 📝 Update Sample Apps Version
+        run: |
+          # Get the clean sample version without v prefix
+          SAMPLE_VERSION="${{ env.SAMPLE_VERSION }}"
+          echo "📝 Setting sample apps version to $SAMPLE_VERSION"
+          
+          # Update the main sample app package.json
+          cd samples/apps/oauth
+          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+          
+          # Update the server package.json
+          cd server
+          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+          
+          cd ../../../..
+          echo "✅ Updated sample apps version to $SAMPLE_VERSION"
+
+      - name: 🔨 Build Sample Apps (Once)
+        run: |
+          echo "🔨 Building sample apps (shared for all platforms)..."
+          make build_samples
+
+      - name: 📦 Package Linux Samples
+        run: |
+          echo "📦 Packaging Linux samples..."
+          make package_samples OS=linux ARCH=x64
+          make package_samples OS=linux ARCH=arm64
+
+      - name: 📦 Package Windows Samples
+        run: |
+          echo "📦 Packaging Windows samples..."
+          make package_samples OS=win ARCH=x64
+
+      - name: 📦 Upload Linux & Windows Sample Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: thunder-samples-linux-windows
+          path: target/dist/*.zip
+          if-no-files-found: error
+
+  package-samples-macos:
+    name: 📦 Package macOS Samples
+    runs-on: macos-latest
+    needs: release
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: ⚙️ Set up Go Environment
+        uses: ./.github/actions/setup-go
+
+      - name: ⚙️ Set up Node.js Environment
+        uses: ./.github/actions/setup-node
+        with:
+          node-version: '20'
+          package-manager: 'npm'
+          dependency-path: 'samples/apps/oauth'
+
+      - name: 📥 Download Shared Certificates
+        uses: actions/download-artifact@v4
+        with:
+          name: thunder-certificates
+          path: target/out/.cert/
+
+      - name: 🏷️ Set Sample Apps Version
+        run: |
+          # Get the product version from the previous job
+          SAMPLE_VERSION="${{ github.event.inputs.version }}"
+          
+          # Remove 'v' prefix if present
+          if [[ $SAMPLE_VERSION == v* ]]; then
+            SAMPLE_VERSION="${SAMPLE_VERSION#v}"
+          fi
+          
+          echo "✅ Sample version set to '$SAMPLE_VERSION'"
+          echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
+
+      - name: 📝 Update Sample Apps Version
+        run: |
+          # Get the clean sample version without v prefix
+          SAMPLE_VERSION="${{ env.SAMPLE_VERSION }}"
+          echo "📝 Setting sample apps version to $SAMPLE_VERSION"
+          
+          # Update the main sample app package.json
+          cd samples/apps/oauth
+          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+          
+          # Update the server package.json
+          cd server
+          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+          
+          cd ../../../..
+          echo "✅ Updated sample apps version to $SAMPLE_VERSION"
+
+      - name: 🔨 Build and Package macOS Samples
+        run: |
+          make build_samples
+          
+          # Package for both x64 and arm64
+          make package_samples OS=macos ARCH=x64
+          make package_samples OS=macos ARCH=arm64
+
+      - name: 📦 Upload macOS Sample Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: thunder-samples-macos
+          path: target/dist/*.zip
+          if-no-files-found: error
+
+  # Combined job to collect all artifacts and create release
+  finalize-release:
+    name: 🎯 Finalize Release
+    runs-on: ubuntu-latest
+    needs: [release, package-samples-linux, package-samples-macos]
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Download Backend Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: thunder-distribution
+          path: ./backend-artifacts
+
+      - name: 📥 Download Linux & Windows Sample Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: thunder-samples-linux-windows
+          path: ./linux-windows-artifacts
+
+      - name: 📥 Download macOS Sample Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: thunder-samples-macos
+          path: ./macos-artifacts
+
+      - name: 📦 Combine All Distribution Artifacts
+        run: |
+          mkdir -p target/dist
+          
+          # Copy backend artifacts
+          cp ./backend-artifacts/*.zip target/dist/ || true
+          
+          # Copy sample artifacts from each platform
+          cp ./linux-windows-artifacts/*.zip target/dist/ || true
+          cp ./macos-artifacts/*.zip target/dist/ || true
+          
+          echo "✅ Combined all artifacts:"
+          ls -la target/dist/
+
+      - name: 📦 Upload Final Combined Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: thunder-final-distribution
+          path: target/dist/*.zip
+          if-no-files-found: error
+
+      - name: 📝 Read Version
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: 📝 Extract README Content for Release
+        id: readme_extract
+        run: |
+          # Extract introduction (everything before first --- divider)
+          INTRO=$(awk 'BEGIN{flag=1} /^---$/{flag=0; exit} flag{print}' README.md)
+          
+          # Extract Features section
+          FEATURES=$(sed -n '/^## 🚀 Features/,/^---$/p' README.md | head -n -1)
+          
+          # Extract Quick Start section
+          QUICKSTART=$(sed -n '/^## ⚡ Quickstart/,/^---$/p' README.md | head -n -1)
+          
+          # Extract license section including header
+          LICENSE=$(grep -A 5 "^## License" README.md)
+
+          # Combine for release description
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$INTRO" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "$FEATURES" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "$QUICKSTART" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "$LICENSE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: 📦 Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Thunder ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          files: target/dist/*.zip
+          body: ${{ env.RELEASE_BODY }}
+          generate_release_notes: false
+
+      - name: 🔔 Set Release Info
+        id: release_info
+        run: |
+          RELEASE_VERSION="${{ steps.version.outputs.version }}"
+          echo "release_name=Thunder ${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "release_tag=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "release_url=https://github.com/${{ github.repository }}/releases/tag/${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+      
+      - name: 🔔 Send Release Notification
+        uses: ./.github/actions/release-notification
+        with:
+          webhook: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+          release-name: ${{ steps.release_info.outputs.release_name }}
+          release-tag: ${{ steps.release_info.outputs.release_tag }}
+          release-url: ${{ steps.release_info.outputs.release_url }}
