@@ -29,8 +29,29 @@ WORKDIR /app
 # Copy the entire source code
 COPY . .
 
+# Accept build arguments for certificate files
+ARG CERT_FILE
+ARG KEY_FILE
+
 # Modify the hostname in the deployment configuration
 RUN sed -i 's/hostname: "localhost"/hostname: "0.0.0.0"/' backend/cmd/server/repository/conf/deployment.yaml
+
+# Handle shared certificates - use provided certificates or generate new ones
+RUN if [ -n "$CERT_FILE" ] && [ -n "$KEY_FILE" ] && [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ]; then \
+        echo "🔐 Using shared certificates: $CERT_FILE and $KEY_FILE"; \
+        mkdir -p target/out/.cert; \
+        cp "$CERT_FILE" target/out/.cert/server.cert; \
+        cp "$KEY_FILE" target/out/.cert/server.key; \
+        echo "✅ Shared certificates copied successfully"; \
+    else \
+        echo "🔐 Generating new certificates (shared certificates not found)"; \
+        mkdir -p target/out/.cert; \
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout target/out/.cert/server.key \
+            -out target/out/.cert/server.cert \
+            -subj "/O=WSO2/OU=Thunder/CN=localhost"; \
+        echo "✅ New certificates generated"; \
+    fi
 
 # Build the binary for the target architecture
 ARG TARGETARCH
