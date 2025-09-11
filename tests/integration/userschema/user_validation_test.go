@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/asgardeo/thunder/tests/integration/testutils"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -406,7 +407,7 @@ func (ts *UserValidationTestSuite) createUserAndExpectSuccess(createUserReq Crea
 	}
 	ts.Require().Equal(201, resp.StatusCode, "User creation should succeed")
 
-	var createdUser User
+	var createdUser testutils.User
 	err = json.Unmarshal(body, &createdUser)
 	ts.Require().NoError(err, "Failed to unmarshal user response")
 
