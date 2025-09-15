@@ -12,6 +12,11 @@ on:
         description: 'Release version (e.g., v1.0.0)'
         required: true
         type: string
+      prerelease:
+        description: 'Set as a pre-release'
+        required: false
+        type: boolean
+        default: false
 
 # Add permissions to allow pushing tags and packages
 permissions:
@@ -39,24 +44,12 @@ jobs:
             exit 1
           fi
           echo "✅ Version '${{ github.event.inputs.version }}' is valid"
-          
-          # Store original version with v prefix in environment variable
-          VERSION="${{ github.event.inputs.version }}"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: 🏷️ Update Product Version
         run: |
           # Store version with v prefix in version.txt
-          VERSION="${{ env.VERSION }}"
+          VERSION="${{ github.event.inputs.version }}"
           echo "$VERSION" > version.txt
-
-      - name: 📝 Generate Changelog (Release Drafter)
-        id: changelog
-        uses: release-drafter/release-drafter@v5
-        with:
-          config-name: release-drafter.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: ⚙️ Set up Go Environment
         uses: ./.github/actions/setup-go
@@ -157,7 +150,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          TAG_VERSION="${{ env.VERSION }}"
+          TAG_VERSION="${{ github.event.inputs.version }}"
           if [[ ! $TAG_VERSION == v* ]]; then
             TAG_VERSION="v$TAG_VERSION"
           fi
@@ -196,7 +189,7 @@ jobs:
           IMAGE_NAME="ghcr.io/${REPO_NAME}"
           
           # Get version without 'v' prefix for Docker tags
-          DOCKER_VERSION="${{ env.VERSION }}"
+          DOCKER_VERSION="${{ github.event.inputs.version }}"
           if [[ $DOCKER_VERSION == v* ]]; then
             DOCKER_VERSION="${DOCKER_VERSION#v}"
           fi
@@ -279,7 +272,6 @@ jobs:
           cd ../../../..
           echo "✅ Updated sample apps version to $NEXT_VERSION"
 
-      # TODO
       # - name: 📈 Commit and Push Version Update
       #   run: |
       #     git config --local user.email "action@github.com"
@@ -503,6 +495,24 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: 📝 Generate Changelog (Release Drafter)
+        id: changelog
+        uses: release-drafter/release-drafter@v5
+        with:
+          config-name: release-drafter.yml
+          name: Thunder ${{ github.event.inputs.version }}
+          tag: ${{ github.event.inputs.version }}
+          prerelease: ${{ github.event.inputs.prerelease }}
+          publish: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ⏳ Wait for Release Drafter to Complete
+        run: |
+          echo "⏳ Waiting for release-drafter to fully create the draft release..."
+          sleep 10
+          echo "✅ Proceeding with release creation"
+
       - name: 📝 Extract README Content for Release
         id: readme_extract
         run: |
@@ -518,9 +528,15 @@ jobs:
           # Extract license section including header
           LICENSE=$(grep -A 5 "^## License" README.md)
 
+          # Get changelog from Release Drafter
+          CHANGELOG="${{ steps.changelog.outputs.body }}"
+
           # Combine for release description
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
           echo "$INTRO" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "## 🔀 What's Changed" >> $GITHUB_ENV
+          echo "$CHANGELOG" >> $GITHUB_ENV
           echo "" >> $GITHUB_ENV
           echo "$FEATURES" >> $GITHUB_ENV
           echo "" >> $GITHUB_ENV
@@ -536,7 +552,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.version }}
           name: Thunder ${{ steps.version.outputs.version }}
           draft: false
-          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          prerelease: ${{ github.event.inputs.prerelease }}
           files: target/dist/*.zip
           body: ${{ env.RELEASE_BODY }}
           generate_release_notes: false
