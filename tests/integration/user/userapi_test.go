@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/asgardeo/thunder/tests/integration/testutils"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -35,12 +36,12 @@ const (
 )
 
 var (
-	testUser = User{
+	testUser = testutils.User{
 		Type:       "person",
 		Attributes: json.RawMessage(`{"age": 25, "roles": ["viewer"], "address": {"city": "Seattle", "zip": "98101"}}`),
 	}
 
-	userUpdate = User{
+	userUpdate = testutils.User{
 		Type:       "person",
 		Attributes: json.RawMessage(`{"age": 35, "roles": ["admin"], "address": {"city": "Colombo", "zip": "10300"}}`),
 	}
@@ -140,7 +141,7 @@ func (ts *UserAPITestSuite) TestUserListing() {
 		ts.T().Fatalf("Failed to read response body: %v", err)
 	}
 
-	var userListResponse UserListResponse
+	var userListResponse testutils.UserListResponse
 	err = json.Unmarshal(bodyBytes, &userListResponse)
 	if err != nil {
 		ts.T().Fatalf("Failed to parse response body: %v. Raw body: %s", err, string(bodyBytes))
@@ -165,14 +166,14 @@ func (ts *UserAPITestSuite) TestUserListing() {
 	}
 
 	var foundCreatedUser bool
-	expectedUser := User{
-		Id:               createdUserID,
+	expectedUser := testutils.User{
+		ID:               createdUserID,
 		OrganizationUnit: testOUID,
 		Type:             testUser.Type,
 		Attributes:       testUser.Attributes,
 	}
 	for _, user := range users {
-		if user.equals(expectedUser) {
+		if Equals(user, expectedUser) {
 			foundCreatedUser = true
 			break
 		}
@@ -206,7 +207,7 @@ func (ts *UserAPITestSuite) TestUserPagination() {
 		ts.T().Fatalf("Expected status 200, got %d", resp.StatusCode)
 	}
 
-	var userListResponse UserListResponse
+	var userListResponse testutils.UserListResponse
 	err = json.NewDecoder(resp.Body).Decode(&userListResponse)
 	if err != nil {
 		ts.T().Fatalf("Failed to parse response body: %v", err)
@@ -239,7 +240,7 @@ func (ts *UserAPITestSuite) TestUserPagination() {
 		ts.T().Fatalf("Expected status 200, got %d", resp2.StatusCode)
 	}
 
-	var userListResponse2 UserListResponse
+	var userListResponse2 testutils.UserListResponse
 	err = json.NewDecoder(resp2.Body).Decode(&userListResponse2)
 	if err != nil {
 		ts.T().Fatalf("Failed to parse response body: %v", err)
@@ -271,8 +272,8 @@ func (ts *UserAPITestSuite) TestUserGetByID() {
 	if createdUserID == "" {
 		ts.T().Fatal("user ID is not available for retrieval")
 	}
-	expectedUser := User{
-		Id:               createdUserID,
+	expectedUser := testutils.User{
+		ID:               createdUserID,
 		OrganizationUnit: testOUID,
 		Type:             testUser.Type,
 		Attributes:       testUser.Attributes,
@@ -320,17 +321,17 @@ func (ts *UserAPITestSuite) TestUserUpdate() {
 	}
 
 	// Validate the update by retrieving the user
-	retrieveAndValidateUserDetails(ts, User{
-		Id:               createdUserID,
+	retrieveAndValidateUserDetails(ts, testutils.User{
+		ID:               createdUserID,
 		OrganizationUnit: userToUpdate.OrganizationUnit,
 		Type:             userToUpdate.Type,
 		Attributes:       userToUpdate.Attributes,
 	})
 }
 
-func retrieveAndValidateUserDetails(ts *UserAPITestSuite, expectedUser User) {
+func retrieveAndValidateUserDetails(ts *UserAPITestSuite, expectedUser testutils.User) {
 
-	req, err := http.NewRequest("GET", testServerURL+"/users/"+expectedUser.Id, nil)
+	req, err := http.NewRequest("GET", testServerURL+"/users/"+expectedUser.ID, nil)
 	if err != nil {
 		ts.T().Fatalf("Failed to create get request: %v", err)
 	}
@@ -358,18 +359,18 @@ func retrieveAndValidateUserDetails(ts *UserAPITestSuite, expectedUser User) {
 		ts.T().Fatalf("Unexpected Content-Type: %s. Raw body: %s", contentType, string(rawBody))
 	}
 
-	var user User
+	var user testutils.User
 	err = json.NewDecoder(resp.Body).Decode(&user)
 	if err != nil {
 		ts.T().Fatalf("Failed to parse response body: %v", err)
 	}
 
-	if !user.equals(expectedUser) {
+	if !Equals(user, expectedUser) {
 		ts.T().Fatalf("User mismatch, expected %+v, got %+v", expectedUser, user)
 	}
 }
 
-func createUser(user User) (string, error) {
+func createUser(user testutils.User) (string, error) {
 
 	userJSON, err := json.Marshal(user)
 	if err != nil {

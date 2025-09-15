@@ -33,7 +33,7 @@ const (
 )
 
 var (
-	smsRegTestApp = TestApplication{
+	smsRegTestApp = testutils.Application{
 		Name:                      "SMS Registration Flow Test Application",
 		Description:               "Application for testing SMS registration flows",
 		IsRegistrationFlowEnabled: true,
@@ -44,7 +44,7 @@ var (
 		RedirectURIs:              []string{"http://localhost:3000/callback"},
 	}
 
-	smsRegTestOU = TestOrganizationUnit{
+	smsRegTestOU = testutils.OrganizationUnit{
 		Handle:      "sms-reg-flow-test-ou",
 		Name:        "SMS Registration Flow Test Organization Unit",
 		Description: "Organization unit for SMS registration flow testing",
@@ -67,21 +67,21 @@ func (ts *SMSRegistrationFlowTestSuite) SetupSuite() {
 	ts.config = &TestSuiteConfig{}
 
 	// Create test organization unit for SMS tests
-	ouID, err := createOrganizationUnit(smsRegTestOU)
+	ouID, err := testutils.CreateOrganizationUnit(smsRegTestOU)
 	if err != nil {
 		ts.T().Fatalf("Failed to create test organization unit during setup: %v", err)
 	}
 	testOUID = ouID
 
 	// Create Local IDP for SMS registration tests
-	idpID, err := createLocalIdp()
+	idpID, err := testutils.CreateLocalIDP()
 	if err != nil {
 		ts.T().Fatalf("Failed to create Local IDP during setup: %v", err)
 	}
 	testIDPID = idpID
 
 	// Create test application for SMS tests
-	appID, err := createApplication(smsRegTestApp)
+	appID, err := testutils.CreateApplication(smsRegTestApp)
 	if err != nil {
 		ts.T().Fatalf("Failed to create test application during setup: %v", err)
 	}
@@ -121,7 +121,7 @@ func (ts *SMSRegistrationFlowTestSuite) TearDownSuite() {
 	}
 
 	// Delete test users created during SMS registration tests
-	if err := CleanupUsers(ts.config.CreatedUserIDs); err != nil {
+	if err := testutils.CleanupUsers(ts.config.CreatedUserIDs); err != nil {
 		ts.T().Logf("Failed to cleanup users during teardown: %v", err)
 	}
 
@@ -135,21 +135,21 @@ func (ts *SMSRegistrationFlowTestSuite) TearDownSuite() {
 
 	// Delete test application
 	if testAppID != "" {
-		if err := deleteApplication(testAppID); err != nil {
+		if err := testutils.DeleteApplication(testAppID); err != nil {
 			ts.T().Logf("Failed to delete test application during teardown: %v", err)
 		}
 	}
 
 	// Delete test organization unit
 	if testOUID != "" {
-		if err := deleteOrganizationUnit(testOUID); err != nil {
+		if err := testutils.DeleteOrganizationUnit(testOUID); err != nil {
 			ts.T().Logf("Failed to delete test organization unit during teardown: %v", err)
 		}
 	}
 
 	// Delete Local IDP
 	if testIDPID != "" {
-		if err := deleteIdp(testIDPID); err != nil {
+		if err := testutils.DeleteIDP(testIDPID); err != nil {
 			ts.T().Logf("Failed to delete Local IDP during teardown: %v", err)
 		}
 	}
@@ -255,7 +255,7 @@ func (ts *SMSRegistrationFlowTestSuite) TestSMSRegistrationFlowWithMobileNumber(
 		"Failure reason should be empty for successful registration")
 
 	// Step 5: Verify the user was created by searching via the user API
-	user, err := FindUserByAttribute("mobileNumber", mobileNumber)
+	user, err := testutils.FindUserByAttribute("mobileNumber", mobileNumber)
 	if err != nil {
 		ts.T().Fatalf("Failed to retrieve user by mobile number: %v", err)
 	}
@@ -263,7 +263,7 @@ func (ts *SMSRegistrationFlowTestSuite) TestSMSRegistrationFlowWithMobileNumber(
 
 	// Store the created user for cleanup
 	if user != nil {
-		ts.config.CreatedUserIDs = append(ts.config.CreatedUserIDs, user.Id)
+		ts.config.CreatedUserIDs = append(ts.config.CreatedUserIDs, user.ID)
 	}
 }
 
@@ -355,7 +355,7 @@ func (ts *SMSRegistrationFlowTestSuite) TestSMSRegistrationFlowWithUsername() {
 		"Failure reason should be empty for successful registration")
 
 	// Step 5: Verify the user was created by searching via the user API
-	user, err := FindUserByAttribute("username", username)
+	user, err := testutils.FindUserByAttribute("username", username)
 	if err != nil {
 		ts.T().Fatalf("Failed to retrieve user by username: %v", err)
 	}
@@ -363,7 +363,7 @@ func (ts *SMSRegistrationFlowTestSuite) TestSMSRegistrationFlowWithUsername() {
 
 	// Store the created user for cleanup
 	if user != nil {
-		ts.config.CreatedUserIDs = append(ts.config.CreatedUserIDs, user.Id)
+		ts.config.CreatedUserIDs = append(ts.config.CreatedUserIDs, user.ID)
 	}
 }
 
@@ -475,7 +475,7 @@ func (ts *SMSRegistrationFlowTestSuite) TestSMSRegistrationFlowSingleRequestWith
 		"Failure reason should be empty for successful registration")
 
 	// Step 3: Verify the user was created by searching via the user API
-	user, err := FindUserByAttribute("mobileNumber", mobileNumber)
+	user, err := testutils.FindUserByAttribute("mobileNumber", mobileNumber)
 	if err != nil {
 		ts.T().Fatalf("Failed to retrieve user by mobile number: %v", err)
 	}
@@ -483,7 +483,7 @@ func (ts *SMSRegistrationFlowTestSuite) TestSMSRegistrationFlowSingleRequestWith
 
 	// Store the created user for cleanup
 	if user != nil {
-		ts.config.CreatedUserIDs = append(ts.config.CreatedUserIDs, user.Id)
+		ts.config.CreatedUserIDs = append(ts.config.CreatedUserIDs, user.ID)
 	}
 }
 

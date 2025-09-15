@@ -25,12 +25,13 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/asgardeo/thunder/tests/integration/testutils"
 	"github.com/stretchr/testify/suite"
 )
 
 var (
 	// Test users specifically for filtering tests
-	filterTestUsers = []User{
+	filterTestUsers = []testutils.User{
 		{
 			Type:       "employee",
 			Attributes: json.RawMessage(`{"username": "john.doe", "email": "john.doe@example.com", "age": 25, "department": "Engineering", "isActive": true, "address": {"city": "Mountain View", "zip": "94040"}, "contactPreferences": ["email", "sms"]}`),
@@ -279,7 +280,7 @@ func (ts *UserFilterTestSuite) TestFilterWithPagination() {
 
 	ts.Equal(http.StatusOK, resp.StatusCode, "Expected status 200")
 
-	var userListResponse UserListResponse
+	var userListResponse testutils.UserListResponse
 	err = json.NewDecoder(resp.Body).Decode(&userListResponse)
 	ts.NoError(err, "Failed to parse response body")
 
@@ -377,7 +378,7 @@ func (ts *UserFilterTestSuite) TestMultipleMatchingUsers() {
 }
 
 // Helper method to get users with filter
-func (ts *UserFilterTestSuite) getUsersWithFilter(filter string) []User {
+func (ts *UserFilterTestSuite) getUsersWithFilter(filter string) []testutils.User {
 	req, err := http.NewRequest("GET", testServerURL+"/users", nil)
 	ts.NoError(err, "Failed to create request")
 
@@ -397,7 +398,7 @@ func (ts *UserFilterTestSuite) getUsersWithFilter(filter string) []User {
 
 	ts.Equal(http.StatusOK, resp.StatusCode, "Expected status 200 for filter request")
 
-	var userListResponse UserListResponse
+	var userListResponse testutils.UserListResponse
 	err = json.NewDecoder(resp.Body).Decode(&userListResponse)
 	ts.NoError(err, "Failed to parse response body")
 

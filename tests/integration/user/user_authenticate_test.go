@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/asgardeo/thunder/tests/integration/testutils"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -38,7 +39,7 @@ var (
 		Parent:      nil,
 	}
 
-	testUserForAuth = User{
+	testUserForAuth = testutils.User{
 		Type:       "person",
 		Attributes: json.RawMessage(`{"username": "testuser", "password": "testpass123", "email": "testuser@example.com", "firstName": "Test", "lastName": "User"}`),
 	}
@@ -281,7 +282,7 @@ func (ts *UserAuthenticateAPITestSuite) deleteAuthTestOrganizationUnit(ouID stri
 }
 
 // Helper method to create a test user with organization unit
-func (ts *UserAuthenticateAPITestSuite) createTestUserWithOU(user User) (string, error) {
+func (ts *UserAuthenticateAPITestSuite) createTestUserWithOU(user testutils.User) (string, error) {
 	userJSON, err := json.Marshal(user)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal test user: %w", err)

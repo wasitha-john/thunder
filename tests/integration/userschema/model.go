@@ -18,7 +18,11 @@
 
 package userschema
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/asgardeo/thunder/tests/integration/testutils"
+)
 
 const (
 	testServerURL = "https://localhost:8095"
@@ -29,12 +33,6 @@ type UserSchema struct {
 	ID     string          `json:"id,omitempty"`
 	Name   string          `json:"name"`
 	Schema json.RawMessage `json:"schema"`
-}
-
-// Link represents a link in the user schema response
-type Link struct {
-	Rel  string `json:"rel"`
-	Href string `json:"href"`
 }
 
 // CreateUserSchemaRequest represents the request to create a user schema
@@ -61,7 +59,7 @@ type UserSchemaListResponse struct {
 	StartIndex   int                  `json:"startIndex"`
 	Count        int                  `json:"count"`
 	Schemas      []UserSchemaListItem `json:"schemas"`
-	Links        []Link               `json:"links"`
+	Links        []testutils.Link     `json:"links"`
 }
 
 // ErrorResponse represents an API error response
@@ -70,14 +68,6 @@ type ErrorResponse struct {
 	Message     string `json:"message"`
 	Description string `json:"description,omitempty"`
 	TraceID     string `json:"traceId,omitempty"`
-}
-
-// User represents a user for validation tests
-type User struct {
-	ID               string          `json:"id,omitempty"`
-	OrganizationUnit string          `json:"organizationUnit"`
-	Type             string          `json:"type"`
-	Attributes       json.RawMessage `json:"attributes,omitempty"`
 }
 
 // OrganizationUnit represents an organization unit
