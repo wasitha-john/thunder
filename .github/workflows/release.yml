@@ -516,17 +516,33 @@ jobs:
       - name: 📝 Extract README Content for Release
         id: readme_extract
         run: |
+          # Get the release version without v prefix for replacement
+          RELEASE_VERSION="${{ github.event.inputs.version }}"
+          if [[ $RELEASE_VERSION == v* ]]; then
+            RELEASE_VERSION="${RELEASE_VERSION#v}"
+          fi
+          
           # Extract introduction (everything before first --- divider)
           INTRO=$(awk 'BEGIN{flag=1} /^---$/{flag=0; exit} flag{print}' README.md)
-          
-          # Extract Features section
-          FEATURES=$(sed -n '/^## 🚀 Features/,/^---$/p' README.md | head -n -1)
           
           # Extract Quick Start section
           QUICKSTART=$(sed -n '/^## ⚡ Quickstart/,/^---$/p' README.md | head -n -1)
           
           # Extract license section including header
           LICENSE=$(grep -A 5 "^## License" README.md)
+
+          # Replace <version> placeholders with actual version
+          INTRO=$(echo "$INTRO" | sed "s/<version>/$RELEASE_VERSION/g")
+          QUICKSTART=$(echo "$QUICKSTART" | sed "s/<version>/$RELEASE_VERSION/g")
+          
+          # Replace 'latest' placeholders with actual version for release notes
+          INTRO=$(echo "$INTRO" | sed "s/:latest/:$RELEASE_VERSION/g")
+          QUICKSTART=$(echo "$QUICKSTART" | sed "s/:latest/:$RELEASE_VERSION/g")
+          INTRO=$(echo "$INTRO" | sed "s/latest release/$RELEASE_VERSION release/g")
+          QUICKSTART=$(echo "$QUICKSTART" | sed "s/latest release/$RELEASE_VERSION release/g")
+          # Handle other 'latest' references
+          INTRO=$(echo "$INTRO" | sed "s/latest release of WSO2 Thunder/$RELEASE_VERSION release of WSO2 Thunder/g")
+          QUICKSTART=$(echo "$QUICKSTART" | sed "s/latest release of WSO2 Thunder/$RELEASE_VERSION release of WSO2 Thunder/g")
 
           # Get changelog from Release Drafter
           CHANGELOG="${{ steps.changelog.outputs.body }}"
@@ -537,8 +553,6 @@ jobs:
           echo "" >> $GITHUB_ENV
           echo "## 🔀 What's Changed" >> $GITHUB_ENV
           echo "$CHANGELOG" >> $GITHUB_ENV
-          echo "" >> $GITHUB_ENV
-          echo "$FEATURES" >> $GITHUB_ENV
           echo "" >> $GITHUB_ENV
           echo "$QUICKSTART" >> $GITHUB_ENV
           echo "" >> $GITHUB_ENV
