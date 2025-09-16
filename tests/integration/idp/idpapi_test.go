@@ -35,12 +35,6 @@ const (
 )
 
 var (
-	testLocalIdp = testutils.IDP{
-		Name:        "Test Local IDP",
-		Description: "Local Identity Provider for testing",
-		Properties:  []testutils.IDPProperty{},
-	}
-
 	testGithubIdp = testutils.IDP{
 		Name:        "Test Github IDP",
 		Description: "Github Identity Provider for testing",
@@ -151,7 +145,6 @@ var (
 )
 
 var (
-	testLocalIdpID  string
 	testGithubIdpID string
 	testGoogleIdpID string
 	createdIdpID    string
@@ -170,11 +163,6 @@ func TestIdpAPITestSuite(t *testing.T) {
 // SetupSuite creates test IDPs via API
 func (ts *IdpAPITestSuite) SetupSuite() {
 	// Create all test IDPs
-	localId, err := testutils.CreateIDP(testLocalIdp)
-	if err != nil {
-		ts.T().Fatalf("Failed to create test Local IDP during setup: %v", err)
-	}
-	testLocalIdpID = localId
 
 	githubId, err := testutils.CreateIDP(testGithubIdp)
 	if err != nil {
@@ -196,7 +184,6 @@ func (ts *IdpAPITestSuite) SetupSuite() {
 
 	// Build the list of created IDPs for test validations
 	testIdps = []testutils.IDP{
-		{ID: testLocalIdpID, Name: testLocalIdp.Name, Description: testLocalIdp.Description, Properties: testLocalIdp.Properties},
 		{ID: testGithubIdpID, Name: testGithubIdp.Name, Description: testGithubIdp.Description, Properties: testGithubIdp.Properties},
 		{ID: testGoogleIdpID, Name: testGoogleIdp.Name, Description: testGoogleIdp.Description, Properties: testGoogleIdp.Properties},
 		{ID: createdIdpID, Name: idpToCreate.Name, Description: idpToCreate.Description, Properties: idpToCreate.Properties},
@@ -206,12 +193,6 @@ func (ts *IdpAPITestSuite) SetupSuite() {
 // TearDownSuite cleans up all test IDPs
 func (ts *IdpAPITestSuite) TearDownSuite() {
 	// Delete all test IDPs
-	if testLocalIdpID != "" {
-		err := testutils.DeleteIDP(testLocalIdpID)
-		if err != nil {
-			ts.T().Logf("Failed to delete test Local IDP during teardown: %v", err)
-		}
-	}
 
 	if testGithubIdpID != "" {
 		err := testutils.DeleteIDP(testGithubIdpID)
@@ -295,7 +276,7 @@ func (ts *IdpAPITestSuite) TestIdpGetByID() {
 	if createdIdpID == "" {
 		ts.T().Fatal("IdP ID is not available for retrieval")
 	}
-	idp := testIdps[3]
+	idp := testIdps[2]
 	retrieveAndValidateIdpDetails(ts, idp)
 }
 
