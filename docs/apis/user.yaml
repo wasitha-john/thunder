@@ -697,8 +697,10 @@ paths:
                   type: "string"
                 lastname:
                   type: "string"
+                  required: true
                 email:
                   type: "string"
+                  required: true
                   unique: true
                 company:
                   type: "string"
@@ -724,8 +726,10 @@ paths:
                     type: "string"
                   lastname:
                     type: "string"
+                    required: true
                   email:
                     type: "string"
+                    required: true
                     unique: true
                   company:
                     type: "string"
@@ -801,11 +805,14 @@ paths:
                         type: "string"
                       lastname:
                         type: "string"
+                        required: true
                       username:
                         type: "string"
+                        required: true
                         unique: true
                       password:
                         type: "string"
+                        required: true
                         regex: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,}$"
                       employeeId:
                         type: "number"
@@ -823,6 +830,7 @@ paths:
                     schema:
                       email:
                         type: "string"
+                        required: true
                         unique: true
                         regex: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
                       mobile:
@@ -830,11 +838,13 @@ paths:
                         regex: "^\\+?[1-9]\\d{1,14}$"
                       address:
                         type: "object"
+                        required: true
                         properties:
                           street:
                             type: "string"
                           city:
                             type: "string"
+                            required: true
                           zipCode:
                             type: "string"
                             regex: "^\\d{5}(-\\d{4})?$"
@@ -884,6 +894,7 @@ paths:
               schema:
                 email:
                   type: "string"
+                  required: true
                   unique: true
                 age:
                   type: "number"
@@ -908,6 +919,7 @@ paths:
                 schema:
                   email:
                     type: "string"
+                    required: true
                     unique: true
                   age:
                     type: "number"
@@ -1328,6 +1340,10 @@ components:
                     type: string
                     enum: ["string", "number", "boolean"]
                     description: "Data type of the property"
+                  required:
+                    type: boolean
+                    default: false
+                    description: "Whether this attribute must be provided for the user type"
                   unique:
                     type: boolean
                     default: false
@@ -1349,6 +1365,10 @@ components:
                     type: string
                     enum: ["object"]
                     description: "Data type (object)"
+                  required:
+                    type: boolean
+                    default: false
+                    description: "Whether this attribute must be provided for the user type"
                   properties:
                     type: object
                     description: "Nested properties of the object"
@@ -1363,6 +1383,10 @@ components:
                     type: string
                     enum: ["array"]
                     description: "Data type (array)"
+                  required:
+                    type: boolean
+                    default: false
+                    description: "Whether this attribute must be provided for the user type"
                   items:
                     oneOf:
                       - type: object
@@ -1393,10 +1417,12 @@ components:
           example:
             email:
               type: "string"
+              required: true
               unique: true
               regex: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
             password:
               type: "string"
+              required: true
               regex: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,}$"
             age:
               type: "number"
@@ -1410,11 +1436,13 @@ components:
               enum: ["admin", "user", "guest"]
             address:
               type: "object"
+              required: true
               properties:
                 street:
                   type: "string"
                 city:
                   type: "string"
+                  required: true
                 zipCode:
                   type: "string"
                   regex: "^\\d{5}(-\\d{4})?$"

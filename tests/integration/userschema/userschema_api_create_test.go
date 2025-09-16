@@ -57,16 +57,16 @@ func (ts *CreateUserSchemaTestSuite) TearDownSuite() {
 
 // TestCreateUserSchema tests POST /user-schemas with valid data
 func (ts *CreateUserSchemaTestSuite) TestCreateUserSchema() {
-	schema := CreateUserSchemaRequest{
-		Name: "employee-schema-test",
-		Schema: json.RawMessage(`{
-			"firstName": {"type": "string"},
-			"lastName": {"type": "string"},
-			"email": {"type": "string", "regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"},
-			"department": {"type": "string"},
-			"isManager": {"type": "boolean"}
-		}`),
-	}
+    schema := CreateUserSchemaRequest{
+        Name: "employee-schema-test",
+        Schema: json.RawMessage(`{
+            "firstName": {"type": "string"},
+            "lastName": {"type": "string", "required": true},
+            "email": {"type": "string", "required": true, "regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"},
+            "department": {"type": "string"},
+            "isManager": {"type": "boolean"}
+        }`),
+    }
 
 	jsonData, err := json.Marshal(schema)
 	if err != nil {
@@ -109,50 +109,51 @@ func (ts *CreateUserSchemaTestSuite) TestCreateUserSchema() {
 
 // TestCreateUserSchemaWithComplexSchema tests POST /user-schemas with complex JSON schema
 func (ts *CreateUserSchemaTestSuite) TestCreateUserSchemaWithComplexSchema() {
-	schema := CreateUserSchemaRequest{
-		Name: "complex-customer-schema",
-		Schema: json.RawMessage(`{
-			"personalInfo": {
-				"type": "object",
-				"properties": {
-					"firstName": {"type": "string"},
-					"lastName": {"type": "string"},
-					"dateOfBirth": {"type": "string", "regex": "^\\d{4}-\\d{2}-\\d{2}$"}
-				}
-			},
-			"contactInfo": {
-				"type": "object",
-				"properties": {
-					"email": {
-						"type": "string",
-						"regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-					},
-					"phone": {"type": "string"},
-					"addresses": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"street": {"type": "string"},
-								"city": {"type": "string"},
-								"zipCode": {"type": "string"}
-							}
-						}
-					}
-				}
-			},
-			"preferences": {
-				"type": "object",
-				"properties": {
-					"newsletter": {"type": "boolean"},
-					"theme": {
-						"type": "string",
-						"enum": ["light", "dark", "auto"]
-					}
-				}
-			}
-		}`),
-	}
+    schema := CreateUserSchemaRequest{
+        Name: "complex-customer-schema",
+        Schema: json.RawMessage(`{
+            "personalInfo": {
+                "type": "object",
+                "properties": {
+                    "firstName": {"type": "string"},
+                    "lastName": {"type": "string"},
+                    "dateOfBirth": {"type": "string", "regex": "^\\d{4}-\\d{2}-\\d{2}$"}
+                }
+            },
+            "contactInfo": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "required": true,
+                        "regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+                    },
+                    "phone": {"type": "string"},
+                    "addresses": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "street": {"type": "string"},
+                                "city": {"type": "string", "required": true},
+                                "zipCode": {"type": "string"}
+                            }
+                        }
+                    }
+                }
+            },
+            "preferences": {
+                "type": "object",
+                "properties": {
+                    "newsletter": {"type": "boolean"},
+                    "theme": {
+                        "type": "string",
+                        "enum": ["light", "dark", "auto"]
+                    }
+                }
+            }
+        }`),
+    }
 
 	jsonData, err := json.Marshal(schema)
 	if err != nil {
@@ -246,10 +247,10 @@ func (ts *CreateUserSchemaTestSuite) TestCreateUserSchemaWithDuplicateName() {
 
 // TestCreateUserSchemaWithInvalidData tests POST /user-schemas with invalid request data
 func (ts *CreateUserSchemaTestSuite) TestCreateUserSchemaWithInvalidData() {
-	testCases := []struct {
-		name        string
-		requestBody string
-	}{
+    testCases := []struct {
+        name        string
+        requestBody string
+    }{
 		{
 			name:        "empty name",
 			requestBody: `{"name": "", "schema": {"field": {"type": "string"}}}`,
@@ -270,11 +271,15 @@ func (ts *CreateUserSchemaTestSuite) TestCreateUserSchemaWithInvalidData() {
 			name:        "invalid JSON",
 			requestBody: `{"name": "test-schema", "schema": invalid}`,
 		},
-		{
-			name:        "malformed JSON",
-			requestBody: `{"name": "test-schema"`,
-		},
-	}
+        {
+            name:        "malformed JSON",
+            requestBody: `{"name": "test-schema"`,
+        },
+        {
+            name:        "non-boolean required flag",
+            requestBody: `{"name": "bad-required", "schema": {"email": {"type": "string", "required": "true"}}}`,
+        },
+    }
 
 	for _, tc := range testCases {
 		ts.T().Run(tc.name, func(t *testing.T) {

@@ -317,10 +317,11 @@ func validateUserSchemaProperty(propDef interface{}) error {
 func validateLeafProperty(propMap map[string]interface{}) error {
 	// Check for invalid properties
 	allowedFields := map[string]bool{
-		"type":   true,
-		"unique": true,
-		"enum":   true,
-		"regex":  true,
+		"type":     true,
+		"unique":   true,
+		"enum":     true,
+		"regex":    true,
+		"required": true,
 	}
 	for field := range propMap {
 		if !allowedFields[field] {
@@ -365,6 +366,12 @@ func validateLeafProperty(propMap map[string]interface{}) error {
 		}
 	}
 
+	if req, exists := propMap["required"]; exists {
+		if _, ok := req.(bool); !ok {
+			return fmt.Errorf("'required' field must be a boolean")
+		}
+	}
+
 	return nil
 }
 
@@ -373,6 +380,7 @@ func validateObjectProperty(propMap map[string]interface{}) error {
 	allowedFields := map[string]bool{
 		"type":       true,
 		"properties": true,
+		"required":   true,
 	}
 	for field := range propMap {
 		if !allowedFields[field] {
@@ -388,6 +396,12 @@ func validateObjectProperty(propMap map[string]interface{}) error {
 	propertiesMap, ok := properties.(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("'properties' field must be an object")
+	}
+
+	if req, exists := propMap["required"]; exists {
+		if _, ok := req.(bool); !ok {
+			return fmt.Errorf("'required' field must be a boolean")
+		}
 	}
 
 	for nestedPropName, nestedPropDef := range propertiesMap {
@@ -407,8 +421,9 @@ func validateArrayProperty(propMap map[string]interface{}) error {
 	}
 
 	allowedFields := map[string]bool{
-		"type":  true,
-		"items": true,
+		"type":     true,
+		"items":    true,
+		"required": true,
 	}
 	for field := range propMap {
 		if !allowedFields[field] {
@@ -419,6 +434,12 @@ func validateArrayProperty(propMap map[string]interface{}) error {
 	itemsMap, ok := items.(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("'items' field must be an object")
+	}
+
+	if req, exists := propMap["required"]; exists {
+		if _, ok := req.(bool); !ok {
+			return fmt.Errorf("'required' field must be a boolean")
+		}
 	}
 
 	itemType, exists := itemsMap["type"]
@@ -572,7 +593,7 @@ func (u *UserSchemaService) ValidateUserUniqueness(
 
 		userValue, exists := userAttrs[propName]
 		if !exists {
-			continue // Property is optional by default
+			continue
 		}
 
 		isValid, err := validateUserSchemaPropertyForUniqueness(propName, propSchemaMap, userValue, identifyUser, logger)
@@ -654,7 +675,7 @@ func validateUserSchemaPropertyForUniqueness(
 
 			nestedValue, exists := value[nestedPropName]
 			if !exists {
-				continue // Property is optional by default
+				continue
 			}
 
 			fullNestedPropName := propName + "." + nestedPropName
@@ -708,7 +729,16 @@ func validateUserAttributesAgainstSchema(
 
 		userValue, exists := userAttrs[propName]
 		if !exists {
-			continue // Property is optional by default
+			isRequired, err := isRequiredField(propDefMap, propName)
+			if err != nil {
+				return false, err
+			}
+
+			if isRequired {
+				return false, nil
+			}
+
+			continue
 		}
 
 		isValid, err := validateUserProperty(propName, userValue, propDefMap, logger)
@@ -874,7 +904,21 @@ func validateUserObjectProperty(
 			continue
 		}
 
-		if nestedValue, exists := value[nestedPropName]; exists {
+		nestedValue, exists := value[nestedPropName]
+		if !exists {
+			isRequired, err := isRequiredField(nestedPropDefMap, nestedPropName)
+			if err != nil {
+				return false, err
+			}
+
+			if isRequired {
+				return false, nil
+			}
+
+			continue
+		}
+
+		if nestedValue != nil {
 			isValid, err := validateUserProperty(nestedPropName, nestedValue, nestedPropDefMap, logger)
 			if err != nil {
 				return false, err
@@ -895,6 +939,15 @@ func validateUserArrayProperty(
 	propDef map[string]interface{},
 	logger *log.Logger,
 ) (bool, error) {
+	isRequired, err := isRequiredField(propDef, propName)
+	if err != nil {
+		return false, err
+	}
+	if isRequired && len(value) == 0 {
+		logger.Debug("Array property is required but empty", log.String("property", propName))
+		return false, nil
+	}
+
 	items, exists := propDef["items"]
 	if !exists {
 		return false, fmt.Errorf("missing 'items' field")
@@ -971,4 +1024,15 @@ func validateUniquenessConstraint(propName string, propDef map[string]interface{
 		}
 	}
 	return true, nil
+}
+
+// isRequiredField checks if the "required" field is present and valid, and returns whether the property is required.
+func isRequiredField(propDefMap map[string]interface{}, propName string) (bool, error) {
+	if req, exists := propDefMap["required"]; exists {
+		if reqBool, ok := req.(bool); ok {
+			return reqBool, nil
+		}
+		return false, fmt.Errorf("'required' field for property '%s' must be a boolean", propName)
+	}
+	return false, nil
 }
