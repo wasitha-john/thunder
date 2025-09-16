@@ -315,8 +315,8 @@ function Package-Backend {
 
     # Copy the appropriate startup script based on the target OS
     if ($GO_OS -eq "windows") {
-        Write-Host "Including Windows start script (start.bat)..."
-        Copy-Item -Path "start.bat" -Destination $package_folder -Force
+        Write-Host "Including Windows start script (start.ps1)..."
+        Copy-Item -Path "start.ps1" -Destination $package_folder -Force
     }
     else {
         Write-Host "Including Unix start script (start.sh)..."
@@ -469,8 +469,8 @@ function Package-Sample-App {
 
     # Copy the appropriate startup script based on the target OS
     if ($SAMPLE_DIST_OS -eq "win") {
-        Write-Host "Including Windows start script (start.bat)..."
-        Copy-Item -Path (Join-Path $SAMPLE_APP_SERVER_DIR "start.bat") -Destination $sample_app_folder -Force
+        Write-Host "Including Windows start script (start.ps1)..."
+        Copy-Item -Path (Join-Path $SAMPLE_APP_SERVER_DIR "start.ps1") -Destination $sample_app_folder -Force
     }
     else {
         Write-Host "Including Unix start script (start.sh)..."
