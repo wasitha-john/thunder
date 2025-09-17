@@ -42,8 +42,7 @@ const (
 )
 
 var (
-	testOUID  string
-	testIDPID string
+	testOUID string
 )
 
 type AuthzTestSuite struct {
@@ -123,14 +122,6 @@ func (ts *AuthzTestSuite) SetupSuite() {
 
 	ts.applicationID = respData["id"].(string)
 	ts.T().Logf("Created test application with ID: %s", ts.applicationID)
-
-	// Create Local IDP for OAuth2 tests
-	idpID, err := testutils.CreateLocalIDP()
-	if err != nil {
-		ts.T().Fatalf("Failed to create Local IDP during setup: %v", err)
-	}
-	testIDPID = idpID
-	ts.T().Logf("Created Local IDP with ID: %s", testIDPID)
 
 	// Create test organization unit for user creation
 	ouData := map[string]interface{}{
@@ -219,14 +210,6 @@ func (ts *AuthzTestSuite) TearDownSuite() {
 		}
 	}
 
-	// Delete Local IDP
-	if testIDPID != "" {
-		if err := testutils.DeleteIDP(testIDPID); err != nil {
-			ts.T().Errorf("Failed to delete Local IDP during teardown: %v", err)
-		} else {
-			ts.T().Logf("Successfully deleted Local IDP with ID: %s", testIDPID)
-		}
-	}
 }
 
 // TestBasicAuthorizationRequest tests the basic authorization request flow

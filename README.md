@@ -137,21 +137,9 @@ To quickly get started with Thunder, you can use the sample app provided with th
     cd thunder-sample-app-<version>-<os>-<arch>/
     ```
 
-3. **Create required entities for the sample app**
+3. **Create required application for sample app in Thunder**
 
-    Before using the sample app, you need to create the required entities. Follow these steps:
-
-    a. **Create a Local Identity Provider** (required for basic authentication):
-
-    ```bash
-    curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers \
-    -d '{
-        "name": "Local",
-        "description": "Local Identity Provider for basic authentication"
-    }'
-    ```
-
-    b. **Create an Application**:
+    Before using the sample app, you need to create an application in Thunder:
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/applications \
@@ -182,7 +170,7 @@ To quickly get started with Thunder, you can use the sample app provided with th
 4. **Configure the sample app**
 
     Open the `runtime.json` file in the thunder-sample-app-<version>-<os>-<arch>/app directory and update the configurations:
-    - `applicationID`: Use the application ID from step 3b
+    - `applicationID`: Use the application ID from step 3
     - `flowEndpoint`: The root endpoint for the flow execution API (default: `https://localhost:8090/flow`)
 
 5. **Start the sample app**
@@ -693,44 +681,10 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 2. **Configure the Google Identity Provider**
 
-    Create a Google IDP or update the system created Google IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your Google OAuth application.
-
-    To create a new Google IDP, use the following cURL command:
+    Create a Google IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your Google OAuth application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers \
-    -d '{
-        "name": "Google",
-        "description": "Login with Google",
-        "properties": [
-            {
-                "name": "client_id",
-                "value": "<client_id>",
-                "is_secret": false
-            },
-            {
-                "name": "client_secret",
-                "value": "<client_secret>",
-                "is_secret": true
-            },
-            {
-                "name": "redirect_uri",
-                "value": "<app_callback_url>",
-                "is_secret": false
-            },
-            {
-                "name": "scopes",
-                "value": "openid,email,profile",
-                "is_secret": false
-            }
-        ]
-    }'
-    ```
-
-    Alternatively, to update the existing Google IDP, use the following cURL command:
-
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440002 \
     -d '{
         "name": "Google",
         "description": "Login with Google",
@@ -857,46 +811,11 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 2. **Configure the GitHub Identity Provider**
 
-    Create a GitHub IDP or update the system created GitHub IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your GitHub OAuth application.
-
-    To create a new GitHub IDP, use the following cURL command:
+    Create a GitHub IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your GitHub OAuth application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers \
     -d '{
-        "name": "Github",
-        "description": "Login with Github",
-        "properties": [
-            {
-                "name": "client_id",
-                "value": "<client_id>",
-                "is_secret": false
-            },
-            {
-                "name": "client_secret",
-                "value": "<client_secret>",
-                "is_secret": true
-            },
-            {
-                "name": "redirect_uri",
-                "value": "<app_callback_url>",
-                "is_secret": false
-            },
-            {
-                "name": "scopes",
-                "value": "user:email,read:user",
-                "is_secret": false
-            }
-        ]
-    }'
-    ```
-
-    Alternatively, to update the existing GitHub IDP, use the following cURL command:
-
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440001 \
-    -d '{
-        "id": "550e8400-e29b-41d4-a716-446655440001",
         "name": "Github",
         "description": "Login with Github",
         "properties": [
@@ -1288,44 +1207,10 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 2. **Configure the Google Identity Provider**
 
-    Create a Google IDP or update the system created Google IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your Google OAuth application.
-
-    To create a new Google IDP, use the following cURL command:
+    Create a Google IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your Google OAuth application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers \
-    -d '{
-        "name": "Google",
-        "description": "Login with Google",
-        "properties": [
-            {
-                "name": "client_id",
-                "value": "<client_id>",
-                "is_secret": false
-            },
-            {
-                "name": "client_secret",
-                "value": "<client_secret>",
-                "is_secret": true
-            },
-            {
-                "name": "redirect_uri",
-                "value": "<app_callback_url>",
-                "is_secret": false
-            },
-            {
-                "name": "scopes",
-                "value": "openid,email,profile",
-                "is_secret": false
-            }
-        ]
-    }'
-    ```
-
-    Alternatively, to update the existing Google IDP, use the following cURL command:
-
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440002 \
     -d '{
         "name": "Google",
         "description": "Login with Google",
@@ -1462,46 +1347,11 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 2. **Configure the GitHub Identity Provider**
 
-    Create a GitHub IDP or update the system created GitHub IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your GitHub OAuth application.
-
-    To create a new GitHub IDP, use the following cURL command:
+    Create a GitHub IDP by invoking the IDP management API with the following cURL command. Make sure to replace `<client_id>`, `<client_secret>`, and `<app_callback_url>` with the values you copied from your GitHub OAuth application.
 
     ```bash
     curl -kL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers \
     -d '{
-        "name": "Github",
-        "description": "Login with Github",
-        "properties": [
-            {
-                "name": "client_id",
-                "value": "<client_id>",
-                "is_secret": false
-            },
-            {
-                "name": "client_secret",
-                "value": "<client_secret>",
-                "is_secret": true
-            },
-            {
-                "name": "redirect_uri",
-                "value": "<app_callback_url>",
-                "is_secret": false
-            },
-            {
-                "name": "scopes",
-                "value": "user:email,read:user",
-                "is_secret": false
-            }
-        ]
-    }'
-    ```
-
-    Alternatively, to update the existing GitHub IDP, use the following cURL command:
-
-    ```bash
-    curl -kL -X PUT -H 'Content-Type: application/json' -H 'Accept: application/json' https://localhost:8090/identity-providers/550e8400-e29b-41d4-a716-446655440001 \
-    -d '{
-        "id": "550e8400-e29b-41d4-a716-446655440001",
         "name": "Github",
         "description": "Login with Github",
         "properties": [

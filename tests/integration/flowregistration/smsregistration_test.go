@@ -73,13 +73,6 @@ func (ts *SMSRegistrationFlowTestSuite) SetupSuite() {
 	}
 	testOUID = ouID
 
-	// Create Local IDP for SMS registration tests
-	idpID, err := testutils.CreateLocalIDP()
-	if err != nil {
-		ts.T().Fatalf("Failed to create Local IDP during setup: %v", err)
-	}
-	testIDPID = idpID
-
 	// Create test application for SMS tests
 	appID, err := testutils.CreateApplication(smsRegTestApp)
 	if err != nil {
@@ -147,12 +140,6 @@ func (ts *SMSRegistrationFlowTestSuite) TearDownSuite() {
 		}
 	}
 
-	// Delete Local IDP
-	if testIDPID != "" {
-		if err := testutils.DeleteIDP(testIDPID); err != nil {
-			ts.T().Logf("Failed to delete Local IDP during teardown: %v", err)
-		}
-	}
 }
 
 func (ts *SMSRegistrationFlowTestSuite) TestSMSRegistrationFlowWithMobileNumber() {
