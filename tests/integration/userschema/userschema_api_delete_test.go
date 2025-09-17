@@ -49,14 +49,14 @@ func (ts *DeleteUserSchemaTestSuite) SetupSuite() {
 
 // TestDeleteUserSchema tests DELETE /user-schemas/{id} with valid ID
 func (ts *DeleteUserSchemaTestSuite) TestDeleteUserSchema() {
-	// Create a schema to delete
-	schema := CreateUserSchemaRequest{
-		Name: "schema-to-delete",
-		Schema: json.RawMessage(`{
-			"tempField": {"type": "string"},
-			"description": {"type": "string"}
-		}`),
-	}
+    // Create a schema to delete
+    schema := CreateUserSchemaRequest{
+        Name: "schema-to-delete",
+        Schema: json.RawMessage(`{
+            "tempField": {"type": "string", "required": true},
+            "description": {"type": "string"}
+        }`),
+    }
 
 	schemaID := ts.createTestSchema(schema)
 
