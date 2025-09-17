@@ -78,7 +78,6 @@ var (
 var (
 	decisionTestAppID string
 	decisionTestOUID  string
-	decisionTestIDPID string
 )
 
 type DecisionAndMFAFlowTestSuite struct {
@@ -101,13 +100,6 @@ func (ts *DecisionAndMFAFlowTestSuite) SetupSuite() {
 		ts.T().Fatalf("Failed to create test organization unit during setup: %v", err)
 	}
 	decisionTestOUID = ouID
-
-	// Create Local IDP for decision tests
-	idpID, err := testutils.CreateLocalIDP()
-	if err != nil {
-		ts.T().Fatalf("Failed to create Local IDP during setup: %v", err)
-	}
-	decisionTestIDPID = idpID
 
 	// Create test application for decision tests
 	appID, err := testutils.CreateApplication(decisionTestApp)
@@ -195,12 +187,6 @@ func (ts *DecisionAndMFAFlowTestSuite) TearDownSuite() {
 		}
 	}
 
-	// Delete Local IDP
-	if decisionTestIDPID != "" {
-		if err := testutils.DeleteIDP(decisionTestIDPID); err != nil {
-			ts.T().Logf("Failed to delete Local IDP during teardown: %v", err)
-		}
-	}
 }
 
 func (ts *DecisionAndMFAFlowTestSuite) TestBasicAuthWithMobileUserSMSOTP() {

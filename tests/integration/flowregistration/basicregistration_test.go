@@ -49,7 +49,6 @@ var (
 var (
 	testAppID string
 	testOUID  string
-	testIDPID string
 )
 
 type BasicRegistrationFlowTestSuite struct {
@@ -71,13 +70,6 @@ func (ts *BasicRegistrationFlowTestSuite) SetupSuite() {
 		ts.T().Fatalf("Failed to create test organization unit during setup: %v", err)
 	}
 	testOUID = ouID
-
-	// Create Local IDP for basic registration tests
-	idpID, err := testutils.CreateLocalIDP()
-	if err != nil {
-		ts.T().Fatalf("Failed to create Local IDP during setup: %v", err)
-	}
-	testIDPID = idpID
 
 	// Create test application
 	appID, err := testutils.CreateApplication(testApp)
@@ -119,12 +111,6 @@ func (ts *BasicRegistrationFlowTestSuite) TearDownSuite() {
 		}
 	}
 
-	// Delete Local IDP
-	if testIDPID != "" {
-		if err := testutils.DeleteIDP(testIDPID); err != nil {
-			ts.T().Logf("Failed to delete Local IDP during teardown: %v", err)
-		}
-	}
 }
 
 func (ts *BasicRegistrationFlowTestSuite) TestBasicRegistrationFlowSuccess() {

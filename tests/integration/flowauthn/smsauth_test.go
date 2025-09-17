@@ -67,7 +67,6 @@ var (
 var (
 	smsAuthTestAppID string
 	smsAuthTestOUID  string
-	smsAuthTestIDPID string
 )
 
 // NotificationSenderRequest represents the request to create a message notification sender.
@@ -114,13 +113,6 @@ func (ts *SMSAuthFlowTestSuite) SetupSuite() {
 		ts.T().Fatalf("Failed to create test organization unit during setup: %v", err)
 	}
 	smsAuthTestOUID = ouID
-
-	// Create Local IDP for SMS auth tests
-	idpID, err := testutils.CreateLocalIDP()
-	if err != nil {
-		ts.T().Fatalf("Failed to create Local IDP during setup: %v", err)
-	}
-	smsAuthTestIDPID = idpID
 
 	// Create test application for SMS auth tests
 	appID, err := testutils.CreateApplication(smsAuthTestApp)
@@ -199,12 +191,6 @@ func (ts *SMSAuthFlowTestSuite) TearDownSuite() {
 		}
 	}
 
-	// Delete Local IDP
-	if smsAuthTestIDPID != "" {
-		if err := testutils.DeleteIDP(smsAuthTestIDPID); err != nil {
-			ts.T().Logf("Failed to delete Local IDP during teardown: %v", err)
-		}
-	}
 }
 
 func (ts *SMSAuthFlowTestSuite) TestSMSAuthFlowWithMobileNumber() {

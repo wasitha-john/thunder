@@ -92,7 +92,6 @@ var (
 var (
 	attrCollectTestAppID string
 	attrCollectTestOUID  string
-	attrCollectTestIDPID string
 )
 
 type AttributeCollectTestData struct {
@@ -123,13 +122,6 @@ func (ts *AttributeCollectFlowTestSuite) SetupSuite() {
 		ts.T().Fatalf("Failed to create test organization unit during setup: %v", err)
 	}
 	attrCollectTestOUID = ouID
-
-	// Create Local IDP for attribute collect tests
-	idpID, err := testutils.CreateLocalIDP()
-	if err != nil {
-		ts.T().Fatalf("Failed to create Local IDP during setup: %v", err)
-	}
-	attrCollectTestIDPID = idpID
 
 	// Create test application for attribute collect tests
 	appID, err := testutils.CreateApplication(attrCollectTestApp)
@@ -236,12 +228,6 @@ func (ts *AttributeCollectFlowTestSuite) TearDownSuite() {
 		}
 	}
 
-	// Delete Local IDP
-	if attrCollectTestIDPID != "" {
-		if err := testutils.DeleteIDP(attrCollectTestIDPID); err != nil {
-			ts.T().Logf("Failed to delete Local IDP during teardown: %v", err)
-		}
-	}
 }
 
 // TestAttributeCollectionFlow tests the complete attribute collection flow including first and second login

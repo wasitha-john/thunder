@@ -219,17 +219,8 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 	var executor model.ExecutorInterface
 	switch execConfig.Name {
 	case "BasicAuthExecutor":
-		idp, err := getIDP("Local")
-		if err != nil {
-			return nil, fmt.Errorf("error while getting IDP for BasicAuthExecutor: %w", err)
-		}
-		executor = basicauth.NewBasicAuthExecutor(idp.ID, idp.Name, execConfig.Properties)
+		executor = basicauth.NewBasicAuthExecutor("local", "Local", execConfig.Properties)
 	case "SMSOTPAuthExecutor":
-		idp, err := getIDP("Local")
-		if err != nil {
-			return nil, fmt.Errorf("error while getting IDP for SMSOTPAuthExecutor: %w", err)
-		}
-
 		if len(execConfig.Properties) == 0 {
 			return nil, fmt.Errorf("properties for SMSOTPAuthExecutor cannot be empty")
 		}
@@ -237,7 +228,7 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 		if !exists || senderName == "" {
 			return nil, fmt.Errorf("senderName property is required for SMSOTPAuthExecutor")
 		}
-		executor = smsauth.NewSMSOTPAuthExecutor(idp.ID, idp.Name, execConfig.Properties)
+		executor = smsauth.NewSMSOTPAuthExecutor("local", "Local", execConfig.Properties)
 	case "GithubOAuthExecutor":
 		idp, err := getIDP(execConfig.IdpName)
 		if err != nil {
