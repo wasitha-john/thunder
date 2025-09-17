@@ -88,17 +88,10 @@ func (s *MessageNotificationStore) CreateSender(sender model.MessageNotification
 
 // ListSenders retrieves all message notification senders
 func (s *MessageNotificationStore) ListSenders() ([]model.MessageNotificationSender, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetAllNotificationSenders)
 	if err != nil {
@@ -127,17 +120,10 @@ func (s *MessageNotificationStore) ListSenders() ([]model.MessageNotificationSen
 
 // GetSenderProperties retrieves all properties of a message notification sender by ID.
 func (s *MessageNotificationStore) GetSenderProperties(id string) ([]model.SenderProperty, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetNotificationSenderProperties, id)
 	if err != nil {
@@ -166,15 +152,10 @@ func (s *MessageNotificationStore) getSender(query dbmodel.DBQuery,
 	identifier string) (*model.MessageNotificationSender, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(query, identifier)
 	if err != nil {
@@ -235,15 +216,10 @@ func (s *MessageNotificationStore) UpdateSender(id string, sender model.MessageN
 func (s *MessageNotificationStore) DeleteSender(id string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	rowsAffected, err := dbClient.Execute(QueryDeleteNotificationSender, id)
 	if err != nil {
@@ -258,17 +234,10 @@ func (s *MessageNotificationStore) DeleteSender(id string) error {
 
 // executeTransaction is a helper function to handle database transactions.
 func executeTransaction(queries []func(tx dbmodel.TxInterface) error) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	tx, err := dbClient.BeginTx()
 	if err != nil {

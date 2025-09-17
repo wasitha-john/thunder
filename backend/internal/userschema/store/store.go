@@ -31,17 +31,10 @@ import (
 
 // GetUserSchemaListCount retrieves the total count of user schemas.
 func GetUserSchemaListCount() (int, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserSchemaPersistence"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	countResults, err := dbClient.Query(QueryGetUserSchemaCount)
 	if err != nil {
@@ -64,15 +57,10 @@ func GetUserSchemaListCount() (int, error) {
 func GetUserSchemaList(limit, offset int) ([]model.UserSchemaListItem, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserSchemaPersistence"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetUserSchemaList, limit, offset)
 	if err != nil {
@@ -94,17 +82,10 @@ func GetUserSchemaList(limit, offset int) ([]model.UserSchemaListItem, error) {
 
 // CreateUserSchema creates a new user schema.
 func CreateUserSchema(userSchema model.UserSchema) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserSchemaPersistence"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	_, err = dbClient.Query(QueryCreateUserSchema, userSchema.ID, userSchema.Name, string(userSchema.Schema))
 	if err != nil {
@@ -116,17 +97,10 @@ func CreateUserSchema(userSchema model.UserSchema) error {
 
 // GetUserSchemaByID retrieves a user schema by its ID.
 func GetUserSchemaByID(schemaID string) (model.UserSchema, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserSchemaPersistence"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return model.UserSchema{}, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetUserSchemaByID, schemaID)
 	if err != nil {
@@ -142,17 +116,10 @@ func GetUserSchemaByID(schemaID string) (model.UserSchema, error) {
 
 // GetUserSchemaByName retrieves a user schema by its name.
 func GetUserSchemaByName(name string) (model.UserSchema, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserSchemaPersistence"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return model.UserSchema{}, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetUserSchemaByName, name)
 	if err != nil {
@@ -168,17 +135,10 @@ func GetUserSchemaByName(name string) (model.UserSchema, error) {
 
 // UpdateUserSchemaByID updates a user schema by its ID.
 func UpdateUserSchemaByID(schemaID string, userSchema model.UserSchema) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserSchemaPersistence"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	_, err = dbClient.Query(QueryUpdateUserSchemaByID, userSchema.Name, string(userSchema.Schema), schemaID)
 	if err != nil {
@@ -192,15 +152,10 @@ func UpdateUserSchemaByID(schemaID string, userSchema model.UserSchema) error {
 func DeleteUserSchemaByID(schemaID string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserSchemaPersistence"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	rowsAffected, err := dbClient.Execute(QueryDeleteUserSchemaByID, schemaID)
 	if err != nil {

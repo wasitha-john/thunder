@@ -26,10 +26,7 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/model"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
-	"github.com/asgardeo/thunder/internal/system/log"
 )
-
-const loggerComponentName = "FlowStore"
 
 // FlowStoreInterface defines the methods for flow context storage operations.
 type FlowStoreInterface interface {
@@ -47,7 +44,7 @@ type FlowStore struct {
 // NewFlowStore creates a new instance of FlowStore.
 func NewFlowStore() FlowStoreInterface {
 	return &FlowStore{
-		DBProvider: provider.NewDBProvider(),
+		DBProvider: provider.GetDBProvider(),
 	}
 }
 
@@ -77,17 +74,10 @@ func (s *FlowStore) StoreFlowContext(ctx model.EngineContext) error {
 
 // GetFlowContext retrieves the flow context from the database.
 func (s *FlowStore) GetFlowContext(flowID string) (*FlowContextWithUserDataDB, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
 	dbClient, err := s.DBProvider.GetDBClient("runtime")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetFlowContextWithUserData, flowID)
 	if err != nil {
@@ -148,17 +138,10 @@ func (s *FlowStore) DeleteFlowContext(flowID string) error {
 
 // executeTransaction is a helper function to handle database transactions.
 func (s *FlowStore) executeTransaction(queries []func(tx dbmodel.TxInterface) error) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
 	dbClient, err := s.DBProvider.GetDBClient("runtime")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	tx, err := dbClient.BeginTx()
 	if err != nil {

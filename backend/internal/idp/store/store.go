@@ -52,17 +52,10 @@ func NewIDPStore() IDPStoreInterface {
 
 // CreateIdentityProvider handles the IdP creation in the database.
 func (s *IDPStore) CreateIdentityProvider(idp model.IdpDTO) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IdPPersistence"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	tx, err := dbClient.BeginTx()
 	if err != nil {
@@ -115,17 +108,10 @@ func (s *IDPStore) CreateIdentityProvider(idp model.IdpDTO) error {
 
 // GetIdentityProviderList retrieves a list of IdPs from the database.
 func (s *IDPStore) GetIdentityProviderList() ([]model.BasicIdpDTO, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IdPPersistence"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetIdentityProviderList)
 	if err != nil {
@@ -146,17 +132,10 @@ func (s *IDPStore) GetIdentityProviderList() ([]model.BasicIdpDTO, error) {
 
 // getIDPProperties retrieves the properties of a specific IdP by its ID.
 func (s *IDPStore) getIDPProperties(idpID string) ([]model.IdpProperty, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IdPStore"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetIDPProperties, idpID)
 	if err != nil {
@@ -178,17 +157,10 @@ func (s *IDPStore) GetIdentityProviderByName(name string) (*model.IdpDTO, error)
 
 // getIDP retrieves an IDP based on the provided query and identifier.
 func (s *IDPStore) getIDP(query dbmodel.DBQuery, identifier string) (*model.IdpDTO, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IdPStore"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(query, identifier)
 	if err != nil {
@@ -226,17 +198,10 @@ func (s *IDPStore) getIDP(query dbmodel.DBQuery, identifier string) (*model.IdpD
 
 // UpdateIdentityProvider updates the idp in the database.
 func (s *IDPStore) UpdateIdentityProvider(idp *model.IdpDTO) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IdPStore"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	tx, err := dbClient.BeginTx()
 	if err != nil {
@@ -301,15 +266,10 @@ func (s *IDPStore) UpdateIdentityProvider(idp *model.IdpDTO) error {
 func (s *IDPStore) DeleteIdentityProvider(id string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IdPStore"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	rowsAffected, err := dbClient.Execute(QueryDeleteIdentityProviderByID, id)
 	if err != nil {

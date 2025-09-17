@@ -23,6 +23,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/healthcheck/model"
 	"github.com/asgardeo/thunder/tests/mocks/database/clientmock"
 	dbprovidermock "github.com/asgardeo/thunder/tests/mocks/database/providermock"
@@ -44,6 +45,20 @@ func TestHealthCheckServiceSuite(t *testing.T) {
 }
 
 func (suite *HealthCheckServiceTestSuite) SetupTest() {
+	testConfig := &config.Config{
+		Database: config.DatabaseConfig{
+			Identity: config.DataSource{
+				Type: "sqlite",
+				Path: ":memory:",
+			},
+			Runtime: config.DataSource{
+				Type: "sqlite",
+				Path: ":memory:",
+			},
+		},
+	}
+	_ = config.InitializeThunderRuntime("test", testConfig)
+
 	instance = nil
 	once = sync.Once{}
 	suite.service = GetHealthCheckService()
@@ -126,8 +141,6 @@ func (suite *HealthCheckServiceTestSuite) TestCheckReadiness() {
 			// Reset mock expectations
 			suite.mockIdentityDB.ExpectedCalls = nil
 			suite.mockRuntimeDB.ExpectedCalls = nil
-			suite.mockIdentityDB.On("Close").Return(nil)
-			suite.mockRuntimeDB.On("Close").Return(nil)
 
 			// Setup database mocks
 			if tc.setupIdentityDB != nil {

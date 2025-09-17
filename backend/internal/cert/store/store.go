@@ -27,10 +27,7 @@ import (
 	"github.com/asgardeo/thunder/internal/cert/model"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
-	"github.com/asgardeo/thunder/internal/system/log"
 )
-
-const loggerComponentName = "CertificateStore"
 
 // CertificateStoreInterface defines the methods for certificate storage operations.
 type CertificateStoreInterface interface {
@@ -51,7 +48,7 @@ type CertificateStore struct {
 // NewCertificateStore creates a new instance of CertificateStore.
 func NewCertificateStore() CertificateStoreInterface {
 	return &CertificateStore{
-		DBProvider: dbprovider.NewDBProvider(),
+		DBProvider: dbprovider.GetDBProvider(),
 	}
 }
 
@@ -68,17 +65,10 @@ func (s *CertificateStore) GetCertificateByReference(refType constants.Certifica
 
 // getCertificate retrieves a certificate based on a query and its arguments.
 func (s *CertificateStore) getCertificate(query dbmodel.DBQuery, args ...interface{}) (*model.Certificate, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
 	dbClient, err := s.DBProvider.GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(query, args...)
 	if err != nil {
@@ -138,17 +128,10 @@ func (s *CertificateStore) buildCertificateFromResultRow(row map[string]interfac
 
 // CreateCertificate creates a new certificate in the database.
 func (s *CertificateStore) CreateCertificate(cert *model.Certificate) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
 	dbClient, err := s.DBProvider.GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	rows, err := dbClient.Execute(QueryInsertCertificate, cert.ID, cert.RefType, cert.RefID, cert.Type, cert.Value)
 	if err != nil {
@@ -174,17 +157,10 @@ func (s *CertificateStore) UpdateCertificateByReference(existingCert, updatedCer
 
 // updateCertificate updates a certificate based on a query and its arguments.
 func (s *CertificateStore) updateCertificate(query dbmodel.DBQuery, args ...interface{}) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
 	dbClient, err := s.DBProvider.GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	rows, err := dbClient.Execute(query, args...)
 	if err != nil {
@@ -210,17 +186,10 @@ func (s *CertificateStore) DeleteCertificateByReference(refType constants.Certif
 
 // deleteCertificate deletes a certificate based on a query and its arguments.
 func (s *CertificateStore) deleteCertificate(query dbmodel.DBQuery, args ...interface{}) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
 	dbClient, err := s.DBProvider.GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	_, err = dbClient.Execute(query, args...)
 	if err != nil {

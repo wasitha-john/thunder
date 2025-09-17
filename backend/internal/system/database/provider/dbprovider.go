@@ -23,6 +23,8 @@ import (
 	"database/sql"
 	"fmt"
 	"path"
+	"sync"
+	"time"
 
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/database/client"
@@ -42,45 +44,98 @@ type dbConfig struct {
 // DBProviderInterface defines the interface for getting database clients.
 type DBProviderInterface interface {
 	GetDBClient(dbName string) (client.DBClientInterface, error)
+	Close() error
 }
 
 // DBProvider is the implementation of DBProviderInterface.
-type DBProvider struct{}
+type DBProvider struct {
+	identityClient client.DBClientInterface
+	runtimeClient  client.DBClientInterface
+}
 
-// NewDBProvider creates a new instance of DBProvider.
-func NewDBProvider() DBProviderInterface {
-	return &DBProvider{}
+var (
+	instance *DBProvider
+	once     sync.Once
+)
+
+// GetDBProvider returns the instance of DBProvider.
+func GetDBProvider() DBProviderInterface {
+	once.Do(func() {
+		instance = &DBProvider{}
+		instance.initializeClients()
+	})
+	return instance
 }
 
 // GetDBClient returns a database client based on the provided database name.
+// Do not close the returned client manually since it manages its own connection pool.
 func (d *DBProvider) GetDBClient(dbName string) (client.DBClientInterface, error) {
-	// Create the database connection string based on the configured database type.
-	config := config.GetThunderRuntime().Config.Database
-	var dbConfig dbConfig
 	switch dbName {
 	case "identity":
-		dbConfig = getDBConfig(config.Identity)
+		if d.identityClient == nil {
+			return nil, fmt.Errorf("identity client not initialized - check database configuration")
+		}
+		return d.identityClient, nil
 	case "runtime":
-		dbConfig = getDBConfig(config.Runtime)
+		if d.runtimeClient == nil {
+			return nil, fmt.Errorf("runtime client not initialized - check database configuration")
+		}
+		return d.runtimeClient, nil
 	default:
 		return nil, fmt.Errorf("unsupported database name: %s", dbName)
 	}
+}
+
+// initializeClients initializes the database clients.
+func (d *DBProvider) initializeClients() {
+	config := config.GetThunderRuntime().Config.Database
+
+	identityClient, err := d.createClient(config.Identity, "identity")
+	if err != nil {
+		d.identityClient = nil
+	} else {
+		d.identityClient = identityClient
+	}
+
+	runtimeClient, err := d.createClient(config.Runtime, "runtime")
+	if err != nil {
+		d.runtimeClient = nil
+	} else {
+		d.runtimeClient = runtimeClient
+	}
+}
+
+// createClient creates a database client with connection pool configuration from config.
+func (d *DBProvider) createClient(dataSource config.DataSource, dbName string) (client.DBClientInterface, error) {
+	dbConfig := d.getDBConfig(dataSource)
 
 	db, err := sql.Open(dbConfig.driverName, dbConfig.dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("failed to connect to database %s: %w", dbName, err)
 	}
+
+	// Configure connection pool using values from configuration
+	db.SetMaxOpenConns(dataSource.MaxOpenConns)
+	db.SetMaxIdleConns(dataSource.MaxIdleConns)
+	db.SetConnMaxLifetime(time.Duration(dataSource.ConnMaxLifetime) * time.Second)
 
 	// Test the database connection.
 	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		if closeErr := db.Close(); closeErr != nil {
+			return nil, fmt.Errorf("failed to ping database %s: %w (close error: %w)", dbName, err, closeErr)
+		}
+		return nil, fmt.Errorf("failed to ping database %s: %w", dbName, err)
 	}
 
 	// Enable foreign key constraints for SQLite databases
 	if dbConfig.driverName == dataSourceTypeSQLite {
 		_, err := db.Exec("PRAGMA foreign_keys = ON;")
 		if err != nil {
-			return nil, fmt.Errorf("failed to enable foreign key constraints: %w", err)
+			if closeErr := db.Close(); closeErr != nil {
+				return nil, fmt.Errorf("failed to enable foreign key constraints for %s: %w (close error: %w)",
+					dbName, err, closeErr)
+			}
+			return nil, fmt.Errorf("failed to enable foreign key constraints for %s: %w", dbName, err)
 		}
 	}
 
@@ -88,7 +143,7 @@ func (d *DBProvider) GetDBClient(dbName string) (client.DBClientInterface, error
 }
 
 // getDBConfig returns the database configuration based on the provided data source.
-func getDBConfig(dataSource config.DataSource) dbConfig {
+func (d *DBProvider) getDBConfig(dataSource config.DataSource) dbConfig {
 	var dbConfig dbConfig
 
 	switch dataSource.Type {
@@ -107,4 +162,29 @@ func getDBConfig(dataSource config.DataSource) dbConfig {
 	}
 
 	return dbConfig
+}
+
+// Close gracefully closes all database connections.
+func (d *DBProvider) Close() error {
+	var errs []error
+
+	if d.identityClient != nil {
+		if err := d.identityClient.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close identity client: %w", err))
+		}
+		d.identityClient = nil
+	}
+
+	if d.runtimeClient != nil {
+		if err := d.runtimeClient.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close runtime client: %w", err))
+		}
+		d.runtimeClient = nil
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("errors closing database clients: %v", errs)
+	}
+
+	return nil
 }

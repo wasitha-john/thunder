@@ -136,7 +136,10 @@ configuration:
       port: "5432" 
       username: "asgthunder"
       password: "asgthunder"
-      sslmode: "require" 
+      sslmode: "require"
+      max_open_conns: 500
+      max_idle_conns: 100
+      conn_max_lifetime: 3600
     # Runtime database configuration
     runtime:
       type: "sqlite" # postgres or sqlite
@@ -149,7 +152,10 @@ configuration:
       port: "5432" 
       username: "asgthunder"
       password: "asgthunder" 
-      sslmode: "require" 
+      sslmode: "require"
+      max_open_conns: 500
+      max_idle_conns: 100
+      conn_max_lifetime: 3600 
 
   # Cache configuration
   cache:

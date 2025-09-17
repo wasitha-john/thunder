@@ -9,9 +9,9 @@ import (
 	mock "github.com/stretchr/testify/mock"
 )
 
-// NewDBProviderInterfaceMock creates a new instance of DBProviderInterfaceMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// GetDBProviderInterfaceMock creates a new instance of DBProviderInterfaceMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
-func NewDBProviderInterfaceMock(t interface {
+func GetDBProviderInterfaceMock(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *DBProviderInterfaceMock {
@@ -94,6 +94,49 @@ func (_c *DBProviderInterfaceMock_GetDBClient_Call) Return(dBClientInterface cli
 }
 
 func (_c *DBProviderInterfaceMock_GetDBClient_Call) RunAndReturn(run func(dbName string) (client.DBClientInterface, error)) *DBProviderInterfaceMock_GetDBClient_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Close provides a mock function for the type DBProviderInterfaceMock
+func (_mock *DBProviderInterfaceMock) Close() error {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Close")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func() error); ok {
+		return returnFunc()
+	}
+	r0 = ret.Error(0)
+	return r0
+}
+
+// DBProviderInterfaceMock_Close_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Close'
+type DBProviderInterfaceMock_Close_Call struct {
+	*mock.Call
+}
+
+// Close is a helper method to define mock.On call
+func (_e *DBProviderInterfaceMock_Expecter) Close() *DBProviderInterfaceMock_Close_Call {
+	return &DBProviderInterfaceMock_Close_Call{Call: _e.mock.On("Close")}
+}
+
+func (_c *DBProviderInterfaceMock_Close_Call) Run(run func()) *DBProviderInterfaceMock_Close_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *DBProviderInterfaceMock_Close_Call) Return(err error) *DBProviderInterfaceMock_Close_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *DBProviderInterfaceMock_Close_Call) RunAndReturn(run func() error) *DBProviderInterfaceMock_Close_Call {
 	_c.Call.Return(run)
 	return _c
 }

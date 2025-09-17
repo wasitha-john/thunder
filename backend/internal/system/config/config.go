@@ -54,15 +54,18 @@ type SecurityConfig struct {
 
 // DataSource holds the individual database connection details.
 type DataSource struct {
-	Type     string `yaml:"type" json:"type"`
-	Hostname string `yaml:"hostname" json:"hostname"`
-	Port     int    `yaml:"port" json:"port"`
-	Name     string `yaml:"name" json:"name"`
-	Username string `yaml:"username" json:"username"`
-	Password string `yaml:"password" json:"password"`
-	SSLMode  string `yaml:"sslmode" json:"sslmode"`
-	Path     string `yaml:"path" json:"path"`
-	Options  string `yaml:"options" json:"options"`
+	Type            string `yaml:"type" json:"type"`
+	Hostname        string `yaml:"hostname" json:"hostname"`
+	Port            int    `yaml:"port" json:"port"`
+	Name            string `yaml:"name" json:"name"`
+	Username        string `yaml:"username" json:"username"`
+	Password        string `yaml:"password" json:"password"`
+	SSLMode         string `yaml:"sslmode" json:"sslmode"`
+	Path            string `yaml:"path" json:"path"`
+	Options         string `yaml:"options" json:"options"`
+	MaxOpenConns    int    `yaml:"max_open_conns" json:"max_open_conns"`
+	MaxIdleConns    int    `yaml:"max_idle_conns" json:"max_idle_conns"`
+	ConnMaxLifetime int    `yaml:"conn_max_lifetime" json:"conn_max_lifetime"`
 }
 
 // DatabaseConfig holds the different database configuration details.

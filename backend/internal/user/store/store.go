@@ -30,17 +30,10 @@ import (
 
 // GetUserListCount retrieves the total count of users.
 func GetUserListCount(filters map[string]interface{}) (int, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	countQuery, args, err := buildUserCountQuery(filters)
 	if err != nil {
@@ -66,18 +59,10 @@ func GetUserListCount(filters map[string]interface{}) (int, error) {
 
 // GetUserList retrieves a list of users from the database.
 func GetUserList(limit, offset int, filters map[string]interface{}) ([]model.User, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	listQuery, args, err := buildUserListQuery(filters, limit, offset)
 	if err != nil {
@@ -104,18 +89,10 @@ func GetUserList(limit, offset int, filters map[string]interface{}) ([]model.Use
 
 // CreateUser handles the user creation in the database.
 func CreateUser(user model.User, credentials []model.Credential) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserPersistence"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	// Convert attributes to JSON string
 	attributes, err := json.Marshal(user.Attributes)
@@ -152,18 +129,10 @@ func CreateUser(user model.User, credentials []model.Credential) error {
 
 // GetUser retrieves a specific user by its ID from the database.
 func GetUser(id string) (model.User, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return model.User{}, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetUserByUserID, id)
 	if err != nil {
@@ -189,18 +158,10 @@ func GetUser(id string) (model.User, error) {
 
 // UpdateUser updates the user in the database.
 func UpdateUser(user *model.User) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	// Convert attributes to JSON string
 	attributes, err := json.Marshal(user.Attributes)
@@ -225,16 +186,10 @@ func UpdateUser(user *model.User) error {
 func DeleteUser(id string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	rowsAffected, err := dbClient.Execute(QueryDeleteUserByUserID, id)
 	if err != nil {
@@ -252,16 +207,10 @@ func DeleteUser(id string) error {
 func IdentifyUser(filters map[string]interface{}) (*string, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	identifyUserQuery, args, err := buildIdentifyQuery(filters)
 	if err != nil {
@@ -304,18 +253,10 @@ func IdentifyUser(filters map[string]interface{}) (*string, error) {
 
 // VerifyUser validate the user specified user using the given credentials from the database.
 func VerifyUser(id string) (model.User, []model.Credential, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return model.User{}, []model.Credential{}, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	results, err := dbClient.Query(QueryValidateUserWithCredentials, id)
 	if err != nil {
@@ -362,17 +303,10 @@ func ValidateUserIDs(userIDs []string) ([]string, error) {
 		return []string{}, nil
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "UserStore"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	query, args, err := buildBulkUserExistsQuery(userIDs)
 	if err != nil {
