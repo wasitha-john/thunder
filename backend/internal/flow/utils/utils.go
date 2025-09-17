@@ -32,6 +32,7 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
+	idpconst "github.com/asgardeo/thunder/internal/idp/constants"
 	idpmodel "github.com/asgardeo/thunder/internal/idp/model"
 	idpservice "github.com/asgardeo/thunder/internal/idp/service"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
@@ -277,15 +278,19 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 }
 
 // getIDP retrieves the IDP by its name. Returns an error if the IDP does not exist or if the name is empty.
-func getIDP(idpName string) (*idpmodel.IDP, error) {
+func getIDP(idpName string) (*idpmodel.IdpDTO, error) {
 	if idpName == "" {
 		return nil, fmt.Errorf("IDP name cannot be empty")
 	}
 
-	idpSvc := idpservice.GetIDPService()
-	idp, err := idpSvc.GetIdentityProviderByName(idpName)
-	if err != nil {
-		return nil, fmt.Errorf("error while getting IDP with the name %s: %w", idpName, err)
+	idpSvc := idpservice.NewIDPService()
+	idp, svcErr := idpSvc.GetIdentityProviderByName(idpName)
+	if svcErr != nil {
+		if svcErr.Code == idpconst.ErrorIDPNotFound.Code {
+			return nil, fmt.Errorf("IDP with name %s does not exist", idpName)
+		}
+		return nil, fmt.Errorf("error while getting IDP with the name %s: code: %s, error: %s",
+			idpName, svcErr.Code, svcErr.ErrorDescription)
 	}
 	if idp == nil {
 		return nil, fmt.Errorf("IDP with name %s does not exist", idpName)
@@ -295,7 +300,7 @@ func getIDP(idpName string) (*idpmodel.IDP, error) {
 }
 
 // getIDPConfigs retrieves the IDP configurations for a given executor configuration.
-func getIDPConfigs(idpProperties []idpmodel.IDPProperty, execConfig *model.ExecutorConfig) (string,
+func getIDPConfigs(idpProperties []idpmodel.IdpProperty, execConfig *model.ExecutorConfig) (string,
 	string, string, []string, map[string]string, error) {
 	if len(idpProperties) == 0 {
 		return "", "", "", nil, nil, fmt.Errorf("IDP properties not found for executor with IDP name %s",

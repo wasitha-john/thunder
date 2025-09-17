@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	testServerURL = "https://localhost:8095"
+	testServerURL = testutils.TestServerURL
 )
 
 var (
@@ -243,29 +243,33 @@ func (ts *IdpAPITestSuite) TestIdpListing() {
 		ts.T().Fatalf("Expected status 200, got %d", resp.StatusCode)
 	}
 
-	// Parse the response body
-	var idps []testutils.IDP
-	err = json.NewDecoder(resp.Body).Decode(&idps)
+	// Parse the response body - list endpoint returns BasicIdpResponse objects
+	var basicIdps []struct {
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&basicIdps)
 	if err != nil {
 		ts.T().Fatalf("Failed to parse response body: %v", err)
 	}
 
-	idpListLength := len(idps)
+	idpListLength := len(basicIdps)
 	if idpListLength == 0 {
 		ts.T().Fatalf("Response does not contain any identity providers")
 	}
 
-	// Verify that all test IDPs we created are present in the list
+	// Verify that all test IDPs we created are present in the list (basic info only)
 	for _, expectedIdp := range testIdps {
 		found := false
-		for _, idp := range idps {
-			if compareIDPs(idp, expectedIdp) {
+		for _, idp := range basicIdps {
+			if idp.ID == expectedIdp.ID && idp.Name == expectedIdp.Name && idp.Description == expectedIdp.Description {
 				found = true
 				break
 			}
 		}
 		if !found {
-			ts.T().Fatalf("Test IDP not found in list: %+v", expectedIdp)
+			ts.T().Fatalf("Test IDP not found in list: ID=%s, Name=%s", expectedIdp.ID, expectedIdp.Name)
 		}
 	}
 }
@@ -365,7 +369,7 @@ func retrieveAndValidateIdpDetails(ts *IdpAPITestSuite, expectedIdp testutils.ID
 	}
 }
 
-// compareIDPs compares two IDP instances for equality
+// compareIDPs compares two IDP instances for equality, accounting for secret property masking
 func compareIDPs(idp, expectedIdp testutils.IDP) bool {
 	if idp.ID != expectedIdp.ID || idp.Name != expectedIdp.Name || idp.Description != expectedIdp.Description {
 		return false
@@ -380,7 +384,16 @@ func compareIDPs(idp, expectedIdp testutils.IDP) bool {
 		for _, p := range idp.Properties {
 			if p.Name == expProp.Name {
 				propFound = true
+				// For secret properties, the API returns "******" so we don't compare values
 				if !expProp.IsSecret && p.Value != expProp.Value {
+					return false
+				}
+				// For secret properties, just check that it's masked
+				if expProp.IsSecret && p.Value != "******" {
+					return false
+				}
+				// Ensure IsSecret flag matches
+				if p.IsSecret != expProp.IsSecret {
 					return false
 				}
 				break
