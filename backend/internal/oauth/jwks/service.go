@@ -57,23 +57,17 @@ func NewJWKSService() JWKSServiceInterface {
 
 // GetJWKS retrieves the JSON Web Key Set (JWKS) from the server's TLS certificate.
 func (s *JWKSService) GetJWKS() (*model.JWKSResponse, *serviceerror.ServiceError) {
-	thunderRuntime := config.GetThunderRuntime()
+	certConfig := config.GetThunderRuntime().CertConfig
 
-	// Get the certificate kid using the common utility function
-	kid, err := s.SystemCertService.GetCertificateKid()
-	if err != nil {
-		svcErr := constants.ErrorWhileRetrievingCertificateKid
-		svcErr.ErrorDescription = err.Error()
-		return nil, svcErr
+	kid := certConfig.CertKid
+	if kid == "" {
+		return nil, constants.ErrorCertificateKidNotFound
 	}
 
-	tlsConfig, err := s.SystemCertService.GetTLSConfig(&thunderRuntime.Config, thunderRuntime.ThunderHome)
-	if err != nil {
-		svcErr := constants.ErrorWhileRetrievingTLSConfig
-		svcErr.ErrorDescription = err.Error()
-		return nil, svcErr
+	tlsConfig := certConfig.TLSConfig
+	if tlsConfig == nil {
+		return nil, constants.ErrorTLSConfigNotFound
 	}
-
 	if len(tlsConfig.Certificates) == 0 || len(tlsConfig.Certificates[0].Certificate) == 0 {
 		return nil, constants.ErrorNoCertificateFound
 	}

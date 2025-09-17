@@ -21,12 +21,12 @@ package constants
 
 import "github.com/asgardeo/thunder/internal/system/error/serviceerror"
 
-// ErrorWhileRetrievingTLSConfig is returned when there is an error retrieving the TLS configuration.
-var ErrorWhileRetrievingTLSConfig = &serviceerror.ServiceError{
+// ErrorTLSConfigNotFound is returned when the TLS configuration is not set.
+var ErrorTLSConfigNotFound = &serviceerror.ServiceError{
 	Code:             "JWKS-5001",
 	Type:             serviceerror.ServerErrorType,
-	Error:            "Error while retrieving TLS configuration.",
-	ErrorDescription: "An error occurred while retrieving server TLS configurations",
+	Error:            "Error retrieving TLS configuration.",
+	ErrorDescription: "TLS configuration is not set.",
 }
 
 // ErrorWhileParsingCertificate is returned when there is an error parsing the server certificate.
@@ -53,10 +53,10 @@ var ErrorUnsupportedPublicKeyType = &serviceerror.ServiceError{
 	ErrorDescription: "The certificate public key type is not supported for JWKS.",
 }
 
-// ErrorWhileRetrievingCertificateKid is returned when there is an error retrieving the certificate kid.
-var ErrorWhileRetrievingCertificateKid = &serviceerror.ServiceError{
+// ErrorCertificateKidNotFound is returned when the certificate Key ID (kid) is not found.
+var ErrorCertificateKidNotFound = &serviceerror.ServiceError{
 	Code:             "JWKS-5005",
 	Type:             serviceerror.ServerErrorType,
-	Error:            "Error while retrieving certificate kid.",
-	ErrorDescription: "An error occurred while retrieving the certificate Key ID (kid).",
+	Error:            "Error while retrieving certificate Key ID (kid).",
+	ErrorDescription: "Certificate Key ID (kid) not found.",
 }

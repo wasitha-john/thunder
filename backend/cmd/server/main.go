@@ -153,6 +153,18 @@ func startTLSServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, 
 		logger.Fatal("Failed to load TLS configuration", log.Error(err))
 	}
 
+	// Extract and set the certificate Key ID (kid).
+	kid, err := sysCertSvc.GetCertificateKid(tlsConfig)
+	if err != nil {
+		logger.Fatal("Failed to extract certificate kid", log.Error(err))
+	}
+
+	certConfig := config.CertConfig{
+		TLSConfig: tlsConfig,
+		CertKid:   kid,
+	}
+	config.GetThunderRuntime().SetCertConfig(certConfig)
+
 	ln, err := tls.Listen("tcp", serverAddr, tlsConfig)
 	if err != nil {
 		logger.Fatal("Failed to start TLS listener", log.Error(err))

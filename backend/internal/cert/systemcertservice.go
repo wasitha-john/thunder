@@ -33,7 +33,7 @@ import (
 // SystemCertificateServiceInterface defines the interface for system certificate operations.
 type SystemCertificateServiceInterface interface {
 	GetTLSConfig(cfg *config.Config, currentDirectory string) (*tls.Config, error)
-	GetCertificateKid() (string, error)
+	GetCertificateKid(tlsConfig *tls.Config) (string, error)
 }
 
 // SystemCertificateService implements the SystemCertificateServiceInterface for managing system certificates.
@@ -71,13 +71,10 @@ func (c *SystemCertificateService) GetTLSConfig(cfg *config.Config, currentDirec
 }
 
 // GetCertificateKid extracts the Key ID (kid) from the TLS certificate using SHA-256 thumbprint.
-func (c *SystemCertificateService) GetCertificateKid() (string, error) {
-	thunderRuntime := config.GetThunderRuntime()
-	tlsConfig, err := c.GetTLSConfig(&thunderRuntime.Config, thunderRuntime.ThunderHome)
-	if err != nil {
-		return "", err
+func (c *SystemCertificateService) GetCertificateKid(tlsConfig *tls.Config) (string, error) {
+	if tlsConfig == nil {
+		return "", errors.New("TLS configuration is not set")
 	}
-
 	if len(tlsConfig.Certificates) == 0 || len(tlsConfig.Certificates[0].Certificate) == 0 {
 		return "", errors.New("no certificate found in TLS config")
 	}

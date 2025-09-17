@@ -26,24 +26,21 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/oauth/jwks/constants"
 	"github.com/asgardeo/thunder/internal/system/config"
-	"github.com/asgardeo/thunder/tests/mocks/certmock"
 )
 
 type JWKSServiceTestSuite struct {
 	suite.Suite
-	mockCertService *certmock.SystemCertificateServiceInterfaceMock
-	jwksService     *JWKSService
+	jwksService *JWKSService
 }
 
 func TestJWKSServiceSuite(t *testing.T) {
@@ -51,11 +48,12 @@ func TestJWKSServiceSuite(t *testing.T) {
 }
 
 func (suite *JWKSServiceTestSuite) SetupTest() {
-	suite.mockCertService = &certmock.SystemCertificateServiceInterfaceMock{}
 	suite.jwksService = &JWKSService{
-		SystemCertService: suite.mockCertService,
+		SystemCertService: cert.NewSystemCertificateService(),
 	}
+}
 
+func (suite *JWKSServiceTestSuite) setupRuntimeConfig(tlsConfig *tls.Config, certKid string) error {
 	testConfig := &config.Config{
 		Security: config.SecurityConfig{
 			CertFile: "test-cert.pem",
@@ -63,7 +61,17 @@ func (suite *JWKSServiceTestSuite) SetupTest() {
 		},
 	}
 	err := config.InitializeThunderRuntime("/tmp", testConfig)
-	assert.NoError(suite.T(), err)
+	if err != nil {
+		return err
+	}
+
+	// Set the cert config in runtime
+	runtime := config.GetThunderRuntime()
+	runtime.CertConfig = config.CertConfig{
+		TLSConfig: tlsConfig,
+		CertKid:   certKid,
+	}
+	return nil
 }
 
 func (suite *JWKSServiceTestSuite) TestNewJWKSService() {
@@ -101,8 +109,9 @@ func (suite *JWKSServiceTestSuite) TestGetJWKS_RSAKey_Success() {
 		MinVersion:   tls.VersionTLS12,
 	}
 
-	suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil)
-	suite.mockCertService.On("GetTLSConfig", mock.Anything, mock.Anything).Return(tlsConfig, nil)
+	// Set up the runtime config with cert config
+	err = suite.setupRuntimeConfig(tlsConfig, "test-kid")
+	assert.NoError(suite.T(), err)
 
 	result, svcErr := suite.jwksService.GetJWKS()
 	assert.Nil(suite.T(), svcErr)
@@ -119,8 +128,6 @@ func (suite *JWKSServiceTestSuite) TestGetJWKS_RSAKey_Success() {
 	assert.NotEmpty(suite.T(), jwk.X5c)
 	assert.NotEmpty(suite.T(), jwk.X5t)
 	assert.NotEmpty(suite.T(), jwk.X5tS256)
-
-	suite.mockCertService.AssertExpectations(suite.T())
 }
 
 func (suite *JWKSServiceTestSuite) TestGetJWKS_ECDSAKey_Success() {
@@ -152,8 +159,9 @@ func (suite *JWKSServiceTestSuite) TestGetJWKS_ECDSAKey_Success() {
 		MinVersion:   tls.VersionTLS12,
 	}
 
-	suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil)
-	suite.mockCertService.On("GetTLSConfig", mock.Anything, mock.Anything).Return(tlsConfig, nil)
+	// Set up the runtime config with cert config
+	err = suite.setupRuntimeConfig(tlsConfig, "test-kid")
+	assert.NoError(suite.T(), err)
 
 	result, svcErr := suite.jwksService.GetJWKS()
 	assert.Nil(suite.T(), svcErr)
@@ -171,33 +179,6 @@ func (suite *JWKSServiceTestSuite) TestGetJWKS_ECDSAKey_Success() {
 	assert.NotEmpty(suite.T(), jwk.X5c)
 	assert.NotEmpty(suite.T(), jwk.X5t)
 	assert.NotEmpty(suite.T(), jwk.X5tS256)
-
-	suite.mockCertService.AssertExpectations(suite.T())
-}
-
-func (suite *JWKSServiceTestSuite) TestGetJWKS_ErrorRetrievingKid() {
-	suite.mockCertService.On("GetCertificateKid").Return("", errors.New("kid error"))
-
-	result, svcErr := suite.jwksService.GetJWKS()
-	assert.Nil(suite.T(), result)
-	assert.NotNil(suite.T(), svcErr)
-	assert.Equal(suite.T(), constants.ErrorWhileRetrievingCertificateKid.Code, svcErr.Code)
-	assert.Equal(suite.T(), "kid error", svcErr.ErrorDescription)
-
-	suite.mockCertService.AssertExpectations(suite.T())
-}
-
-func (suite *JWKSServiceTestSuite) TestGetJWKS_ErrorRetrievingTLSConfig() {
-	suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil)
-	suite.mockCertService.On("GetTLSConfig", mock.Anything, mock.Anything).Return(nil, errors.New("tls error"))
-
-	result, svcErr := suite.jwksService.GetJWKS()
-	assert.Nil(suite.T(), result)
-	assert.NotNil(suite.T(), svcErr)
-	assert.Equal(suite.T(), constants.ErrorWhileRetrievingTLSConfig.Code, svcErr.Code)
-	assert.Equal(suite.T(), "tls error", svcErr.ErrorDescription)
-
-	suite.mockCertService.AssertExpectations(suite.T())
 }
 
 func (suite *JWKSServiceTestSuite) TestGetJWKS_NoCertificatesInTLSConfig() {
@@ -206,15 +187,14 @@ func (suite *JWKSServiceTestSuite) TestGetJWKS_NoCertificatesInTLSConfig() {
 		MinVersion:   tls.VersionTLS12,
 	}
 
-	suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil)
-	suite.mockCertService.On("GetTLSConfig", mock.Anything, mock.Anything).Return(tlsConfig, nil)
+	// Set up the runtime config with cert config
+	err := suite.setupRuntimeConfig(tlsConfig, "test-kid")
+	assert.NoError(suite.T(), err)
 
 	result, svcErr := suite.jwksService.GetJWKS()
 	assert.Nil(suite.T(), result)
 	assert.NotNil(suite.T(), svcErr)
 	assert.Equal(suite.T(), constants.ErrorNoCertificateFound.Code, svcErr.Code)
-
-	suite.mockCertService.AssertExpectations(suite.T())
 }
 
 func (suite *JWKSServiceTestSuite) TestGetJWKS_EmptyCertificateInTLSConfig() {
@@ -227,15 +207,14 @@ func (suite *JWKSServiceTestSuite) TestGetJWKS_EmptyCertificateInTLSConfig() {
 		MinVersion:   tls.VersionTLS12,
 	}
 
-	suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil)
-	suite.mockCertService.On("GetTLSConfig", mock.Anything, mock.Anything).Return(tlsConfig, nil)
+	// Set up the runtime config with cert config
+	err := suite.setupRuntimeConfig(tlsConfig, "test-kid")
+	assert.NoError(suite.T(), err)
 
 	result, svcErr := suite.jwksService.GetJWKS()
 	assert.Nil(suite.T(), result)
 	assert.NotNil(suite.T(), svcErr)
 	assert.Equal(suite.T(), constants.ErrorNoCertificateFound.Code, svcErr.Code)
-
-	suite.mockCertService.AssertExpectations(suite.T())
 }
 
 func (suite *JWKSServiceTestSuite) TestGetJWKS_InvalidCertificateData() {
@@ -248,15 +227,64 @@ func (suite *JWKSServiceTestSuite) TestGetJWKS_InvalidCertificateData() {
 		MinVersion:   tls.VersionTLS12,
 	}
 
-	suite.mockCertService.On("GetCertificateKid").Return("test-kid", nil)
-	suite.mockCertService.On("GetTLSConfig", mock.Anything, mock.Anything).Return(tlsConfig, nil)
+	// Set up the runtime config with cert config
+	err := suite.setupRuntimeConfig(tlsConfig, "test-kid")
+	assert.NoError(suite.T(), err)
 
 	result, svcErr := suite.jwksService.GetJWKS()
 	assert.Nil(suite.T(), result)
 	assert.NotNil(suite.T(), svcErr)
 	assert.Equal(suite.T(), constants.ErrorWhileParsingCertificate.Code, svcErr.Code)
+}
 
-	suite.mockCertService.AssertExpectations(suite.T())
+func (suite *JWKSServiceTestSuite) TestGetJWKS_CertKidNotFound() {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	assert.NoError(suite.T(), err)
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses: nil,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	assert.NoError(suite.T(), err)
+
+	cert := tls.Certificate{
+		Certificate: [][]byte{certDER},
+		PrivateKey:  privateKey,
+	}
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}
+
+	// Set up the runtime config with cert config but empty CertKid
+	err = suite.setupRuntimeConfig(tlsConfig, "")
+	assert.NoError(suite.T(), err)
+
+	result, svcErr := suite.jwksService.GetJWKS()
+	assert.Nil(suite.T(), result)
+	assert.NotNil(suite.T(), svcErr)
+	assert.Equal(suite.T(), constants.ErrorCertificateKidNotFound.Code, svcErr.Code)
+}
+
+func (suite *JWKSServiceTestSuite) TestGetJWKS_TLSConfigNotFound() {
+	// Set up the runtime config with cert config but nil TLSConfig
+	err := suite.setupRuntimeConfig(nil, "test-kid")
+	assert.NoError(suite.T(), err)
+
+	result, svcErr := suite.jwksService.GetJWKS()
+	assert.Nil(suite.T(), result)
+	assert.NotNil(suite.T(), svcErr)
+	assert.Equal(suite.T(), constants.ErrorTLSConfigNotFound.Code, svcErr.Code)
 }
 
 func (suite *JWKSServiceTestSuite) TestJWKSServiceInterface() {

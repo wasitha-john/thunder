@@ -18,12 +18,22 @@
 
 package config
 
-import "sync"
+import (
+	"crypto/tls"
+	"sync"
+)
+
+// CertConfig holds the server certificate configuration.
+type CertConfig struct {
+	TLSConfig *tls.Config
+	CertKid   string
+}
 
 // ThunderRuntime holds the runtime configuration for the Thunder server.
 type ThunderRuntime struct {
 	ThunderHome string `yaml:"thunder_home"`
 	Config      Config `yaml:"config"`
+	CertConfig  CertConfig
 }
 
 var (
@@ -56,4 +66,9 @@ func GetThunderRuntime() *ThunderRuntime {
 func ResetThunderRuntime() {
 	runtimeConfig = nil
 	once = sync.Once{}
+}
+
+// SetCertConfig sets the CertConfig in ThunderRuntime.
+func (tr *ThunderRuntime) SetCertConfig(certConfig CertConfig) {
+	tr.CertConfig = certConfig
 }
