@@ -1671,7 +1671,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.25+
 - Node.js 20+
 
 ---
