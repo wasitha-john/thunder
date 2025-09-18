@@ -238,8 +238,8 @@ function package_backend() {
 
     # Copy the appropriate startup script based on the target OS
     if [ "$GO_OS" = "windows" ]; then
-        echo "Including Windows start script (start.bat)..."
-        cp -r "start.bat" "$DIST_DIR/$PRODUCT_FOLDER"
+            echo "Including Windows start script (start.ps1)..."
+            cp -r "start.ps1" "$DIST_DIR/$PRODUCT_FOLDER"
     else
         echo "Including Unix start script (start.sh)..."
         cp -r "start.sh" "$DIST_DIR/$PRODUCT_FOLDER"
@@ -308,8 +308,8 @@ function package_sample_app() {
 
     # Copy the appropriate startup script based on the target OS
     if [ "$SAMPLE_DIST_OS" = "win" ]; then
-        echo "Including Windows start script (start.bat)..."
-        cp -r "$SAMPLE_APP_SERVER_DIR/start.bat" "$DIST_DIR/$SAMPLE_APP_FOLDER"
+            echo "Including Windows start script (start.ps1)..."
+            cp -r "$SAMPLE_APP_SERVER_DIR/start.ps1" "$DIST_DIR/$SAMPLE_APP_FOLDER"
     else
         echo "Including Unix start script (start.sh)..."
         cp -r "$SAMPLE_APP_SERVER_DIR/start.sh" "$DIST_DIR/$SAMPLE_APP_FOLDER"
