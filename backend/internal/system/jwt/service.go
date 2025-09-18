@@ -139,9 +139,9 @@ func (js *JWTService) GenerateJWT(sub, aud, iss string, validityPeriod int64, cl
 	thunderRuntime := config.GetThunderRuntime()
 
 	// Get the certificate kid (Key ID) for the JWT header.
-	kid, err := js.SystemCertificateService.GetCertificateKid()
-	if err != nil {
-		return "", 0, err
+	kid := thunderRuntime.CertConfig.CertKid
+	if kid == "" {
+		return "", 0, errors.New("certificate Key ID (kid) not found")
 	}
 
 	// Create the JWT header.

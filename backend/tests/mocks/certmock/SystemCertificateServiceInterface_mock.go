@@ -39,8 +39,8 @@ func (_m *SystemCertificateServiceInterfaceMock) EXPECT() *SystemCertificateServ
 }
 
 // GetCertificateKid provides a mock function for the type SystemCertificateServiceInterfaceMock
-func (_mock *SystemCertificateServiceInterfaceMock) GetCertificateKid() (string, error) {
-	ret := _mock.Called()
+func (_mock *SystemCertificateServiceInterfaceMock) GetCertificateKid(tlsConfig *tls.Config) (string, error) {
+	ret := _mock.Called(tlsConfig)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCertificateKid")
@@ -48,16 +48,16 @@ func (_mock *SystemCertificateServiceInterfaceMock) GetCertificateKid() (string,
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(*tls.Config) (string, error)); ok {
+		return returnFunc(tlsConfig)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(*tls.Config) string); ok {
+		r0 = returnFunc(tlsConfig)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(*tls.Config) error); ok {
+		r1 = returnFunc(tlsConfig)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -70,13 +70,20 @@ type SystemCertificateServiceInterfaceMock_GetCertificateKid_Call struct {
 }
 
 // GetCertificateKid is a helper method to define mock.On call
-func (_e *SystemCertificateServiceInterfaceMock_Expecter) GetCertificateKid() *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call {
-	return &SystemCertificateServiceInterfaceMock_GetCertificateKid_Call{Call: _e.mock.On("GetCertificateKid")}
+//   - tlsConfig *tls.Config
+func (_e *SystemCertificateServiceInterfaceMock_Expecter) GetCertificateKid(tlsConfig interface{}) *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call {
+	return &SystemCertificateServiceInterfaceMock_GetCertificateKid_Call{Call: _e.mock.On("GetCertificateKid", tlsConfig)}
 }
 
-func (_c *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call) Run(run func()) *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call {
+func (_c *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call) Run(run func(tlsConfig *tls.Config)) *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 *tls.Config
+		if args[0] != nil {
+			arg0 = args[0].(*tls.Config)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -86,7 +93,7 @@ func (_c *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call) Return(s
 	return _c
 }
 
-func (_c *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call) RunAndReturn(run func() (string, error)) *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call {
+func (_c *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call) RunAndReturn(run func(tlsConfig *tls.Config) (string, error)) *SystemCertificateServiceInterfaceMock_GetCertificateKid_Call {
 	_c.Call.Return(run)
 	return _c
 }
