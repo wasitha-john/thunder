@@ -128,13 +128,13 @@ To quickly get started with Thunder, you can use the sample app provided with th
 
 1. Download the sample app from the latest release
 
-    Download `thunder-sample-app-<version>-<os>-<arch>.zip` from the [latest release](https://github.com/asgardeo/thunder/releases/latest) for your operating system and architecture.
+    Download `sample-app-<version>-<os>-<arch>.zip` from the [latest release](https://github.com/asgardeo/thunder/releases/latest) for your operating system and architecture.
 
 2. Unzip and navigate to the sample app directory
 
     ```bash
-    unzip thunder-sample-app-<version>-<os>-<arch>.zip
-    cd thunder-sample-app-<version>-<os>-<arch>/
+    unzip sample-app-<version>-<os>-<arch>.zip
+    cd sample-app-<version>-<os>-<arch>/
     ```
 
 3. **Create required application for sample app in Thunder**
