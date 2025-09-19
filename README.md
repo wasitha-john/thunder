@@ -76,8 +76,8 @@ Follow these steps to download the latest release of WSO2 Thunder and run it loc
 
     If you are using a Windows machine:
 
-    ```bash
-    start.bat
+    ```powershell
+    .\start.ps1
     ```
 
 #### Option 2: Run with Docker
