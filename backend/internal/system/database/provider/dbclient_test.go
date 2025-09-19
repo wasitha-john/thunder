@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package client
+package provider
 
 import (
 	"database/sql"
@@ -253,15 +253,5 @@ func (suite *DBClientTestSuite) TestBeginTxError() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), expectedErr, err)
 	assert.Nil(suite.T(), tx)
-	assert.NoError(suite.T(), suite.mock.ExpectationsWereMet())
-}
-
-func (suite *DBClientTestSuite) TestCloseSuccess() {
-	// Setup expectation for closing the database
-	suite.mock.ExpectClose()
-
-	err := suite.dbClient.Close()
-
-	assert.NoError(suite.T(), err)
 	assert.NoError(suite.T(), suite.mock.ExpectationsWereMet())
 }

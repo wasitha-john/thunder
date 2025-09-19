@@ -25,7 +25,6 @@ import (
 
 	"github.com/asgardeo/thunder/internal/group/constants"
 	"github.com/asgardeo/thunder/internal/group/model"
-	"github.com/asgardeo/thunder/internal/system/database/client"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -436,7 +435,7 @@ func CheckGroupNameConflictForUpdate(name string, organizationUnitID string, gro
 // checkGroupNameConflictForCreate checks if the new group name conflicts with existing groups
 // in the same organization unit.
 func checkGroupNameConflictForCreate(
-	dbClient client.DBClientInterface,
+	dbClient provider.DBClientInterface,
 	name string,
 	organizationUnitID string,
 ) error {
@@ -461,7 +460,7 @@ func checkGroupNameConflictForCreate(
 // checkGroupNameConflictForUpdate checks if the new group name conflicts with other groups
 // in the same organization unit.
 func checkGroupNameConflictForUpdate(
-	dbClient client.DBClientInterface,
+	dbClient provider.DBClientInterface,
 	name string,
 	organizationUnitID string,
 	groupID string,

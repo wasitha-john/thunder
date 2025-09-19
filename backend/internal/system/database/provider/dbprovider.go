@@ -21,13 +21,17 @@ package provider
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"os"
+	"os/signal"
 	"path"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/asgardeo/thunder/internal/system/config"
-	"github.com/asgardeo/thunder/internal/system/database/client"
+	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 const (
@@ -43,14 +47,15 @@ type dbConfig struct {
 
 // DBProviderInterface defines the interface for getting database clients.
 type DBProviderInterface interface {
-	GetDBClient(dbName string) (client.DBClientInterface, error)
-	Close() error
+	GetDBClient(dbName string) (DBClientInterface, error)
 }
 
 // DBProvider is the implementation of DBProviderInterface.
 type DBProvider struct {
-	identityClient client.DBClientInterface
-	runtimeClient  client.DBClientInterface
+	identityClient DBClientInterface
+	runtimeClient  DBClientInterface
+	identityMutex  sync.RWMutex
+	runtimeMutex   sync.RWMutex
 }
 
 var (
@@ -62,51 +67,118 @@ var (
 func GetDBProvider() DBProviderInterface {
 	once.Do(func() {
 		instance = &DBProvider{}
-		instance.initializeClients()
+		instance.closeOnInterrupt()
 	})
 	return instance
 }
 
+// closeOnInterrupt sets up signal handling for graceful shutdown
+func (d *DBProvider) closeOnInterrupt() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		logger := log.GetLogger()
+		if err := d.close(); err != nil {
+			logger.Error("Error closing database connections", log.Error(err))
+		} else {
+			logger.Debug("Database connections closed successfully")
+		}
+	}()
+}
+
 // GetDBClient returns a database client based on the provided database name.
-// Do not close the returned client manually since it manages its own connection pool.
-func (d *DBProvider) GetDBClient(dbName string) (client.DBClientInterface, error) {
+// Not required to close the returned client manually since it manages its own connection pool.
+func (d *DBProvider) GetDBClient(dbName string) (DBClientInterface, error) {
 	switch dbName {
 	case "identity":
-		if d.identityClient == nil {
-			return nil, fmt.Errorf("identity client not initialized - check database configuration")
-		}
-		return d.identityClient, nil
+		return d.getIdentityClient()
 	case "runtime":
-		if d.runtimeClient == nil {
-			return nil, fmt.Errorf("runtime client not initialized - check database configuration")
-		}
-		return d.runtimeClient, nil
+		return d.getRuntimeClient()
 	default:
 		return nil, fmt.Errorf("unsupported database name: %s", dbName)
 	}
 }
 
-// initializeClients initializes the database clients.
-func (d *DBProvider) initializeClients() {
+// getIdentityClient returns the identity client, initializing it if necessary.
+func (d *DBProvider) getIdentityClient() (DBClientInterface, error) {
+	d.identityMutex.RLock()
+	if d.identityClient != nil {
+		client := d.identityClient
+		d.identityMutex.RUnlock()
+		return client, nil
+	}
+	d.identityMutex.RUnlock()
+
+	d.identityMutex.Lock()
+	defer d.identityMutex.Unlock()
+
+	if d.identityClient != nil {
+		return d.identityClient, nil
+	}
+
+	if err := d.initializeIdentityClient(); err != nil {
+		return nil, err
+	}
+
+	return d.identityClient, nil
+}
+
+// getRuntimeClient returns the runtime client, initializing it if necessary.
+func (d *DBProvider) getRuntimeClient() (DBClientInterface, error) {
+	d.runtimeMutex.RLock()
+	if d.runtimeClient != nil {
+		client := d.runtimeClient
+		d.runtimeMutex.RUnlock()
+		return client, nil
+	}
+	d.runtimeMutex.RUnlock()
+
+	d.runtimeMutex.Lock()
+	defer d.runtimeMutex.Unlock()
+
+	if d.runtimeClient != nil {
+		return d.runtimeClient, nil
+	}
+
+	if err := d.initializeRuntimeClient(); err != nil {
+		return nil, err
+	}
+
+	return d.runtimeClient, nil
+}
+
+// initializeIdentityClient initializes the identity database client.
+func (d *DBProvider) initializeIdentityClient() error {
 	config := config.GetThunderRuntime().Config.Database
 
 	identityClient, err := d.createClient(config.Identity, "identity")
 	if err != nil {
 		d.identityClient = nil
-	} else {
-		d.identityClient = identityClient
+		return fmt.Errorf("failed to initialize identity client: %w", err)
 	}
+
+	d.identityClient = identityClient
+	return nil
+}
+
+// initializeRuntimeClient initializes the runtime database client.
+func (d *DBProvider) initializeRuntimeClient() error {
+	config := config.GetThunderRuntime().Config.Database
 
 	runtimeClient, err := d.createClient(config.Runtime, "runtime")
 	if err != nil {
 		d.runtimeClient = nil
-	} else {
-		d.runtimeClient = runtimeClient
+		return fmt.Errorf("failed to initialize runtime client: %w", err)
 	}
+
+	d.runtimeClient = runtimeClient
+	return nil
 }
 
 // createClient creates a database client with connection pool configuration from config.
-func (d *DBProvider) createClient(dataSource config.DataSource, dbName string) (client.DBClientInterface, error) {
+func (d *DBProvider) createClient(dataSource config.DataSource, dbName string) (DBClientInterface, error) {
 	dbConfig := d.getDBConfig(dataSource)
 
 	db, err := sql.Open(dbConfig.driverName, dbConfig.dsn)
@@ -139,7 +211,7 @@ func (d *DBProvider) createClient(dataSource config.DataSource, dbName string) (
 		}
 	}
 
-	return client.NewDBClient(db, dbConfig.driverName), nil
+	return NewDBClient(db, dbConfig.driverName), nil
 }
 
 // getDBConfig returns the database configuration based on the provided data source.
@@ -164,27 +236,31 @@ func (d *DBProvider) getDBConfig(dataSource config.DataSource) dbConfig {
 	return dbConfig
 }
 
-// Close gracefully closes all database connections.
-func (d *DBProvider) Close() error {
-	var errs []error
+// close closes the database connections
+func (d *DBProvider) close() error {
+	var identityErr, runtimeErr error
 
+	d.identityMutex.Lock()
 	if d.identityClient != nil {
-		if err := d.identityClient.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("failed to close identity client: %w", err))
+		if client, ok := d.identityClient.(*DBClient); ok {
+			if err := client.close(); err != nil {
+				identityErr = fmt.Errorf("failed to close identity client: %w", err)
+			}
 		}
 		d.identityClient = nil
 	}
+	d.identityMutex.Unlock()
 
+	d.runtimeMutex.Lock()
 	if d.runtimeClient != nil {
-		if err := d.runtimeClient.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("failed to close runtime client: %w", err))
+		if client, ok := d.runtimeClient.(*DBClient); ok {
+			if err := client.close(); err != nil {
+				runtimeErr = fmt.Errorf("failed to close runtime client: %w", err)
+			}
 		}
 		d.runtimeClient = nil
 	}
+	d.runtimeMutex.Unlock()
 
-	if len(errs) > 0 {
-		return fmt.Errorf("errors closing database clients: %v", errs)
-	}
-
-	return nil
+	return errors.Join(identityErr, runtimeErr)
 }

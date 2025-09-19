@@ -25,16 +25,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
 	"path"
-	"syscall"
 	"time"
 
 	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/flow"
 	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/config"
-	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/managers"
@@ -56,8 +53,6 @@ func main() {
 	}
 
 	initFlowService(logger)
-
-	closeDBConnections(logger)
 
 	if cfg.Server.HTTPOnly {
 		logger.Info("TLS is not enabled, starting server without TLS")
@@ -198,19 +193,4 @@ func createHTTPServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux
 	}
 
 	return server, serverAddr
-}
-
-// closeDBConnections sets up signal handling for graceful shutdown
-func closeDBConnections(logger *log.Logger) {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-c
-		dbProvider := provider.GetDBProvider()
-		if err := dbProvider.Close(); err != nil {
-			logger.Error("Error closing database connections", log.Error(err))
-		}
-		logger.Info("Database connections closed successfully")
-	}()
 }

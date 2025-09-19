@@ -5,7 +5,7 @@
 package providermock
 
 import (
-	"github.com/asgardeo/thunder/internal/system/database/client"
+	"github.com/asgardeo/thunder/internal/system/database/provider"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -37,23 +37,23 @@ func (_m *DBProviderInterfaceMock) EXPECT() *DBProviderInterfaceMock_Expecter {
 }
 
 // GetDBClient provides a mock function for the type DBProviderInterfaceMock
-func (_mock *DBProviderInterfaceMock) GetDBClient(dbName string) (client.DBClientInterface, error) {
+func (_mock *DBProviderInterfaceMock) GetDBClient(dbName string) (provider.DBClientInterface, error) {
 	ret := _mock.Called(dbName)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetDBClient")
 	}
 
-	var r0 client.DBClientInterface
+	var r0 provider.DBClientInterface
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (client.DBClientInterface, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) (provider.DBClientInterface, error)); ok {
 		return returnFunc(dbName)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) client.DBClientInterface); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) provider.DBClientInterface); ok {
 		r0 = returnFunc(dbName)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(client.DBClientInterface)
+			r0 = ret.Get(0).(provider.DBClientInterface)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
@@ -88,55 +88,12 @@ func (_c *DBProviderInterfaceMock_GetDBClient_Call) Run(run func(dbName string))
 	return _c
 }
 
-func (_c *DBProviderInterfaceMock_GetDBClient_Call) Return(dBClientInterface client.DBClientInterface, err error) *DBProviderInterfaceMock_GetDBClient_Call {
+func (_c *DBProviderInterfaceMock_GetDBClient_Call) Return(dBClientInterface provider.DBClientInterface, err error) *DBProviderInterfaceMock_GetDBClient_Call {
 	_c.Call.Return(dBClientInterface, err)
 	return _c
 }
 
-func (_c *DBProviderInterfaceMock_GetDBClient_Call) RunAndReturn(run func(dbName string) (client.DBClientInterface, error)) *DBProviderInterfaceMock_GetDBClient_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Close provides a mock function for the type DBProviderInterfaceMock
-func (_mock *DBProviderInterfaceMock) Close() error {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for Close")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func() error); ok {
-		return returnFunc()
-	}
-	r0 = ret.Error(0)
-	return r0
-}
-
-// DBProviderInterfaceMock_Close_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Close'
-type DBProviderInterfaceMock_Close_Call struct {
-	*mock.Call
-}
-
-// Close is a helper method to define mock.On call
-func (_e *DBProviderInterfaceMock_Expecter) Close() *DBProviderInterfaceMock_Close_Call {
-	return &DBProviderInterfaceMock_Close_Call{Call: _e.mock.On("Close")}
-}
-
-func (_c *DBProviderInterfaceMock_Close_Call) Run(run func()) *DBProviderInterfaceMock_Close_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *DBProviderInterfaceMock_Close_Call) Return(err error) *DBProviderInterfaceMock_Close_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *DBProviderInterfaceMock_Close_Call) RunAndReturn(run func() error) *DBProviderInterfaceMock_Close_Call {
+func (_c *DBProviderInterfaceMock_GetDBClient_Call) RunAndReturn(run func(dbName string) (provider.DBClientInterface, error)) *DBProviderInterfaceMock_GetDBClient_Call {
 	_c.Call.Return(run)
 	return _c
 }
