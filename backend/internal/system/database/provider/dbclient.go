@@ -16,8 +16,8 @@
  * under the License.
  */
 
-// Package client provides database client implementations for executing queries and managing transactions.
-package client
+// Package provider provides database client implementations for executing queries and managing transactions.
+package provider
 
 import (
 	"strings"
@@ -37,8 +37,6 @@ type DBClientInterface interface {
 	Execute(query model.DBQuery, args ...interface{}) (int64, error)
 	// BeginTx starts a new database transaction.
 	BeginTx() (model.TxInterface, error)
-	// Close closes the database connection.
-	Close() error
 }
 
 // DBClient is the implementation of DBClientInterface.
@@ -132,6 +130,6 @@ func (client *DBClient) BeginTx() (model.TxInterface, error) {
 }
 
 // Close closes the database connection.
-func (client *DBClient) Close() error {
+func (client *DBClient) close() error {
 	return client.db.Close()
 }

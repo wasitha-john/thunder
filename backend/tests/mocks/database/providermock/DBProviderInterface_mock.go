@@ -5,13 +5,13 @@
 package providermock
 
 import (
-	"github.com/asgardeo/thunder/internal/system/database/client"
+	"github.com/asgardeo/thunder/internal/system/database/provider"
 	mock "github.com/stretchr/testify/mock"
 )
 
-// NewDBProviderInterfaceMock creates a new instance of DBProviderInterfaceMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// GetDBProviderInterfaceMock creates a new instance of DBProviderInterfaceMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
-func NewDBProviderInterfaceMock(t interface {
+func GetDBProviderInterfaceMock(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *DBProviderInterfaceMock {
@@ -37,23 +37,23 @@ func (_m *DBProviderInterfaceMock) EXPECT() *DBProviderInterfaceMock_Expecter {
 }
 
 // GetDBClient provides a mock function for the type DBProviderInterfaceMock
-func (_mock *DBProviderInterfaceMock) GetDBClient(dbName string) (client.DBClientInterface, error) {
+func (_mock *DBProviderInterfaceMock) GetDBClient(dbName string) (provider.DBClientInterface, error) {
 	ret := _mock.Called(dbName)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetDBClient")
 	}
 
-	var r0 client.DBClientInterface
+	var r0 provider.DBClientInterface
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (client.DBClientInterface, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) (provider.DBClientInterface, error)); ok {
 		return returnFunc(dbName)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) client.DBClientInterface); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) provider.DBClientInterface); ok {
 		r0 = returnFunc(dbName)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(client.DBClientInterface)
+			r0 = ret.Get(0).(provider.DBClientInterface)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
@@ -88,12 +88,12 @@ func (_c *DBProviderInterfaceMock_GetDBClient_Call) Run(run func(dbName string))
 	return _c
 }
 
-func (_c *DBProviderInterfaceMock_GetDBClient_Call) Return(dBClientInterface client.DBClientInterface, err error) *DBProviderInterfaceMock_GetDBClient_Call {
+func (_c *DBProviderInterfaceMock_GetDBClient_Call) Return(dBClientInterface provider.DBClientInterface, err error) *DBProviderInterfaceMock_GetDBClient_Call {
 	_c.Call.Return(dBClientInterface, err)
 	return _c
 }
 
-func (_c *DBProviderInterfaceMock_GetDBClient_Call) RunAndReturn(run func(dbName string) (client.DBClientInterface, error)) *DBProviderInterfaceMock_GetDBClient_Call {
+func (_c *DBProviderInterfaceMock_GetDBClient_Call) RunAndReturn(run func(dbName string) (provider.DBClientInterface, error)) *DBProviderInterfaceMock_GetDBClient_Call {
 	_c.Call.Return(run)
 	return _c
 }

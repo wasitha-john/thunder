@@ -47,7 +47,7 @@ type HealthCheckService struct {
 func GetHealthCheckService() HealthCheckServiceInterface {
 	once.Do(func() {
 		instance = &HealthCheckService{
-			DBProvider: provider.NewDBProvider(),
+			DBProvider: provider.GetDBProvider(),
 		}
 	})
 	return instance
@@ -87,13 +87,6 @@ func (hcs *HealthCheckService) checkDatabaseStatus(dbname string, query dbmodel.
 		logger.Error("Failed to get database client", log.Error(err))
 		return model.StatusDown
 	}
-	defer func() {
-		if dbClient != nil {
-			if closeErr := dbClient.Close(); closeErr != nil {
-				logger.Error("Error closing database client", log.Error(closeErr))
-			}
-		}
-	}()
 
 	_, err = dbClient.Query(query)
 	if err != nil {

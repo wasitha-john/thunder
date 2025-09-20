@@ -25,7 +25,6 @@ import (
 
 	"github.com/asgardeo/thunder/internal/group/constants"
 	"github.com/asgardeo/thunder/internal/group/model"
-	"github.com/asgardeo/thunder/internal/system/database/client"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -35,17 +34,10 @@ const loggerComponentName = "GroupStore"
 
 // GetGroupListCount retrieves the total count of root groups.
 func GetGroupListCount() (int, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	countResults, err := dbClient.Query(QueryGetGroupListCount)
 	if err != nil {
@@ -64,17 +56,10 @@ func GetGroupListCount() (int, error) {
 
 // GetGroupList retrieves root groups.
 func GetGroupList(limit, offset int) ([]model.GroupBasicDAO, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetGroupList, limit, offset)
 	if err != nil {
@@ -103,17 +88,10 @@ func GetGroupList(limit, offset int) ([]model.GroupBasicDAO, error) {
 
 // CreateGroup creates a new group in the database.
 func CreateGroup(group model.GroupDAO) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	tx, err := dbClient.BeginTx()
 	if err != nil {
@@ -151,17 +129,10 @@ func CreateGroup(group model.GroupDAO) error {
 
 // GetGroup retrieves a group by its id.
 func GetGroup(id string) (model.GroupDAO, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return model.GroupDAO{}, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetGroupByID, id)
 	if err != nil {
@@ -187,17 +158,10 @@ func GetGroup(id string) (model.GroupDAO, error) {
 
 // GetGroupMembers retrieves members of a group with pagination.
 func GetGroupMembers(groupID string, limit, offset int) ([]model.Member, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetGroupMembers, groupID, limit, offset)
 	if err != nil {
@@ -221,17 +185,10 @@ func GetGroupMembers(groupID string, limit, offset int) ([]model.Member, error) 
 
 // GetGroupMemberCount retrieves the total count of members in a group.
 func GetGroupMemberCount(groupID string) (int, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	countResults, err := dbClient.Query(QueryGetGroupMemberCount, groupID)
 	if err != nil {
@@ -251,17 +208,10 @@ func GetGroupMemberCount(groupID string) (int, error) {
 
 // UpdateGroup updates an existing group.
 func UpdateGroup(group model.GroupDAO) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	tx, err := dbClient.BeginTx()
 	if err != nil {
@@ -316,15 +266,10 @@ func UpdateGroup(group model.GroupDAO) error {
 func DeleteGroup(id string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	tx, err := dbClient.BeginTx()
 	if err != nil {
@@ -367,17 +312,10 @@ func ValidateGroupIDs(groupIDs []string) ([]string, error) {
 		return []string{}, nil
 	}
 
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	query, args, err := buildBulkGroupExistsQuery(groupIDs)
 	if err != nil {
@@ -475,17 +413,10 @@ func updateGroupMembers(
 // CheckGroupNameConflictForCreate checks if the new group name conflicts with existing groups
 // in the same organization unit.
 func CheckGroupNameConflictForCreate(name string, organizationUnitID string) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	return checkGroupNameConflictForCreate(dbClient, name, organizationUnitID)
 }
@@ -493,17 +424,10 @@ func CheckGroupNameConflictForCreate(name string, organizationUnitID string) err
 // CheckGroupNameConflictForUpdate checks if the new group name conflicts with other groups
 // in the same organization unit.
 func CheckGroupNameConflictForUpdate(name string, organizationUnitID string, groupID string) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	return checkGroupNameConflictForUpdate(dbClient, name, organizationUnitID, groupID)
 }
@@ -511,7 +435,7 @@ func CheckGroupNameConflictForUpdate(name string, organizationUnitID string, gro
 // checkGroupNameConflictForCreate checks if the new group name conflicts with existing groups
 // in the same organization unit.
 func checkGroupNameConflictForCreate(
-	dbClient client.DBClientInterface,
+	dbClient provider.DBClientInterface,
 	name string,
 	organizationUnitID string,
 ) error {
@@ -536,7 +460,7 @@ func checkGroupNameConflictForCreate(
 // checkGroupNameConflictForUpdate checks if the new group name conflicts with other groups
 // in the same organization unit.
 func checkGroupNameConflictForUpdate(
-	dbClient client.DBClientInterface,
+	dbClient provider.DBClientInterface,
 	name string,
 	organizationUnitID string,
 	groupID string,
@@ -561,17 +485,10 @@ func checkGroupNameConflictForUpdate(
 
 // GetGroupsByOrganizationUnitCount retrieves the total count of groups in a specific organization unit.
 func GetGroupsByOrganizationUnitCount(organizationUnitID string) (int, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	countResults, err := dbClient.Query(QueryGetGroupsByOrganizationUnitCount, organizationUnitID)
 	if err != nil {
@@ -591,17 +508,10 @@ func GetGroupsByOrganizationUnitCount(organizationUnitID string) (int, error) {
 
 // GetGroupsByOrganizationUnit retrieves a list of groups in a specific organization unit with pagination.
 func GetGroupsByOrganizationUnit(organizationUnitID string, limit, offset int) ([]model.GroupBasicDAO, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetGroupsByOrganizationUnit, organizationUnitID, limit, offset)
 	if err != nil {

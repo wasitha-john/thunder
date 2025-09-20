@@ -138,7 +138,10 @@ configuration:
       port: "5432" 
       username: "asgthunder"
       password: "asgthunder"
-      sslmode: "require" 
+      sslmode: "require"
+      max_open_conns: 500
+      max_idle_conns: 100
+      conn_max_lifetime: 3600
     # Runtime database configuration
     runtime:
       # WARNING: Use sqlite only if you are running a single pod.
@@ -152,7 +155,10 @@ configuration:
       port: "5432" 
       username: "asgthunder"
       password: "asgthunder" 
-      sslmode: "require" 
+      sslmode: "require"
+      max_open_conns: 500
+      max_idle_conns: 100
+      conn_max_lifetime: 3600 
 
   # Cache configuration
   cache:

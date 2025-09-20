@@ -27,7 +27,6 @@ import (
 	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
-	"github.com/asgardeo/thunder/internal/system/database/client"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -101,18 +100,10 @@ func (st *ApplicationStore) CreateApplication(app model.ApplicationProcessedDTO)
 
 // GetTotalApplicationCount retrieves the total count of applications from the database.
 func (st *ApplicationStore) GetTotalApplicationCount() (int, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func(dbc client.DBClientInterface) {
-		err := dbc.Close()
-		if err != nil {
-			logger.Error("Failed to close database client", log.Error(err))
-		}
-	}(dbClient)
 
 	results, err := dbClient.Query(QueryGetApplicationCount)
 	if err != nil {
@@ -135,17 +126,11 @@ func (st *ApplicationStore) GetTotalApplicationCount() (int, error) {
 func (st *ApplicationStore) GetApplicationList() ([]model.BasicApplicationDTO, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationPersistence"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func(dbc client.DBClientInterface) {
-		err := dbc.Close()
-		if err != nil {
-			logger.Error("Failed to close database client", log.Error(err))
-		}
-	}(dbClient)
 
 	results, err := dbClient.Query(QueryGetApplicationList)
 	if err != nil {
@@ -171,17 +156,11 @@ func (st *ApplicationStore) GetApplicationList() ([]model.BasicApplicationDTO, e
 func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessedDTO, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetOAuthApplicationByClientID, clientID)
 	if err != nil {
@@ -275,17 +254,11 @@ func (st *ApplicationStore) getApplicationByQuery(query dbmodel.DBQuery, param s
 	*model.ApplicationProcessedDTO, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	results, err := dbClient.Query(query, param)
 	if err != nil {
@@ -347,17 +320,11 @@ func (st *ApplicationStore) UpdateApplication(existingApp, updatedApp *model.App
 func (st *ApplicationStore) DeleteApplication(id string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		logger.Error("Failed to get database client", log.Error(err))
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	_, err = dbClient.Execute(QueryDeleteApplicationByAppID, id)
 	if err != nil {
@@ -675,16 +642,10 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 func executeTransaction(queries []func(tx dbmodel.TxInterface) error) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	tx, err := dbClient.BeginTx()
 	if err != nil {

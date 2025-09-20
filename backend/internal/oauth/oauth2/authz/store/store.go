@@ -50,7 +50,7 @@ type AuthorizationCodeStore struct {
 // NewAuthorizationCodeStore creates a new instance of AuthorizationCodeStore.
 func NewAuthorizationCodeStore() AuthorizationCodeStoreInterface {
 	return &AuthorizationCodeStore{
-		DBProvider: provider.NewDBProvider(),
+		DBProvider: provider.GetDBProvider(),
 	}
 }
 
@@ -63,12 +63,6 @@ func (acs *AuthorizationCodeStore) InsertAuthorizationCode(authzCode model.Autho
 		logger.Error("Failed to get database client", log.Error(err))
 		return err
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	tx, err := dbClient.BeginTx()
 	if err != nil {
@@ -119,12 +113,6 @@ func (acs *AuthorizationCodeStore) GetAuthorizationCode(clientID, authCode strin
 		logger.Error("Failed to get database client", log.Error(err))
 		return model.AuthorizationCode{}, err
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	results, err := dbClient.Query(constants.QueryGetAuthorizationCode, clientID, authCode)
 	if err != nil {
@@ -200,12 +188,6 @@ func (acs *AuthorizationCodeStore) updateAuthorizationCodeState(authzCode model.
 		logger.Error("Failed to get database client", log.Error(err))
 		return err
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-			err = fmt.Errorf("failed to close database client: %w", closeErr)
-		}
-	}()
 
 	_, err = dbClient.Execute(constants.QueryUpdateAuthorizationCodeState, newState, authzCode.CodeID)
 	return err

@@ -33,17 +33,10 @@ const loggerComponentName = "OrganizationUnitStore"
 
 // GetOrganizationUnitListCount retrieves the total count of organization units.
 func GetOrganizationUnitListCount() (int, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetRootOrganizationUnitListCount)
 	if err != nil {
@@ -64,17 +57,10 @@ func GetOrganizationUnitListCount() (int, error) {
 
 // GetOrganizationUnitList retrieves organization units with pagination.
 func GetOrganizationUnitList(limit, offset int) ([]model.OrganizationUnitBasic, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetRootOrganizationUnitList, limit, offset)
 	if err != nil {
@@ -95,17 +81,10 @@ func GetOrganizationUnitList(limit, offset int) ([]model.OrganizationUnitBasic, 
 
 // CreateOrganizationUnit creates a new organization unit in the database.
 func CreateOrganizationUnit(ou model.OrganizationUnit) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	_, err = dbClient.Execute(
 		QueryCreateOrganizationUnit,
@@ -124,17 +103,10 @@ func CreateOrganizationUnit(ou model.OrganizationUnit) error {
 
 // GetOrganizationUnit retrieves an organization unit by its id.
 func GetOrganizationUnit(id string) (model.OrganizationUnit, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return model.OrganizationUnit{}, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetOrganizationUnitByID, id)
 	if err != nil {
@@ -161,15 +133,10 @@ func GetOrganizationUnitByPath(handlePath []string) (model.OrganizationUnit, err
 		return model.OrganizationUnit{}, constants.ErrOrganizationUnitNotFound
 	}
 
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return model.OrganizationUnit{}, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	var currentOU model.OrganizationUnit
 	var parentID *string
@@ -210,17 +177,10 @@ func GetOrganizationUnitByPath(handlePath []string) (model.OrganizationUnit, err
 
 // IsOrganizationUnitExists checks if an organization unit exists by ID.
 func IsOrganizationUnitExists(id string) (bool, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return false, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryCheckOrganizationUnitExists, id)
 	if err != nil {
@@ -242,17 +202,10 @@ func IsOrganizationUnitExists(id string) (bool, error) {
 
 // UpdateOrganizationUnit updates an existing organization unit.
 func UpdateOrganizationUnit(ou model.OrganizationUnit) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	_, err = dbClient.Execute(
 		QueryUpdateOrganizationUnit,
@@ -271,17 +224,10 @@ func UpdateOrganizationUnit(ou model.OrganizationUnit) error {
 
 // DeleteOrganizationUnit deletes an organization unit.
 func DeleteOrganizationUnit(id string) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	_, err = dbClient.Execute(QueryDeleteOrganizationUnit, id)
 	if err != nil {
@@ -293,17 +239,10 @@ func DeleteOrganizationUnit(id string) error {
 
 // GetOrganizationUnitChildrenCount retrieves the total count of child organization units for a given parent ID.
 func GetOrganizationUnitChildrenCount(parentID string) (int, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetOrganizationUnitChildrenCount, parentID)
 	if err != nil {
@@ -325,17 +264,10 @@ func GetOrganizationUnitChildrenCount(parentID string) (int, error) {
 
 // GetOrganizationUnitChildrenList retrieves a paginated list of child organization units for a given parent ID.
 func GetOrganizationUnitChildrenList(parentID string, limit, offset int) ([]model.OrganizationUnitBasic, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetOrganizationUnitChildrenList, parentID, limit, offset)
 	if err != nil {
@@ -356,17 +288,10 @@ func GetOrganizationUnitChildrenList(parentID string, limit, offset int) ([]mode
 
 // GetOrganizationUnitUsersCount retrieves the total count of users in a given organization unit.
 func GetOrganizationUnitUsersCount(ouID string) (int, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetOrganizationUnitUsersCount, ouID)
 	if err != nil {
@@ -388,17 +313,10 @@ func GetOrganizationUnitUsersCount(ouID string) (int, error) {
 
 // GetOrganizationUnitUsersList retrieves a paginated list of users in a given organization unit.
 func GetOrganizationUnitUsersList(ouID string, limit, offset int) ([]model.User, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetOrganizationUnitUsersList, ouID, limit, offset)
 	if err != nil {
@@ -421,17 +339,10 @@ func GetOrganizationUnitUsersList(ouID string, limit, offset int) ([]model.User,
 
 // GetOrganizationUnitGroupsCount retrieves the total count of groups in a given organization unit.
 func GetOrganizationUnitGroupsCount(ouID string) (int, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetOrganizationUnitGroupsCount, ouID)
 	if err != nil {
@@ -453,17 +364,10 @@ func GetOrganizationUnitGroupsCount(ouID string) (int, error) {
 
 // GetOrganizationUnitGroupsList retrieves a paginated list of groups in a given organization unit.
 func GetOrganizationUnitGroupsList(ouID string, limit, offset int) ([]model.Group, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryGetOrganizationUnitGroupsList, ouID, limit, offset)
 	if err != nil {
@@ -518,17 +422,10 @@ func CheckOrganizationUnitHandleConflict(handle string, parentID *string) (bool,
 
 // CheckOrganizationUnitHasChildResources checks if an organization unit has users groups or sub-ous.
 func CheckOrganizationUnitHasChildResources(ouID string) (bool, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return false, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	results, err := dbClient.Query(QueryCheckOrganizationUnitHasUsersOrGroups, ouID)
 	if err != nil {
@@ -610,17 +507,10 @@ func checkConflict(
 	parentID *string,
 	extraArgs ...interface{},
 ) (bool, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-
-	dbClient, err := provider.NewDBProvider().GetDBClient("identity")
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return false, fmt.Errorf("failed to get database client: %w", err)
 	}
-	defer func() {
-		if closeErr := dbClient.Close(); closeErr != nil {
-			logger.Error("Failed to close database client", log.Error(closeErr))
-		}
-	}()
 
 	var results []map[string]interface{}
 
