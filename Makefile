@@ -89,6 +89,7 @@ lint: golangci-lint
 help:
 	@echo "Makefile targets:"
 	@echo "  all                           - Clean, build, and test the project."
+	@echo "  backend                       - Clean, build, and test only the backend."
 	@echo "  clean                         - Remove build artifacts."
 	@echo "  clean_all                     - Remove all build artifacts including distribution files."
 	@echo "  build                         - Build the Go project and frontend, then package."
