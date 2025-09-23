@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -99,11 +98,13 @@ func (us *UserSchemaService) CreateUserSchema(request model.CreateUserSchemaRequ
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
 
-	if err := validateJSONSchema(request.Schema); err != nil {
+	_, err := model.CompileUserSchema(request.Schema)
+	if err != nil {
+		logger.Debug("Provided user schema failed compilation", log.String("name", request.Name), log.Error(err))
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
 
-	_, err := store.GetUserSchemaByName(request.Name)
+	_, err = store.GetUserSchemaByName(request.Name)
 	if err == nil {
 		return nil, &constants.ErrorUserSchemaNameConflict
 	} else if !errors.Is(err, constants.ErrUserSchemaNotFound) {
@@ -161,7 +162,9 @@ func (us *UserSchemaService) UpdateUserSchema(schemaID string, request model.Upd
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
 
-	if err := validateJSONSchema(request.Schema); err != nil {
+	_, err := model.CompileUserSchema(request.Schema)
+	if err != nil {
+		logger.Debug("Provided user schema failed compilation", log.String("id", schemaID), log.Error(err))
 		return nil, &constants.ErrorInvalidUserSchemaRequest
 	}
 
@@ -260,250 +263,6 @@ func buildPaginationLinks(limit, offset, totalCount int) []model.Link {
 	return links
 }
 
-// validateJSONSchema validates that the schema is a valid JSON Schema according to the API specification.
-// The schema must be a properties-only object following the UserSchema specification in user.yaml.
-func validateJSONSchema(schema json.RawMessage) error {
-	var schemaMap map[string]interface{}
-	if err := json.Unmarshal(schema, &schemaMap); err != nil {
-		return fmt.Errorf("invalid JSON: %w", err)
-	}
-
-	if len(schemaMap) == 0 {
-		return fmt.Errorf("schema cannot be empty - must contain at least one property definition")
-	}
-
-	// The schema is expected to be a properties-only object (additionalProperties map)
-	// Each property should follow one of three patterns: leaf, object, or array
-	for propName, propDef := range schemaMap {
-		if err := validateUserSchemaProperty(propDef); err != nil {
-			return fmt.Errorf("invalid property '%s': %w", propName, err)
-		}
-	}
-
-	return nil
-}
-
-// validateUserSchemaProperty validates a property definition according to the UserSchema specification.
-// Properties must follow one of three patterns: leaf (string/number/boolean), object, or array.
-func validateUserSchemaProperty(propDef interface{}) error {
-	propMap, ok := propDef.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("property definition must be an object")
-	}
-
-	propType, exists := propMap["type"]
-	if !exists {
-		return fmt.Errorf("missing required 'type' field")
-	}
-
-	typeStr, ok := propType.(string)
-	if !ok {
-		return fmt.Errorf("'type' field must be a string")
-	}
-
-	switch typeStr {
-	case model.TypeString, model.TypeNumber, model.TypeBoolean:
-		return validateLeafProperty(propMap)
-	case model.TypeObject:
-		return validateObjectProperty(propMap)
-	case model.TypeArray:
-		return validateArrayProperty(propMap)
-	default:
-		return fmt.Errorf("invalid type '%s', must be one of: string, number, boolean, object, array", typeStr)
-	}
-}
-
-// validateLeafProperty validates leaf property definitions (string, number, boolean).
-func validateLeafProperty(propMap map[string]interface{}) error {
-	// Check for invalid properties
-	allowedFields := map[string]bool{
-		"type":     true,
-		"unique":   true,
-		"enum":     true,
-		"regex":    true,
-		"required": true,
-	}
-	for field := range propMap {
-		if !allowedFields[field] {
-			return fmt.Errorf("invalid field '%s' for leaf property", field)
-		}
-	}
-
-	if unique, exists := propMap["unique"]; exists {
-		if _, ok := unique.(bool); !ok {
-			return fmt.Errorf("'unique' field must be a boolean")
-		}
-	}
-
-	if enum, exists := propMap["enum"]; exists {
-		enumArray, ok := enum.([]interface{})
-		if !ok {
-			return fmt.Errorf("'enum' field must be an array")
-		}
-		if len(enumArray) == 0 {
-			return fmt.Errorf("'enum' array cannot be empty")
-		}
-
-		// Get the expected type from the property's type field
-		propertyType, exists := propMap["type"]
-		if !exists {
-			return fmt.Errorf("missing required 'type' field")
-		}
-
-		expectedType, ok := propertyType.(string)
-		if !ok {
-			return fmt.Errorf("'type' field must be a string")
-		}
-
-		if err := validateEnumItemsType(expectedType, enumArray); err != nil {
-			return err
-		}
-	}
-
-	if regex, exists := propMap["regex"]; exists {
-		if _, ok := regex.(string); !ok {
-			return fmt.Errorf("'regex' field must be a string")
-		}
-	}
-
-	if req, exists := propMap["required"]; exists {
-		if _, ok := req.(bool); !ok {
-			return fmt.Errorf("'required' field must be a boolean")
-		}
-	}
-
-	return nil
-}
-
-// validateObjectProperty validates object property definitions.
-func validateObjectProperty(propMap map[string]interface{}) error {
-	allowedFields := map[string]bool{
-		"type":       true,
-		"properties": true,
-		"required":   true,
-	}
-	for field := range propMap {
-		if !allowedFields[field] {
-			return fmt.Errorf("invalid field '%s' for object property", field)
-		}
-	}
-
-	properties, exists := propMap["properties"]
-	if !exists {
-		return fmt.Errorf("missing required 'properties' field for object type")
-	}
-
-	propertiesMap, ok := properties.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("'properties' field must be an object")
-	}
-
-	if req, exists := propMap["required"]; exists {
-		if _, ok := req.(bool); !ok {
-			return fmt.Errorf("'required' field must be a boolean")
-		}
-	}
-
-	for nestedPropName, nestedPropDef := range propertiesMap {
-		if err := validateUserSchemaProperty(nestedPropDef); err != nil {
-			return fmt.Errorf("invalid nested property '%s': %w", nestedPropName, err)
-		}
-	}
-
-	return nil
-}
-
-// validateArrayProperty validates array property definitions.
-func validateArrayProperty(propMap map[string]interface{}) error {
-	items, exists := propMap["items"]
-	if !exists {
-		return fmt.Errorf("missing required 'items' field for array type")
-	}
-
-	allowedFields := map[string]bool{
-		"type":     true,
-		"items":    true,
-		"required": true,
-	}
-	for field := range propMap {
-		if !allowedFields[field] {
-			return fmt.Errorf("invalid field '%s' for array property", field)
-		}
-	}
-
-	itemsMap, ok := items.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("'items' field must be an object")
-	}
-
-	if req, exists := propMap["required"]; exists {
-		if _, ok := req.(bool); !ok {
-			return fmt.Errorf("'required' field must be a boolean")
-		}
-	}
-
-	itemType, exists := itemsMap["type"]
-	if !exists {
-		return fmt.Errorf("missing required 'type' field in items definition")
-	}
-
-	itemTypeStr, ok := itemType.(string)
-	if !ok {
-		return fmt.Errorf("'type' field in items must be a string")
-	}
-
-	switch itemTypeStr {
-	case model.TypeString, model.TypeNumber, model.TypeBoolean:
-		return validateArrayLeafItems(itemTypeStr, itemsMap)
-	case model.TypeObject:
-		return validateObjectProperty(itemsMap)
-	default:
-		return fmt.Errorf("invalid items type '%s', must be one of: string, number, boolean, object", itemTypeStr)
-	}
-}
-
-// validateArrayLeafItems validates array items for leaf types (string, number, boolean).
-func validateArrayLeafItems(itemType string, itemsMap map[string]interface{}) error {
-	itemEnum, exists := itemsMap["enum"]
-	if exists {
-		itemEnumArray, ok := itemEnum.([]interface{})
-		if !ok {
-			return fmt.Errorf("'enum' field in items must be an array")
-		}
-		if len(itemEnumArray) == 0 {
-			return fmt.Errorf("'enum' array in items cannot be empty")
-		}
-		return validateEnumItemsType(itemType, itemEnumArray)
-	}
-	return nil
-}
-
-// validateEnumItemsType validates array enum items for leaf types (string, number, boolean).
-func validateEnumItemsType(expectedType string, enumArray []interface{}) error {
-	for i, item := range enumArray {
-		switch expectedType {
-		case model.TypeString:
-			if _, ok := item.(string); !ok {
-				return fmt.Errorf("'enum' array item at index %d must be a string to match property type", i)
-			}
-		case model.TypeNumber:
-			switch item.(type) {
-			case float64, int:
-				// Valid number type
-			default:
-				return fmt.Errorf("'enum' array item at index %d must be a number to match property type", i)
-			}
-		case model.TypeBoolean:
-			if _, ok := item.(bool); !ok {
-				return fmt.Errorf("'enum' array item at index %d must be a boolean to match property type", i)
-			}
-		default:
-			return fmt.Errorf("invalid property type '%s' for enum validation", expectedType)
-		}
-	}
-	return nil
-}
-
 // logAndReturnServerError logs the error and returns a server error.
 func logAndReturnServerError(
 	logger *log.Logger,
@@ -512,6 +271,28 @@ func logAndReturnServerError(
 ) *serviceerror.ServiceError {
 	logger.Error(message, log.Error(err))
 	return &constants.ErrorInternalServerError
+}
+
+func (us *UserSchemaService) getCompiledSchemaForUserType(
+	userType string,
+	logger *log.Logger,
+) (*model.Schema, error) {
+	if userType == "" {
+		return nil, constants.ErrUserSchemaNotFound
+	}
+
+	userSchema, err := store.GetUserSchemaByName(userType)
+	if err != nil {
+		return nil, err
+	}
+
+	compiled, err := model.CompileUserSchema(userSchema.Schema)
+	if err != nil {
+		logger.Error("Failed to compile stored user schema", log.String("userType", userType), log.Error(err))
+		return nil, fmt.Errorf("failed to compile stored user schema: %w", err)
+	}
+
+	return compiled, nil
 }
 
 // ValidateUser validates user attributes against the user schema for the given user type.
@@ -525,16 +306,16 @@ func (us *UserSchemaService) ValidateUser(
 		return true, nil
 	}
 
-	userSchema, err := store.GetUserSchemaByName(userType)
+	compiledSchema, err := us.getCompiledSchemaForUserType(userType, logger)
 	if err != nil {
 		if errors.Is(err, constants.ErrUserSchemaNotFound) {
 			logger.Debug("No schema found for user type, skipping validation", log.String("userType", userType))
-			return true, nil // Allow users without schema
+			return true, nil
 		}
-		return false, logAndReturnServerError(logger, "Failed to get user schema", err)
+		return false, logAndReturnServerError(logger, "Failed to load user schema", err)
 	}
 
-	isValid, err := validateUserAttributesAgainstSchema(userAttributes, userSchema.Schema, logger)
+	isValid, err := compiledSchema.Validate(userAttributes, logger)
 	if err != nil {
 		return false, logAndReturnServerError(logger, "Failed to validate user attributes against schema", err)
 	}
@@ -548,7 +329,7 @@ func (us *UserSchemaService) ValidateUser(
 }
 
 // ValidateUserUniqueness validates the uniqueness constraints of user attributes.
-func (u *UserSchemaService) ValidateUserUniqueness(
+func (us *UserSchemaService) ValidateUserUniqueness(
 	userType string,
 	userAttributes json.RawMessage,
 	identifyUser func(map[string]interface{}) (*string, error),
@@ -559,12 +340,12 @@ func (u *UserSchemaService) ValidateUserUniqueness(
 		return true, nil
 	}
 
-	userSchema, err := store.GetUserSchemaByName(userType)
+	compiledSchema, err := us.getCompiledSchemaForUserType(userType, logger)
 	if err != nil {
 		if errors.Is(err, constants.ErrUserSchemaNotFound) {
-			return true, nil // No schema, so skip uniqueness validation
+			return true, nil
 		}
-		return false, logAndReturnServerError(logger, "Failed to get user schema", err)
+		return false, logAndReturnServerError(logger, "Failed to load user schema", err)
 	}
 
 	if len(userAttributes) == 0 {
@@ -576,463 +357,14 @@ func (u *UserSchemaService) ValidateUserUniqueness(
 		return false, logAndReturnServerError(logger, "Failed to unmarshal user attributes", err)
 	}
 
-	var schemaMap map[string]interface{}
-	if err := json.Unmarshal(userSchema.Schema, &schemaMap); err != nil {
-		return false, logAndReturnServerError(logger, "Failed to unmarshal user schema", err)
-	}
-
-	if len(schemaMap) == 0 {
-		return true, nil
-	}
-
-	for propName, propSchema := range schemaMap {
-		propSchemaMap, ok := propSchema.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		userValue, exists := userAttrs[propName]
-		if !exists {
-			continue
-		}
-
-		isValid, err := validateUserSchemaPropertyForUniqueness(propName, propSchemaMap, userValue, identifyUser, logger)
-		if err != nil {
-			errMsg := fmt.Sprintf("server error during uniqueness check for '%s'", propName)
-			return false, logAndReturnServerError(logger, errMsg, err)
-		}
-
-		if !isValid {
-			logger.Debug("User attribute failed uniqueness validation",
-				log.String("userType", userType), log.String("property", propName))
-			return false, nil
-		}
-	}
-	return true, nil
-}
-
-// validateUserSchemaPropertyForUniqueness validates a unique property according to the UserSchema specification.
-// Properties must follow one of three patterns: leaf (string/number/boolean), object, or array.
-func validateUserSchemaPropertyForUniqueness(
-	propName string,
-	propSchemaMap map[string]interface{},
-	value interface{},
-	identifyUser func(map[string]interface{}) (*string, error),
-	logger *log.Logger,
-) (bool, error) {
-	propType, exists := propSchemaMap["type"]
-	if !exists {
-		return false, fmt.Errorf("missing required 'type' field")
-	}
-
-	typeStr, ok := propType.(string)
-	if !ok {
-		return false, fmt.Errorf("invalid 'type' field")
-	}
-
-	switch typeStr {
-	case "string", "number", "boolean":
-		if unique, exists := propSchemaMap["unique"]; exists {
-			if uniqueBool, ok := unique.(bool); ok && uniqueBool {
-				filter := map[string]interface{}{propName: value}
-
-				existingUserID, err := identifyUser(filter)
-
-				if err != nil {
-					return false, err
-				}
-
-				if existingUserID != nil {
-					return false, nil
-				}
-			}
-		}
-		return true, nil
-	case "object":
-		value, ok := value.(map[string]interface{})
-		if !ok {
-			logger.Debug("Expected object but got different type",
-				log.String("property", propName),
-				log.String("value", fmt.Sprintf("%v", value)))
-			return false, nil
-		}
-		properties, exists := propSchemaMap["properties"]
-		if !exists {
-			return false, fmt.Errorf("missing required 'properties' field")
-		}
-
-		propertiesMap, ok := properties.(map[string]interface{})
-		if !ok {
-			return false, fmt.Errorf("invalid 'properties' field")
-		}
-
-		// Validate nested properties
-		for nestedPropName, nestedPropDef := range propertiesMap {
-			nestedPropDefMap, ok := nestedPropDef.(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			nestedValue, exists := value[nestedPropName]
-			if !exists {
-				continue
-			}
-
-			fullNestedPropName := propName + "." + nestedPropName
-			isValid, err := validateUserSchemaPropertyForUniqueness(fullNestedPropName, nestedPropDefMap,
-				nestedValue, identifyUser, logger)
-			if err != nil {
-				return false, err
-			}
-
-			if !isValid {
-				logger.Debug("User attribute failed uniqueness validation", log.String("property", fullNestedPropName))
-				return false, nil
-			}
-		}
-
-		return true, nil
-	case "array":
-		// Arrays are not supported for uniqueness validation
-		return true, nil
-	}
-
-	return true, nil
-}
-
-// validateUserAttributesAgainstSchema validates the user attributes against the JSON schema.
-func validateUserAttributesAgainstSchema(
-	attributes json.RawMessage,
-	schema json.RawMessage,
-	logger *log.Logger,
-) (bool, error) {
-	if len(attributes) == 0 {
-		logger.Debug("User has no attributes to validate")
-		return true, nil
-	}
-
-	var userAttrs map[string]interface{}
-	if err := json.Unmarshal(attributes, &userAttrs); err != nil {
-		return false, fmt.Errorf("failed to unmarshal user attributes: %w", err)
-	}
-
-	var schemaMap map[string]interface{}
-	if err := json.Unmarshal(schema, &schemaMap); err != nil {
-		return false, fmt.Errorf("failed to unmarshal schema: %w", err)
-	}
-
-	for propName, propDef := range schemaMap {
-		propDefMap, ok := propDef.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		userValue, exists := userAttrs[propName]
-		if !exists {
-			isRequired, err := isRequiredField(propDefMap, propName)
-			if err != nil {
-				return false, err
-			}
-
-			if isRequired {
-				return false, nil
-			}
-
-			continue
-		}
-
-		isValid, err := validateUserProperty(propName, userValue, propDefMap, logger)
-		if err != nil {
-			return false, err
-		}
-
-		if !isValid {
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-// validateUserProperty validates a single property against its schema definition.
-func validateUserProperty(
-	propName string,
-	value interface{},
-	propDef map[string]interface{},
-	logger *log.Logger,
-) (bool, error) {
-	propType, exists := propDef["type"]
-	if !exists {
-		return false, fmt.Errorf("missing required 'type' field")
-	}
-
-	typeStr, ok := propType.(string)
-	if !ok {
-		return false, fmt.Errorf("invalid 'type' field")
-	}
-
-	switch typeStr {
-	case "string":
-		strValue, ok := value.(string)
-		if !ok {
-			logger.Debug("Expected string but got different type",
-				log.String("property", propName),
-				log.String("value", fmt.Sprintf("%v", value)))
-			return false, nil
-		}
-		return validateUserStringProperty(propName, strValue, propDef, logger)
-	case "number":
-		switch value.(type) {
-		case float64, int, int64:
-			return validateUserNumberProperty(propName, value, propDef, logger)
-		default:
-			logger.Debug("Expected number but got different type",
-				log.String("property", propName),
-				log.String("value", fmt.Sprintf("%v", value)))
-			return false, nil
-		}
-	case "boolean":
-		if _, ok := value.(bool); !ok {
-			logger.Debug("Expected boolean but got different type",
-				log.String("property", propName),
-				log.String("value", fmt.Sprintf("%v", value)))
-			return false, nil
-		}
-		return true, nil
-	case "object":
-		valueMap, ok := value.(map[string]interface{})
-		if !ok {
-			logger.Debug("Expected object but got different type",
-				log.String("property", propName),
-				log.String("value", fmt.Sprintf("%v", value)))
-			return false, nil
-		}
-		return validateUserObjectProperty(valueMap, propDef, logger)
-	case "array":
-		valueArray, ok := value.([]interface{})
-		if !ok {
-			logger.Debug("Expected array but got different type",
-				log.String("property", propName),
-				log.String("value", fmt.Sprintf("%v", value)))
-			return false, nil
-		}
-		return validateUserArrayProperty(propName, valueArray, propDef, logger)
-	default:
-		logger.Debug("Unsupported property type", log.String("property", propName), log.String("type", typeStr))
-		return false, nil
-	}
-}
-
-// validateUserStringProperty validates string-specific constraints.
-func validateUserStringProperty(
-	propName, value string,
-	propDef map[string]interface{},
-	logger *log.Logger,
-) (bool, error) {
-	isValid, err := validateEnumConstraint(propName, value, propDef, logger)
+	isValid, err := compiledSchema.ValidateUniqueness(userAttrs, identifyUser, logger)
 	if err != nil {
-		return false, err
+		return false, logAndReturnServerError(logger, "Failed during uniqueness validation", err)
 	}
 	if !isValid {
-		return false, nil
-	}
-
-	isValid, err = validateRegexConstraint(propName, value, propDef, logger)
-	if err != nil {
-		return false, err
-	}
-	if !isValid {
-		return false, nil
-	}
-
-	isValid, err = validateUniquenessConstraint(propName, propDef)
-	if err != nil {
-		return false, err
-	}
-	if !isValid {
+		logger.Debug("User attribute failed uniqueness validation", log.String("userType", userType))
 		return false, nil
 	}
 
 	return true, nil
-}
-
-// validateUserNumberProperty validates number-specific constraints.
-func validateUserNumberProperty(
-	propName string,
-	value interface{},
-	propDef map[string]interface{},
-	logger *log.Logger,
-) (bool, error) {
-	isValid, err := validateEnumConstraint(propName, value, propDef, logger)
-	if err != nil {
-		return false, err
-	}
-	if !isValid {
-		return false, nil
-	}
-
-	isValid, err = validateUniquenessConstraint(propName, propDef)
-	if err != nil {
-		return false, err
-	}
-	if !isValid {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-// validateUserObjectProperty validates object-specific constraints.
-func validateUserObjectProperty(
-	value map[string]interface{},
-	propDef map[string]interface{},
-	logger *log.Logger,
-) (bool, error) {
-	properties, exists := propDef["properties"]
-	if !exists {
-		return false, fmt.Errorf("missing 'properties' field")
-	}
-
-	propertiesMap, ok := properties.(map[string]interface{})
-	if !ok {
-		return false, fmt.Errorf("invalid 'properties' field")
-	}
-
-	for nestedPropName, nestedPropDef := range propertiesMap {
-		nestedPropDefMap, ok := nestedPropDef.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		nestedValue, exists := value[nestedPropName]
-		if !exists {
-			isRequired, err := isRequiredField(nestedPropDefMap, nestedPropName)
-			if err != nil {
-				return false, err
-			}
-
-			if isRequired {
-				return false, nil
-			}
-
-			continue
-		}
-
-		if nestedValue != nil {
-			isValid, err := validateUserProperty(nestedPropName, nestedValue, nestedPropDefMap, logger)
-			if err != nil {
-				return false, err
-			}
-			if !isValid {
-				return false, nil
-			}
-		}
-	}
-
-	return true, nil
-}
-
-// validateUserArrayProperty validates array-specific constraints.
-func validateUserArrayProperty(
-	propName string,
-	value []interface{},
-	propDef map[string]interface{},
-	logger *log.Logger,
-) (bool, error) {
-	isRequired, err := isRequiredField(propDef, propName)
-	if err != nil {
-		return false, err
-	}
-	if isRequired && len(value) == 0 {
-		logger.Debug("Array property is required but empty", log.String("property", propName))
-		return false, nil
-	}
-
-	items, exists := propDef["items"]
-	if !exists {
-		return false, fmt.Errorf("missing 'items' field")
-	}
-
-	itemsMap, ok := items.(map[string]interface{})
-	if !ok {
-		return false, fmt.Errorf("invalid 'items' field")
-	}
-
-	for _, item := range value {
-		isValid, err := validateUserProperty(propName, item, itemsMap, logger)
-		if err != nil {
-			return false, err
-		}
-		if !isValid {
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-// validateEnumConstraint validates the enum constraint for a property.
-func validateEnumConstraint(
-	propName string,
-	value interface{},
-	propDef map[string]interface{},
-	logger *log.Logger,
-) (bool, error) {
-	if enumValue, exists := propDef["enum"]; exists {
-		enumArray, ok := enumValue.([]interface{})
-		if !ok {
-			return false, fmt.Errorf("invalid 'enum' field")
-		}
-
-		for _, enumItem := range enumArray {
-			if enumItem == value {
-				return true, nil
-			}
-		}
-		logger.Debug("Value not in enum", log.String("property", propName), log.String("value", fmt.Sprintf("%v", value)))
-		return false, nil // Value not in enum
-	}
-	return true, nil
-}
-
-// validateRegexConstraint validates the regex pattern constraint for a string property.
-func validateRegexConstraint(propName, value string, propDef map[string]interface{}, logger *log.Logger) (bool, error) {
-	if regexPattern, exists := propDef["pattern"]; exists {
-		pattern, ok := regexPattern.(string)
-		if !ok {
-			return false, fmt.Errorf("invalid 'pattern' field")
-		}
-
-		matched, err := regexp.MatchString(pattern, value)
-		if err != nil {
-			return false, fmt.Errorf("failed to validate regex pattern: %w", err)
-		}
-
-		if !matched {
-			logger.Debug("Regex pattern mismatch", log.String("property", propName), log.String("value", value))
-			return false, nil // Pattern mismatch
-		}
-	}
-	return true, nil
-}
-
-// validateUniquenessConstraint validates the uniqueness constraint for a property.
-func validateUniquenessConstraint(propName string, propDef map[string]interface{}) (bool, error) {
-	if unique, exists := propDef["unique"]; exists {
-		if _, ok := unique.(bool); !ok {
-			return false, fmt.Errorf("invalid uniqueness constraint for property '%s'", propName)
-		}
-	}
-	return true, nil
-}
-
-// isRequiredField checks if the "required" field is present and valid, and returns whether the property is required.
-func isRequiredField(propDefMap map[string]interface{}, propName string) (bool, error) {
-	if req, exists := propDefMap["required"]; exists {
-		if reqBool, ok := req.(bool); ok {
-			return reqBool, nil
-		}
-		return false, fmt.Errorf("'required' field for property '%s' must be a boolean", propName)
-	}
-	return false, nil
 }
