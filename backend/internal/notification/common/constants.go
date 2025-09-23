@@ -16,8 +16,15 @@
  * under the License.
  */
 
-// Package constants contains the constants for message notification service.
-package constants
+package common
+
+// NotificationSenderType defines the type of notification sender.
+type NotificationSenderType string
+
+const (
+	// NotificationSenderTypeMessage represents a message notification sender.
+	NotificationSenderTypeMessage NotificationSenderType = "MESSAGE"
+)
 
 // MessageProviderType defines the type of messaging provider.
 type MessageProviderType string

@@ -30,12 +30,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageNotificationSenderList'
-        "400":
-          description: 'Bad Request: The request body is malformed or contains invalid data'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ClientErrorResponse'
         "500":
           description: 'Internal Server Error: An unexpected error occurred while processing the request'
           content:
@@ -68,12 +62,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "MNS-1006"
+                message: "Invalid request format"
+                description: "The request body is malformed or contains invalid data"
         "409":
           description: 'Conflict: A message notification sender with the same name already exists'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "MNS-1005"
+                message: "Duplicate sender name"
+                description: "A sender with the same name already exists"
         "500":
           description: 'Internal Server Error: An unexpected error occurred while processing the request'
           content:
@@ -101,12 +103,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageNotificationSenderResponse'
+        "400":
+          description: 'Bad Request: Invalid sender ID provided'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "MNS-1002"
+                message: "Invalid sender ID"
+                description: "The provided sender ID is invalid"
         "404":
           description: 'Not Found: The specified message notification sender does not exist'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "MNS-1001"
+                message: "Sender not found"
+                description: "The requested notification sender could not be found"
         "500":
           description: 'Internal Server Error: An unexpected error occurred while processing the request'
           content:
@@ -146,12 +162,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "MNS-1002"
+                message: "Invalid sender ID"
+                description: "The provided sender ID is invalid"
         "404":
           description: 'Not Found: The specified message notification sender does not exist'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "MNS-1001"
+                message: "Sender not found"
+                description: "The requested notification sender could not be found"
         "500":
           description: 'Internal Server Error: An unexpected error occurred while processing the request'
           content:
@@ -174,12 +198,16 @@ paths:
       responses:
         "204":
           description: No Content - Successfully deleted the message notification sender
-        "404":
-          description: 'Not Found: The specified message notification sender does not exist'
+        "400":
+          description: 'Bad Request: Invalid sender ID provided'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "MNS-1002"
+                message: "Invalid sender ID"
+                description: "The provided sender ID is invalid"
         "500":
           description: 'Internal Server Error: An unexpected error occurred while processing the request'
           content:
@@ -210,6 +238,12 @@ components:
           type: string
           description: Description of the message notification sender
           example: "Sender for sending SMS messages using Twilio"
+        type:
+          type: string
+          description: Type of the notification sender
+          enum:
+            - "MESSAGE"
+          example: "MESSAGE"
         provider:
           type: string
           description: Provider of the message notification sender
@@ -230,7 +264,7 @@ components:
                 example: "account_sid"
               value:
                 type: string
-                description: Property value
+                description: Property value (masked with ****** for secret properties)
                 example: "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
               is_secret:
                 type: boolean
@@ -248,6 +282,12 @@ components:
           type: string
           description: Description of the message notification sender
           example: "Sender for sending SMS messages using Twilio"
+        type:
+          type: string
+          description: Type of the notification sender
+          enum:
+            - "MESSAGE"
+          example: "MESSAGE"
         provider:
           type: string
           description: Provider of the message notification sender
@@ -274,6 +314,10 @@ components:
                 type: boolean
                 description: Indicates if the property is a secret
                 example: true
+      required:
+        - name
+        - type
+        - provider
 
     ClientErrorResponse:
       type: object
@@ -281,15 +325,15 @@ components:
         code:
           type: string
           description: Error code
-          example: "MNS-1003"
+          example: "MNS-1006"
         message:
           type: string
           description: Error message
-          example: "Invalid request"
+          example: "Invalid request format"
         description:
           type: string
           description: Detailed error description
-          example: "Invalid provider specified in the request"
+          example: "The request body is malformed or contains invalid data"
 
     ServerErrorResponse:
       type: object
@@ -301,7 +345,7 @@ components:
         message:
           type: string
           description: Error message
-          example: "Something went wrong"
+          example: "Internal server error"
         description:
           type: string
           description: Detailed error description

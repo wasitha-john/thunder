@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package client
+package message
 
 import (
 	"fmt"
@@ -25,8 +25,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/asgardeo/thunder/internal/notification/message/constants"
-	"github.com/asgardeo/thunder/internal/notification/message/model"
+	"github.com/asgardeo/thunder/internal/notification/common"
 	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
@@ -47,7 +46,7 @@ type TwilioClient struct {
 }
 
 // NewTwilioClient creates a new instance of TwilioClient.
-func NewTwilioClient(sender model.MessageNotificationSender) (MessageClientInterface, error) {
+func NewTwilioClient(sender common.NotificationSenderDTO) (MessageClientInterface, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, twilioLoggerComponentName))
 
 	client := &TwilioClient{}
@@ -55,11 +54,11 @@ func NewTwilioClient(sender model.MessageNotificationSender) (MessageClientInter
 
 	for _, prop := range sender.Properties {
 		switch prop.Name {
-		case constants.TwilioPropKeyAccountSID:
+		case common.TwilioPropKeyAccountSID:
 			client.accountSID = prop.Value
-		case constants.TwilioPropKeyAuthToken:
+		case common.TwilioPropKeyAuthToken:
 			client.authToken = prop.Value
-		case constants.TwilioPropKeySenderID:
+		case common.TwilioPropKeySenderID:
 			client.senderID = prop.Value
 		default:
 			logger.Warn("Unknown property for Twilio client", log.String("property", prop.Name))
@@ -76,7 +75,7 @@ func (c *TwilioClient) GetName() string {
 }
 
 // SendSMS sends an SMS using the Twilio API.
-func (c *TwilioClient) SendSMS(sms model.SMSData) error {
+func (c *TwilioClient) SendSMS(sms common.SMSData) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, twilioLoggerComponentName))
 	logger.Debug("Sending SMS via Twilio", log.String("to", log.MaskString(sms.To)))
 

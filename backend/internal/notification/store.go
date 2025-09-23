@@ -16,89 +16,74 @@
  * under the License.
  */
 
-// Package store provides the storage layer for message notification senders.
-package store
+package notification
 
 import (
 	"errors"
 	"fmt"
-	"sync"
 
-	"github.com/asgardeo/thunder/internal/notification/message/constants"
-	"github.com/asgardeo/thunder/internal/notification/message/model"
+	"github.com/asgardeo/thunder/internal/notification/common"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
-var (
-	instance *MessageNotificationStore
-	once     sync.Once
-)
-
-const loggerComponentName = "MessageNotificationStore"
-
-// MessageNotificationStoreInterface defines the interface for message notification sender storage operations.
-type MessageNotificationStoreInterface interface {
-	CreateSender(sender model.MessageNotificationSenderIn) (string, error)
-	ListSenders() ([]model.MessageNotificationSender, error)
-	GetSenderByID(id string) (*model.MessageNotificationSender, error)
-	GetSenderByName(name string) (*model.MessageNotificationSender, error)
-	UpdateSender(id string, sender model.MessageNotificationSenderIn) error
-	DeleteSender(id string) error
+// notificationStoreInterface defines the interface for notification sender storage operations.
+type notificationStoreInterface interface {
+	createSender(sender common.NotificationSenderDTO) error
+	listSenders() ([]common.NotificationSenderDTO, error)
+	getSenderByID(id string) (*common.NotificationSenderDTO, error)
+	getSenderByName(name string) (*common.NotificationSenderDTO, error)
+	updateSender(id string, sender common.NotificationSenderDTO) error
+	deleteSender(id string) error
 }
 
-// MessageNotificationStore is the implementation of MessageNotificationStoreInterface.
-type MessageNotificationStore struct{}
+// notificationStore is the implementation of notificationStoreInterface.
+type notificationStore struct{}
 
-// GetMessageNotificationStore returns a singleton instance of MessageNotificationStore.
-func GetMessageNotificationStore() MessageNotificationStoreInterface {
-	once.Do(func() {
-		instance = &MessageNotificationStore{}
-	})
-	return instance
+// getNotificationStore returns a new instance of notificationStoreInterface.
+func getNotificationStore() notificationStoreInterface {
+	return &notificationStore{}
 }
 
-// CreateSender creates a new message notification sender.
-func (s *MessageNotificationStore) CreateSender(sender model.MessageNotificationSenderIn) (string, error) {
-	id := sysutils.GenerateUUID()
-
+// createSender creates a new notification sender.
+func (s *notificationStore) createSender(sender common.NotificationSenderDTO) error {
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryCreateNotificationSender.Query, sender.Name, id,
-				sender.Description, string(sender.Provider))
+			_, err := tx.Exec(queryCreateNotificationSender.Query, sender.Name, sender.ID,
+				sender.Description, string(sender.Type), string(sender.Provider))
 			return err
 		},
 	}
 	for _, prop := range sender.Properties {
 		queries = append(queries, func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryCreateNotificationSenderProperty.Query, id,
+			_, err := tx.Exec(queryCreateNotificationSenderProperty.Query, sender.ID,
 				prop.Name, prop.Value, sysutils.BoolToNumString(prop.IsSecret))
 			return err
 		})
 	}
 
 	if err := executeTransaction(queries); err != nil {
-		return "", fmt.Errorf("failed to execute transaction: %w", err)
+		return fmt.Errorf("failed to execute transaction: %w", err)
 	}
 
-	return id, nil
+	return nil
 }
 
-// ListSenders retrieves all message notification senders
-func (s *MessageNotificationStore) ListSenders() ([]model.MessageNotificationSender, error) {
+// listSenders retrieves all notification senders
+func (s *notificationStore) listSenders() ([]common.NotificationSenderDTO, error) {
 	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	results, err := dbClient.Query(QueryGetAllNotificationSenders)
+	results, err := dbClient.Query(queryGetAllNotificationSenders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	senders := make([]model.MessageNotificationSender, 0, len(results))
+	senders := make([]common.NotificationSenderDTO, 0, len(results))
 	for _, row := range results {
 		sender, err := s.buildSenderFromResultRow(row)
 		if err != nil {
@@ -118,14 +103,14 @@ func (s *MessageNotificationStore) ListSenders() ([]model.MessageNotificationSen
 	return senders, nil
 }
 
-// GetSenderProperties retrieves all properties of a message notification sender by ID.
-func (s *MessageNotificationStore) GetSenderProperties(id string) ([]model.SenderProperty, error) {
+// GetSenderProperties retrieves all properties of a notification sender by ID.
+func (s *notificationStore) GetSenderProperties(id string) ([]common.SenderProperty, error) {
 	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	results, err := dbClient.Query(QueryGetNotificationSenderProperties, id)
+	results, err := dbClient.Query(queryGetNotificationSenderProperties, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -137,20 +122,20 @@ func (s *MessageNotificationStore) GetSenderProperties(id string) ([]model.Sende
 	return props, nil
 }
 
-// GetSenderByID retrieves a message notification sender by ID.
-func (s *MessageNotificationStore) GetSenderByID(id string) (*model.MessageNotificationSender, error) {
-	return s.getSender(QueryGetNotificationSenderByID, id)
+// getSenderByID retrieves a notification sender by ID.
+func (s *notificationStore) getSenderByID(id string) (*common.NotificationSenderDTO, error) {
+	return s.getSender(queryGetNotificationSenderByID, id)
 }
 
-// GetSenderByName retrieves a message notification sender by name
-func (s *MessageNotificationStore) GetSenderByName(name string) (*model.MessageNotificationSender, error) {
-	return s.getSender(QueryGetNotificationSenderByName, name)
+// getSenderByName retrieves a notification sender by name
+func (s *notificationStore) getSenderByName(name string) (*common.NotificationSenderDTO, error) {
+	return s.getSender(queryGetNotificationSenderByName, name)
 }
 
-// getSender retrieves a message notification sender by a specific identifier (ID or name).
-func (s *MessageNotificationStore) getSender(query dbmodel.DBQuery,
-	identifier string) (*model.MessageNotificationSender, error) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+// getSender retrieves a notification sender by a specific identifier (ID or name).
+func (s *notificationStore) getSender(query dbmodel.DBQuery,
+	identifier string) (*common.NotificationSenderDTO, error) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationStore"))
 
 	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
@@ -184,22 +169,22 @@ func (s *MessageNotificationStore) getSender(query dbmodel.DBQuery,
 	return sender, nil
 }
 
-// UpdateSender updates an existing message notification sender.
-func (s *MessageNotificationStore) UpdateSender(id string, sender model.MessageNotificationSenderIn) error {
+// updateSender updates an existing notification sender.
+func (s *notificationStore) updateSender(id string, sender common.NotificationSenderDTO) error {
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryUpdateNotificationSender.Query, sender.Name, sender.Description,
-				string(sender.Provider), id)
+			_, err := tx.Exec(queryUpdateNotificationSender.Query, sender.Name, sender.Description,
+				string(sender.Provider), id, string(sender.Type))
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryDeleteNotificationSenderProperties.Query, id)
+			_, err := tx.Exec(queryDeleteNotificationSenderProperties.Query, id)
 			return err
 		},
 	}
 	for _, prop := range sender.Properties {
 		queries = append(queries, func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryCreateNotificationSenderProperty.Query, id, prop.Name,
+			_, err := tx.Exec(queryCreateNotificationSenderProperty.Query, id, prop.Name,
 				prop.Value, sysutils.BoolToNumString(prop.IsSecret))
 			return err
 		})
@@ -212,16 +197,16 @@ func (s *MessageNotificationStore) UpdateSender(id string, sender model.MessageN
 	return nil
 }
 
-// DeleteSender deletes a message notification sender.
-func (s *MessageNotificationStore) DeleteSender(id string) error {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+// deleteSender deletes a notification sender.
+func (s *notificationStore) deleteSender(id string) error {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationStore"))
 
 	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	rowsAffected, err := dbClient.Execute(QueryDeleteNotificationSender, id)
+	rowsAffected, err := dbClient.Execute(queryDeleteNotificationSender, id)
 	if err != nil {
 		return fmt.Errorf("failed to execute delete query: %w", err)
 	}
@@ -260,9 +245,9 @@ func executeTransaction(queries []func(tx dbmodel.TxInterface) error) error {
 	return nil
 }
 
-// buildSenderFromResultRow constructs a MessageNotificationSenderResponse from a database result row.
-func (s *MessageNotificationStore) buildSenderFromResultRow(
-	row map[string]interface{}) (*model.MessageNotificationSender, error) {
+// buildSenderFromResultRow constructs a NotificationSenderDTO from a database result row.
+func (s *notificationStore) buildSenderFromResultRow(
+	row map[string]interface{}) (*common.NotificationSenderDTO, error) {
 	senderID, ok := row["sender_id"].(string)
 	if !ok {
 		return nil, fmt.Errorf("failed to parse sender_id as string")
@@ -278,25 +263,31 @@ func (s *MessageNotificationStore) buildSenderFromResultRow(
 		return nil, fmt.Errorf("failed to parse description as string")
 	}
 
+	_type, ok := row["type"].(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to parse type as string")
+	}
+
 	provider, ok := row["provider"].(string)
 	if !ok {
 		return nil, fmt.Errorf("failed to parse provider as string")
 	}
 
-	sender := &model.MessageNotificationSender{
+	sender := &common.NotificationSenderDTO{
 		ID:          senderID,
 		Name:        name,
 		Description: description,
-		Provider:    constants.MessageProviderType(provider),
-		Properties:  []model.SenderProperty{},
+		Type:        common.NotificationSenderType(_type),
+		Provider:    common.MessageProviderType(provider),
+		Properties:  []common.SenderProperty{},
 	}
 
 	return sender, nil
 }
 
 // buildSenderPropertiesFromResultSet builds a list of SenderProperty from the result set.
-func buildSenderPropertiesFromResultSet(results []map[string]interface{}, id string) ([]model.SenderProperty, error) {
-	properties := make([]model.SenderProperty, 0, len(results))
+func buildSenderPropertiesFromResultSet(results []map[string]interface{}, id string) ([]common.SenderProperty, error) {
+	properties := make([]common.SenderProperty, 0, len(results))
 
 	for _, row := range results {
 		propName, ok := row["property_name"].(string)
@@ -315,7 +306,7 @@ func buildSenderPropertiesFromResultSet(results []map[string]interface{}, id str
 		}
 		isSecret := sysutils.NumStringToBool(isSecretStr)
 
-		properties = append(properties, model.SenderProperty{
+		properties = append(properties, common.SenderProperty{
 			Name:     propName,
 			Value:    propValue,
 			IsSecret: isSecret,

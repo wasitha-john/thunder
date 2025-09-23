@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package client
+package message
 
 import (
 	"bytes"
@@ -25,8 +25,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/notification/message/constants"
-	"github.com/asgardeo/thunder/internal/notification/message/model"
+	"github.com/asgardeo/thunder/internal/notification/common"
 	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
@@ -46,7 +45,7 @@ type VonageClient struct {
 }
 
 // NewVonageClient creates a new instance of VonageClient.
-func NewVonageClient(sender model.MessageNotificationSender) (MessageClientInterface, error) {
+func NewVonageClient(sender common.NotificationSenderDTO) (MessageClientInterface, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, vonageLoggerComponentName))
 
 	client := &VonageClient{}
@@ -55,11 +54,11 @@ func NewVonageClient(sender model.MessageNotificationSender) (MessageClientInter
 
 	for _, prop := range sender.Properties {
 		switch prop.Name {
-		case constants.VonagePropKeyAPIKey:
+		case common.VonagePropKeyAPIKey:
 			client.apiKey = prop.Value
-		case constants.VonagePropKeyAPISecret:
+		case common.VonagePropKeyAPISecret:
 			client.apiSecret = prop.Value
-		case constants.VonagePropKeySenderID:
+		case common.VonagePropKeySenderID:
 			client.senderID = prop.Value
 		default:
 			logger.Warn("Unknown property for Vonage client", log.String("property", prop.Name))
@@ -75,7 +74,7 @@ func (v *VonageClient) GetName() string {
 }
 
 // SendSMS sends an SMS using the Vonage API.
-func (v *VonageClient) SendSMS(sms model.SMSData) error {
+func (v *VonageClient) SendSMS(sms common.SMSData) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, vonageLoggerComponentName))
 	logger.Debug("Sending SMS via Vonage", log.String("to", log.MaskString(sms.To)))
 

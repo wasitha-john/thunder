@@ -16,18 +16,18 @@
  * under the License.
  */
 
-package constants
+package notification
 
 import "github.com/asgardeo/thunder/internal/system/error/serviceerror"
 
-// Client errors for message notification sender operations.
+// Client errors for notification sender operations.
 var (
 	// ErrorSenderNotFound is the error returned when a notification sender is not found.
 	ErrorSenderNotFound = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
 		Code:             "MNS-1001",
 		Error:            "Sender not found",
-		ErrorDescription: "The requested message notification sender could not be found",
+		ErrorDescription: "The requested notification sender could not be found",
 	}
 	// ErrorInvalidSenderID is the error returned when an invalid sender ID is provided.
 	ErrorInvalidSenderID = serviceerror.ServiceError{
@@ -40,15 +40,15 @@ var (
 	ErrorInvalidSenderName = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
 		Code:             "MNS-1003",
-		Error:            "Invalid sender Name",
+		Error:            "Invalid sender name",
 		ErrorDescription: "The provided sender name is invalid",
 	}
-	// ErrorInvalidProvider is the error returned when an unsupported provider is specified.
+	// ErrorInvalidProvider is the error returned when an invalid provider is specified.
 	ErrorInvalidProvider = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
 		Code:             "MNS-1004",
-		Error:            "Invalid provider",
-		ErrorDescription: "The specified provider is not supported",
+		Error:            "Invalid notification provider",
+		ErrorDescription: "The specified notification provider is invalid or unsupported",
 	}
 	// ErrorDuplicateSenderName is the error returned when a sender with the same name already exists.
 	ErrorDuplicateSenderName = serviceerror.ServiceError{
@@ -64,9 +64,30 @@ var (
 		Error:            "Invalid request format",
 		ErrorDescription: "The request body is malformed or contains invalid data",
 	}
+	// ErrorInvalidSenderType is the error returned when an invalid sender type is provided.
+	ErrorInvalidSenderType = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "MNS-1007",
+		Error:            "Invalid sender type",
+		ErrorDescription: "The provided sender type is invalid or unsupported",
+	}
+	// ErrorSenderTypeUpdateNotAllowed is the error when trying to update the sender type.
+	ErrorSenderTypeUpdateNotAllowed = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "MNS-1008",
+		Error:            "Update not allowed",
+		ErrorDescription: "Updating the sender type is not allowed",
+	}
+	// ErrorRequestedSenderIsNotOfExpectedType is the error when the requested sender is not of the expected type.
+	ErrorRequestedSenderIsNotOfExpectedType = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "MNS-1009",
+		Error:            "Sender type mismatch",
+		ErrorDescription: "The requested sender is not of the expected type",
+	}
 )
 
-// Server errors for message notification sender operations.
+// Server errors for notification sender operations.
 var (
 	// ErrorInternalServerError is the error returned when an internal server error occurs.
 	ErrorInternalServerError = serviceerror.ServiceError{

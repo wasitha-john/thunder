@@ -16,15 +16,13 @@
  * under the License.
  */
 
-// Package client defines the interface for sending messages and related implementations.
-package client
+// Package message defines the service and interfaces for sending messages.
+package message
 
-import (
-	"github.com/asgardeo/thunder/internal/notification/message/model"
-)
+import "github.com/asgardeo/thunder/internal/notification/common"
 
-// MessageClientInterface defines the interface for clients sending messages.
+// MessageClientInterface defines the client interface for sending messages.
 type MessageClientInterface interface {
 	GetName() string
-	SendSMS(sms model.SMSData) error
+	SendSMS(sms common.SMSData) error
 }

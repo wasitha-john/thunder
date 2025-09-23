@@ -21,21 +21,21 @@ package services
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/notification/message/handler"
+	"github.com/asgardeo/thunder/internal/notification"
 	"github.com/asgardeo/thunder/internal/system/server"
 )
 
 // NotificationSenderService provides HTTP endpoints for managing message notification senders.
 type NotificationSenderService struct {
 	ServerOpsService    server.ServerOperationServiceInterface
-	notificationHandler *handler.MessageNotificationHandler
+	notificationHandler *notification.NotificationSenderHandler
 }
 
 // NewNotificationSenderService creates a new instance of NotificationSenderService.
 func NewNotificationSenderService(mux *http.ServeMux) ServiceInterface {
 	instance := &NotificationSenderService{
 		ServerOpsService:    server.NewServerOperationService(),
-		notificationHandler: handler.NewMessageNotificationHandler(),
+		notificationHandler: notification.NewNotificationSenderHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -44,21 +44,29 @@ func NewNotificationSenderService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the HTTP routes for the NotificationSenderService.
 func (s *NotificationSenderService) RegisterRoutes(mux *http.ServeMux) {
-	opts := server.RequestWrapOptions{
+	opts1 := server.RequestWrapOptions{
 		Cors: &server.Cors{
-			AllowedMethods:   "GET, POST, PUT, DELETE",
+			AllowedMethods:   "GET, POST",
 			AllowedHeaders:   "Content-Type, Authorization",
 			AllowCredentials: true,
 		},
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /notification-senders/message", &opts,
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /notification-senders/message", &opts1,
 		s.notificationHandler.HandleSenderListRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /notification-senders/message", &opts,
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /notification-senders/message", &opts1,
 		s.notificationHandler.HandleSenderCreateRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /notification-senders/message/{id}", &opts,
+
+	opts2 := server.RequestWrapOptions{
+		Cors: &server.Cors{
+			AllowedMethods:   "GET, PUT, DELETE",
+			AllowedHeaders:   "Content-Type, Authorization",
+			AllowCredentials: true,
+		},
+	}
+	s.ServerOpsService.WrapHandleFunction(mux, "GET /notification-senders/message/{id}", &opts2,
 		s.notificationHandler.HandleSenderGetRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "PUT /notification-senders/message/{id}", &opts,
+	s.ServerOpsService.WrapHandleFunction(mux, "PUT /notification-senders/message/{id}", &opts2,
 		s.notificationHandler.HandleSenderUpdateRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /notification-senders/message/{id}", &opts,
+	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /notification-senders/message/{id}", &opts2,
 		s.notificationHandler.HandleSenderDeleteRequest)
 }

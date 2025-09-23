@@ -16,17 +16,14 @@
  * under the License.
  */
 
-// Package handler provides HTTP handlers for managing message notification senders.
-package handler
+package notification
 
 import (
 	"encoding/json"
 	"net/http"
 	"strings"
 
-	"github.com/asgardeo/thunder/internal/notification/message/constants"
-	"github.com/asgardeo/thunder/internal/notification/message/model"
-	"github.com/asgardeo/thunder/internal/notification/message/service"
+	"github.com/asgardeo/thunder/internal/notification/common"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/error/apierror"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
@@ -34,28 +31,31 @@ import (
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
-// MessageNotificationHandler handles HTTP requests for message notification senders
-type MessageNotificationHandler struct{}
-
-// NewMessageNotificationHandler creates a new instance of MessageNotificationHandler
-func NewMessageNotificationHandler() *MessageNotificationHandler {
-	return &MessageNotificationHandler{}
+// NotificationSenderHandler handles HTTP requests for notification sender management
+type NotificationSenderHandler struct {
+	mgtService NotificationSenderMgtSvcInterface
 }
 
-// HandleSenderListRequest handles the request to list all message notification senders
-func (h *MessageNotificationHandler) HandleSenderListRequest(w http.ResponseWriter, r *http.Request) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "MessageNotificationHandler"))
+// NewNotificationSenderHandler creates a new instance of NotificationHandler
+func NewNotificationSenderHandler() *NotificationSenderHandler {
+	return &NotificationSenderHandler{
+		mgtService: getNotificationSenderMgtService(),
+	}
+}
 
-	svc := service.GetMessageNotificationService()
-	senders, svcErr := svc.ListSenders()
+// HandleSenderListRequest handles the request to list all notification senders
+func (h *NotificationSenderHandler) HandleSenderListRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
+
+	senders, svcErr := h.mgtService.ListSenders()
 	if svcErr != nil {
 		h.handleError(w, logger, svcErr)
 		return
 	}
 
-	senderResponses := make([]model.MessageNotificationSender, 0, len(senders))
+	senderResponses := make([]common.NotificationSenderResponse, 0, len(senders))
 	for _, sender := range senders {
-		senderResponses = append(senderResponses, getMessageNotificationSenderResponse(&sender))
+		senderResponses = append(senderResponses, getSenderResponseFromDTO(&sender))
 	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
@@ -66,22 +66,20 @@ func (h *MessageNotificationHandler) HandleSenderListRequest(w http.ResponseWrit
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
-	logger.Debug("Successfully listed message notification senders")
 }
 
-// HandleSenderCreateRequest handles the request to create a new message notification sender
-func (h *MessageNotificationHandler) HandleSenderCreateRequest(w http.ResponseWriter, r *http.Request) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "MessageNotificationHandler"))
+// HandleSenderCreateRequest handles the request to create a new notification sender
+func (h *NotificationSenderHandler) HandleSenderCreateRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
 
-	sender, err := sysutils.DecodeJSONBody[model.MessageNotificationSenderRequest](r)
+	sender, err := sysutils.DecodeJSONBody[common.NotificationSenderRequest](r)
 	if err != nil {
 		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidRequestFormat.Code,
-			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Code:        ErrorInvalidRequestFormat.Code,
+			Message:     ErrorInvalidRequestFormat.Error,
 			Description: "Failed to parse request body: " + err.Error(),
 		}
 
@@ -92,27 +90,10 @@ func (h *MessageNotificationHandler) HandleSenderCreateRequest(w http.ResponseWr
 		return
 	}
 
-	if !isValidProvider(sender.Provider) {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidProvider.Code,
-			Message:     constants.ErrorInvalidProvider.Error,
-			Description: "Invalid provider type: " + sender.Provider,
-		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	notificationSender := getSenderFromSenderRequest(sender)
-
-	svc := service.GetMessageNotificationService()
-	createdSender, svcErr := svc.CreateSender(*notificationSender)
+	senderDTO := getDTOFromSenderRequest(sender)
+	createdSender, svcErr := h.mgtService.CreateSender(*senderDTO)
 	if svcErr != nil {
-		if svcErr.Code == constants.ErrorDuplicateSenderName.Code {
+		if svcErr.Code == ErrorDuplicateSenderName.Code {
 			w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 			w.WriteHeader(http.StatusConflict)
 
@@ -133,7 +114,7 @@ func (h *MessageNotificationHandler) HandleSenderCreateRequest(w http.ResponseWr
 		return
 	}
 
-	senderResponse := getMessageNotificationSenderResponse(createdSender)
+	senderResponse := getSenderResponseFromDTO(createdSender)
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusCreated)
@@ -143,21 +124,19 @@ func (h *MessageNotificationHandler) HandleSenderCreateRequest(w http.ResponseWr
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
-	logger.Debug("Successfully created message notification sender", log.String("id", createdSender.ID))
 }
 
-// HandleSenderGetRequest handles the request to get a message notification sender by ID
-func (h *MessageNotificationHandler) HandleSenderGetRequest(w http.ResponseWriter, r *http.Request) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "MessageNotificationHandler"))
+// HandleSenderGetRequest handles the request to get a notification sender by ID
+func (h *NotificationSenderHandler) HandleSenderGetRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
 
-	id := strings.TrimPrefix(r.URL.Path, "/notification-senders/message/")
-	if id == "" {
+	id := r.PathValue("id")
+	if strings.TrimSpace(id) == "" {
 		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusBadRequest)
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidRequestFormat.Code,
-			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Code:        ErrorInvalidSenderID.Code,
+			Message:     ErrorInvalidSenderID.Error,
 			Description: "Sender ID is required",
 		}
 		if err := json.NewEncoder(w).Encode(errResp); err != nil {
@@ -168,8 +147,7 @@ func (h *MessageNotificationHandler) HandleSenderGetRequest(w http.ResponseWrite
 		return
 	}
 
-	svc := service.GetMessageNotificationService()
-	sender, svcErr := svc.GetSender(id)
+	sender, svcErr := h.mgtService.GetSender(id)
 	if svcErr != nil {
 		h.handleError(w, logger, svcErr)
 		return
@@ -178,9 +156,9 @@ func (h *MessageNotificationHandler) HandleSenderGetRequest(w http.ResponseWrite
 		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusNotFound)
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorSenderNotFound.Code,
-			Message:     constants.ErrorSenderNotFound.Error,
-			Description: constants.ErrorSenderNotFound.ErrorDescription,
+			Code:        ErrorSenderNotFound.Code,
+			Message:     ErrorSenderNotFound.Error,
+			Description: ErrorSenderNotFound.ErrorDescription,
 		}
 		if err := json.NewEncoder(w).Encode(errResp); err != nil {
 			logger.Error("Error encoding error response", log.Error(err))
@@ -190,7 +168,7 @@ func (h *MessageNotificationHandler) HandleSenderGetRequest(w http.ResponseWrite
 		return
 	}
 
-	senderResponse := getMessageNotificationSenderResponse(sender)
+	senderResponse := getSenderResponseFromDTO(sender)
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
@@ -200,21 +178,19 @@ func (h *MessageNotificationHandler) HandleSenderGetRequest(w http.ResponseWrite
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
-	logger.Debug("Successfully retrieved message notification sender", log.String("id", id))
 }
 
-// HandleSenderUpdateRequest handles the request to update a message notification sender
-func (h *MessageNotificationHandler) HandleSenderUpdateRequest(w http.ResponseWriter, r *http.Request) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "MessageNotificationHandler"))
+// HandleSenderUpdateRequest handles the request to update a notification sender
+func (h *NotificationSenderHandler) HandleSenderUpdateRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
 
-	id := strings.TrimPrefix(r.URL.Path, "/notification-senders/message/")
-	if id == "" {
+	id := r.PathValue("id")
+	if strings.TrimSpace(id) == "" {
 		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusBadRequest)
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidRequestFormat.Code,
-			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Code:        ErrorInvalidSenderID.Code,
+			Message:     ErrorInvalidSenderID.Error,
 			Description: "Sender ID is required",
 		}
 		if err := json.NewEncoder(w).Encode(errResp); err != nil {
@@ -225,14 +201,14 @@ func (h *MessageNotificationHandler) HandleSenderUpdateRequest(w http.ResponseWr
 		return
 	}
 
-	sender, err := sysutils.DecodeJSONBody[model.MessageNotificationSenderRequest](r)
+	sender, err := sysutils.DecodeJSONBody[common.NotificationSenderRequest](r)
 	if err != nil {
 		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidRequestFormat.Code,
-			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Code:        ErrorInvalidRequestFormat.Code,
+			Message:     ErrorInvalidRequestFormat.Error,
 			Description: "Failed to parse request body: " + err.Error(),
 		}
 
@@ -243,55 +219,36 @@ func (h *MessageNotificationHandler) HandleSenderUpdateRequest(w http.ResponseWr
 		return
 	}
 
-	if !isValidProvider(sender.Provider) {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidProvider.Code,
-			Message:     constants.ErrorInvalidProvider.Error,
-			Description: "Invalid provider type: " + sender.Provider,
-		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-			return
-		}
-		return
-	}
-
-	notificationSender := getSenderFromSenderRequest(sender)
-
-	svc := service.GetMessageNotificationService()
-	updatedSender, svcErr := svc.UpdateSender(id, *notificationSender)
-
+	senderDTO := getDTOFromSenderRequest(sender)
+	updatedSender, svcErr := h.mgtService.UpdateSender(id, *senderDTO)
 	if svcErr != nil {
 		h.handleError(w, logger, svcErr)
 		return
 	}
 
+	senderResponse := getSenderResponseFromDTO(updatedSender)
+
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
 
-	if err := json.NewEncoder(w).Encode(updatedSender); err != nil {
+	if err := json.NewEncoder(w).Encode(senderResponse); err != nil {
 		logger.Error("Error encoding response", log.Error(err))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
-	logger.Debug("Successfully updated message notification sender", log.String("id", id))
 }
 
-// HandleSenderDeleteRequest handles the request to delete a message notification sender
-func (h *MessageNotificationHandler) HandleSenderDeleteRequest(w http.ResponseWriter, r *http.Request) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "MessageNotificationHandler"))
+// HandleSenderDeleteRequest handles the request to delete a notification sender
+func (h *NotificationSenderHandler) HandleSenderDeleteRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
 
-	id := strings.TrimPrefix(r.URL.Path, "/notification-senders/message/")
-	if id == "" {
+	id := r.PathValue("id")
+	if strings.TrimSpace(id) == "" {
 		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusBadRequest)
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidRequestFormat.Code,
-			Message:     constants.ErrorInvalidRequestFormat.Error,
+			Code:        ErrorInvalidSenderID.Code,
+			Message:     ErrorInvalidSenderID.Error,
 			Description: "Sender ID is required",
 		}
 		if err := json.NewEncoder(w).Encode(errResp); err != nil {
@@ -302,19 +259,17 @@ func (h *MessageNotificationHandler) HandleSenderDeleteRequest(w http.ResponseWr
 		return
 	}
 
-	svc := service.GetMessageNotificationService()
-	svcErr := svc.DeleteSender(id)
+	svcErr := h.mgtService.DeleteSender(id)
 	if svcErr != nil {
 		h.handleError(w, logger, svcErr)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-	logger.Debug("Successfully deleted message notification sender", log.String("id", id))
 }
 
 // handleError handles service errors and returns appropriate HTTP responses.
-func (h *MessageNotificationHandler) handleError(w http.ResponseWriter, logger *log.Logger,
+func (h *NotificationSenderHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 	svcErr *serviceerror.ServiceError) {
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 
@@ -327,9 +282,9 @@ func (h *MessageNotificationHandler) handleError(w http.ResponseWriter, logger *
 	statusCode := http.StatusInternalServerError
 	if svcErr.Type == serviceerror.ClientErrorType {
 		switch svcErr.Code {
-		case constants.ErrorSenderNotFound.Code:
+		case ErrorSenderNotFound.Code:
 			statusCode = http.StatusNotFound
-		case constants.ErrorDuplicateSenderName.Code:
+		case ErrorDuplicateSenderName.Code:
 			statusCode = http.StatusConflict
 		default:
 			statusCode = http.StatusBadRequest
@@ -343,58 +298,48 @@ func (h *MessageNotificationHandler) handleError(w http.ResponseWriter, logger *
 	}
 }
 
-// getSenderFromSenderRequest sanitizes the sender request and converts it to a MessageNotificationSender model.
-func getSenderFromSenderRequest(sender *model.MessageNotificationSenderRequest) *model.MessageNotificationSenderIn {
+// getDTOFromSenderRequest sanitizes the sender request and converts it to a NotificationSenderDTO.
+func getDTOFromSenderRequest(sender *common.NotificationSenderRequest) *common.NotificationSenderDTO {
 	name := sysutils.SanitizeString(sender.Name)
 	description := sysutils.SanitizeString(sender.Description)
+	typeStr := sysutils.SanitizeString(string(sender.Type))
 	providerStr := sysutils.SanitizeString(sender.Provider)
 
 	// Sanitize properties
-	properties := make([]model.SenderProperty, 0, len(sender.Properties))
+	properties := make([]common.SenderProperty, 0, len(sender.Properties))
 	for _, prop := range sender.Properties {
-		properties = append(properties, model.SenderProperty{
+		properties = append(properties, common.SenderProperty{
 			Name:     sysutils.SanitizeString(prop.Name),
 			Value:    sysutils.SanitizeString(prop.Value),
 			IsSecret: prop.IsSecret,
 		})
 	}
 
-	notificationSender := model.MessageNotificationSenderIn{
+	senderDTO := common.NotificationSenderDTO{
 		Name:        name,
 		Description: description,
-		Provider:    constants.MessageProviderType(providerStr),
+		Type:        common.NotificationSenderType(typeStr),
+		Provider:    common.MessageProviderType(providerStr),
 		Properties:  properties,
 	}
-	return &notificationSender
+	return &senderDTO
 }
 
-// isValidProvider checks if the given provider is a valid message provider type
-func isValidProvider(provider string) bool {
-	switch provider {
-	case string(constants.MessageProviderTypeVonage),
-		string(constants.MessageProviderTypeTwilio),
-		string(constants.MessageProviderTypeCustom):
-		return true
-	default:
-		return false
-	}
-}
-
-// getMessageNotificationSenderResponse converts a MessageNotificationSender model to a response model,
-func getMessageNotificationSenderResponse(
-	sender *model.MessageNotificationSender) model.MessageNotificationSender {
-	returnSender := model.MessageNotificationSender{
+// getSenderResponseFromDTO converts a NotificationSenderDTO to a response object, masking secret properties.
+func getSenderResponseFromDTO(sender *common.NotificationSenderDTO) common.NotificationSenderResponse {
+	returnSender := common.NotificationSenderResponse{
 		ID:          sender.ID,
 		Name:        sender.Name,
 		Description: sender.Description,
+		Type:        sender.Type,
 		Provider:    sender.Provider,
 	}
 
 	// Mask secret properties in the response.
-	senderProperties := make([]model.SenderProperty, 0, len(sender.Properties))
+	senderProperties := make([]common.SenderProperty, 0, len(sender.Properties))
 	for _, property := range sender.Properties {
 		if property.IsSecret {
-			senderProperties = append(senderProperties, model.SenderProperty{
+			senderProperties = append(senderProperties, common.SenderProperty{
 				Name:     property.Name,
 				Value:    "******",
 				IsSecret: property.IsSecret,
