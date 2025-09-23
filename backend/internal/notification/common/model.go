@@ -55,17 +55,15 @@ type NotificationSenderDTO struct {
 type NotificationSenderRequest struct {
 	Name        string           `json:"name"`
 	Description string           `json:"description"`
-	Type        string           `json:"type"`
 	Provider    string           `json:"provider"`
 	Properties  []SenderProperty `json:"properties"`
 }
 
 // NotificationSenderResponse represents the response structure for a notification sender.
 type NotificationSenderResponse struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Type        NotificationSenderType `json:"type"`
-	Provider    MessageProviderType    `json:"provider"`
-	Properties  []SenderProperty       `json:"properties"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Provider    MessageProviderType `json:"provider"`
+	Properties  []SenderProperty    `json:"properties"`
 }

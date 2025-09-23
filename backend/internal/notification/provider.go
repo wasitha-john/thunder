@@ -16,6 +16,7 @@
  * under the License.
  */
 
+// Package notification contains the implementation of notification sender services.
 package notification
 
 // NotificationServiceProviderInterface defines the interface for the notification service provider

@@ -31,20 +31,20 @@ import (
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
-// NotificationSenderHandler handles HTTP requests for notification sender management
-type NotificationSenderHandler struct {
+// MessageNotificationSenderHandler handles HTTP requests for message notification sender management
+type MessageNotificationSenderHandler struct {
 	mgtService NotificationSenderMgtSvcInterface
 }
 
-// NewNotificationSenderHandler creates a new instance of NotificationHandler
-func NewNotificationSenderHandler() *NotificationSenderHandler {
-	return &NotificationSenderHandler{
+// NewMessageNotificationSenderHandler creates a new instance of MessageNotificationSenderHandler
+func NewMessageNotificationSenderHandler() *MessageNotificationSenderHandler {
+	return &MessageNotificationSenderHandler{
 		mgtService: getNotificationSenderMgtService(),
 	}
 }
 
-// HandleSenderListRequest handles the request to list all notification senders
-func (h *NotificationSenderHandler) HandleSenderListRequest(w http.ResponseWriter, r *http.Request) {
+// HandleSenderListRequest handles the request to list all message notification senders
+func (h *MessageNotificationSenderHandler) HandleSenderListRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
 
 	senders, svcErr := h.mgtService.ListSenders()
@@ -68,8 +68,8 @@ func (h *NotificationSenderHandler) HandleSenderListRequest(w http.ResponseWrite
 	}
 }
 
-// HandleSenderCreateRequest handles the request to create a new notification sender
-func (h *NotificationSenderHandler) HandleSenderCreateRequest(w http.ResponseWriter, r *http.Request) {
+// HandleSenderCreateRequest handles the request to create a new message notification sender
+func (h *MessageNotificationSenderHandler) HandleSenderCreateRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
 
 	sender, err := sysutils.DecodeJSONBody[common.NotificationSenderRequest](r)
@@ -126,24 +126,12 @@ func (h *NotificationSenderHandler) HandleSenderCreateRequest(w http.ResponseWri
 	}
 }
 
-// HandleSenderGetRequest handles the request to get a notification sender by ID
-func (h *NotificationSenderHandler) HandleSenderGetRequest(w http.ResponseWriter, r *http.Request) {
+// HandleSenderGetRequest handles the request to get a message notification sender by ID
+func (h *MessageNotificationSenderHandler) HandleSenderGetRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
 
 	id := r.PathValue("id")
-	if strings.TrimSpace(id) == "" {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-		errResp := apierror.ErrorResponse{
-			Code:        ErrorInvalidSenderID.Code,
-			Message:     ErrorInvalidSenderID.Error,
-			Description: "Sender ID is required",
-		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-			return
-		}
+	if !h.validateSenderID(w, id) {
 		return
 	}
 
@@ -180,24 +168,12 @@ func (h *NotificationSenderHandler) HandleSenderGetRequest(w http.ResponseWriter
 	}
 }
 
-// HandleSenderUpdateRequest handles the request to update a notification sender
-func (h *NotificationSenderHandler) HandleSenderUpdateRequest(w http.ResponseWriter, r *http.Request) {
+// HandleSenderUpdateRequest handles the request to update a message notification sender
+func (h *MessageNotificationSenderHandler) HandleSenderUpdateRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
 
 	id := r.PathValue("id")
-	if strings.TrimSpace(id) == "" {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-		errResp := apierror.ErrorResponse{
-			Code:        ErrorInvalidSenderID.Code,
-			Message:     ErrorInvalidSenderID.Error,
-			Description: "Sender ID is required",
-		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-			return
-		}
+	if !h.validateSenderID(w, id) {
 		return
 	}
 
@@ -238,24 +214,12 @@ func (h *NotificationSenderHandler) HandleSenderUpdateRequest(w http.ResponseWri
 	}
 }
 
-// HandleSenderDeleteRequest handles the request to delete a notification sender
-func (h *NotificationSenderHandler) HandleSenderDeleteRequest(w http.ResponseWriter, r *http.Request) {
+// HandleSenderDeleteRequest handles the request to delete a message notification sender
+func (h *MessageNotificationSenderHandler) HandleSenderDeleteRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
 
 	id := r.PathValue("id")
-	if strings.TrimSpace(id) == "" {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-		errResp := apierror.ErrorResponse{
-			Code:        ErrorInvalidSenderID.Code,
-			Message:     ErrorInvalidSenderID.Error,
-			Description: "Sender ID is required",
-		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-			return
-		}
+	if !h.validateSenderID(w, id) {
 		return
 	}
 
@@ -269,7 +233,7 @@ func (h *NotificationSenderHandler) HandleSenderDeleteRequest(w http.ResponseWri
 }
 
 // handleError handles service errors and returns appropriate HTTP responses.
-func (h *NotificationSenderHandler) handleError(w http.ResponseWriter, logger *log.Logger,
+func (h *MessageNotificationSenderHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 	svcErr *serviceerror.ServiceError) {
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 
@@ -298,11 +262,31 @@ func (h *NotificationSenderHandler) handleError(w http.ResponseWriter, logger *l
 	}
 }
 
+// validateSenderID validates the sender ID and returns true if valid
+func (h *MessageNotificationSenderHandler) validateSenderID(w http.ResponseWriter, id string) bool {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
+
+	if strings.TrimSpace(id) == "" {
+		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        ErrorInvalidSenderID.Code,
+			Message:     ErrorInvalidSenderID.Error,
+			Description: "Sender ID is required",
+		}
+		if err := json.NewEncoder(w).Encode(errResp); err != nil {
+			logger.Error("Error encoding error response", log.Error(err))
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+		}
+		return false
+	}
+	return true
+}
+
 // getDTOFromSenderRequest sanitizes the sender request and converts it to a NotificationSenderDTO.
 func getDTOFromSenderRequest(sender *common.NotificationSenderRequest) *common.NotificationSenderDTO {
 	name := sysutils.SanitizeString(sender.Name)
 	description := sysutils.SanitizeString(sender.Description)
-	typeStr := sysutils.SanitizeString(string(sender.Type))
 	providerStr := sysutils.SanitizeString(sender.Provider)
 
 	// Sanitize properties
@@ -318,7 +302,7 @@ func getDTOFromSenderRequest(sender *common.NotificationSenderRequest) *common.N
 	senderDTO := common.NotificationSenderDTO{
 		Name:        name,
 		Description: description,
-		Type:        common.NotificationSenderType(typeStr),
+		Type:        common.NotificationSenderTypeMessage,
 		Provider:    common.MessageProviderType(providerStr),
 		Properties:  properties,
 	}
@@ -331,7 +315,6 @@ func getSenderResponseFromDTO(sender *common.NotificationSenderDTO) common.Notif
 		ID:          sender.ID,
 		Name:        sender.Name,
 		Description: sender.Description,
-		Type:        sender.Type,
 		Provider:    sender.Provider,
 	}
 

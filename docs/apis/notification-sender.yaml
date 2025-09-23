@@ -238,12 +238,6 @@ components:
           type: string
           description: Description of the message notification sender
           example: "Sender for sending SMS messages using Twilio"
-        type:
-          type: string
-          description: Type of the notification sender
-          enum:
-            - "MESSAGE"
-          example: "MESSAGE"
         provider:
           type: string
           description: Provider of the message notification sender
@@ -282,12 +276,6 @@ components:
           type: string
           description: Description of the message notification sender
           example: "Sender for sending SMS messages using Twilio"
-        type:
-          type: string
-          description: Type of the notification sender
-          enum:
-            - "MESSAGE"
-          example: "MESSAGE"
         provider:
           type: string
           description: Provider of the message notification sender

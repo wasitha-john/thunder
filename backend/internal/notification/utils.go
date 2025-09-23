@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/asgardeo/thunder/internal/notification/common"
@@ -125,6 +126,9 @@ func validateVonageProperties(properties []common.SenderProperty) error {
 
 // validateCustomProperties validates the message notification sender properties for a custom client.
 func validateCustomProperties(properties []common.SenderProperty) error {
+	validHTTPMethods := []string{http.MethodGet, http.MethodPost}
+	validContentTypes := []string{"JSON", "FORM"}
+
 	url := ""
 	httpMethod := ""
 	contentType := ""
@@ -144,11 +148,10 @@ func validateCustomProperties(properties []common.SenderProperty) error {
 	if url == "" {
 		return errors.New("custom provider must have a URL property")
 	}
-	if httpMethod != "" && httpMethod != http.MethodGet &&
-		httpMethod != http.MethodPost && httpMethod != http.MethodPut {
+	if httpMethod != "" && !slices.Contains(validHTTPMethods, httpMethod) {
 		return errors.New("custom provider must have a valid HTTP method")
 	}
-	if contentType != "" && contentType != "JSON" && contentType != "FORM" {
+	if contentType != "" && !slices.Contains(validContentTypes, contentType) {
 		return errors.New("custom provider must have a valid content type (JSON or FORM)")
 	}
 

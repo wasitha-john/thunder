@@ -27,15 +27,15 @@ import (
 
 // NotificationSenderService provides HTTP endpoints for managing message notification senders.
 type NotificationSenderService struct {
-	ServerOpsService    server.ServerOperationServiceInterface
-	notificationHandler *notification.NotificationSenderHandler
+	ServerOpsService           server.ServerOperationServiceInterface
+	messageNotificationHandler *notification.MessageNotificationSenderHandler
 }
 
 // NewNotificationSenderService creates a new instance of NotificationSenderService.
 func NewNotificationSenderService(mux *http.ServeMux) ServiceInterface {
 	instance := &NotificationSenderService{
-		ServerOpsService:    server.NewServerOperationService(),
-		notificationHandler: notification.NewNotificationSenderHandler(),
+		ServerOpsService:           server.NewServerOperationService(),
+		messageNotificationHandler: notification.NewMessageNotificationSenderHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -52,9 +52,9 @@ func (s *NotificationSenderService) RegisterRoutes(mux *http.ServeMux) {
 		},
 	}
 	s.ServerOpsService.WrapHandleFunction(mux, "GET /notification-senders/message", &opts1,
-		s.notificationHandler.HandleSenderListRequest)
+		s.messageNotificationHandler.HandleSenderListRequest)
 	s.ServerOpsService.WrapHandleFunction(mux, "POST /notification-senders/message", &opts1,
-		s.notificationHandler.HandleSenderCreateRequest)
+		s.messageNotificationHandler.HandleSenderCreateRequest)
 
 	opts2 := server.RequestWrapOptions{
 		Cors: &server.Cors{
@@ -64,9 +64,9 @@ func (s *NotificationSenderService) RegisterRoutes(mux *http.ServeMux) {
 		},
 	}
 	s.ServerOpsService.WrapHandleFunction(mux, "GET /notification-senders/message/{id}", &opts2,
-		s.notificationHandler.HandleSenderGetRequest)
+		s.messageNotificationHandler.HandleSenderGetRequest)
 	s.ServerOpsService.WrapHandleFunction(mux, "PUT /notification-senders/message/{id}", &opts2,
-		s.notificationHandler.HandleSenderUpdateRequest)
+		s.messageNotificationHandler.HandleSenderUpdateRequest)
 	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /notification-senders/message/{id}", &opts2,
-		s.notificationHandler.HandleSenderDeleteRequest)
+		s.messageNotificationHandler.HandleSenderDeleteRequest)
 }
