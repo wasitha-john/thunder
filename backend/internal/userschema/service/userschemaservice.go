@@ -91,17 +91,17 @@ func (us *UserSchemaService) CreateUserSchema(request model.CreateUserSchemaRequ
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, userSchemaLoggerComponentName))
 
 	if request.Name == "" {
-		return nil, &constants.ErrorInvalidUserSchemaRequest
+		return nil, invalidSchemaRequestError("user schema name must not be empty")
 	}
 
 	if len(request.Schema) == 0 {
-		return nil, &constants.ErrorInvalidUserSchemaRequest
+		return nil, invalidSchemaRequestError("schema definition must not be empty")
 	}
 
 	_, err := model.CompileUserSchema(request.Schema)
 	if err != nil {
 		logger.Debug("Provided user schema failed compilation", log.String("name", request.Name), log.Error(err))
-		return nil, &constants.ErrorInvalidUserSchemaRequest
+		return nil, invalidSchemaRequestError(err.Error())
 	}
 
 	_, err = store.GetUserSchemaByName(request.Name)
@@ -131,7 +131,7 @@ func (us *UserSchemaService) GetUserSchema(schemaID string) (*model.UserSchema, 
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, userSchemaLoggerComponentName))
 
 	if schemaID == "" {
-		return nil, &constants.ErrorInvalidUserSchemaRequest
+		return nil, invalidSchemaRequestError("schema id must not be empty")
 	}
 
 	userSchema, err := store.GetUserSchemaByID(schemaID)
@@ -151,21 +151,21 @@ func (us *UserSchemaService) UpdateUserSchema(schemaID string, request model.Upd
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, userSchemaLoggerComponentName))
 
 	if schemaID == "" {
-		return nil, &constants.ErrorInvalidUserSchemaRequest
+		return nil, invalidSchemaRequestError("schema id must not be empty")
 	}
 
 	if request.Name == "" {
-		return nil, &constants.ErrorInvalidUserSchemaRequest
+		return nil, invalidSchemaRequestError("user schema name must not be empty")
 	}
 
 	if len(request.Schema) == 0 {
-		return nil, &constants.ErrorInvalidUserSchemaRequest
+		return nil, invalidSchemaRequestError("schema definition must not be empty")
 	}
 
 	_, err := model.CompileUserSchema(request.Schema)
 	if err != nil {
 		logger.Debug("Provided user schema failed compilation", log.String("id", schemaID), log.Error(err))
-		return nil, &constants.ErrorInvalidUserSchemaRequest
+		return nil, invalidSchemaRequestError(err.Error())
 	}
 
 	existingSchema, err := store.GetUserSchemaByID(schemaID)
@@ -203,7 +203,7 @@ func (us *UserSchemaService) DeleteUserSchema(schemaID string) *serviceerror.Ser
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, userSchemaLoggerComponentName))
 
 	if schemaID == "" {
-		return &constants.ErrorInvalidUserSchemaRequest
+		return invalidSchemaRequestError("schema id must not be empty")
 	}
 
 	if err := store.DeleteUserSchemaByID(schemaID); err != nil {
@@ -271,6 +271,20 @@ func logAndReturnServerError(
 ) *serviceerror.ServiceError {
 	logger.Error(message, log.Error(err))
 	return &constants.ErrorInternalServerError
+}
+
+func invalidSchemaRequestError(detail string) *serviceerror.ServiceError {
+	err := constants.ErrorInvalidUserSchemaRequest
+	errorDescription := err.ErrorDescription
+	if detail != "" {
+		errorDescription = fmt.Sprintf("%s: %s", err.ErrorDescription, detail)
+	}
+	return &serviceerror.ServiceError{
+		Code:             err.Code,
+		Type:             err.Type,
+		Error:            err.Error,
+		ErrorDescription: errorDescription,
+	}
 }
 
 func (us *UserSchemaService) getCompiledSchemaForUserType(
