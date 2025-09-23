@@ -16,10 +16,8 @@
  * under the License.
  */
 
-// Package model defines the data structures used for message notifications.
-package model
-
-import "github.com/asgardeo/thunder/internal/notification/message/constants"
+// Package common contains the common models and constants for notification package.
+package common
 
 // SMSData represents the data structure for a SMS message.
 type SMSData struct {
@@ -36,34 +34,36 @@ type OTP struct {
 	AttemptCount           int    `json:"attempt_count"`
 }
 
-// SenderProperty represents a key-value property for a message notification sender.
+// SenderProperty represents a key-value property for a notification sender.
 type SenderProperty struct {
 	Name     string `json:"name"`
 	Value    string `json:"value"`
 	IsSecret bool   `json:"is_secret"`
 }
 
-// MessageNotificationSender represents a message notification sender.
-type MessageNotificationSender struct {
-	ID          string                        `json:"id"`
-	Name        string                        `json:"name"`
-	Description string                        `json:"description"`
-	Provider    constants.MessageProviderType `json:"provider"`
-	Properties  []SenderProperty              `json:"properties"`
+// NotificationSenderDTO represents the data transfer object for a notification sender.
+type NotificationSenderDTO struct {
+	ID          string
+	Name        string
+	Description string
+	Type        NotificationSenderType
+	Provider    MessageProviderType
+	Properties  []SenderProperty
 }
 
-// MessageNotificationSenderIn represents the input structure for creating a message notification sender.
-type MessageNotificationSenderIn struct {
-	Name        string                        `json:"name"`
-	Description string                        `json:"description"`
-	Provider    constants.MessageProviderType `json:"provider"`
-	Properties  []SenderProperty              `json:"properties"`
-}
-
-// MessageNotificationSenderRequest represents the request to create a message notification sender.
-type MessageNotificationSenderRequest struct {
+// NotificationSenderRequest represents the request structure for creating or updating a notification sender.
+type NotificationSenderRequest struct {
 	Name        string           `json:"name"`
 	Description string           `json:"description"`
 	Provider    string           `json:"provider"`
 	Properties  []SenderProperty `json:"properties"`
+}
+
+// NotificationSenderResponse represents the response structure for a notification sender.
+type NotificationSenderResponse struct {
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Provider    MessageProviderType `json:"provider"`
+	Properties  []SenderProperty    `json:"properties"`
 }

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package client
+package message
 
 import (
 	"bytes"
@@ -26,8 +26,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/asgardeo/thunder/internal/notification/message/constants"
-	"github.com/asgardeo/thunder/internal/notification/message/model"
+	"github.com/asgardeo/thunder/internal/notification/common"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -47,7 +46,7 @@ type CustomClient struct {
 }
 
 // NewCustomClient creates a new instance of CustomClient.
-func NewCustomClient(sender model.MessageNotificationSender) (MessageClientInterface, error) {
+func NewCustomClient(sender common.NotificationSenderDTO) (MessageClientInterface, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, customClientLoggerComponentName))
 
 	client := &CustomClient{}
@@ -55,17 +54,17 @@ func NewCustomClient(sender model.MessageNotificationSender) (MessageClientInter
 
 	for _, prop := range sender.Properties {
 		switch prop.Name {
-		case constants.CustomPropKeyURL:
+		case common.CustomPropKeyURL:
 			client.url = prop.Value
-		case constants.CustomPropKeyHTTPMethod:
+		case common.CustomPropKeyHTTPMethod:
 			client.httpMethod = strings.ToUpper(prop.Value)
-		case constants.CustomPropKeyHTTPHeaders:
+		case common.CustomPropKeyHTTPHeaders:
 			headers, err := client.getHeadersFromString(prop.Value)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse HTTP headers: %w", err)
 			}
 			client.httpHeaders = headers
-		case constants.CustomPropKeyContentType:
+		case common.CustomPropKeyContentType:
 			client.contentType = strings.ToUpper(prop.Value)
 		default:
 			logger.Warn("Unknown property for Custom client", log.String("property", prop.Name))
@@ -81,7 +80,7 @@ func (c *CustomClient) GetName() string {
 }
 
 // SendSMS sends an SMS using the Custom client.
-func (c *CustomClient) SendSMS(sms model.SMSData) error {
+func (c *CustomClient) SendSMS(sms common.SMSData) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, customClientLoggerComponentName))
 	logger.Debug("Sending SMS via Custom client", log.String("to", log.MaskString(sms.To)))
 
@@ -110,7 +109,7 @@ func (c *CustomClient) SendSMS(sms model.SMSData) error {
 		}
 		req.Header.Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeFormURLEncoded)
 	} else {
-		return fmt.Errorf("unsupported content type: %s.", c.contentType)
+		return fmt.Errorf("unsupported content type: %s", c.contentType)
 	}
 
 	// Add custom headers

@@ -32,8 +32,8 @@ import (
 	"github.com/asgardeo/thunder/internal/executor/identify"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
-	"github.com/asgardeo/thunder/internal/notification/message/model"
-	msgsenderprovider "github.com/asgardeo/thunder/internal/notification/message/provider"
+	"github.com/asgardeo/thunder/internal/notification"
+	notifcommon "github.com/asgardeo/thunder/internal/notification/common"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/user/service"
 )
@@ -51,8 +51,9 @@ const (
 // SMSOTPAuthExecutor implements the ExecutorInterface for SMS OTP authentication.
 type SMSOTPAuthExecutor struct {
 	*identify.IdentifyingExecutor
-	internal    flowmodel.Executor
-	userService service.UserServiceInterface
+	internal                      flowmodel.Executor
+	userService                   service.UserServiceInterface
+	notificationSenderSvcProvider notification.NotificationServiceProviderInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*SMSOTPAuthExecutor)(nil)
@@ -78,7 +79,8 @@ func NewSMSOTPAuthExecutor(id, name string, properties map[string]string) *SMSOT
 		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
 		internal: *flowmodel.NewExecutor(id, name, defaultInputs, prerequisites,
 			properties),
-		userService: service.GetUserService(),
+		userService:                   service.GetUserService(),
+		notificationSenderSvcProvider: notification.NewNotificationSenderServiceProvider(),
 	}
 }
 
@@ -510,7 +512,7 @@ func (s *SMSOTPAuthExecutor) generateAndSendOTP(mobileNumber string, ctx *flowmo
 
 	logger.Debug("Sending OTP to user's mobile")
 
-	smsData := model.SMSData{
+	smsData := notifcommon.SMSData{
 		To: mobileNumber,
 		// TODO: This should be handled with a SMS template.
 		Body: fmt.Sprintf("Your verification code is: %s. This code is valid for %d minutes.",
@@ -528,8 +530,7 @@ func (s *SMSOTPAuthExecutor) generateAndSendOTP(mobileNumber string, ctx *flowmo
 	}
 
 	// Send the SMS OTP.
-	provider := msgsenderprovider.NewNotificationServiceProvider()
-	service := provider.GetMessageClientService()
+	service := s.notificationSenderSvcProvider.GetNotificationClientService()
 	msgClient, svcErr := service.GetMessageClientByName(senderName)
 	if svcErr != nil {
 		logger.Error("Failed to get message client", log.String("senderName", senderName),
@@ -583,7 +584,7 @@ func (s *SMSOTPAuthExecutor) validateAttempts(ctx *flowmodel.NodeContext, execRe
 }
 
 // generateOTP generates a random OTP based on the configurations.
-func (s *SMSOTPAuthExecutor) generateOTP() (model.OTP, error) {
+func (s *SMSOTPAuthExecutor) generateOTP() (notifcommon.OTP, error) {
 	charSet := s.getOTPCharset()
 	otpLength := s.getOTPLength()
 
@@ -594,7 +595,7 @@ func (s *SMSOTPAuthExecutor) generateOTP() (model.OTP, error) {
 		max := big.NewInt(int64(len(chars)))
 		n, err := rand.Int(rand.Reader, max)
 		if err != nil {
-			return model.OTP{}, fmt.Errorf("failed to generate random number: %w", err)
+			return notifcommon.OTP{}, fmt.Errorf("failed to generate random number: %w", err)
 		}
 		result[i] = chars[n.Int64()]
 	}
@@ -603,7 +604,7 @@ func (s *SMSOTPAuthExecutor) generateOTP() (model.OTP, error) {
 	currentTime := time.Now().UnixMilli()
 	validityPeriod := s.getOTPValidityPeriodInMillis()
 
-	return model.OTP{
+	return notifcommon.OTP{
 		Value:                  token,
 		GeneratedTimeInMillis:  currentTime,
 		ValidityPeriodInMillis: validityPeriod,
