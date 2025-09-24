@@ -34,12 +34,14 @@ import (
 // MessageNotificationSenderHandler handles HTTP requests for message notification sender management
 type MessageNotificationSenderHandler struct {
 	mgtService NotificationSenderMgtSvcInterface
+	otpService OTPServiceInterface
 }
 
 // NewMessageNotificationSenderHandler creates a new instance of MessageNotificationSenderHandler
 func NewMessageNotificationSenderHandler() *MessageNotificationSenderHandler {
 	return &MessageNotificationSenderHandler{
 		mgtService: getNotificationSenderMgtService(),
+		otpService: getOTPService(),
 	}
 }
 
@@ -49,7 +51,7 @@ func (h *MessageNotificationSenderHandler) HandleSenderListRequest(w http.Respon
 
 	senders, svcErr := h.mgtService.ListSenders()
 	if svcErr != nil {
-		h.handleError(w, logger, svcErr)
+		h.handleError(w, logger, svcErr, "")
 		return
 	}
 
@@ -74,19 +76,7 @@ func (h *MessageNotificationSenderHandler) HandleSenderCreateRequest(w http.Resp
 
 	sender, err := sysutils.DecodeJSONBody[common.NotificationSenderRequest](r)
 	if err != nil {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-
-		errResp := apierror.ErrorResponse{
-			Code:        ErrorInvalidRequestFormat.Code,
-			Message:     ErrorInvalidRequestFormat.Error,
-			Description: "Failed to parse request body: " + err.Error(),
-		}
-
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
+		h.handleError(w, logger, &ErrorInvalidRequestFormat, "Failed to parse request body: "+err.Error())
 		return
 	}
 
@@ -110,7 +100,7 @@ func (h *MessageNotificationSenderHandler) HandleSenderCreateRequest(w http.Resp
 			return
 		}
 
-		h.handleError(w, logger, svcErr)
+		h.handleError(w, logger, svcErr, "")
 		return
 	}
 
@@ -137,7 +127,7 @@ func (h *MessageNotificationSenderHandler) HandleSenderGetRequest(w http.Respons
 
 	sender, svcErr := h.mgtService.GetSender(id)
 	if svcErr != nil {
-		h.handleError(w, logger, svcErr)
+		h.handleError(w, logger, svcErr, "")
 		return
 	}
 	if sender == nil {
@@ -179,26 +169,14 @@ func (h *MessageNotificationSenderHandler) HandleSenderUpdateRequest(w http.Resp
 
 	sender, err := sysutils.DecodeJSONBody[common.NotificationSenderRequest](r)
 	if err != nil {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-
-		errResp := apierror.ErrorResponse{
-			Code:        ErrorInvalidRequestFormat.Code,
-			Message:     ErrorInvalidRequestFormat.Error,
-			Description: "Failed to parse request body: " + err.Error(),
-		}
-
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
+		h.handleError(w, logger, &ErrorInvalidRequestFormat, "Failed to parse request body: "+err.Error())
 		return
 	}
 
 	senderDTO := getDTOFromSenderRequest(sender)
 	updatedSender, svcErr := h.mgtService.UpdateSender(id, *senderDTO)
 	if svcErr != nil {
-		h.handleError(w, logger, svcErr)
+		h.handleError(w, logger, svcErr, "")
 		return
 	}
 
@@ -225,22 +203,87 @@ func (h *MessageNotificationSenderHandler) HandleSenderDeleteRequest(w http.Resp
 
 	svcErr := h.mgtService.DeleteSender(id)
 	if svcErr != nil {
-		h.handleError(w, logger, svcErr)
+		h.handleError(w, logger, svcErr, "")
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// HandleOTPSendRequest handles the request to send an OTP.
+func (h *MessageNotificationSenderHandler) HandleOTPSendRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
+
+	request, err := sysutils.DecodeJSONBody[common.SendOTPRequest](r)
+	if err != nil {
+		h.handleError(w, logger, &ErrorInvalidRequestFormat, "Failed to parse request body: "+err.Error())
+		return
+	}
+
+	otpDTO := common.SendOTPDTO(*request)
+	resultDTO, svcErr := h.otpService.SendOTP(otpDTO)
+	if svcErr != nil {
+		h.handleError(w, logger, svcErr, "")
+		return
+	}
+
+	otpResponse := common.SendOTPResponse{
+		Status:       "SUCCESS",
+		SessionToken: resultDTO.SessionToken,
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(otpResponse); err != nil {
+		logger.Error("Failed to encode response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+// HandleOTPVerifyRequest handles the request to verify an OTP.
+func (h *MessageNotificationSenderHandler) HandleOTPVerifyRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
+
+	request, err := sysutils.DecodeJSONBody[common.VerifyOTPRequest](r)
+	if err != nil {
+		h.handleError(w, logger, &ErrorInvalidRequestFormat, "Failed to parse request body: "+err.Error())
+		return
+	}
+
+	verifyDTO := common.VerifyOTPDTO(*request)
+	resultDTO, svcErr := h.otpService.VerifyOTP(verifyDTO)
+	if svcErr != nil {
+		h.handleError(w, logger, svcErr, "")
+		return
+	}
+
+	response := common.VerifyOTPResponse{
+		Status: string(resultDTO.Status),
+	}
+
+	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.Error("Failed to encode response", log.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
 // handleError handles service errors and returns appropriate HTTP responses.
 func (h *MessageNotificationSenderHandler) handleError(w http.ResponseWriter, logger *log.Logger,
-	svcErr *serviceerror.ServiceError) {
+	svcErr *serviceerror.ServiceError, customErrDesc string) {
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 
+	apiErrDesc := svcErr.ErrorDescription
+	if customErrDesc != "" {
+		apiErrDesc = customErrDesc
+	}
 	errResp := apierror.ErrorResponse{
 		Code:        svcErr.Code,
 		Message:     svcErr.Error,
-		Description: svcErr.ErrorDescription,
+		Description: apiErrDesc,
 	}
 
 	statusCode := http.StatusInternalServerError
@@ -267,17 +310,7 @@ func (h *MessageNotificationSenderHandler) validateSenderID(w http.ResponseWrite
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandler"))
 
 	if strings.TrimSpace(id) == "" {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-		errResp := apierror.ErrorResponse{
-			Code:        ErrorInvalidSenderID.Code,
-			Message:     ErrorInvalidSenderID.Error,
-			Description: "Sender ID is required",
-		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
+		h.handleError(w, logger, &ErrorInvalidSenderID, "Sender ID is required")
 		return false
 	}
 	return true

@@ -67,3 +67,59 @@ type NotificationSenderResponse struct {
 	Provider    MessageProviderType `json:"provider"`
 	Properties  []SenderProperty    `json:"properties"`
 }
+
+// SendOTPRequest represents the request structure for sending an OTP.
+type SendOTPRequest struct {
+	Recipient string `json:"recipient"`
+	SenderID  string `json:"sender_id"`
+	Channel   string `json:"channel"`
+}
+
+// SendOTPResponse represents the response structure for OTP send request.
+type SendOTPResponse struct {
+	SessionToken string `json:"session_token"`
+	Status       string `json:"status"`
+}
+
+// VerifyOTPRequest represents the request structure for verifying an OTP.
+type VerifyOTPRequest struct {
+	SessionToken string `json:"session_token"`
+	OTPCode      string `json:"otp_code"`
+}
+
+// VerifyOTPResponse represents the response structure for OTP verification.
+type VerifyOTPResponse struct {
+	Status string `json:"status"`
+}
+
+// SendOTPDTO represents the service layer data structure for sending an OTP.
+type SendOTPDTO struct {
+	Recipient string
+	SenderID  string
+	Channel   string
+}
+
+// SendOTPResultDTO represents the service layer result for OTP send operation.
+type SendOTPResultDTO struct {
+	SessionToken string
+}
+
+// VerifyOTPDTO represents the service layer data structure for verifying an OTP.
+type VerifyOTPDTO struct {
+	SessionToken string
+	OTPCode      string
+}
+
+// VerifyOTPResultDTO represents the service layer result for OTP verify operation.
+type VerifyOTPResultDTO struct {
+	Status OTPVerifyStatus
+}
+
+// OTPSessionData represents the data stored in the OTP session token.
+type OTPSessionData struct {
+	Recipient  string `json:"recipient"`
+	Channel    string `json:"channel"`
+	SenderID   string `json:"sender_id"`
+	OTPValue   string `json:"otp_value"`
+	ExpiryTime int64  `json:"expiry_time"`
+}

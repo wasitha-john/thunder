@@ -69,4 +69,16 @@ func (s *NotificationSenderService) RegisterRoutes(mux *http.ServeMux) {
 		s.messageNotificationHandler.HandleSenderUpdateRequest)
 	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /notification-senders/message/{id}", &opts2,
 		s.messageNotificationHandler.HandleSenderDeleteRequest)
+
+	opts3 := server.RequestWrapOptions{
+		Cors: &server.Cors{
+			AllowedMethods:   "POST",
+			AllowedHeaders:   "Content-Type, Authorization",
+			AllowCredentials: true,
+		},
+	}
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /notification-senders/otp/send", &opts3,
+		s.messageNotificationHandler.HandleOTPSendRequest)
+	s.ServerOpsService.WrapHandleFunction(mux, "POST /notification-senders/otp/verify", &opts3,
+		s.messageNotificationHandler.HandleOTPVerifyRequest)
 }

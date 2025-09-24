@@ -85,6 +85,49 @@ var (
 		Error:            "Sender type mismatch",
 		ErrorDescription: "The requested sender is not of the expected type",
 	}
+	// ErrorInvalidRecipient is the error returned when an invalid recipient is provided.
+	ErrorInvalidRecipient = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "MNS-1010",
+		Error:            "Invalid recipient",
+		ErrorDescription: "The provided recipient is invalid",
+	}
+	// ErrorInvalidChannel is the error returned when an invalid channel is provided.
+	ErrorInvalidChannel = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "MNS-1011",
+		Error:            "Invalid channel",
+		ErrorDescription: "The provided channel is invalid",
+	}
+	// ErrorUnsupportedChannel is the error returned when an unsupported channel is provided.
+	ErrorUnsupportedChannel = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "MNS-1012",
+		Error:            "Unsupported channel",
+		ErrorDescription: "The provided channel is not supported",
+	}
+	// ErrorInvalidOTP is the error returned when an invalid OTP is provided.
+	ErrorInvalidOTP = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "MNS-1013",
+		Error:            "Invalid OTP",
+		ErrorDescription: "The provided OTP is invalid",
+	}
+	// ErrorInvalidSessionToken is the error returned when an invalid session token is provided.
+	ErrorInvalidSessionToken = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "MNS-1014",
+		Error:            "Invalid session token",
+		ErrorDescription: "The provided session token is invalid, malformed, or expired",
+	}
+	// ErrorClientErrorWhileRetrievingMessageClient is the error returned when a client error occurs
+	// while retrieving the message client.
+	ErrorClientErrorWhileRetrievingMessageClient = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "MNS-1015",
+		Error:            "Error while retrieving message client",
+		ErrorDescription: "An error occurred while retrieving the message client",
+	}
 )
 
 // Server errors for notification sender operations.
@@ -92,7 +135,7 @@ var (
 	// ErrorInternalServerError is the error returned when an internal server error occurs.
 	ErrorInternalServerError = serviceerror.ServiceError{
 		Type:             serviceerror.ServerErrorType,
-		Code:             "MNS-5001",
+		Code:             "MNS-5000",
 		Error:            "Internal server error",
 		ErrorDescription: "An unexpected error occurred while processing the request",
 	}

@@ -254,7 +254,7 @@ paths:
                   status:
                     type: string
                     description: Status of the OTP send request
-                    example: "success"
+                    example: "SUCCESS"
                   session_token:
                     type: string
                     description: JWT token for the OTP session
@@ -311,7 +311,7 @@ paths:
                   status:
                     type: string
                     description: Status of the OTP verification
-                    example: "verified"
+                    example: "VERIFIED"
         "400":
           description: 'Bad Request: The request body is malformed or contains invalid data'
           content:

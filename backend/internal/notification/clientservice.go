@@ -65,11 +65,11 @@ func (mcs *notificationClientService) GetMessageClientByName(senderName string) 
 	if err != nil {
 		return nil, err
 	}
-	return *client, nil
+	return client, nil
 }
 
 // getMessageClient retrieves the message client based on the sender's provider type.
-func getMessageClient(sender common.NotificationSenderDTO) (*message.MessageClientInterface,
+func getMessageClient(sender common.NotificationSenderDTO) (message.MessageClientInterface,
 	*serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationClientService"))
 
@@ -93,5 +93,5 @@ func getMessageClient(sender common.NotificationSenderDTO) (*message.MessageClie
 		return nil, &ErrorInternalServerError
 	}
 
-	return &_client, nil
+	return _client, nil
 }
