@@ -249,12 +249,7 @@ func (s *otpService) sendSMSOTP(recipient, otp string, sender common.Notificatio
 	// Get message client using existing pattern
 	client, svcErr := getMessageClient(sender)
 	if svcErr != nil {
-		if svcErr.Type == serviceerror.ClientErrorType {
-			return &ErrorClientErrorWhileRetrievingMessageClient
-		}
-		logger.Error("Failed to get message client", log.String("provider", string(sender.Provider)),
-			log.String("errorCode", svcErr.Code), log.String("error", svcErr.Error))
-		return &ErrorInternalServerError
+		return svcErr
 	}
 	if client == nil {
 		logger.Error("Message client is nil", log.String("provider", string(sender.Provider)))

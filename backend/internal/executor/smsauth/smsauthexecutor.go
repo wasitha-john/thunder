@@ -506,16 +506,16 @@ func (s *SMSOTPAuthExecutor) generateAndSendOTP(mobileNumber string, ctx *flowmo
 	if len(execProps) == 0 {
 		return errors.New("message sender name is not configured in executor properties")
 	}
-	senderId, ok := execProps["senderId"]
-	if !ok || senderId == "" {
-		return errors.New("message sender id is not configured in executor properties")
+	senderID, ok := execProps["senderId"]
+	if !ok || senderID == "" {
+		return errors.New("senderId is not configured in executor properties")
 	}
 
 	// Send the OTP
 	otpService := s.notificationSvcProvider.GetOTPService()
 	sendOTPRequest := notifcommon.SendOTPDTO{
 		Recipient: mobileNumber,
-		SenderID:  senderId,
+		SenderID:  senderID,
 		Channel:   string(notifcommon.ChannelTypeSMS),
 	}
 

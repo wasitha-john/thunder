@@ -76,7 +76,7 @@
             "executor": {
                 "name": "SMSOTPAuthExecutor",
                 "properties": {
-                    "senderId": "<your-sender-id>"
+                    "senderId": "test-sms-sender-id"
                 }
             },
             "next": [
