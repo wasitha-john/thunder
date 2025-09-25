@@ -27,6 +27,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/notification/common"
 	"github.com/asgardeo/thunder/internal/system/config"
+	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -97,7 +98,7 @@ func (s *otpService) SendOTP(otpDTO common.SendOTPDTO) (*common.SendOTPResultDTO
 		Recipient:  otpDTO.Recipient,
 		Channel:    otpDTO.Channel,
 		SenderID:   otpDTO.SenderID,
-		OTPValue:   otp.Value,
+		OTPValue:   hash.HashString(otp.Value),
 		ExpiryTime: otp.ExpiryTimeInMillis,
 	}
 
@@ -137,8 +138,9 @@ func (s *otpService) VerifyOTP(otpDTO common.VerifyOTPDTO) (*common.VerifyOTPRes
 		}, nil
 	}
 
-	// Verify OTP value
-	if otpDTO.OTPCode != sessionData.OTPValue {
+	// Verify OTP value by comparing hashes
+	providedOTPHash := hash.HashString(otpDTO.OTPCode)
+	if providedOTPHash != sessionData.OTPValue {
 		logger.Debug("Invalid OTP provided")
 		return &common.VerifyOTPResultDTO{
 			Status: common.OTPVerifyStatusInvalid,
