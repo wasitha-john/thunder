@@ -38,6 +38,24 @@ const (
 	MessageProviderTypeCustom MessageProviderType = "custom"
 )
 
+// ChannelType defines the type of communication channel.
+type ChannelType string
+
+const (
+	// ChannelTypeSMS represents the SMS channel.
+	ChannelTypeSMS ChannelType = "sms"
+)
+
+// OTPVerifyStatus defines the status of OTP verification.
+type OTPVerifyStatus string
+
+const (
+	// OTPVerifyStatusVerified indicates a successful OTP verification.
+	OTPVerifyStatusVerified OTPVerifyStatus = "VERIFIED"
+	// OTPVerifyStatusInvalid indicates an invalid OTP verification attempt.
+	OTPVerifyStatusInvalid OTPVerifyStatus = "INVALID"
+)
+
 const (
 	// VonagePropKeyAPIKey is the property key for the Vonage API key.
 	VonagePropKeyAPIKey = "api_key"

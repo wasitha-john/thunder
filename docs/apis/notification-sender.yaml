@@ -1,8 +1,8 @@
 openapi: 3.0.3
 
 info:
-  title: Notification Sender Management API
-  description: This API is used to manage notification senders.
+  title: Notification Sender API
+  description: This API is used to handle notification senders.
   version: "1.0"
   license:
     name: Apache 2.0
@@ -208,6 +208,116 @@ paths:
                 code: "MNS-1002"
                 message: "Invalid sender ID"
                 description: "The provided sender ID is invalid"
+        "500":
+          description: 'Internal Server Error: An unexpected error occurred while processing the request'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorResponse'
+
+  /notification-senders/otp/send:
+    post:
+      summary: Send a One Time Password (OTP)
+      description: Send a One Time Password (OTP) to a recipient using a specified message notification sender.
+      tags:
+        - One Time Password (OTP)
+      requestBody:
+        description: OTP send request data
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipient:
+                  type: string
+                  description: Recipient's mobile number
+                  example: "+1234567890"
+                sender_id:
+                  type: string
+                  description: ID of the message notification sender to use
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+                channel:
+                  type: string
+                  description: Channel to send the OTP
+                  enum:
+                    - "sms"
+                  example: "sms"
+      responses:
+        "200":
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: Status of the OTP send request
+                    example: "SUCCESS"
+                  session_token:
+                    type: string
+                    description: JWT token for the OTP session
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        "400":
+          description: 'Bad Request: The request body is malformed or contains invalid data'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientErrorResponse'
+        "404":
+          description: 'Not Found: The specified message notification sender does not exist'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientErrorResponse'
+        "500":
+          description: 'Internal Server Error: An unexpected error occurred while processing the request'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorResponse'
+
+  /notification-senders/otp/verify:
+    post:
+      summary: Verify a One Time Password (OTP)
+      description: Verify a One Time Password (OTP) using the provided session token and OTP code.
+      tags:
+        - One Time Password (OTP)
+      requestBody:
+        description: OTP verify request data
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_token:
+                  type: string
+                  description: JWT token for the OTP session
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                otp_code:
+                  type: string
+                  description: The OTP code received by the user
+                  example: "123456"
+      responses:
+        "200":
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: Status of the OTP verification
+                    example: "VERIFIED"
+        "400":
+          description: 'Bad Request: The request body is malformed or contains invalid data'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientErrorResponse'
         "500":
           description: 'Internal Server Error: An unexpected error occurred while processing the request'
           content:
