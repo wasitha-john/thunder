@@ -225,9 +225,9 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 		if len(execConfig.Properties) == 0 {
 			return nil, fmt.Errorf("properties for SMSOTPAuthExecutor cannot be empty")
 		}
-		senderName, exists := execConfig.Properties["senderName"]
-		if !exists || senderName == "" {
-			return nil, fmt.Errorf("senderName property is required for SMSOTPAuthExecutor")
+		senderId, exists := execConfig.Properties["senderId"]
+		if !exists || senderId == "" {
+			return nil, fmt.Errorf("senderId property is required for SMSOTPAuthExecutor")
 		}
 		executor = smsauth.NewSMSOTPAuthExecutor("local", "Local", execConfig.Properties)
 	case "GithubOAuthExecutor":

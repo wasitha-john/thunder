@@ -22,7 +22,7 @@ package notification
 // NotificationServiceProviderInterface defines the interface for the notification service provider
 type NotificationServiceProviderInterface interface {
 	GetNotificationSenderMgtService() NotificationSenderMgtSvcInterface
-	GetNotificationClientService() NotificationClientServiceInterface
+	GetOTPService() OTPServiceInterface
 }
 
 // NotificationServiceProvider is the implementation of NotificationServiceProviderInterface
@@ -38,7 +38,7 @@ func (mnp *NotificationServiceProvider) GetNotificationSenderMgtService() Notifi
 	return getNotificationSenderMgtService()
 }
 
-// GetNotificationClientService returns a notification client service instance
-func (mnp *NotificationServiceProvider) GetNotificationClientService() NotificationClientServiceInterface {
-	return getNotificationClientService()
+// GetOTPService returns an OTP service instance
+func (mnp *NotificationServiceProvider) GetOTPService() OTPServiceInterface {
+	return getOTPService()
 }

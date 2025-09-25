@@ -76,7 +76,7 @@
             "executor": {
                 "name": "SMSOTPAuthExecutor",
                 "properties": {
-                    "senderName": "Custom Decision SMS Sender"
+                    "senderId": "<your-sender-id>"
                 }
             },
             "next": [
