@@ -10,7 +10,7 @@
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
@@ -27,6 +27,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -41,7 +42,30 @@ const (
 	DatabaseFileBasePath        = "repository/database/"
 )
 
-func UnzipProduct(zipFilePattern string) error {
+// Package-level variables for server configuration
+var (
+	serverPort           string
+	zipFilePattern       string
+	extractedProductHome string
+	serverCmd            *exec.Cmd
+	isInitialized        bool
+)
+
+// InitializeTestContext initializes the package-level variables for server configuration.
+func InitializeTestContext(port string, zipPattern string) {
+	serverPort = port
+	zipFilePattern = zipPattern
+	isInitialized = true
+}
+
+// ensureInitialized checks if the test context has been initialized and panics if not.
+func ensureInitialized() {
+	if !isInitialized {
+		panic("Test context not initialized. Call InitializeTestContext() first.")
+	}
+}
+
+func UnzipProduct() error {
 	// Find the zip file.
 	files, err := findMatchingZipFile(zipFilePattern)
 	if err != nil || len(files) == 0 {
@@ -65,10 +89,12 @@ func UnzipProduct(zipFilePattern string) error {
 	}
 
 	// Set executable permissions for the server binary
-	productHome, err := getExtractedProductHome(zipFilePattern)
+	productHome, err := getExtractedProductHome()
 	if err != nil {
 		return err
 	}
+	extractedProductHome = productHome
+
 	serverPath := filepath.Join(productHome, ServerBinary)
 	if err := os.Chmod(serverPath, 0755); err != nil {
 		return fmt.Errorf("failed to set executable permissions for server binary: %v", err)
@@ -102,7 +128,7 @@ func extractFile(f *zip.File, dest string) error {
 }
 
 // getExtractedProductHome constructs the path to the unzipped folder.
-func getExtractedProductHome(zipFilePattern string) (string, error) {
+func getExtractedProductHome() (string, error) {
 	files, err := findMatchingZipFile(zipFilePattern)
 	if err != nil || len(files) == 0 {
 		return "", fmt.Errorf("zip file not found in target directory")
@@ -147,25 +173,20 @@ func ReplaceResources(zipFilePattern string) error {
 		log.Printf("Current working directory: %s", cwd)
 	}
 
-	productHome, err := getExtractedProductHome(zipFilePattern)
-	if err != nil {
-		return err
-	}
-
-	destPath := filepath.Join(productHome, "repository/conf/deployment.yaml")
+	destPath := filepath.Join(extractedProductHome, "repository/conf/deployment.yaml")
 	err = copyFile(TestDeploymentYamlPath, destPath)
 	if err != nil {
 		return fmt.Errorf("failed to replace deployment.yaml: %v", err)
 	}
 
-	destPath = filepath.Join(productHome, "dbscripts")
+	destPath = filepath.Join(extractedProductHome, "dbscripts")
 	err = copyDirectory(TestDatabaseSchemaDirectory, destPath)
 	if err != nil {
 		return fmt.Errorf("failed to replace database schema files: %v", err)
 	}
 
 	// copy graphs from the target directory to the product home
-	graphsDestPath := filepath.Join(productHome, "repository", "resources", "graphs")
+	graphsDestPath := filepath.Join(extractedProductHome, "repository", "resources", "graphs")
 	err = copyDirectory(TestGraphsDirectory, graphsDestPath)
 	if err != nil {
 		return fmt.Errorf("failed to replace graph files: %v", err)
@@ -238,17 +259,12 @@ func RunInitScript(zipFilePattern string) error {
 		log.Printf("Current working directory: %s", cwd)
 	}
 
-	productHome, err := getExtractedProductHome(zipFilePattern)
-	if err != nil {
-		return err
-	}
-
 	// Create databases.
-	initScript := filepath.Join(productHome, InitScriptPath)
+	initScript := filepath.Join(extractedProductHome, InitScriptPath)
 
 	// Create the thunderdb database.
-	thunderDBSchemaPath := filepath.Join(productHome, "dbscripts/thunderdb", "sqlite.sql")
-	thunderDbPath := filepath.Join(productHome, DatabaseFileBasePath, "thunderdb.db")
+	thunderDBSchemaPath := filepath.Join(extractedProductHome, "dbscripts/thunderdb", "sqlite.sql")
+	thunderDbPath := filepath.Join(extractedProductHome, DatabaseFileBasePath, "thunderdb.db")
 	cmd := exec.Command("bash", initScript, "-recreate", "-type", "sqlite", "-schema", thunderDBSchemaPath,
 		"-path", thunderDbPath)
 	cmd.Stdout = os.Stdout
@@ -259,8 +275,8 @@ func RunInitScript(zipFilePattern string) error {
 	}
 
 	// Create the runtimedb database.
-	runtimeDBSchemaPath := filepath.Join(productHome, "dbscripts/runtimedb", "sqlite.sql")
-	runtimeDbPath := filepath.Join(productHome, DatabaseFileBasePath, "runtimedb.db")
+	runtimeDBSchemaPath := filepath.Join(extractedProductHome, "dbscripts/runtimedb", "sqlite.sql")
+	runtimeDbPath := filepath.Join(extractedProductHome, DatabaseFileBasePath, "runtimedb.db")
 	cmd = exec.Command("bash", initScript, "-recreate", "-type", "sqlite", "-schema", runtimeDBSchemaPath,
 		"-path", runtimeDbPath)
 	cmd.Stdout = os.Stdout
@@ -273,31 +289,46 @@ func RunInitScript(zipFilePattern string) error {
 	return nil
 }
 
-func StartServer(port string, zipFilePattern string) (*exec.Cmd, error) {
+func StartServer(port string, zipFilePattern string) error {
 	log.Println("Starting server...")
-	productHome, err := getExtractedProductHome(zipFilePattern)
-	if err != nil {
-		return nil, err
-	}
-	serverPath := filepath.Join(productHome, ServerBinary)
-	cmd := exec.Command(serverPath, "-thunderHome="+productHome)
+
+	serverPath := filepath.Join(extractedProductHome, ServerBinary)
+	cmd := exec.Command(serverPath, "-thunderHome="+extractedProductHome)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = append(os.Environ(), "PORT="+port)
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
-		return nil, fmt.Errorf("failed to start server: %v", err)
+		return fmt.Errorf("failed to start server: %v", err)
 	}
+	serverCmd = cmd
 
-	return cmd, nil
+	return nil
 }
 
-func StopServer(cmd *exec.Cmd) {
+func StopServer() {
 	log.Println("Stopping server...")
-	if cmd != nil {
-		cmd.Process.Kill()
-		cmd.Wait()
+	if serverCmd != nil {
+		serverCmd.Process.Kill()
+		serverCmd.Wait()
 	}
+	// Clear the stored command
+	serverCmd = nil
+}
+
+// RestartServer stops the current server and starts a new one with the same configuration.
+func RestartServer() error {
+	ensureInitialized()
+	log.Println("Restarting server...")
+
+	// Stop the current server if it exists
+	StopServer()
+
+	// Wait a moment for the port to be released
+	time.Sleep(3 * time.Second)
+
+	// Start a new server instance
+	return StartServer(serverPort, zipFilePattern)
 }
 
 func GetZipFilePattern() string {

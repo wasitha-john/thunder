@@ -22,7 +22,7 @@
             "executor": {
                 "name": "SMSOTPAuthExecutor",
                 "properties": {
-                    "senderName": "Custom SMS Sender"
+                    "senderId": "<your-sender-id>"
                 }
             },
             "next": [

@@ -20,13 +20,10 @@
 package smsauth
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"strconv"
-	"time"
 
 	authndto "github.com/asgardeo/thunder/internal/authn/dto"
 	"github.com/asgardeo/thunder/internal/executor/identify"
@@ -51,9 +48,9 @@ const (
 // SMSOTPAuthExecutor implements the ExecutorInterface for SMS OTP authentication.
 type SMSOTPAuthExecutor struct {
 	*identify.IdentifyingExecutor
-	internal                      flowmodel.Executor
-	userService                   service.UserServiceInterface
-	notificationSenderSvcProvider notification.NotificationServiceProviderInterface
+	internal                flowmodel.Executor
+	userService             service.UserServiceInterface
+	notificationSvcProvider notification.NotificationServiceProviderInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*SMSOTPAuthExecutor)(nil)
@@ -76,11 +73,10 @@ func NewSMSOTPAuthExecutor(id, name string, properties map[string]string) *SMSOT
 	}
 
 	return &SMSOTPAuthExecutor{
-		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
-		internal: *flowmodel.NewExecutor(id, name, defaultInputs, prerequisites,
-			properties),
-		userService:                   service.GetUserService(),
-		notificationSenderSvcProvider: notification.NewNotificationSenderServiceProvider(),
+		IdentifyingExecutor:     identify.NewIdentifyingExecutor(id, name, properties),
+		internal:                *flowmodel.NewExecutor(id, name, defaultInputs, prerequisites, properties),
+		userService:             service.GetUserService(),
+		notificationSvcProvider: notification.NewNotificationSenderServiceProvider(),
 	}
 }
 
@@ -505,52 +501,34 @@ func (s *SMSOTPAuthExecutor) generateAndSendOTP(mobileNumber string, ctx *flowmo
 		return nil
 	}
 
-	otp, err := s.generateOTP()
-	if err != nil {
-		return fmt.Errorf("failed to generate OTP: %w", err)
-	}
-
-	logger.Debug("Sending OTP to user's mobile")
-
-	smsData := notifcommon.SMSData{
-		To: mobileNumber,
-		// TODO: This should be handled with a SMS template.
-		Body: fmt.Sprintf("Your verification code is: %s. This code is valid for %d minutes.",
-			otp.Value, otp.ValidityPeriodInMillis/60000),
-	}
-
 	// Get the message sender name from executor properties.
 	execProps := s.GetProperties().Properties
 	if len(execProps) == 0 {
 		return errors.New("message sender name is not configured in executor properties")
 	}
-	senderName, ok := execProps["senderName"]
-	if !ok || senderName == "" {
-		return errors.New("message sender name is not configured in executor properties")
+	senderID, ok := execProps["senderId"]
+	if !ok || senderID == "" {
+		return errors.New("senderId is not configured in executor properties")
 	}
 
-	// Send the SMS OTP.
-	service := s.notificationSenderSvcProvider.GetNotificationClientService()
-	msgClient, svcErr := service.GetMessageClientByName(senderName)
+	// Send the OTP
+	otpService := s.notificationSvcProvider.GetOTPService()
+	sendOTPRequest := notifcommon.SendOTPDTO{
+		Recipient: mobileNumber,
+		SenderID:  senderID,
+		Channel:   string(notifcommon.ChannelTypeSMS),
+	}
+
+	sendResult, svcErr := otpService.SendOTP(sendOTPRequest)
 	if svcErr != nil {
-		logger.Error("Failed to get message client", log.String("senderName", senderName),
-			log.Any("serviceError", svcErr))
-		return fmt.Errorf("failed to get message client: %s", svcErr.ErrorDescription)
-	}
-	if msgClient == nil {
-		return fmt.Errorf("message client %s not found", senderName)
+		return fmt.Errorf("failed to send OTP: %s", svcErr.ErrorDescription)
 	}
 
-	if err := msgClient.SendSMS(smsData); err != nil {
-		return fmt.Errorf("failed to send SMS: %w", err)
-	}
-
-	// Store runtime data.
+	// Store runtime data
 	if execResp.RuntimeData == nil {
 		execResp.RuntimeData = make(map[string]string)
 	}
-	execResp.RuntimeData["value"] = otp.Value
-	execResp.RuntimeData["expiryTimeInMillis"] = fmt.Sprintf("%d", otp.ExpiryTimeInMillis)
+	execResp.RuntimeData["otpSessionToken"] = sendResult.SessionToken
 	execResp.RuntimeData["attemptCount"] = strconv.Itoa(attemptCount + 1)
 
 	return nil
@@ -583,65 +561,10 @@ func (s *SMSOTPAuthExecutor) validateAttempts(ctx *flowmodel.NodeContext, execRe
 	return attemptCount, nil
 }
 
-// generateOTP generates a random OTP based on the configurations.
-func (s *SMSOTPAuthExecutor) generateOTP() (notifcommon.OTP, error) {
-	charSet := s.getOTPCharset()
-	otpLength := s.getOTPLength()
-
-	chars := []rune(charSet)
-	result := make([]rune, otpLength)
-
-	for i := 0; i < otpLength; i++ {
-		max := big.NewInt(int64(len(chars)))
-		n, err := rand.Int(rand.Reader, max)
-		if err != nil {
-			return notifcommon.OTP{}, fmt.Errorf("failed to generate random number: %w", err)
-		}
-		result[i] = chars[n.Int64()]
-	}
-
-	token := string(result)
-	currentTime := time.Now().UnixMilli()
-	validityPeriod := s.getOTPValidityPeriodInMillis()
-
-	return notifcommon.OTP{
-		Value:                  token,
-		GeneratedTimeInMillis:  currentTime,
-		ValidityPeriodInMillis: validityPeriod,
-		ExpiryTimeInMillis:     currentTime + validityPeriod,
-	}, nil
-}
-
-// getOTPCharset returns the character set for OTP generation.
-func (s *SMSOTPAuthExecutor) getOTPCharset() string {
-	if s.useOnlyNumericChars() {
-		return "9245378016"
-	}
-	return "KIGXHOYSPRWCEFMVUQLZDNABJT9245378016"
-}
-
 // getOTPMaxAttempts returns the maximum number of attempts allowed for OTP validation.
 func (s *SMSOTPAuthExecutor) getOTPMaxAttempts() int {
 	// TODO: This needs to be configured as a IDP property.
 	return 3
-}
-
-// getOTPLength returns the length of the OTP.
-func (s *SMSOTPAuthExecutor) getOTPLength() int {
-	// TODO: This needs to be configured as a IDP property.
-	return 6
-}
-
-// useOnlyNumericChars determines whether to use only numeric characters.
-func (s *SMSOTPAuthExecutor) useOnlyNumericChars() bool {
-	// TODO: This needs to be configured as a IDP property.
-	return true
-}
-
-// getOTPValidityPeriodInMillis returns the validity period of the OTP in milliseconds.
-func (s *SMSOTPAuthExecutor) getOTPValidityPeriodInMillis() int64 {
-	// TODO: This needs to be configured as a IDP property.
-	return 120000 // 2 minutes
 }
 
 // validateOTP validates the OTP for the given user and mobile number.
@@ -659,49 +582,35 @@ func (s *SMSOTPAuthExecutor) validateOTP(ctx *flowmodel.NodeContext, execResp *f
 		return nil
 	}
 
-	storedOTP := ctx.RuntimeData["value"]
-	if storedOTP == "" {
-		logger.Debug("No stored OTP found for validation", log.String("userID", userID))
+	sessionToken := ctx.RuntimeData["otpSessionToken"]
+	if sessionToken == "" {
+		logger.Error("No session token found for OTP validation", log.String("userID", userID))
+		return fmt.Errorf("no session token found for OTP validation")
+	}
+
+	// Use the OTP service to verify the OTP
+	otpService := s.notificationSvcProvider.GetOTPService()
+	verifyOTPRequest := notifcommon.VerifyOTPDTO{
+		SessionToken: sessionToken,
+		OTPCode:      providedOTP,
+	}
+
+	verifyResult, svcErr := otpService.VerifyOTP(verifyOTPRequest)
+	if svcErr != nil {
+		logger.Error("Failed to verify OTP", log.String("userID", userID), log.Any("serviceError", svcErr))
+		return fmt.Errorf("failed to verify OTP: %s", svcErr.ErrorDescription)
+	}
+
+	// Check verification result
+	if verifyResult.Status != notifcommon.OTPVerifyStatusVerified {
+		logger.Debug("OTP verification failed", log.String("userID", userID),
+			log.String("status", string(verifyResult.Status)))
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = errorInvalidOTP
 		return nil
 	}
 
-	// Validate for the OTP value
-	if providedOTP != storedOTP {
-		logger.Debug("Provided OTP does not match stored OTP", log.String("userID", userID))
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = errorInvalidOTP
-		return nil
-	}
-
-	// Validate for the expiry time of the OTP
-	expiryTimeStr := ctx.RuntimeData["expiryTimeInMillis"]
-	if expiryTimeStr == "" {
-		logger.Debug("No expiry time found for stored OTP", log.String("userID", userID))
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = errorInvalidOTP
-		return nil
-	}
-	expiryTime, err := strconv.ParseInt(expiryTimeStr, 10, 64)
-	if err != nil {
-		logger.Error("Failed to parse expiry time for OTP", log.String("userID", userID),
-			log.Error(err))
-		return errors.New("something went wrong while validating the OTP")
-	}
-
-	currentTime := time.Now().UnixMilli()
-	if currentTime > expiryTime {
-		execResp.RuntimeData["value"] = ""
-		execResp.RuntimeData["expiryTimeInMillis"] = ""
-		logger.Debug("OTP has expired", log.String("userID", userID))
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "OTP has expired"
-		return nil
-	}
-
-	execResp.RuntimeData["value"] = ""
-	execResp.RuntimeData["expiryTimeInMillis"] = ""
+	execResp.RuntimeData["otpSessionToken"] = ""
 	logger.Debug("OTP validated successfully", log.String("userID", userID))
 	return nil
 }

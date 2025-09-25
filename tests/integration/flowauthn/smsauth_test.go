@@ -28,8 +28,7 @@ import (
 )
 
 const (
-	mockNotificationServerPort = 8099
-	customSenderName           = "Custom SMS Sender"
+	mockNotificationServerPort = 8098
 )
 
 var (
@@ -140,14 +139,6 @@ func (ts *SMSAuthFlowTestSuite) SetupSuite() {
 	ts.config.CreatedUserIDs = userIDs
 	ts.T().Logf("Test user created with ID: %s", ts.config.CreatedUserIDs[0])
 
-	// Create custom notification sender
-	senderID, err := CreateNotificationSender(mockNotificationServerPort, customSenderName)
-	if err != nil {
-		ts.T().Fatalf("Failed to create notification sender during setup: %v", err)
-	}
-	ts.config.CreatedSenderID = senderID
-	ts.T().Logf("Notification sender created with ID: %s", ts.config.CreatedSenderID)
-
 	// Store original app config (this will be the created app config)
 	ts.config.OriginalAppConfig, err = getAppConfig(smsAuthTestAppID)
 	if err != nil {
@@ -156,14 +147,6 @@ func (ts *SMSAuthFlowTestSuite) SetupSuite() {
 }
 
 func (ts *SMSAuthFlowTestSuite) TearDownSuite() {
-	// Delete notification sender
-	if ts.config.CreatedSenderID != "" {
-		err := DeleteNotificationSender(ts.config.CreatedSenderID)
-		if err != nil {
-			ts.T().Logf("Failed to delete notification sender during teardown: %v", err)
-		}
-	}
-
 	// Delete test users
 	if err := testutils.CleanupUsers(ts.config.CreatedUserIDs); err != nil {
 		ts.T().Logf("Failed to cleanup users during teardown: %v", err)

@@ -29,7 +29,6 @@ import (
 
 const (
 	mockDecisionNotificationServerPort = 8098
-	customDecisionSenderName           = "Custom Decision SMS Sender"
 )
 
 var (
@@ -130,14 +129,6 @@ func (ts *DecisionAndMFAFlowTestSuite) SetupSuite() {
 	ts.config.CreatedUserIDs = userIDs
 	ts.T().Logf("Test users created with IDs: %v", ts.config.CreatedUserIDs)
 
-	// Create custom notification sender
-	senderID, err := CreateNotificationSenderWithURL(ts.mockServer.GetSendSMSURL(), customDecisionSenderName)
-	if err != nil {
-		ts.T().Fatalf("Failed to create notification sender during setup: %v", err)
-	}
-	ts.config.CreatedSenderID = senderID
-	ts.T().Logf("Notification sender created with ID: %s", ts.config.CreatedSenderID)
-
 	// Store original app config (this will be the created app config)
 	ts.config.OriginalAppConfig, err = getAppConfig(decisionTestAppID)
 	if err != nil {
@@ -152,14 +143,6 @@ func (ts *DecisionAndMFAFlowTestSuite) SetupSuite() {
 }
 
 func (ts *DecisionAndMFAFlowTestSuite) TearDownSuite() {
-	// Delete notification sender
-	if ts.config.CreatedSenderID != "" {
-		err := DeleteNotificationSender(ts.config.CreatedSenderID)
-		if err != nil {
-			ts.T().Logf("Failed to delete notification sender during teardown: %v", err)
-		}
-	}
-
 	// Delete test users
 	if err := testutils.CleanupUsers(ts.config.CreatedUserIDs); err != nil {
 		ts.T().Logf("Failed to cleanup users during teardown: %v", err)

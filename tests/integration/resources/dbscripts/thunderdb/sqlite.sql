@@ -141,3 +141,11 @@ CREATE TABLE USER_SCHEMAS (
     CREATED_AT TEXT DEFAULT (datetime('now')),
     UPDATED_AT TEXT DEFAULT (datetime('now'))
 );
+
+INSERT INTO NOTIFICATION_SENDER (NAME, SENDER_ID, DESCRIPTION, TYPE, PROVIDER) VALUES
+('Custom SMS Sender', 'test-sms-sender-id', 'Custom SMS sender for integration tests', 'MESSAGE', 'custom');
+
+INSERT INTO NOTIFICATION_SENDER_PROPERTY (SENDER_ID, PROPERTY_NAME, PROPERTY_VALUE) VALUES
+('test-sms-sender-id', 'url', 'http://localhost:8098/send-sms'),
+('test-sms-sender-id', 'http_method', 'POST'),
+('test-sms-sender-id', 'content_type', 'JSON');

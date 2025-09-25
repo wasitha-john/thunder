@@ -964,7 +964,7 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 3. **Update the Authentication Flow Graph**
 
-    Update the authentication flow graph to use the configured message provider. To do so, open the `auth_flow_config_sms.json` file in the `repository/resources/graph/` directory and update the `senderName` with the name of the message provider you configured in the previous step. Make sure to restart the server after making this change.
+    Update the authentication flow graph to use the configured message provider. To do so, open the `auth_flow_config_sms.json` file in the `repository/resources/graph/` directory and update the `senderId` with the unique identifier of the message provider you configured in the previous step. Make sure to restart the server after making this change.
 
 4. **Configure an Application with SMS OTP Login**
 
@@ -1508,9 +1508,9 @@ curl -kL https://localhost:8090/oauth2/jwks
 
 3. **Update the Registration Flow Graph**
 
-    Update the registration flow graph to use the configured message provider. To do so, open the `registration_flow_config_sms.json` file in the `repository/resources/graph/` directory and update the `senderName` with the name of the message provider you configured in the previous step.
+    Update the registration flow graph to use the configured message provider. To do so, open the `registration_flow_config_sms.json` file in the `repository/resources/graph/` directory and update the `senderId` with the unique identifier of the message provider you configured in the previous step.
 
-    If the file doesn't exist, that means the registration flow graph is automatically constructed from the equivalent authentication flow graph. In that case, you can update the `senderName` property in the `auth_flow_config_sms.json` file or create a new `registration_flow_config_sms.json` file and define the registration flow.
+    If the file doesn't exist, that means the registration flow graph is automatically constructed from the equivalent authentication flow graph. In that case, you can update the `senderId` property in the `auth_flow_config_sms.json` file or create a new `registration_flow_config_sms.json` file and define the registration flow.
 
     > Note: Refer [Registration Flow Customization Guide](/docs/content/customize-registration-flow.md) for more details on automatic registration flow creation.
 

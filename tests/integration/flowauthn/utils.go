@@ -27,7 +27,9 @@ import (
 	"net/http"
 )
 
-const testServerURL = "https://localhost:8095"
+const (
+	testServerURL = "https://localhost:8095"
+)
 
 // Helper function to initiate the authentication flow
 func initiateAuthFlow(appID string, inputs map[string]string) (*FlowStep, error) {
@@ -307,18 +309,12 @@ func updateAppConfig(appID string, authFlowGraphID string) error {
 // TestSuiteConfig holds common configuration for test suites
 type TestSuiteConfig struct {
 	CreatedUserIDs    []string
-	CreatedSenderID   string
 	OriginalAppConfig map[string]interface{}
 	MockServer        interface{} // Can be cast to specific mock server type
 }
 
-// CreateNotificationSender creates a custom notification sender for testing
-func CreateNotificationSender(serverPort int, senderName string) (string, error) {
-	return CreateNotificationSenderWithURL(fmt.Sprintf("http://localhost:%d/send-sms", serverPort), senderName)
-}
-
-// CreateNotificationSenderWithURL creates a custom notification sender with a specific URL
-func CreateNotificationSenderWithURL(senderURL, senderName string) (string, error) {
+// CreateNotificationSender creates a custom notification sender with a specified URL and name
+func CreateNotificationSender(senderURL, senderName string) (string, error) {
 	senderRequest := map[string]interface{}{
 		"name":        senderName,
 		"description": "Custom SMS sender for integration tests",

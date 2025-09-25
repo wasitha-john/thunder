@@ -37,7 +37,7 @@ func main() {
 	initTests()
 
 	// Step 1: Unzip the product
-	err := testutils.UnzipProduct(zipFilePattern)
+	err := testutils.UnzipProduct()
 	if err != nil {
 		fmt.Printf("Failed to unzip product: %v\n", err)
 		os.Exit(1)
@@ -58,12 +58,12 @@ func main() {
 	}
 
 	// Step 4: Start the server
-	serverCmd, err := testutils.StartServer(serverPort, zipFilePattern)
+	err = testutils.StartServer(serverPort, zipFilePattern)
 	if err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
 		os.Exit(1)
 	}
-	defer testutils.StopServer(serverCmd)
+	defer testutils.StopServer()
 
 	// Wait for the server to start
 	fmt.Println("Waiting for the server to start...")
@@ -73,7 +73,7 @@ func main() {
 	err = runTests()
 	if err != nil {
 		fmt.Printf("there are test failures: %v\n", err)
-		testutils.StopServer(serverCmd)
+		testutils.StopServer()
 		os.Exit(1)
 	}
 }
@@ -84,6 +84,10 @@ func initTests() {
 		fmt.Println("Failed to determine the zip file pattern.")
 		os.Exit(1)
 	}
+
+	// Initialize test context with the detected configuration
+	testutils.InitializeTestContext(serverPort, zipFilePattern)
+
 	fmt.Printf("Using zip file pattern: %s\n", zipFilePattern)
 }
 
