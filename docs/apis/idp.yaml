@@ -1,13 +1,12 @@
 openapi: 3.0.3
 
 info:
-  contact: {}
+  title: Identity Provider Management API
   description: This API is used to manage identity providers.
+  version: "1.0"
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
-  title: Identity Provider Management API
-  version: "1.0"
 
 servers:
   - url: https://{host}:{port}
@@ -20,31 +19,29 @@ servers:
 paths:
   /identity-providers:
     get:
+      summary: List identity providers
       description: Retrieve a list of all identity providers.
+      tags:
+      - Identity Providers
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                type: object
                 $ref: '#/components/schemas/IdpListResponse'
         "500":
-          description: 'Internal Server Error: An unexpected error occurred while processing the request.'
+          description: 'Internal Server Error: An unexpected error occurred while processing the request'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: "IDP-5000"
-                message: "Internal server error"
-                description: "An unexpected error occurred while processing the request"
-      summary: List identity providers
-      tags:
-      - identity-providers
+                $ref: '#/components/schemas/ServerErrorResponse'
 
     post:
+      summary: Create an identity provider
       description: Creates a new identity provider with the provided details.
+      tags:
+      - Identity Providers
       requestBody:
         description: Identity provider data
         required: true
@@ -64,7 +61,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ClientErrorResponse'
               example:
                 code: "IDP-1007"
                 message: "Invalid request format"
@@ -74,7 +71,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ClientErrorResponse'
               example:
                 code: "IDP-1004"
                 message: "Identity provider already exists"
@@ -84,18 +81,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: "IDP-5000"
-                message: "Internal server error"
-                description: "An unexpected error occurred while processing the request"
-      summary: Create an identity provider
-      tags:
-      - identity-providers
+                $ref: '#/components/schemas/ServerErrorResponse'
 
   /identity-providers/{id}:
     get:
+      summary: Get an identity provider by ID
       description: Retrieve a specific identity provider using its ID.
+      tags:
+      - Identity Providers
       parameters:
       - name: id
         in: path
@@ -115,7 +108,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ClientErrorResponse'
               example:
                 code: "IDP-1002"
                 message: "Invalid identity provider ID"
@@ -125,7 +118,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ClientErrorResponse'
               example:
                 code: "IDP-1001"
                 message: "Identity provider not found"
@@ -135,17 +128,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: "IDP-5000"
-                message: "Internal server error"
-                description: "An unexpected error occurred while processing the request"
-      summary: Get an identity provider by ID
-      tags:
-      - identity-providers
+                $ref: '#/components/schemas/ServerErrorResponse'
 
     put:
+      summary: Update an identity provider
       description: Update the details of an existing identity provider.
+      tags:
+      - Identity Providers
       parameters:
       - name: id
         in: path
@@ -172,7 +161,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ClientErrorResponse'
               example:
                 code: "IDP-1002"
                 message: "Invalid identity provider ID"
@@ -182,7 +171,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ClientErrorResponse'
               example:
                 code: "IDP-1001"
                 message: "Identity provider not found"
@@ -192,7 +181,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ClientErrorResponse'
               example:
                 code: "IDP-1004"
                 message: "Identity provider already exists"
@@ -202,17 +191,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: "IDP-5000"
-                message: "Internal server error"
-                description: "An unexpected error occurred while processing the request"
-      summary: Update an identity provider
-      tags:
-      - identity-providers
+                $ref: '#/components/schemas/ServerErrorResponse'
 
     delete:
+      summary: Delete an identity provider
       description: Delete an identity provider using its ID.
+      tags:
+      - Identity Providers
       parameters:
       - name: id
         in: path
@@ -228,7 +213,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ClientErrorResponse'
               example:
                 code: "IDP-1002"
                 message: "Invalid identity provider ID"
@@ -238,14 +223,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: "IDP-5000"
-                message: "Internal server error"
-                description: "An unexpected error occurred while processing the request"
-      summary: Delete an identity provider
-      tags:
-      - identity-providers
+                $ref: '#/components/schemas/ServerErrorResponse'
 
 components:
   schemas:
@@ -324,7 +302,7 @@ components:
           type: string
           description: Description of the identity provider
           example: "Google OIDC identity provider for employee authentication"
-          
+    
     IdpListResponse:
       type: array
       items:
@@ -359,12 +337,33 @@ components:
         code:
           type: string
           description: Error code
-          example: "IDP-1001"
         message:
           type: string
           description: Error message
-          example: "Identity provider not found"
         description:
           type: string
           description: Detailed error description
-          example: "The requested identity provider could not be found"
+
+    ClientErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            code:
+              example: "IDP-1001"
+            message:
+              example: "Identity provider not found"
+            description:
+              example: "The requested identity provider could not be found"
+
+    ServerErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            code:
+              example: "IDP-5000"
+            message:
+              example: "Internal server error"
+            description:
+              example: "An unexpected error occurred while processing the request"
