@@ -22,15 +22,15 @@ import "github.com/asgardeo/thunder/internal/system/error/serviceerror"
 
 // Client errors for OAuth authentication.
 var (
-	// ErrorEmptyIdpId is the error when the IDP identifier is empty.
-	ErrorEmptyIdpId = serviceerror.ServiceError{
+	// ErrorEmptyIdpID is the error when the IDP identifier is empty.
+	ErrorEmptyIdpID = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
 		Code:             "AUTH-OAUTH-1001",
 		Error:            "IDP id is empty",
 		ErrorDescription: "The identity provider id cannot be empty",
 	}
-	// ErrorInvalidIdP is the error when the retrieved IDP is invalid.
-	ErrorInvalidIdP = serviceerror.ServiceError{
+	// ErrorInvalidIDP is the error when the retrieved IDP is invalid.
+	ErrorInvalidIDP = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
 		Code:             "AUTH-OAUTH-1002",
 		Error:            "Invalid identity provider",

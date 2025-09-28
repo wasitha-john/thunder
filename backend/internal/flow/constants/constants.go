@@ -19,6 +19,8 @@
 // Package constants defines the constants used in the flow execution service and engine.
 package constants
 
+import "time"
+
 // FlowType defines the type of flow execution.
 type FlowType string
 
@@ -126,3 +128,6 @@ const (
 	// RegistrationFlowGraphPrefix defines the prefix for registration flow graph IDs.
 	RegistrationFlowGraphPrefix = "registration_flow_config_"
 )
+
+// DefaultHTTPTimeout defines the default timeout duration for HTTP requests.
+const DefaultHTTPTimeout = 5 * time.Second

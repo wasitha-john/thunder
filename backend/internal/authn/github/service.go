@@ -17,7 +17,6 @@
  */
 
 // Package github implements an authentication service for authentication via GitHub OAuth.
-
 package github
 
 import (
@@ -44,8 +43,8 @@ type GithubOAuthAuthnServiceInterface interface {
 	GetInternalUser(sub string) (*usermodel.User, *serviceerror.ServiceError)
 }
 
-// GithubOAuthAuthnService is the default implementation of GithubOAuthAuthnServiceInterface.
-type GithubOAuthAuthnService struct {
+// githubOAuthAuthnService is the default implementation of GithubOAuthAuthnServiceInterface.
+type githubOAuthAuthnService struct {
 	internal   oauthauthn.OAuthAuthnServiceInterface
 	httpClient syshttp.HTTPClientInterface
 }
@@ -64,25 +63,25 @@ func NewGithubOAuthAuthnService(oAuthSvc oauthauthn.OAuthAuthnServiceInterface,
 		httpClient = syshttp.NewHTTPClientWithTimeout(defaultHTTPTimeout)
 	}
 
-	return &GithubOAuthAuthnService{
+	return &githubOAuthAuthnService{
 		internal:   oAuthSvc,
 		httpClient: httpClient,
 	}
 }
 
 // BuildAuthorizeURL constructs the authorization request URL for GitHub OAuth authentication.
-func (g *GithubOAuthAuthnService) BuildAuthorizeURL(idpID string) (string, *serviceerror.ServiceError) {
+func (g *githubOAuthAuthnService) BuildAuthorizeURL(idpID string) (string, *serviceerror.ServiceError) {
 	return g.internal.BuildAuthorizeURL(idpID)
 }
 
 // ExchangeCodeForToken exchanges the authorization code for a token with GitHub.
-func (g *GithubOAuthAuthnService) ExchangeCodeForToken(idpID, code string) (*oauthauthn.TokenResponse,
+func (g *githubOAuthAuthnService) ExchangeCodeForToken(idpID, code string) (*oauthauthn.TokenResponse,
 	*serviceerror.ServiceError) {
 	return g.internal.ExchangeCodeForToken(idpID, code)
 }
 
 // FetchUserInfo retrieves user information from the Github API, ensuring email resolution if necessary.
-func (g *GithubOAuthAuthnService) FetchUserInfo(idpID, accessToken string) (
+func (g *githubOAuthAuthnService) FetchUserInfo(idpID, accessToken string) (
 	map[string]interface{}, *serviceerror.ServiceError) {
 	oAuthClientConfig, svcErr := g.internal.GetOAuthClientConfig(idpID)
 	if svcErr != nil {
@@ -115,7 +114,7 @@ func (g *GithubOAuthAuthnService) FetchUserInfo(idpID, accessToken string) (
 }
 
 // processSubClaim validates and processes the 'sub' claim in the user info.
-func (g *GithubOAuthAuthnService) processSubClaim(userInfo map[string]interface{}) {
+func (g *githubOAuthAuthnService) processSubClaim(userInfo map[string]interface{}) {
 	if len(userInfo) == 0 {
 		return
 	}
@@ -146,12 +145,12 @@ func getUserClaimValue(userInfo map[string]interface{}, claim string) string {
 }
 
 // shouldFetchEmail check whether user email should be fetched from the emails endpoint based on the scopes.
-func (g *GithubOAuthAuthnService) shouldFetchEmail(scopes []string) bool {
+func (g *githubOAuthAuthnService) shouldFetchEmail(scopes []string) bool {
 	return slices.Contains(scopes, UserScope) || slices.Contains(scopes, UserEmailScope)
 }
 
 // fetchPrimaryEmail fetches the primary email of the user from the GitHub user emails endpoint.
-func (g *GithubOAuthAuthnService) fetchPrimaryEmail(accessToken string) (string, *serviceerror.ServiceError) {
+func (g *githubOAuthAuthnService) fetchPrimaryEmail(accessToken string) (string, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Fetching user email from GitHub user email endpoint",
 		log.String("userEmailEndpoint", UserEmailEndpoint))
@@ -178,6 +177,6 @@ func (g *GithubOAuthAuthnService) fetchPrimaryEmail(accessToken string) (string,
 }
 
 // GetInternalUser retrieves the internal user based on the external subject identifier.
-func (g *GithubOAuthAuthnService) GetInternalUser(sub string) (*usermodel.User, *serviceerror.ServiceError) {
+func (g *githubOAuthAuthnService) GetInternalUser(sub string) (*usermodel.User, *serviceerror.ServiceError) {
 	return g.internal.GetInternalUser(sub)
 }

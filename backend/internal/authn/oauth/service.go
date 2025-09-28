@@ -83,7 +83,7 @@ func (s *oAuthAuthnService) GetOAuthClientConfig(idpID string) (
 		log.String("idpId", idpID))
 
 	if strings.TrimSpace(idpID) == "" {
-		return nil, &ErrorEmptyIdpId
+		return nil, &ErrorEmptyIdpID
 	}
 
 	idp, svcErr := s.idpService.GetIdentityProvider(idpID)
@@ -97,11 +97,11 @@ func (s *oAuthAuthnService) GetOAuthClientConfig(idpID string) (
 		return nil, &ErrorUnexpectedServerError
 	}
 	if idp == nil {
-		return nil, &ErrorInvalidIdP
+		return nil, &ErrorInvalidIDP
 	}
 
 	oAuthClientConfig := parseIDPConfig(idp)
-	svcErr = s.validateClientConfig(idpID, oAuthClientConfig)
+	svcErr = s.validateClientConfig(oAuthClientConfig)
 	if svcErr != nil {
 		return nil, svcErr
 	}
@@ -121,7 +121,7 @@ func (s *oAuthAuthnService) BuildAuthorizeURL(idpID string) (string, *serviceerr
 	queryParams := map[string]string{
 		oauth2const.RequestParamClientID:     oAuthClientConfig.ClientID,
 		oauth2const.RequestParamRedirectURI:  oAuthClientConfig.RedirectURI,
-		oauth2const.RequestParamResponseType: string(oauth2const.RequestParamCode),
+		oauth2const.RequestParamResponseType: oauth2const.RequestParamCode,
 		oauth2const.RequestParamScope:        sysutils.StringifyStringArray(oAuthClientConfig.Scopes, " "),
 	}
 
@@ -256,8 +256,7 @@ func (s *oAuthAuthnService) GetInternalUser(sub string) (*usermodel.User, *servi
 }
 
 // validateClientConfig checks if the essential fields are present in the OAuth client configuration.
-func (s *oAuthAuthnService) validateClientConfig(idpID string,
-	idpConfig *OAuthClientConfig) *serviceerror.ServiceError {
+func (s *oAuthAuthnService) validateClientConfig(idpConfig *OAuthClientConfig) *serviceerror.ServiceError {
 	if idpConfig.ClientID == "" || idpConfig.ClientSecret == "" || idpConfig.RedirectURI == "" ||
 		len(idpConfig.Scopes) == 0 {
 		return &ErrorInvalidIDPConfig

@@ -20,22 +20,15 @@
 package oauth
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
+	"errors"
 
 	authndto "github.com/asgardeo/thunder/internal/authn/dto"
-	"github.com/asgardeo/thunder/internal/executor/identify"
+	authnoauth "github.com/asgardeo/thunder/internal/authn/oauth"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
-	"github.com/asgardeo/thunder/internal/executor/oauth/utils"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
-	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
-	"github.com/asgardeo/thunder/internal/system/constants"
+	idpsvc "github.com/asgardeo/thunder/internal/idp/service"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
 	systemutils "github.com/asgardeo/thunder/internal/system/utils"
@@ -63,9 +56,9 @@ type OAuthExecutorInterface interface {
 
 // OAuthExecutor implements the OAuthExecutorInterface for handling generic OAuth authentication flows.
 type OAuthExecutor struct {
-	*identify.IdentifyingExecutor
 	internal        flowmodel.Executor
 	oAuthProperties model.OAuthExecProperties
+	authNService    authnoauth.OAuthAuthnServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*OAuthExecutor)(nil)
@@ -73,6 +66,28 @@ var _ flowmodel.ExecutorInterface = (*OAuthExecutor)(nil)
 // NewOAuthExecutor creates a new instance of OAuthExecutor.
 func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, properties map[string]string,
 	oAuthProps *model.OAuthExecProperties) OAuthExecutorInterface {
+
+	endpoints := authnoauth.OAuthEndpoints{
+		AuthorizationEndpoint: oAuthProps.AuthorizationEndpoint,
+		TokenEndpoint:         oAuthProps.TokenEndpoint,
+		UserInfoEndpoint:      oAuthProps.UserInfoEndpoint,
+		LogoutEndpoint:        oAuthProps.LogoutEndpoint,
+		JwksEndpoint:          oAuthProps.JwksEndpoint,
+	}
+	authNService := authnoauth.NewOAuthAuthnService(
+		httpservice.NewHTTPClientWithTimeout(flowconst.DefaultHTTPTimeout),
+		idpsvc.NewIDPService(),
+		endpoints,
+	)
+
+	return NewOAuthExecutorWithAuthNService(id, name, defaultInputs, properties, oAuthProps, authNService)
+}
+
+// NewOAuthExecutorWithAuthNService creates a new instance of OAuthExecutor with a provided
+// OAuth authentication service.
+func NewOAuthExecutorWithAuthNService(id, name string, defaultInputs []flowmodel.InputData,
+	properties map[string]string, oAuthProps *model.OAuthExecProperties,
+	authService authnoauth.OAuthAuthnServiceInterface) OAuthExecutorInterface {
 	if len(defaultInputs) == 0 {
 		defaultInputs = []flowmodel.InputData{
 			{
@@ -82,10 +97,11 @@ func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, prop
 			},
 		}
 	}
+
 	return &OAuthExecutor{
-		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
-		internal:            *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
-		oAuthProperties:     *oAuthProps,
+		internal:        *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
+		oAuthProperties: *oAuthProps,
+		authNService:    authService,
 	}
 }
 
@@ -180,22 +196,22 @@ func (o *OAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execResp 
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Initiating OAuth authentication flow")
 
-	queryParams, err := o.getQueryParams(ctx)
-	if err != nil {
-		logger.Error("Failed to construct query parameters", log.Error(err))
-		return fmt.Errorf("failed to construct query parameters: %w", err)
-	}
+	authorizeURL, svcErr := o.authNService.BuildAuthorizeURL(o.GetID())
+	if svcErr != nil {
+		if svcErr.Type == serviceerror.ClientErrorType {
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = svcErr.ErrorDescription
+			return nil
+		}
 
-	// Construct the authorization URL
-	authURL, err := systemutils.GetURIWithQueryParams(o.GetAuthorizationEndpoint(), queryParams)
-	if err != nil {
-		logger.Error("Failed to prepare authorization URL", log.Error(err))
-		return fmt.Errorf("failed to prepare authorization URL: %w", err)
+		logger.Error("Failed to build authorize URL", log.String("errorCode", svcErr.Code),
+			log.String("errorDescription", svcErr.ErrorDescription))
+		return errors.New("failed to build authorize URL")
 	}
 
 	// Set the response to redirect the user to the authorization URL.
 	execResp.Status = flowconst.ExecExternalRedirection
-	execResp.RedirectURL = authURL
+	execResp.RedirectURL = authorizeURL
 	execResp.AdditionalData = map[string]string{
 		flowconst.DataIDPName: o.GetName(),
 	}
@@ -215,17 +231,9 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 	if ok && code != "" {
 		tokenResp, err := o.ExchangeCodeForToken(ctx, execResp, code)
 		if err != nil {
-			logger.Error("Failed to exchange code for a token", log.Error(err))
-			return fmt.Errorf("failed to exchange code for token: %w", err)
+			return err
 		}
 		if execResp.Status == flowconst.ExecFailure {
-			return nil
-		}
-
-		err = o.validateTokenResponse(tokenResp)
-		if err != nil {
-			execResp.Status = flowconst.ExecFailure
-			execResp.FailureReason = err.Error()
 			return nil
 		}
 
@@ -301,56 +309,27 @@ func (o *OAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext, execRes
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Exchanging authorization code for a token", log.String("tokenEndpoint", o.GetTokenEndpoint()))
 
-	// Prepare the token request
-	data := url.Values{}
-	data.Set(oauth2const.RequestParamClientID, o.oAuthProperties.ClientID)
-	data.Set(oauth2const.RequestParamClientSecret, o.oAuthProperties.ClientSecret)
-	data.Set(oauth2const.RequestParamRedirectURI, o.oAuthProperties.RedirectURI)
-	data.Set(oauth2const.RequestParamCode, code)
-	data.Set(oauth2const.RequestParamGrantType, string(oauth2const.GrantTypeAuthorizationCode))
-
-	// Create HTTP request
-	req, err := http.NewRequest("POST", o.GetTokenEndpoint(), strings.NewReader(data.Encode()))
-	if err != nil {
-		logger.Error("Failed to create token request", log.Error(err))
-		return nil, fmt.Errorf("failed to create token request: %w", err)
-	}
-
-	req.Header.Add(constants.ContentTypeHeaderName, "application/x-www-form-urlencoded")
-	req.Header.Add(constants.AcceptHeaderName, "application/json")
-
-	// Execute the request
-	logger.Debug("Sending token request to OAuth provider")
-	client := httpservice.NewHTTPClientWithTimeout(10 * time.Second)
-	resp, err := client.Do(req)
-	if err != nil {
-		logger.Error("Failed to send token request", log.Error(err))
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "Failed to exchange authorization code for token: " + err.Error()
-		return nil, nil
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			logger.Error("Failed to close response body", log.Error(closeErr))
+	tokenResp, svcErr := o.authNService.ExchangeCodeForToken(o.GetID(), code)
+	if svcErr != nil {
+		if svcErr.Type == serviceerror.ClientErrorType {
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = svcErr.ErrorDescription
+			return nil, nil
 		}
-	}()
-	logger.Debug("Token response received from OAuth provider", log.Int("statusCode", resp.StatusCode))
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = fmt.Sprintf("Token request failed with status %s: %s", resp.Status, string(body))
-		return nil, nil
+		logger.Error("Failed to exchange code for a token", log.String("errorCode", svcErr.Code),
+			log.String("errorDescription", svcErr.ErrorDescription))
+		return nil, errors.New("failed to exchange code for token")
 	}
 
-	// Parse the response
-	var tokenResp model.TokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		logger.Error("Failed to parse token response", log.Error(err))
-		return nil, fmt.Errorf("failed to parse token response: %w", err)
-	}
-
-	return &tokenResp, nil
+	return &model.TokenResponse{
+		AccessToken:  tokenResp.AccessToken,
+		TokenType:    tokenResp.TokenType,
+		Scope:        tokenResp.Scope,
+		RefreshToken: tokenResp.RefreshToken,
+		IDToken:      tokenResp.IDToken,
+		ExpiresIn:    tokenResp.ExpiresIn,
+	}, nil
 }
 
 // GetUserInfo fetches user information from the OAuth provider using the access token.
@@ -361,90 +340,20 @@ func (o *OAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *flowmo
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Fetching user info from OAuth provider", log.String("userInfoEndpoint", o.GetUserInfoEndpoint()))
 
-	// Create HTTP request
-	req, err := http.NewRequest("GET", o.GetUserInfoEndpoint(), nil)
-	if err != nil {
-		logger.Error("Failed to create userinfo request", log.Error(err))
-		return nil, fmt.Errorf("failed to create userinfo request: %w", err)
-	}
-	req.Header.Set(constants.AuthorizationHeaderName, constants.TokenTypeBearer+" "+accessToken)
-	req.Header.Set(constants.AcceptHeaderName, "application/json")
-
-	// Execute the request
-	logger.Debug("Sending userinfo request to OAuth provider")
-
-	client := httpservice.NewHTTPClientWithTimeout(10 * time.Second)
-	resp, err := client.Do(req)
-	if err != nil {
-		logger.Error("Failed to send userinfo request", log.Error(err))
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "Failed to fetch user information: " + err.Error()
-		return nil, nil
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			logger.Error("Failed to close userinfo response body", log.Error(closeErr))
+	userInfo, svcErr := o.authNService.FetchUserInfo(o.GetID(), accessToken)
+	if svcErr != nil {
+		if svcErr.Type == serviceerror.ClientErrorType {
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = svcErr.ErrorDescription
+			return nil, nil
 		}
-	}()
-	logger.Debug("Userinfo response received from OAuth provider", log.Int("statusCode", resp.StatusCode))
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = fmt.Sprintf("Userinfo request failed with status %s: %s", resp.Status, string(body))
-		return nil, nil
-	}
-
-	// Parse the response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Error("Failed to read userinfo response body", log.Error(err))
-		return nil, fmt.Errorf("failed to read userinfo response body: %w", err)
-	}
-
-	var userInfo map[string]interface{}
-	if err := json.Unmarshal(body, &userInfo); err != nil {
-		logger.Error("Failed to parse userinfo response", log.Error(err))
-		return nil, fmt.Errorf("failed to parse userinfo response: %w", err)
+		logger.Error("Failed to fetch user info", log.String("errorCode", svcErr.Code),
+			log.String("errorDescription", svcErr.ErrorDescription))
+		return nil, errors.New("failed to fetch user information")
 	}
 
 	return systemutils.ConvertInterfaceMapToStringMap(userInfo), nil
-}
-
-// getQueryParams constructs the query parameters for the OAuth authorization request.
-func (o *OAuthExecutor) getQueryParams(ctx *flowmodel.NodeContext) (map[string]string, error) {
-	var queryParams = make(map[string]string)
-	queryParams[oauth2const.RequestParamClientID] = o.oAuthProperties.ClientID
-	queryParams[oauth2const.RequestParamRedirectURI] = o.oAuthProperties.RedirectURI
-	queryParams[oauth2const.RequestParamResponseType] = oauth2const.RequestParamCode
-	queryParams[oauth2const.RequestParamScope] = systemutils.StringifyStringArray(o.oAuthProperties.Scopes, " ")
-
-	// append any configured additional parameters.
-	additionalParams := o.oAuthProperties.AdditionalParams
-	if len(additionalParams) > 0 {
-		for key, value := range additionalParams {
-			if key != "" && value != "" {
-				resolvedValue, err := utils.GetResolvedAdditionalParam(key, value, ctx)
-				if err != nil {
-					return nil, fmt.Errorf("failed to resolve additional parameter %s: %w", key, err)
-				}
-				queryParams[key] = resolvedValue
-			}
-		}
-	}
-
-	return queryParams, nil
-}
-
-// validateTokenResponse validates the token response received from the OAuth provider.
-func (o *OAuthExecutor) validateTokenResponse(tokenResp *model.TokenResponse) error {
-	if tokenResp == nil {
-		return fmt.Errorf("token response is nil")
-	}
-	if tokenResp.AccessToken == "" {
-		return fmt.Errorf("access token is empty in the token response")
-	}
-	return nil
 }
 
 // getAuthenticatedUserWithAttributes retrieves the authenticated user information with additional attributes
@@ -458,15 +367,13 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 	// Get user info using the access token
 	userInfo, err := o.GetUserInfo(ctx, execResp, accessToken)
 	if err != nil {
-		logger.Error("Failed to get user info", log.Error(err))
-		return nil, fmt.Errorf("failed to get user info: %w", err)
+		return nil, err
 	}
 	if execResp.Status == flowconst.ExecFailure {
 		return nil, nil
 	}
 
 	// Resolve user with the sub claim.
-	// TODO: For now assume `sub` is the unique identifier for the user always.
 	sub, ok := userInfo["sub"]
 	if !ok || sub == "" {
 		execResp.Status = flowconst.ExecFailure
@@ -474,16 +381,10 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 		return nil, nil
 	}
 
-	filters := map[string]interface{}{"sub": sub}
-	userID, err := o.IdentifyUser(filters, execResp)
-	if err != nil {
-		return nil, fmt.Errorf("failed to identify user with sub claim: %w", err)
-	}
-
-	// Handle registration flows.
-	if ctx.FlowType == flowconst.FlowTypeRegistration {
-		if execResp.Status == flowconst.ExecFailure {
-			if execResp.FailureReason == "User not found" {
+	user, svcErr := o.authNService.GetInternalUser(sub)
+	if svcErr != nil {
+		if svcErr.Code == authnoauth.ErrorUserNotFound.Code {
+			if ctx.FlowType == flowconst.FlowTypeRegistration {
 				logger.Debug("User not found for the provided sub claim. Proceeding with registration flow.")
 				execResp.Status = flowconst.ExecComplete
 				execResp.FailureReason = ""
@@ -493,38 +394,54 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 				}
 				execResp.RuntimeData["sub"] = sub
 
-				// TODO: Need to convert attributes as per the IDP to local attribute mapping
-				//  when the support is implemented.
 				return &authndto.AuthenticatedUser{
 					IsAuthenticated: false,
 					Attributes:      getUserAttributes(userInfo, ""),
 				}, nil
+			} else {
+				execResp.Status = flowconst.ExecFailure
+				execResp.FailureReason = "User not found"
+				return nil, nil
 			}
-			return nil, err
+		} else {
+			if svcErr.Type == serviceerror.ClientErrorType {
+				execResp.Status = flowconst.ExecFailure
+				execResp.FailureReason = svcErr.ErrorDescription
+				return nil, nil
+			}
+			logger.Error("Error while retrieving internal user", log.String("errorCode", svcErr.Code),
+				log.String("description", svcErr.ErrorDescription))
+			return nil, errors.New("error while retrieving internal user")
 		}
+	}
 
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		// At this point, a unique user is found in the system. Hence fail the execution.
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "User already exists with the provided sub claim."
 		return nil, nil
 	}
 
+	if user == nil || user.ID == "" {
+		return nil, errors.New("retrieved user is nil or has an empty ID")
+	}
+	userID := user.ID
+
 	if execResp.Status == flowconst.ExecFailure {
 		return nil, nil
 	}
 
-	// TODO: Need to convert attributes as per the IDP to local attribute mapping
-	//  when the support is implemented.
 	authenticatedUser := authndto.AuthenticatedUser{
 		IsAuthenticated: true,
-		UserID:          *userID,
-		Attributes:      getUserAttributes(userInfo, *userID),
+		UserID:          userID,
+		Attributes:      getUserAttributes(userInfo, userID),
 	}
 
 	return &authenticatedUser, nil
 }
 
 // getUserAttributes extracts user attributes from the user info map, excluding certain keys.
+// TODO: Need to convert attributes as per the IDP to local attribute mapping when the support is implemented.
 func getUserAttributes(userInfo map[string]string, userID string) map[string]interface{} {
 	attributes := make(map[string]interface{})
 	for key, value := range userInfo {
