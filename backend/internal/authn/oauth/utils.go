@@ -20,6 +20,7 @@ package oauth
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -191,12 +192,12 @@ func ProcessSubClaim(userInfo map[string]interface{}) {
 	if len(userInfo) == 0 {
 		return
 	}
-	sub := GetUserClaimValue(userInfo, "sub")
+	sub := GetStringUserClaimValue(userInfo, "sub")
 	if sub != "" {
 		return
 	}
 
-	id := GetUserClaimValue(userInfo, "id")
+	id := GetStringUserClaimValue(userInfo, "id")
 	if id != "" {
 		userInfo["sub"] = id
 		delete(userInfo, "id")
@@ -204,14 +205,29 @@ func ProcessSubClaim(userInfo map[string]interface{}) {
 	}
 }
 
-// GetUserClaimValue retrieves a string claim value from the user info map.
-func GetUserClaimValue(userInfo map[string]interface{}, claim string) string {
+// GetStringUserClaimValue retrieves a string claim value from the user info map.
+// It handles string, number (int, int64, float64), and boolean types by converting them to strings.
+func GetStringUserClaimValue(userInfo map[string]interface{}, claim string) string {
 	if len(userInfo) == 0 {
 		return ""
 	}
 	if val, ok := userInfo[claim]; ok {
-		if valStr, ok := val.(string); ok {
-			return valStr
+		switch v := val.(type) {
+		case string:
+			return v
+		case int:
+			return fmt.Sprintf("%d", v)
+		case int64:
+			return fmt.Sprintf("%d", v)
+		case float64:
+			// Handle JSON numbers which are parsed as float64
+			if v == float64(int64(v)) {
+				// If it's a whole number, format as integer
+				return fmt.Sprintf("%.0f", v)
+			}
+			return fmt.Sprintf("%f", v)
+		case bool:
+			return fmt.Sprintf("%t", v)
 		}
 	}
 	return ""

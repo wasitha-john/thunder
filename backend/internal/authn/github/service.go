@@ -92,7 +92,7 @@ func (g *githubOAuthAuthnService) FetchUserInfo(idpID, accessToken string) (
 	}
 
 	// If email is already present in the user info or email scope is not requested, return it directly.
-	email := authnoauth.GetUserClaimValue(userInfo, "email")
+	email := authnoauth.GetStringUserClaimValue(userInfo, "email")
 	if email != "" || !g.shouldFetchEmail(oAuthClientConfig.Scopes) {
 		logger.Debug("Email is already present in the user info or email scope not requested")
 		authnoauth.ProcessSubClaim(userInfo)
