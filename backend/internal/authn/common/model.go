@@ -16,8 +16,8 @@
  * under the License.
  */
 
-// Package dto defines the common data transfer objects for authentication handling.
-package dto
+// Package common defines the common models and functions for authentication handling.
+package common
 
 import (
 	"context"

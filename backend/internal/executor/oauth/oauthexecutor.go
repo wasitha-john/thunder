@@ -22,7 +22,7 @@ package oauth
 import (
 	"errors"
 
-	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	authnoauth "github.com/asgardeo/thunder/internal/authn/oauth"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
@@ -66,7 +66,6 @@ var _ flowmodel.ExecutorInterface = (*OAuthExecutor)(nil)
 // NewOAuthExecutor creates a new instance of OAuthExecutor.
 func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, properties map[string]string,
 	oAuthProps *model.OAuthExecProperties) OAuthExecutorInterface {
-
 	endpoints := authnoauth.OAuthEndpoints{
 		AuthorizationEndpoint: oAuthProps.AuthorizationEndpoint,
 		TokenEndpoint:         oAuthProps.TokenEndpoint,
@@ -85,6 +84,8 @@ func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, prop
 
 // NewOAuthExecutorWithAuthNService creates a new instance of OAuthExecutor with a provided
 // OAuth authentication service.
+// Use this function instead of NewOAuthExecutor when you need to supply a custom OAuth authentication service,
+// such as for testing, dependency injection, or when using a specialized implementation.
 func NewOAuthExecutorWithAuthNService(id, name string, defaultInputs []flowmodel.InputData,
 	properties map[string]string, oAuthProps *model.OAuthExecProperties,
 	authService authnoauth.OAuthAuthnServiceInterface) OAuthExecutorInterface {
@@ -239,7 +240,7 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 
 		if tokenResp.Scope == "" {
 			logger.Error("Scopes are empty in the token response")
-			execResp.AuthenticatedUser = authndto.AuthenticatedUser{
+			execResp.AuthenticatedUser = authncm.AuthenticatedUser{
 				IsAuthenticated: false,
 			}
 		} else {
@@ -253,7 +254,7 @@ func (o *OAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 			execResp.AuthenticatedUser = *authenticatedUser
 		}
 	} else {
-		execResp.AuthenticatedUser = authndto.AuthenticatedUser{
+		execResp.AuthenticatedUser = authncm.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
@@ -359,7 +360,7 @@ func (o *OAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *flowmo
 // getAuthenticatedUserWithAttributes retrieves the authenticated user information with additional attributes
 // from the OAuth provider using the access token.
 func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse, accessToken string) (*authndto.AuthenticatedUser, error) {
+	execResp *flowmodel.ExecutorResponse, accessToken string) (*authncm.AuthenticatedUser, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -394,7 +395,7 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 				}
 				execResp.RuntimeData["sub"] = sub
 
-				return &authndto.AuthenticatedUser{
+				return &authncm.AuthenticatedUser{
 					IsAuthenticated: false,
 					Attributes:      getUserAttributes(userInfo, ""),
 				}, nil
@@ -431,7 +432,7 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 		return nil, nil
 	}
 
-	authenticatedUser := authndto.AuthenticatedUser{
+	authenticatedUser := authncm.AuthenticatedUser{
 		IsAuthenticated: true,
 		UserID:          userID,
 		Attributes:      getUserAttributes(userInfo, userID),

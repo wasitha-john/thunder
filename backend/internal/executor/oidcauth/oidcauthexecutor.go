@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"slices"
 
-	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/executor/identify"
 	"github.com/asgardeo/thunder/internal/executor/oauth"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
@@ -247,7 +247,7 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 		}
 		execResp.AuthenticatedUser = *authenticatedUser
 	} else {
-		execResp.AuthenticatedUser = authndto.AuthenticatedUser{
+		execResp.AuthenticatedUser = authncm.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
@@ -356,7 +356,7 @@ func (o *OIDCAuthExecutor) validateTokenResponse(tokenResp *model.TokenResponse)
 // ID token and user info.
 func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeContext,
 	execResp *flowmodel.ExecutorResponse, accessToken string, idTokenClaims map[string]interface{},
-	userID string) (*authndto.AuthenticatedUser, error) {
+	userID string) (*authncm.AuthenticatedUser, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -409,7 +409,7 @@ func (o *OIDCAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.Nod
 		}
 	}
 
-	authenticatedUser := authndto.AuthenticatedUser{}
+	authenticatedUser := authncm.AuthenticatedUser{}
 	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		authenticatedUser.IsAuthenticated = false
 	} else {

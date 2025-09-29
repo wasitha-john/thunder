@@ -21,8 +21,8 @@ package oauth
 
 import (
 	"strings"
-	"time"
 
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	idpservice "github.com/asgardeo/thunder/internal/idp/service"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
@@ -36,7 +36,6 @@ import (
 
 const (
 	loggerComponentName = "OAuthAuthnService"
-	defaultHTTPTimeout  = 5 * time.Second
 )
 
 // OAuthAuthnServiceInterface defines the contract for OAuth based authenticator services.
@@ -62,7 +61,7 @@ type oAuthAuthnService struct {
 func NewOAuthAuthnService(httpClient httpservice.HTTPClientInterface,
 	idpSvc idpservice.IDPServiceInterface, endpoints OAuthEndpoints) OAuthAuthnServiceInterface {
 	if httpClient == nil {
-		httpClient = httpservice.NewHTTPClientWithTimeout(defaultHTTPTimeout)
+		httpClient = httpservice.NewHTTPClientWithTimeout(authncm.DefaultHTTPTimeout)
 	}
 	if idpSvc == nil {
 		idpSvc = idpservice.NewIDPService()

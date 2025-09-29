@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"strconv"
 
-	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/executor/identify"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
@@ -617,7 +617,7 @@ func (s *SMSOTPAuthExecutor) validateOTP(ctx *flowmodel.NodeContext, execResp *f
 
 // getAuthenticatedUser returns the authenticated user details for the given user ID.
 func (s *SMSOTPAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse) (*authndto.AuthenticatedUser, error) {
+	execResp *flowmodel.ExecutorResponse) (*authncm.AuthenticatedUser, error) {
 	mobileNumber, err := s.getUserMobileFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -627,7 +627,7 @@ func (s *SMSOTPAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		execResp.Status = flowconst.ExecComplete
 		execResp.FailureReason = ""
-		return &authndto.AuthenticatedUser{
+		return &authncm.AuthenticatedUser{
 			IsAuthenticated: false,
 			Attributes: map[string]interface{}{
 				userAttributeMobileNumber: mobileNumber,
@@ -651,7 +651,7 @@ func (s *SMSOTPAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 		return nil, fmt.Errorf("failed to unmarshal user attributes: %w", err)
 	}
 
-	authenticatedUser := &authndto.AuthenticatedUser{
+	authenticatedUser := &authncm.AuthenticatedUser{
 		IsAuthenticated: true,
 		UserID:          user.ID,
 		Attributes:      attrs,

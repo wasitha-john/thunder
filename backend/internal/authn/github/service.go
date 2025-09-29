@@ -21,8 +21,8 @@ package github
 
 import (
 	"slices"
-	"time"
 
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	oauthauthn "github.com/asgardeo/thunder/internal/authn/oauth"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	syshttp "github.com/asgardeo/thunder/internal/system/http"
@@ -32,7 +32,6 @@ import (
 
 const (
 	loggerComponentName = "GithubAuthnService"
-	defaultHTTPTimeout  = 5 * time.Second
 )
 
 // GithubOAuthAuthnServiceInterface defines the contract for GitHub OAuth based authenticator services.
@@ -60,7 +59,7 @@ func NewGithubOAuthAuthnService(oAuthSvc oauthauthn.OAuthAuthnServiceInterface,
 		})
 	}
 	if httpClient == nil {
-		httpClient = syshttp.NewHTTPClientWithTimeout(defaultHTTPTimeout)
+		httpClient = syshttp.NewHTTPClientWithTimeout(authncm.DefaultHTTPTimeout)
 	}
 
 	return &githubOAuthAuthnService{

@@ -22,7 +22,7 @@ package githubauth
 import (
 	"errors"
 
-	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	gitauthn "github.com/asgardeo/thunder/internal/authn/github"
 	authnoauth "github.com/asgardeo/thunder/internal/authn/oauth"
 	"github.com/asgardeo/thunder/internal/executor/oauth"
@@ -37,8 +37,6 @@ import (
 )
 
 const loggerComponentName = "GithubOAuthExecutor"
-
-// TODO: Validate github auth service reuse implementation
 
 // GithubOAuthExecutor implements the OAuth authentication executor for GitHub.
 type GithubOAuthExecutor struct {
@@ -148,7 +146,7 @@ func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext
 
 		if tokenResp.Scope == "" {
 			logger.Error("Scopes are empty in the token response")
-			execResp.AuthenticatedUser = authndto.AuthenticatedUser{
+			execResp.AuthenticatedUser = authncm.AuthenticatedUser{
 				IsAuthenticated: false,
 			}
 		} else {
@@ -162,7 +160,7 @@ func (o *GithubOAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext
 			execResp.AuthenticatedUser = *authenticatedUser
 		}
 	} else {
-		execResp.AuthenticatedUser = authndto.AuthenticatedUser{
+		execResp.AuthenticatedUser = authncm.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	}
@@ -204,7 +202,7 @@ func (o *GithubOAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *
 
 // getAuthenticatedUserWithAttributes retrieves the authenticated user with attributes from github.
 func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse, accessToken string) (*authndto.AuthenticatedUser, error) {
+	execResp *flowmodel.ExecutorResponse, accessToken string) (*authncm.AuthenticatedUser, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
@@ -238,7 +236,7 @@ func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.
 				}
 				execResp.RuntimeData["sub"] = sub
 
-				return &authndto.AuthenticatedUser{
+				return &authncm.AuthenticatedUser{
 					IsAuthenticated: false,
 					Attributes:      getUserAttributes(userInfo, ""),
 				}, nil
@@ -275,7 +273,7 @@ func (o *GithubOAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.
 		return nil, nil
 	}
 
-	authenticatedUser := authndto.AuthenticatedUser{
+	authenticatedUser := authncm.AuthenticatedUser{
 		IsAuthenticated: true,
 		UserID:          userID,
 		Attributes:      getUserAttributes(userInfo, userID),

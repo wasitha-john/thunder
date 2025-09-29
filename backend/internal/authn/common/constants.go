@@ -16,19 +16,11 @@
  * under the License.
  */
 
-// Package model defines the data structures for managing auth session data.
-package model
+package common
 
 import (
 	"time"
-
-	authncm "github.com/asgardeo/thunder/internal/authn/common"
-	oauthmodel "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 )
 
-// SessionData represents the session data for the authentication.
-type SessionData struct {
-	OAuthParameters   oauthmodel.OAuthParameters
-	AuthTime          time.Time
-	AuthenticatedUser authncm.AuthenticatedUser
-}
+// DefaultHTTPTimeout is the default timeout duration for HTTP federated IDP requests.
+const DefaultHTTPTimeout = 5 * time.Second

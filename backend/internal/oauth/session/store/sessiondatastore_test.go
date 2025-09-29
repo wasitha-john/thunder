@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	sessionmodel "github.com/asgardeo/thunder/internal/oauth/session/model"
 )
@@ -81,7 +81,7 @@ func (suite *SessionDataStoreTestSuite) TestAddSession() {
 			State:          "test-state",
 		},
 		AuthTime: time.Now(),
-		AuthenticatedUser: authndto.AuthenticatedUser{
+		AuthenticatedUser: authncm.AuthenticatedUser{
 			IsAuthenticated: true,
 			UserID:          "user123",
 			Attributes: map[string]interface{}{
