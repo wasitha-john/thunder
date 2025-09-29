@@ -16,14 +16,14 @@
  * under the License.
  */
 
-package githubauth
+package github
 
-// Constants used for GitHub OAuth2 authentication and API endpoints.
+// GitHub OAuth endpoints and scopes.
 const (
-	githubAuthorizeEndpoint = "https://github.com/login/oauth/authorize"
-	githubTokenEndpoint     = "https://github.com/login/oauth/access_token" // #nosec G101
-	githubUserInfoEndpoint  = "https://api.github.com/user"
-	githubUserEmailEndpoint = "https://api.github.com/user/emails"
-	userScope               = "user"
-	userEmailScope          = "user:email"
+	AuthorizeEndpoint = "https://github.com/login/oauth/authorize"
+	TokenEndpoint     = "https://github.com/login/oauth/access_token" // #nosec G101
+	UserInfoEndpoint  = "https://api.github.com/user"
+	UserEmailEndpoint = "https://api.github.com/user/emails"
+	UserScope         = "user"
+	UserEmailScope    = "user:email"
 )

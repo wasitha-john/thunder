@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"slices"
 
-	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/executor/identify"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
@@ -152,7 +152,7 @@ func (p *ProvisioningExecutor) Execute(ctx *flowmodel.NodeContext) (*flowmodel.E
 		return nil, err
 	}
 
-	authenticatedUser := authndto.AuthenticatedUser{
+	authenticatedUser := authncm.AuthenticatedUser{
 		IsAuthenticated: true,
 		UserID:          createdUser.ID,
 		Attributes:      retAttributes,

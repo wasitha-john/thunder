@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"time"
 
-	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/flow/model"
 )
 
@@ -76,7 +76,7 @@ func (f *FlowContextWithUserDataDB) ToEngineContext(graph model.GraphInterface) 
 	}
 
 	// Build authenticated user
-	authenticatedUser := authndto.AuthenticatedUser{
+	authenticatedUser := authncm.AuthenticatedUser{
 		IsAuthenticated: f.IsAuthenticated,
 		UserID:          "",
 		Attributes:      userAttributes,

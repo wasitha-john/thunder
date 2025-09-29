@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 
-	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
@@ -39,7 +39,7 @@ type NodeResponse struct {
 	Actions           []Action                   `json:"actions,omitempty"`
 	NextNodeID        string                     `json:"next_node_id,omitempty"`
 	RuntimeData       map[string]string          `json:"runtime_data,omitempty"`
-	AuthenticatedUser authndto.AuthenticatedUser `json:"authenticated_user,omitempty"`
+	AuthenticatedUser authncm.AuthenticatedUser  `json:"authenticated_user,omitempty"`
 	Assertion         string                     `json:"assertion,omitempty"`
 }
 

@@ -21,7 +21,7 @@ package model
 
 import (
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
-	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/flow/constants"
 )
 
@@ -40,7 +40,7 @@ type EngineContext struct {
 	Graph       GraphInterface
 	Application appmodel.ApplicationProcessedDTO
 
-	AuthenticatedUser authndto.AuthenticatedUser
+	AuthenticatedUser authncm.AuthenticatedUser
 }
 
 // NodeContext holds the context for a specific node in the flow execution.
@@ -55,7 +55,7 @@ type NodeContext struct {
 	RuntimeData   map[string]string
 
 	Application       appmodel.ApplicationProcessedDTO
-	AuthenticatedUser authndto.AuthenticatedUser
+	AuthenticatedUser authncm.AuthenticatedUser
 }
 
 // FlowStep represents the outcome of a individual flow step

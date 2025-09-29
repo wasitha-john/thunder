@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	authndto "github.com/asgardeo/thunder/internal/authn/dto"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/executor/identify"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
@@ -169,7 +169,7 @@ func (b *BasicAuthExecutor) GetRequiredData(ctx *flowmodel.NodeContext) []flowmo
 // getAuthenticatedUser perform authentication based on the provided username and password and return
 // authenticated user details.
 func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
-	execResp *flowmodel.ExecutorResponse) (*authndto.AuthenticatedUser, error) {
+	execResp *flowmodel.ExecutorResponse) (*authncm.AuthenticatedUser, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String(log.LoggerKeyExecutorID, b.GetID()))
 
@@ -187,7 +187,7 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 				logger.Debug("User not found for the provided username. Proceeding with registration flow.")
 				execResp.Status = flowconst.ExecComplete
 
-				return &authndto.AuthenticatedUser{
+				return &authncm.AuthenticatedUser{
 					IsAuthenticated: false,
 					Attributes: map[string]interface{}{
 						userAttributeUsername: username,
@@ -220,9 +220,9 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 		return nil, fmt.Errorf("failed to verify user credentials: %s", svcErr.Error)
 	}
 
-	var authenticatedUser authndto.AuthenticatedUser
+	var authenticatedUser authncm.AuthenticatedUser
 	if user == nil {
-		authenticatedUser = authndto.AuthenticatedUser{
+		authenticatedUser = authncm.AuthenticatedUser{
 			IsAuthenticated: false,
 		}
 	} else {
@@ -232,7 +232,7 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 			return nil, err
 		}
 
-		authenticatedUser = authndto.AuthenticatedUser{
+		authenticatedUser = authncm.AuthenticatedUser{
 			IsAuthenticated: true,
 			UserID:          user.ID,
 			Attributes:      attrs,
