@@ -38,15 +38,26 @@ const (
 	loggerComponentName = "OAuthAuthnService"
 )
 
+// OAuthAuthnCoreServiceInterface defines the core contract for OAuth based authenticator services.
+type OAuthAuthnCoreServiceInterface interface {
+	BuildAuthorizeURL(idpID string) (string, *serviceerror.ServiceError)
+	ExchangeCodeForToken(idpID, code string, validateResponse bool) (*TokenResponse, *serviceerror.ServiceError)
+	FetchUserInfo(idpID, accessToken string) (map[string]interface{}, *serviceerror.ServiceError)
+	GetInternalUser(sub string) (*usermodel.User, *serviceerror.ServiceError)
+}
+
+// OAuthAuthnClientServiceInterface defines the contract for OAuth client operations.
+type OAuthAuthnClientServiceInterface interface {
+	GetOAuthClientConfig(idpID string) (*OAuthClientConfig, *serviceerror.ServiceError)
+}
+
 // OAuthAuthnServiceInterface defines the contract for OAuth based authenticator services.
 type OAuthAuthnServiceInterface interface {
-	GetOAuthClientConfig(idpID string) (*OAuthClientConfig, *serviceerror.ServiceError)
-	BuildAuthorizeURL(idpID string) (string, *serviceerror.ServiceError)
-	ExchangeCodeForToken(idpID, code string) (*TokenResponse, *serviceerror.ServiceError)
-	FetchUserInfo(idpID, accessToken string) (map[string]interface{}, *serviceerror.ServiceError)
+	OAuthAuthnCoreServiceInterface
+	OAuthAuthnClientServiceInterface
+	ValidateTokenResponse(idpID string, tokenResp *TokenResponse) *serviceerror.ServiceError
 	FetchUserInfoWithClientConfig(oAuthClientConfig *OAuthClientConfig, accessToken string) (
 		map[string]interface{}, *serviceerror.ServiceError)
-	GetInternalUser(sub string) (*usermodel.User, *serviceerror.ServiceError)
 }
 
 // oAuthAuthnService is the default implementation of OAuthAuthnServiceInterface.
@@ -111,6 +122,7 @@ func (s *oAuthAuthnService) GetOAuthClientConfig(idpID string) (
 // BuildAuthorizeURL constructs the authorization request URL for the external identity provider.
 func (s *oAuthAuthnService) BuildAuthorizeURL(idpID string) (string, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Building authorize URL", log.String("idpId", idpID))
 
 	oAuthClientConfig, svcErr := s.GetOAuthClientConfig(idpID)
 	if svcErr != nil {
@@ -141,10 +153,12 @@ func (s *oAuthAuthnService) BuildAuthorizeURL(idpID string) (string, *serviceerr
 	return authZURL, nil
 }
 
-// ExchangeCodeForToken exchanges the authorization code for a token with the external identity provider.
-func (s *oAuthAuthnService) ExchangeCodeForToken(idpID, code string) (*TokenResponse,
-	*serviceerror.ServiceError) {
+// ExchangeCodeForToken exchanges the authorization code for a token with the external identity provider
+// and validates the token response if validateResponse is true.
+func (s *oAuthAuthnService) ExchangeCodeForToken(idpID, code string, validateResponse bool) (
+	*TokenResponse, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Exchanging authorization code for token", log.String("idpId", idpID))
 
 	if strings.TrimSpace(code) == "" {
 		return nil, &ErrorEmptyAuthorizationCode
@@ -165,12 +179,34 @@ func (s *oAuthAuthnService) ExchangeCodeForToken(idpID, code string) (*TokenResp
 		return nil, svcErr
 	}
 
-	svcErr = s.validateTokenResponse(tokenResp, logger)
-	if svcErr != nil {
-		return nil, svcErr
+	if validateResponse {
+		svcErr = s.ValidateTokenResponse(idpID, tokenResp)
+		if svcErr != nil {
+			return nil, svcErr
+		}
 	}
 
 	return tokenResp, nil
+}
+
+// ValidateTokenResponse validates the token response returned by the identity provider.
+// ExchangeCodeForToken method calls this method to validate the token response if validateResponse is set
+// to true. Hence generally you may not need to call this method explicitly.
+func (s *oAuthAuthnService) ValidateTokenResponse(idpID string, tokenResp *TokenResponse) *serviceerror.ServiceError {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String("idpId", idpID))
+	logger.Debug("Validating token response")
+
+	if tokenResp == nil {
+		logger.Debug("Empty token response received from identity provider")
+		return &ErrorInvalidTokenResponse
+	}
+	if tokenResp.AccessToken == "" {
+		logger.Debug("Access token is empty in the token response")
+		return &ErrorInvalidTokenResponse
+	}
+
+	return nil
 }
 
 // FetchUserInfo retrieves user information from the external identity provider.
@@ -188,14 +224,15 @@ func (s *oAuthAuthnService) FetchUserInfo(idpID, accessToken string) (
 func (s *oAuthAuthnService) FetchUserInfoWithClientConfig(oAuthClientConfig *OAuthClientConfig,
 	accessToken string) (map[string]interface{}, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+	logger.Debug("Fetching user info")
 
 	if strings.TrimSpace(accessToken) == "" {
 		return nil, &ErrorEmptyAccessToken
 	}
 
 	if oAuthClientConfig.OAuthEndpoints.UserInfoEndpoint == "" {
-		return nil, customServiceError(ErrorInvalidIDPConfig,
-			"Userinfo endpoint is not configured for the identity provider")
+		logger.Error("Userinfo endpoint is not configured for the identity provider")
+		return nil, &ErrorUnexpectedServerError
 	}
 
 	httpReq, svcErr := buildUserInfoRequest(oAuthClientConfig.OAuthEndpoints.UserInfoEndpoint,
@@ -209,6 +246,7 @@ func (s *oAuthAuthnService) FetchUserInfoWithClientConfig(oAuthClientConfig *OAu
 		return nil, svcErr
 	}
 
+	ProcessSubClaim(userInfo)
 	return userInfo, nil
 }
 
@@ -216,6 +254,7 @@ func (s *oAuthAuthnService) FetchUserInfoWithClientConfig(oAuthClientConfig *OAu
 func (s *oAuthAuthnService) GetInternalUser(sub string) (*usermodel.User, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
 		log.String("sub", log.MaskString(sub)))
+	logger.Debug("Retrieving internal user for the given sub claim")
 
 	if strings.TrimSpace(sub) == "" {
 		return nil, &ErrorEmptySubClaim
@@ -227,6 +266,7 @@ func (s *oAuthAuthnService) GetInternalUser(sub string) (*usermodel.User, *servi
 	userID, svcErr := s.userService.IdentifyUser(filters)
 	if svcErr != nil {
 		if svcErr.Code == userconst.ErrorUserNotFound.Code {
+			logger.Debug("No user found for the provided sub claim")
 			return nil, &ErrorUserNotFound
 		}
 		if svcErr.Type == serviceerror.ClientErrorType {
@@ -234,10 +274,11 @@ func (s *oAuthAuthnService) GetInternalUser(sub string) (*usermodel.User, *servi
 		}
 		logger.Error("Error while identifying user", log.String("errorCode", svcErr.Code),
 			log.String("description", svcErr.ErrorDescription))
-		return nil, &ErrorServerErrorWhileRetrievingUser
+		return nil, &ErrorUnexpectedServerError
 	}
 
 	if userID == nil {
+		logger.Debug("User id is nil, no user found for the provided sub claim")
 		return nil, &ErrorUserNotFound
 	}
 
@@ -248,7 +289,7 @@ func (s *oAuthAuthnService) GetInternalUser(sub string) (*usermodel.User, *servi
 		}
 		logger.Error("Error while retrieving user", log.String("errorCode", svcErr.Code),
 			log.String("description", svcErr.ErrorDescription))
-		return nil, &ErrorServerErrorWhileRetrievingUser
+		return nil, &ErrorUnexpectedServerError
 	}
 
 	return user, nil
@@ -256,9 +297,12 @@ func (s *oAuthAuthnService) GetInternalUser(sub string) (*usermodel.User, *servi
 
 // validateClientConfig checks if the essential fields are present in the OAuth client configuration.
 func (s *oAuthAuthnService) validateClientConfig(idpConfig *OAuthClientConfig) *serviceerror.ServiceError {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
 	if idpConfig.ClientID == "" || idpConfig.ClientSecret == "" || idpConfig.RedirectURI == "" ||
 		len(idpConfig.Scopes) == 0 {
-		return &ErrorInvalidIDPConfig
+		logger.Error("Invalid identity provider configuration")
+		return &ErrorUnexpectedServerError
 	}
 
 	// Set default endpoints if not provided in the IDP config
@@ -279,22 +323,8 @@ func (s *oAuthAuthnService) validateClientConfig(idpConfig *OAuthClientConfig) *
 	}
 
 	if idpConfig.OAuthEndpoints.AuthorizationEndpoint == "" || idpConfig.OAuthEndpoints.TokenEndpoint == "" {
-		return &ErrorInvalidIDPConfig
-	}
-
-	return nil
-}
-
-// validateTokenResponse validates the token response returned by the identity provider.
-func (s *oAuthAuthnService) validateTokenResponse(tokenResp *TokenResponse,
-	logger *log.Logger) *serviceerror.ServiceError {
-	if tokenResp == nil {
-		logger.Error("Empty token response received from identity provider")
-		return &ErrorInvalidTokenResponse
-	}
-	if tokenResp.AccessToken == "" {
-		logger.Error("Access token is empty in the token response")
-		return &ErrorInvalidTokenResponse
+		logger.Error("Invalid identity provider configuration: Missing essential endpoints")
+		return &ErrorUnexpectedServerError
 	}
 
 	return nil

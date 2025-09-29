@@ -111,7 +111,7 @@ func sendTokenRequest(httpReq *http.Request, httpClient httpservice.HTTPClientIn
 	resp, err := httpClient.Do(httpReq)
 	if err != nil {
 		logger.Error("Token request to identity provider failed", log.Error(err))
-		return nil, &ErrorDuringTokenExchange
+		return nil, &ErrorUnexpectedServerError
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
@@ -123,13 +123,13 @@ func sendTokenRequest(httpReq *http.Request, httpClient httpservice.HTTPClientIn
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		logger.Error("Token endpoint returned an error response",
 			log.Int("statusCode", resp.StatusCode), log.String("response", string(body)))
-		return nil, &ErrorDuringTokenExchange
+		return nil, &ErrorUnexpectedServerError
 	}
 
 	var tokenResp TokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
 		logger.Error("Failed to parse token response", log.Error(err))
-		return nil, &ErrorDuringTokenExchange
+		return nil, &ErrorUnexpectedServerError
 	}
 
 	return &tokenResp, nil
@@ -156,7 +156,7 @@ func sendUserInfoRequest(httpReq *http.Request, httpClient httpservice.HTTPClien
 	resp, err := httpClient.Do(httpReq)
 	if err != nil {
 		logger.Error("Userinfo request to identity provider failed", log.Error(err))
-		return nil, &ErrorFetchingUserInfo
+		return nil, &ErrorUnexpectedServerError
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
@@ -168,20 +168,51 @@ func sendUserInfoRequest(httpReq *http.Request, httpClient httpservice.HTTPClien
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		logger.Error("Userinfo endpoint returned an error response",
 			log.Int("statusCode", resp.StatusCode), log.String("response", string(body)))
-		return nil, &ErrorFetchingUserInfo
+		return nil, &ErrorUnexpectedServerError
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logger.Error("Failed to read userinfo response body", log.Error(err))
-		return nil, &ErrorFetchingUserInfo
+		return nil, &ErrorUnexpectedServerError
 	}
 
 	var userInfo map[string]interface{}
 	if err := json.Unmarshal(body, &userInfo); err != nil {
 		logger.Error("Failed to parse userinfo response", log.Error(err))
-		return nil, &ErrorFetchingUserInfo
+		return nil, &ErrorUnexpectedServerError
 	}
 
 	return userInfo, nil
+}
+
+// ProcessSubClaim validates and processes the 'sub' claim in the user info.
+func ProcessSubClaim(userInfo map[string]interface{}) {
+	if len(userInfo) == 0 {
+		return
+	}
+	sub := GetUserClaimValue(userInfo, "sub")
+	if sub != "" {
+		return
+	}
+
+	id := GetUserClaimValue(userInfo, "id")
+	if id != "" {
+		userInfo["sub"] = id
+		delete(userInfo, "id")
+		return
+	}
+}
+
+// GetUserClaimValue retrieves a string claim value from the user info map.
+func GetUserClaimValue(userInfo map[string]interface{}, claim string) string {
+	if len(userInfo) == 0 {
+		return ""
+	}
+	if val, ok := userInfo[claim]; ok {
+		if valStr, ok := val.(string); ok {
+			return valStr
+		}
+	}
+	return ""
 }

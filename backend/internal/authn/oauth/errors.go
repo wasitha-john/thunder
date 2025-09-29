@@ -78,6 +78,13 @@ var (
 		Error:            "Failed to retrieve user",
 		ErrorDescription: "A client error occurred while retrieving the internal user",
 	}
+	// ErrorInvalidTokenResponse is the error when the token response is invalid.
+	ErrorInvalidTokenResponse = serviceerror.ServiceError{
+		Type:             serviceerror.ServerErrorType,
+		Code:             "AUTH-OAUTH-1009",
+		Error:            "Invalid token response",
+		ErrorDescription: "The token response received from the identity provider is invalid",
+	}
 )
 
 // Server errors for OAuth authentication.
@@ -88,41 +95,6 @@ var (
 		Code:             "AUTH-OAUTH-5000",
 		Error:            "Something went wrong",
 		ErrorDescription: "An unexpected error occurred while processing the request",
-	}
-	// ErrorInvalidIDPConfig is the error when the IDP configuration is invalid or incomplete.
-	ErrorInvalidIDPConfig = serviceerror.ServiceError{
-		Type:             serviceerror.ServerErrorType,
-		Code:             "AUTH-OAUTH-5001",
-		Error:            "Invalid IDP configuration",
-		ErrorDescription: "The configuration for the specified identity provider is invalid or incomplete",
-	}
-	// ErrorDuringTokenExchange is the error when there is an error during the token exchange process.
-	ErrorDuringTokenExchange = serviceerror.ServiceError{
-		Type:             serviceerror.ServerErrorType,
-		Code:             "AUTH-OAUTH-5002",
-		Error:            "Error during token exchange",
-		ErrorDescription: "An error occurred while exchanging the authorization code for token",
-	}
-	// ErrorInvalidTokenResponse is the error when the token response is invalid.
-	ErrorInvalidTokenResponse = serviceerror.ServiceError{
-		Type:             serviceerror.ServerErrorType,
-		Code:             "AUTH-OAUTH-5003",
-		Error:            "Invalid token response",
-		ErrorDescription: "The token response received from the identity provider is invalid",
-	}
-	// ErrorFetchingUserInfo is the error when there is an error fetching user information.
-	ErrorFetchingUserInfo = serviceerror.ServiceError{
-		Type:             serviceerror.ServerErrorType,
-		Code:             "AUTH-OAUTH-5004",
-		Error:            "Error fetching user information",
-		ErrorDescription: "An error occurred while fetching user information from the identity provider",
-	}
-	// ErrorServerErrorWhileRetrievingUser is the error when there is a server error while retrieving the user.
-	ErrorServerErrorWhileRetrievingUser = serviceerror.ServiceError{
-		Type:             serviceerror.ServerErrorType,
-		Code:             "AUTH-OAUTH-5005",
-		Error:            "Failed to retrieve user",
-		ErrorDescription: "A server error occurred while retrieving the internal user",
 	}
 )
 

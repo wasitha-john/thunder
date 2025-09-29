@@ -23,7 +23,7 @@ import (
 	"slices"
 
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
-	oauthauthn "github.com/asgardeo/thunder/internal/authn/oauth"
+	authnoauth "github.com/asgardeo/thunder/internal/authn/oauth"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	syshttp "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -36,23 +36,20 @@ const (
 
 // GithubOAuthAuthnServiceInterface defines the contract for GitHub OAuth based authenticator services.
 type GithubOAuthAuthnServiceInterface interface {
-	BuildAuthorizeURL(idpID string) (string, *serviceerror.ServiceError)
-	ExchangeCodeForToken(idpID, code string) (*oauthauthn.TokenResponse, *serviceerror.ServiceError)
-	FetchUserInfo(idpID, accessToken string) (map[string]interface{}, *serviceerror.ServiceError)
-	GetInternalUser(sub string) (*usermodel.User, *serviceerror.ServiceError)
+	authnoauth.OAuthAuthnCoreServiceInterface
 }
 
 // githubOAuthAuthnService is the default implementation of GithubOAuthAuthnServiceInterface.
 type githubOAuthAuthnService struct {
-	internal   oauthauthn.OAuthAuthnServiceInterface
+	internal   authnoauth.OAuthAuthnServiceInterface
 	httpClient syshttp.HTTPClientInterface
 }
 
 // NewGithubOAuthAuthnService returns an OAuth authenticator service for GitHub.
-func NewGithubOAuthAuthnService(oAuthSvc oauthauthn.OAuthAuthnServiceInterface,
+func NewGithubOAuthAuthnService(oAuthSvc authnoauth.OAuthAuthnServiceInterface,
 	httpClient syshttp.HTTPClientInterface) GithubOAuthAuthnServiceInterface {
 	if oAuthSvc == nil {
-		oAuthSvc = oauthauthn.NewOAuthAuthnService(nil, nil, oauthauthn.OAuthEndpoints{
+		oAuthSvc = authnoauth.NewOAuthAuthnService(nil, nil, authnoauth.OAuthEndpoints{
 			AuthorizationEndpoint: AuthorizeEndpoint,
 			TokenEndpoint:         TokenEndpoint,
 			UserInfoEndpoint:      UserInfoEndpoint,
@@ -74,14 +71,16 @@ func (g *githubOAuthAuthnService) BuildAuthorizeURL(idpID string) (string, *serv
 }
 
 // ExchangeCodeForToken exchanges the authorization code for a token with GitHub.
-func (g *githubOAuthAuthnService) ExchangeCodeForToken(idpID, code string) (*oauthauthn.TokenResponse,
-	*serviceerror.ServiceError) {
-	return g.internal.ExchangeCodeForToken(idpID, code)
+func (g *githubOAuthAuthnService) ExchangeCodeForToken(idpID, code string, validateResponse bool) (
+	*authnoauth.TokenResponse, *serviceerror.ServiceError) {
+	return g.internal.ExchangeCodeForToken(idpID, code, validateResponse)
 }
 
 // FetchUserInfo retrieves user information from the Github API, ensuring email resolution if necessary.
 func (g *githubOAuthAuthnService) FetchUserInfo(idpID, accessToken string) (
 	map[string]interface{}, *serviceerror.ServiceError) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
+
 	oAuthClientConfig, svcErr := g.internal.GetOAuthClientConfig(idpID)
 	if svcErr != nil {
 		return nil, svcErr
@@ -93,9 +92,10 @@ func (g *githubOAuthAuthnService) FetchUserInfo(idpID, accessToken string) (
 	}
 
 	// If email is already present in the user info or email scope is not requested, return it directly.
-	email := getUserClaimValue(userInfo, "email")
+	email := authnoauth.GetUserClaimValue(userInfo, "email")
 	if email != "" || !g.shouldFetchEmail(oAuthClientConfig.Scopes) {
-		g.processSubClaim(userInfo)
+		logger.Debug("Email is already present in the user info or email scope not requested")
+		authnoauth.ProcessSubClaim(userInfo)
 		return userInfo, nil
 	}
 
@@ -108,39 +108,8 @@ func (g *githubOAuthAuthnService) FetchUserInfo(idpID, accessToken string) (
 		userInfo["email"] = primaryEmail
 	}
 
-	g.processSubClaim(userInfo)
+	authnoauth.ProcessSubClaim(userInfo)
 	return userInfo, nil
-}
-
-// processSubClaim validates and processes the 'sub' claim in the user info.
-func (g *githubOAuthAuthnService) processSubClaim(userInfo map[string]interface{}) {
-	if len(userInfo) == 0 {
-		return
-	}
-	sub := getUserClaimValue(userInfo, "sub")
-	if sub != "" {
-		return
-	}
-
-	id := getUserClaimValue(userInfo, "id")
-	if id != "" {
-		userInfo["sub"] = id
-		delete(userInfo, "id")
-		return
-	}
-}
-
-// getUserClaimValue retrieves a string claim value from the user info map.
-func getUserClaimValue(userInfo map[string]interface{}, claim string) string {
-	if len(userInfo) == 0 {
-		return ""
-	}
-	if val, ok := userInfo[claim]; ok {
-		if valStr, ok := val.(string); ok {
-			return valStr
-		}
-	}
-	return ""
 }
 
 // shouldFetchEmail check whether user email should be fetched from the emails endpoint based on the scopes.

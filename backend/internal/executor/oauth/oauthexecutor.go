@@ -58,7 +58,7 @@ type OAuthExecutorInterface interface {
 type OAuthExecutor struct {
 	internal        flowmodel.Executor
 	oAuthProperties model.OAuthExecProperties
-	authNService    authnoauth.OAuthAuthnServiceInterface
+	authService     authnoauth.OAuthAuthnServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*OAuthExecutor)(nil)
@@ -73,20 +73,20 @@ func NewOAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, prop
 		LogoutEndpoint:        oAuthProps.LogoutEndpoint,
 		JwksEndpoint:          oAuthProps.JwksEndpoint,
 	}
-	authNService := authnoauth.NewOAuthAuthnService(
+	authService := authnoauth.NewOAuthAuthnService(
 		httpservice.NewHTTPClientWithTimeout(flowconst.DefaultHTTPTimeout),
 		idpsvc.NewIDPService(),
 		endpoints,
 	)
 
-	return NewOAuthExecutorWithAuthNService(id, name, defaultInputs, properties, oAuthProps, authNService)
+	return NewOAuthExecutorWithAuthService(id, name, defaultInputs, properties, oAuthProps, authService)
 }
 
-// NewOAuthExecutorWithAuthNService creates a new instance of OAuthExecutor with a provided
+// NewOAuthExecutorWithAuthService creates a new instance of OAuthExecutor with a provided
 // OAuth authentication service.
 // Use this function instead of NewOAuthExecutor when you need to supply a custom OAuth authentication service,
 // such as for testing, dependency injection, or when using a specialized implementation.
-func NewOAuthExecutorWithAuthNService(id, name string, defaultInputs []flowmodel.InputData,
+func NewOAuthExecutorWithAuthService(id, name string, defaultInputs []flowmodel.InputData,
 	properties map[string]string, oAuthProps *model.OAuthExecProperties,
 	authService authnoauth.OAuthAuthnServiceInterface) OAuthExecutorInterface {
 	if len(defaultInputs) == 0 {
@@ -102,7 +102,7 @@ func NewOAuthExecutorWithAuthNService(id, name string, defaultInputs []flowmodel
 	return &OAuthExecutor{
 		internal:        *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
 		oAuthProperties: *oAuthProps,
-		authNService:    authService,
+		authService:     authService,
 	}
 }
 
@@ -197,7 +197,7 @@ func (o *OAuthExecutor) BuildAuthorizeFlow(ctx *flowmodel.NodeContext, execResp 
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Initiating OAuth authentication flow")
 
-	authorizeURL, svcErr := o.authNService.BuildAuthorizeURL(o.GetID())
+	authorizeURL, svcErr := o.authService.BuildAuthorizeURL(o.GetID())
 	if svcErr != nil {
 		if svcErr.Type == serviceerror.ClientErrorType {
 			execResp.Status = flowconst.ExecFailure
@@ -310,7 +310,7 @@ func (o *OAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext, execRes
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Exchanging authorization code for a token", log.String("tokenEndpoint", o.GetTokenEndpoint()))
 
-	tokenResp, svcErr := o.authNService.ExchangeCodeForToken(o.GetID(), code)
+	tokenResp, svcErr := o.authService.ExchangeCodeForToken(o.GetID(), code, true)
 	if svcErr != nil {
 		if svcErr.Type == serviceerror.ClientErrorType {
 			execResp.Status = flowconst.ExecFailure
@@ -341,7 +341,7 @@ func (o *OAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *flowmo
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Fetching user info from OAuth provider", log.String("userInfoEndpoint", o.GetUserInfoEndpoint()))
 
-	userInfo, svcErr := o.authNService.FetchUserInfo(o.GetID(), accessToken)
+	userInfo, svcErr := o.authService.FetchUserInfo(o.GetID(), accessToken)
 	if svcErr != nil {
 		if svcErr.Type == serviceerror.ClientErrorType {
 			execResp.Status = flowconst.ExecFailure
@@ -382,7 +382,7 @@ func (o *OAuthExecutor) getAuthenticatedUserWithAttributes(ctx *flowmodel.NodeCo
 		return nil, nil
 	}
 
-	user, svcErr := o.authNService.GetInternalUser(sub)
+	user, svcErr := o.authService.GetInternalUser(sub)
 	if svcErr != nil {
 		if svcErr.Code == authnoauth.ErrorUserNotFound.Code {
 			if ctx.FlowType == flowconst.FlowTypeRegistration {

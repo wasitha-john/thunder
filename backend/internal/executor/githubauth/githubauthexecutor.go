@@ -23,7 +23,7 @@ import (
 	"errors"
 
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
-	gitauthn "github.com/asgardeo/thunder/internal/authn/github"
+	authngithub "github.com/asgardeo/thunder/internal/authn/github"
 	authnoauth "github.com/asgardeo/thunder/internal/authn/oauth"
 	"github.com/asgardeo/thunder/internal/executor/oauth"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
@@ -41,7 +41,7 @@ const loggerComponentName = "GithubOAuthExecutor"
 // GithubOAuthExecutor implements the OAuth authentication executor for GitHub.
 type GithubOAuthExecutor struct {
 	*oauth.OAuthExecutor
-	githubAuthService gitauthn.GithubOAuthAuthnServiceInterface
+	githubAuthService authngithub.GithubOAuthAuthnServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*GithubOAuthExecutor)(nil)
@@ -51,9 +51,9 @@ func NewGithubOAuthExecutor(id, name string, properties map[string]string,
 	clientID, clientSecret, redirectURI string, scopes []string,
 	additionalParams map[string]string) oauth.OAuthExecutorInterface {
 	oAuthProps := &model.OAuthExecProperties{
-		AuthorizationEndpoint: gitauthn.AuthorizeEndpoint,
-		TokenEndpoint:         gitauthn.TokenEndpoint,
-		UserInfoEndpoint:      gitauthn.UserInfoEndpoint,
+		AuthorizationEndpoint: authngithub.AuthorizeEndpoint,
+		TokenEndpoint:         authngithub.TokenEndpoint,
+		UserInfoEndpoint:      authngithub.UserInfoEndpoint,
 		ClientID:              clientID,
 		ClientSecret:          clientSecret,
 		RedirectURI:           redirectURI,
@@ -72,12 +72,12 @@ func NewGithubOAuthExecutor(id, name string, properties map[string]string,
 		idpsvc.NewIDPService(),
 		endpoints,
 	)
-	githubAuthService := gitauthn.NewGithubOAuthAuthnService(
+	githubAuthService := authngithub.NewGithubOAuthAuthnService(
 		authNService,
 		httpClient,
 	)
 
-	base := oauth.NewOAuthExecutorWithAuthNService(id, name, []flowmodel.InputData{},
+	base := oauth.NewOAuthExecutorWithAuthService(id, name, []flowmodel.InputData{},
 		properties, oAuthProps, authNService)
 	exec, ok := base.(*oauth.OAuthExecutor)
 	if !ok {
