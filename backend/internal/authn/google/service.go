@@ -151,7 +151,7 @@ func (g *googleOIDCAuthnService) ValidateIDToken(idpID, idToken string) *service
 		return customServiceError(authnoidc.ErrorInvalidIDToken,
 			"The ID token expiration claim is missing or invalid")
 	}
-	if time.Now().Unix() > int64(exp) {
+	if time.Now().Unix() >= int64(exp) {
 		logger.Debug("ID token has expired", log.Int("exp", int(exp)))
 		return customServiceError(authnoidc.ErrorInvalidIDToken, "The ID token has expired")
 	}
