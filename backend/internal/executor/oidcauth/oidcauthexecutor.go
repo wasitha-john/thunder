@@ -25,13 +25,17 @@ import (
 	"slices"
 
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
+	authnoauth "github.com/asgardeo/thunder/internal/authn/oauth"
+	authnoidc "github.com/asgardeo/thunder/internal/authn/oidc"
 	"github.com/asgardeo/thunder/internal/executor/identify"
 	"github.com/asgardeo/thunder/internal/executor/oauth"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	oauthmodel "github.com/asgardeo/thunder/internal/executor/oauth/model"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
-	"github.com/asgardeo/thunder/internal/system/jwt"
+	idpsvc "github.com/asgardeo/thunder/internal/idp/service"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
@@ -47,8 +51,8 @@ type OIDCAuthExecutorInterface interface {
 // OIDCAuthExecutor implements the OIDCAuthExecutorInterface for handling generic OIDC authentication flows.
 type OIDCAuthExecutor struct {
 	*identify.IdentifyingExecutor
-	internal   oauth.OAuthExecutorInterface
-	JWTService jwt.JWTServiceInterface
+	internal    oauth.OAuthExecutorInterface
+	authService authnoidc.OIDCAuthnServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*OIDCAuthExecutor)(nil)
@@ -75,10 +79,24 @@ func NewOIDCAuthExecutor(id, name string, defaultInputs []flowmodel.InputData, p
 	}
 	base := oauth.NewOAuthExecutor(id, name, defaultInputs, properties, &compOAuthProps)
 
+	endpoints := authnoauth.OAuthEndpoints{
+		AuthorizationEndpoint: oAuthProps.AuthorizationEndpoint,
+		TokenEndpoint:         oAuthProps.TokenEndpoint,
+		UserInfoEndpoint:      oAuthProps.UserInfoEndpoint,
+		LogoutEndpoint:        oAuthProps.LogoutEndpoint,
+		JwksEndpoint:          oAuthProps.JwksEndpoint,
+	}
+	oAuthSvc := authnoauth.NewOAuthAuthnService(
+		httpservice.NewHTTPClientWithTimeout(flowconst.DefaultHTTPTimeout),
+		idpsvc.NewIDPService(),
+		endpoints,
+	)
+	authSvc := authnoidc.NewOIDCAuthnService(oAuthSvc, nil)
+
 	return &OIDCAuthExecutor{
 		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
 		internal:            base,
-		JWTService:          jwt.GetJWTService(),
+		authService:         authSvc,
 	}
 }
 
@@ -190,20 +208,6 @@ func (o *OIDCAuthExecutor) ProcessAuthFlowResponse(ctx *flowmodel.NodeContext,
 			return nil
 		}
 
-		err = o.validateTokenResponse(tokenResp)
-		if err != nil {
-			execResp.Status = flowconst.ExecFailure
-			execResp.FailureReason = err.Error()
-			return nil
-		}
-
-		if err := o.ValidateIDToken(execResp, tokenResp.IDToken); err != nil {
-			return errors.New("failed to validate ID token: " + err.Error())
-		}
-		if execResp.Status == flowconst.ExecFailure {
-			return nil
-		}
-
 		idTokenClaims, err := o.GetIDTokenClaims(execResp, tokenResp.IDToken)
 		if err != nil {
 			return errors.New("failed to extract ID token claims: " + err.Error())
@@ -296,7 +300,32 @@ func (o *OIDCAuthExecutor) GetRequiredData(ctx *flowmodel.NodeContext) []flowmod
 // ExchangeCodeForToken exchanges the authorization code for an access token.
 func (o *OIDCAuthExecutor) ExchangeCodeForToken(ctx *flowmodel.NodeContext, execResp *flowmodel.ExecutorResponse,
 	code string) (*model.TokenResponse, error) {
-	return o.internal.ExchangeCodeForToken(ctx, execResp, code)
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
+		log.String(log.LoggerKeyExecutorID, o.GetID()),
+		log.String(log.LoggerKeyFlowID, ctx.FlowID))
+	logger.Debug("Exchanging authorization code for a token", log.String("tokenEndpoint", o.GetTokenEndpoint()))
+
+	tokenResp, svcErr := o.authService.ExchangeCodeForToken(o.GetID(), code, true)
+	if svcErr != nil {
+		if svcErr.Type == serviceerror.ClientErrorType {
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = svcErr.ErrorDescription
+			return nil, nil
+		}
+
+		logger.Error("Failed to exchange code for a token", log.String("errorCode", svcErr.Code),
+			log.String("errorDescription", svcErr.ErrorDescription))
+		return nil, errors.New("failed to exchange code for token")
+	}
+
+	return &model.TokenResponse{
+		AccessToken:  tokenResp.AccessToken,
+		TokenType:    tokenResp.TokenType,
+		Scope:        tokenResp.Scope,
+		RefreshToken: tokenResp.RefreshToken,
+		IDToken:      tokenResp.IDToken,
+		ExpiresIn:    tokenResp.ExpiresIn,
+	}, nil
 }
 
 // GetUserInfo fetches user information from the OAuth provider using the access token.
@@ -305,18 +334,23 @@ func (o *OIDCAuthExecutor) GetUserInfo(ctx *flowmodel.NodeContext, execResp *flo
 	return o.internal.GetUserInfo(ctx, execResp, accessToken)
 }
 
-// ValidateIDToken validates the ID token.
+// ValidateIDToken validates the ID token. ExchangeCodeForToken method already validates the ID token.
+// Hence generally you don't need to call this method explicitly.
 func (o *OIDCAuthExecutor) ValidateIDToken(execResp *flowmodel.ExecutorResponse, idToken string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
-	logger.Debug("Validating ID token")
+	logger.Debug("Validating the ID token")
 
-	// Verify the id token signature.
-	if o.GetJWKSEndpoint() != "" {
-		signErr := o.JWTService.VerifyJWTSignatureWithJWKS(idToken, o.GetJWKSEndpoint())
-		if signErr != nil {
+	svcErr := o.authService.ValidateIDToken(o.GetID(), idToken)
+	if svcErr != nil {
+		if svcErr.Type == serviceerror.ClientErrorType {
 			execResp.Status = flowconst.ExecFailure
-			execResp.FailureReason = "ID token signature verification failed: " + signErr.Error()
+			execResp.FailureReason = svcErr.ErrorDescription
+			return nil
 		}
+
+		logger.Error("Failed to validate ID token", log.String("errorCode", svcErr.Code),
+			log.String("errorDescription", svcErr.ErrorDescription))
+		return errors.New("failed to validate ID token")
 	}
 
 	return nil
@@ -328,28 +362,20 @@ func (o *OIDCAuthExecutor) GetIDTokenClaims(execResp *flowmodel.ExecutorResponse
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Extracting claims from the ID token")
 
-	claims, err := jwt.DecodeJWTPayload(idToken)
-	if err != nil {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "Failed to parse ID token claims: " + err.Error()
+	claims, svcErr := o.authService.GetIDTokenClaims(idToken)
+	if svcErr != nil {
+		if svcErr.Type == serviceerror.ClientErrorType {
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = svcErr.ErrorDescription
+			return nil, nil
+		}
+
+		logger.Error("Failed to extract claims from the ID token", log.String("errorCode", svcErr.Code),
+			log.String("errorDescription", svcErr.ErrorDescription))
+		return nil, errors.New("failed to extract claims from the ID token")
 	}
 
-	logger.Debug("ID token claims extracted successfully", log.Any("numClaims", len(claims)))
 	return claims, nil
-}
-
-// validateTokenResponse validates the token response received from the OIDC provider.
-func (o *OIDCAuthExecutor) validateTokenResponse(tokenResp *model.TokenResponse) error {
-	if tokenResp == nil {
-		return errors.New("token response is nil")
-	}
-	if tokenResp.AccessToken == "" {
-		return errors.New("access token is empty in the token response")
-	}
-	if tokenResp.IDToken == "" {
-		return errors.New("ID token is empty in the token response")
-	}
-	return nil
 }
 
 // getAuthenticatedUserWithAttributes constructs the authenticated user object with attributes from the
@@ -437,16 +463,10 @@ func (o *OIDCAuthExecutor) resolveUser(sub string, ctx *flowmodel.NodeContext,
 		log.String(log.LoggerKeyExecutorID, o.GetID()),
 		log.String(log.LoggerKeyFlowID, ctx.FlowID))
 
-	filters := map[string]interface{}{"sub": sub}
-	userID, err := o.IdentifyUser(filters, execResp)
-	if err != nil {
-		return "", fmt.Errorf("failed to identify user with sub claim: %w", err)
-	}
-
-	// Handle registration flows.
-	if ctx.FlowType == flowconst.FlowTypeRegistration {
-		if execResp.Status == flowconst.ExecFailure {
-			if execResp.FailureReason == "User not found" {
+	user, svcErr := o.authService.GetInternalUser(sub)
+	if svcErr != nil {
+		if svcErr.Code == authnoauth.ErrorUserNotFound.Code {
+			if ctx.FlowType == flowconst.FlowTypeRegistration {
 				logger.Debug("User not found for the provided sub claim. Proceeding with registration flow.")
 				execResp.Status = flowconst.ExecComplete
 				execResp.FailureReason = ""
@@ -457,18 +477,34 @@ func (o *OIDCAuthExecutor) resolveUser(sub string, ctx *flowmodel.NodeContext,
 				execResp.RuntimeData["sub"] = sub
 
 				return "", nil
+			} else {
+				execResp.Status = flowconst.ExecFailure
+				execResp.FailureReason = "User not found"
+				return "", nil
 			}
-			return "", err
-		}
+		} else {
+			if svcErr.Type == serviceerror.ClientErrorType {
+				execResp.Status = flowconst.ExecFailure
+				execResp.FailureReason = svcErr.ErrorDescription
+				return "", nil
+			}
 
+			logger.Error("Error while retrieving internal user", log.String("errorCode", svcErr.Code),
+				log.String("description", svcErr.ErrorDescription))
+			return "", errors.New("error while retrieving internal user")
+		}
+	}
+
+	if ctx.FlowType == flowconst.FlowTypeRegistration {
 		// At this point, a unique user is found in the system. Hence fail the execution.
 		execResp.Status = flowconst.ExecFailure
 		execResp.FailureReason = "User already exists with the provided sub claim."
 		return "", nil
 	}
 
-	if execResp.Status == flowconst.ExecFailure {
-		return "", nil
+	if user == nil || user.ID == "" {
+		return "", errors.New("retrieved user is nil or has an empty ID")
 	}
-	return *userID, nil
+
+	return user.ID, nil
 }

@@ -20,14 +20,18 @@
 package googleauth
 
 import (
-	"fmt"
-	"time"
+	"errors"
 
+	authngoogle "github.com/asgardeo/thunder/internal/authn/google"
+	authnoauth "github.com/asgardeo/thunder/internal/authn/oauth"
+	authnoidc "github.com/asgardeo/thunder/internal/authn/oidc"
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	"github.com/asgardeo/thunder/internal/executor/oidcauth"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
-	"github.com/asgardeo/thunder/internal/system/jwt"
+	idpsvc "github.com/asgardeo/thunder/internal/idp/service"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
@@ -36,6 +40,7 @@ const loggerComponentName = "GoogleOIDCAuthExecutor"
 // GoogleOIDCAuthExecutor implements the OIDC authentication executor for Google.
 type GoogleOIDCAuthExecutor struct {
 	*oidcauth.OIDCAuthExecutor
+	googleAuthService authngoogle.GoogleOIDCAuthnServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*GoogleOIDCAuthExecutor)(nil)
@@ -45,15 +50,20 @@ func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 	oAuthProps *model.BasicOAuthExecProperties) oidcauth.OIDCAuthExecutorInterface {
 	// Prepare the complete OAuth properties for Google
 	compOAuthProps := &model.OAuthExecProperties{
-		AuthorizationEndpoint: googleAuthorizeEndpoint,
-		TokenEndpoint:         googleTokenEndpoint,
-		UserInfoEndpoint:      googleUserInfoEndpoint,
-		JwksEndpoint:          googleJwksEndpoint,
+		AuthorizationEndpoint: authngoogle.AuthorizeEndpoint,
+		TokenEndpoint:         authngoogle.TokenEndpoint,
+		UserInfoEndpoint:      authngoogle.UserInfoEndpoint,
+		JwksEndpoint:          authngoogle.JwksEndpoint,
 		ClientID:              oAuthProps.ClientID,
 		ClientSecret:          oAuthProps.ClientSecret,
 		RedirectURI:           oAuthProps.RedirectURI,
 		Scopes:                oAuthProps.Scopes,
 		AdditionalParams:      oAuthProps.AdditionalParams,
+	}
+	endpoints := authnoauth.OAuthEndpoints{
+		AuthorizationEndpoint: compOAuthProps.AuthorizationEndpoint,
+		TokenEndpoint:         compOAuthProps.TokenEndpoint,
+		UserInfoEndpoint:      compOAuthProps.UserInfoEndpoint,
 	}
 
 	defaultInputs := []flowmodel.InputData{
@@ -69,6 +79,14 @@ func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 		},
 	}
 
+	oAuthSvc := authnoauth.NewOAuthAuthnService(
+		httpservice.NewHTTPClientWithTimeout(flowconst.DefaultHTTPTimeout),
+		idpsvc.NewIDPService(),
+		endpoints,
+	)
+	oidcAuthSvc := authnoidc.NewOIDCAuthnService(oAuthSvc, nil)
+	authSvc := authngoogle.NewGoogleOIDCAuthnService(oidcAuthSvc)
+
 	base := oidcauth.NewOIDCAuthExecutor("google_oidc_auth_executor", execProps.Name,
 		defaultInputs, execProps.Properties, compOAuthProps)
 	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
@@ -76,7 +94,8 @@ func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 		panic("failed to cast GoogleOIDCAuthExecutor to OIDCAuthExecutor")
 	}
 	return &GoogleOIDCAuthExecutor{
-		OIDCAuthExecutor: exec,
+		OIDCAuthExecutor:  exec,
+		googleAuthService: authSvc,
 	}
 }
 
@@ -86,15 +105,20 @@ func NewGoogleOIDCAuthExecutor(id, name string, properties map[string]string,
 	additionalParams map[string]string) oidcauth.OIDCAuthExecutorInterface {
 	// Prepare the OAuth properties for Google
 	oAuthProps := &model.OAuthExecProperties{
-		AuthorizationEndpoint: googleAuthorizeEndpoint,
-		TokenEndpoint:         googleTokenEndpoint,
-		UserInfoEndpoint:      googleUserInfoEndpoint,
-		JwksEndpoint:          googleJwksEndpoint,
+		AuthorizationEndpoint: authngoogle.AuthorizeEndpoint,
+		TokenEndpoint:         authngoogle.TokenEndpoint,
+		UserInfoEndpoint:      authngoogle.UserInfoEndpoint,
+		JwksEndpoint:          authngoogle.JwksEndpoint,
 		ClientID:              clientID,
 		ClientSecret:          clientSecret,
 		RedirectURI:           redirectURI,
 		Scopes:                scopes,
 		AdditionalParams:      additionalParams,
+	}
+	endpoints := authnoauth.OAuthEndpoints{
+		AuthorizationEndpoint: oAuthProps.AuthorizationEndpoint,
+		TokenEndpoint:         oAuthProps.TokenEndpoint,
+		UserInfoEndpoint:      oAuthProps.UserInfoEndpoint,
 	}
 
 	defaultInputs := []flowmodel.InputData{
@@ -110,13 +134,22 @@ func NewGoogleOIDCAuthExecutor(id, name string, properties map[string]string,
 		},
 	}
 
+	oAuthSvc := authnoauth.NewOAuthAuthnService(
+		httpservice.NewHTTPClientWithTimeout(flowconst.DefaultHTTPTimeout),
+		idpsvc.NewIDPService(),
+		endpoints,
+	)
+	oidcAuthSvc := authnoidc.NewOIDCAuthnService(oAuthSvc, nil)
+	authSvc := authngoogle.NewGoogleOIDCAuthnService(oidcAuthSvc)
+
 	base := oidcauth.NewOIDCAuthExecutor(id, name, defaultInputs, properties, oAuthProps)
 	exec, ok := base.(*oidcauth.OIDCAuthExecutor)
 	if !ok {
 		panic("failed to cast GoogleOIDCAuthExecutor to OIDCAuthExecutor")
 	}
 	return &GoogleOIDCAuthExecutor{
-		OIDCAuthExecutor: exec,
+		OIDCAuthExecutor:  exec,
+		googleAuthService: authSvc,
 	}
 }
 
@@ -159,77 +192,17 @@ func (g *GoogleOIDCAuthExecutor) ValidateIDToken(execResp *flowmodel.ExecutorRes
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName))
 	logger.Debug("Validating ID token")
 
-	if g.GetJWKSEndpoint() == "" {
-		return fmt.Errorf("JWKS endpoint is not configured for Google OIDC executor")
-	}
-
-	// Verify the id token signature.
-	signErr := g.JWTService.VerifyJWTSignatureWithJWKS(idToken, g.GetJWKSEndpoint())
-	if signErr != nil {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "ID token signature verification failed: " + signErr.Error()
-		return nil
-	}
-
-	// Parse the JWT claims from the ID token.
-	claims, err := jwt.DecodeJWTPayload(idToken)
-	if err != nil {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "Failed to parse ID token claims: " + err.Error()
-		return nil
-	}
-
-	// Validate issuer
-	iss, ok := claims["iss"].(string)
-	if !ok || (iss != "accounts.google.com" && iss != "https://accounts.google.com") {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = fmt.Sprintf("Invalid issuer: %s in the id token", iss)
-		return nil
-	}
-
-	// Validate audience
-	aud, ok := claims["aud"].(string)
-	if !ok || aud != g.GetOAuthProperties().ClientID {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = fmt.Sprintf("Invalid audience: %s in the id token", aud)
-		return nil
-	}
-
-	// Validate expiration time
-	exp, ok := claims["exp"].(float64)
-	if !ok {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "Missing expiration claim in the id token"
-		return nil
-	}
-	if time.Now().Unix() >= int64(exp) {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "ID token has expired"
-		return nil
-	}
-
-	// Check if token was issued in the future (to prevent clock skew issues)
-	iat, ok := claims["iat"].(float64)
-	if !ok {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "Missing issued at claim in the id token"
-		return nil
-	}
-	if time.Now().Unix() < int64(iat) {
-		execResp.Status = flowconst.ExecFailure
-		execResp.FailureReason = "ID token was issued in the future"
-		return nil
-	}
-
-	// Check for specific domain if configured in additional params
-	if hd, found := claims["hd"]; found {
-		if domain, exists := g.GetOAuthProperties().AdditionalParams["hd"]; exists && domain != "" {
-			if hdStr, ok := hd.(string); !ok || hdStr != domain {
-				execResp.Status = flowconst.ExecFailure
-				execResp.FailureReason = fmt.Sprintf("ID token is not from the expected hosted domain: %s", domain)
-				return nil
-			}
+	svcErr := g.googleAuthService.ValidateIDToken(g.GetID(), idToken)
+	if svcErr != nil {
+		if svcErr.Type == serviceerror.ClientErrorType {
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = svcErr.ErrorDescription
+			return nil
 		}
+
+		logger.Error("Failed to validate ID token", log.String("errorCode", svcErr.Code),
+			log.String("errorDescription", svcErr.ErrorDescription))
+		return errors.New("failed to validate ID token")
 	}
 
 	return nil

@@ -16,12 +16,20 @@
  * under the License.
  */
 
-package googleauth
+package google
 
-// Constants used for Google OAuth2 authentication and API endpoints.
-const (
-	googleAuthorizeEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"
-	googleTokenEndpoint     = "https://oauth2.googleapis.com/token" // #nosec G101
-	googleUserInfoEndpoint  = "https://openidconnect.googleapis.com/v1/userinfo"
-	googleJwksEndpoint      = "https://www.googleapis.com/oauth2/v3/certs"
-)
+import "github.com/asgardeo/thunder/internal/system/error/serviceerror"
+
+// customServiceError creates a new service error based on an existing error with custom description.
+func customServiceError(svcError serviceerror.ServiceError, errorDesc string) *serviceerror.ServiceError {
+	err := &serviceerror.ServiceError{
+		Type:             svcError.Type,
+		Code:             svcError.Code,
+		Error:            svcError.Error,
+		ErrorDescription: svcError.ErrorDescription,
+	}
+	if errorDesc != "" {
+		err.ErrorDescription = errorDesc
+	}
+	return err
+}
