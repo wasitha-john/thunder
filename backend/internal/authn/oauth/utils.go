@@ -36,7 +36,7 @@ import (
 )
 
 // parseIDPConfig extracts the OAuth client configuration from the identity provider details.
-func parseIDPConfig(idp *idpmodel.IdpDTO) *OAuthClientConfig {
+func parseIDPConfig(idp *idpmodel.IdpDTO) (*OAuthClientConfig, error) {
 	oAuthClientConfig := OAuthClientConfig{
 		AdditionalParams: make(map[string]string),
 	}
@@ -44,7 +44,11 @@ func parseIDPConfig(idp *idpmodel.IdpDTO) *OAuthClientConfig {
 	var scopesRaw string
 	for _, prop := range idp.Properties {
 		name := strings.TrimSpace(prop.Name)
-		value := strings.TrimSpace(prop.Value)
+		value, err := prop.GetValue()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get value for property %s: %w", name, err)
+		}
+		value = strings.TrimSpace(value)
 
 		switch name {
 		case "client_id":
@@ -80,7 +84,7 @@ func parseIDPConfig(idp *idpmodel.IdpDTO) *OAuthClientConfig {
 		}
 	}
 
-	return &oAuthClientConfig
+	return &oAuthClientConfig, nil
 }
 
 // buildTokenRequest constructs the HTTP request to exchange the authorization code for tokens.
