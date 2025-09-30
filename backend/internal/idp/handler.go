@@ -16,17 +16,13 @@
  * under the License.
  */
 
-// Package handler provides the implementation for identity provider management operations.
-package handler
+package idp
 
 import (
 	"encoding/json"
 	"net/http"
 	"strings"
 
-	"github.com/asgardeo/thunder/internal/idp/constants"
-	"github.com/asgardeo/thunder/internal/idp/model"
-	"github.com/asgardeo/thunder/internal/idp/service"
 	"github.com/asgardeo/thunder/internal/system/cmodels"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/error/apierror"
@@ -37,13 +33,13 @@ import (
 
 // IDPHandler is the handler for identity provider management operations.
 type IDPHandler struct {
-	idpService service.IDPServiceInterface
+	idpService IDPServiceInterface
 }
 
 // NewIDPHandler creates a new instance of IDPHandler.
 func NewIDPHandler() *IDPHandler {
 	return &IDPHandler{
-		idpService: service.NewIDPService(),
+		idpService: NewIDPService(),
 	}
 }
 
@@ -51,15 +47,15 @@ func NewIDPHandler() *IDPHandler {
 func (ih *IDPHandler) HandleIDPPostRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IDPHandler"))
 
-	createRequest, err := sysutils.DecodeJSONBody[model.IdpRequest](r)
+	createRequest, err := sysutils.DecodeJSONBody[idpRequest](r)
 	if err != nil {
 		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidRequestFormat.Code,
-			Message:     constants.ErrorInvalidRequestFormat.Error,
-			Description: constants.ErrorInvalidRequestFormat.ErrorDescription,
+			Code:        ErrorInvalidRequestFormat.Code,
+			Message:     ErrorInvalidRequestFormat.Error,
+			Description: ErrorInvalidRequestFormat.ErrorDescription,
 		}
 		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 			logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -68,7 +64,7 @@ func (ih *IDPHandler) HandleIDPPostRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	idpDTO := &model.IdpDTO{
+	idpDTO := &IDPDTO{
 		Name:        sysutils.SanitizeString(createRequest.Name),
 		Description: sysutils.SanitizeString(createRequest.Description),
 		Properties:  getSanitizedProperties(createRequest.Properties),
@@ -101,9 +97,9 @@ func (ih *IDPHandler) HandleIDPListRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	idpListResponse := make([]model.BasicIdpResponse, 0, len(idpList))
+	idpListResponse := make([]basicIDPResponse, 0, len(idpList))
 	for _, idp := range idpList {
-		idpListResponse = append(idpListResponse, model.BasicIdpResponse(idp))
+		idpListResponse = append(idpListResponse, basicIDPResponse(idp))
 	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
@@ -126,9 +122,9 @@ func (ih *IDPHandler) HandleIDPGetRequest(w http.ResponseWriter, r *http.Request
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidIDPID.Code,
-			Message:     constants.ErrorInvalidIDPID.Error,
-			Description: constants.ErrorInvalidIDPID.ErrorDescription,
+			Code:        ErrorInvalidIDPID.Code,
+			Message:     ErrorInvalidIDPID.Error,
+			Description: ErrorInvalidIDPID.ErrorDescription,
 		}
 		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 			logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -165,9 +161,9 @@ func (ih *IDPHandler) HandleIDPPutRequest(w http.ResponseWriter, r *http.Request
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidIDPID.Code,
-			Message:     constants.ErrorInvalidIDPID.Error,
-			Description: constants.ErrorInvalidIDPID.ErrorDescription,
+			Code:        ErrorInvalidIDPID.Code,
+			Message:     ErrorInvalidIDPID.Error,
+			Description: ErrorInvalidIDPID.ErrorDescription,
 		}
 		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 			logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -176,15 +172,15 @@ func (ih *IDPHandler) HandleIDPPutRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	updateRequest, err := sysutils.DecodeJSONBody[model.IdpRequest](r)
+	updateRequest, err := sysutils.DecodeJSONBody[idpRequest](r)
 	if err != nil {
 		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidRequestFormat.Code,
-			Message:     constants.ErrorInvalidRequestFormat.Error,
-			Description: constants.ErrorInvalidRequestFormat.ErrorDescription,
+			Code:        ErrorInvalidRequestFormat.Code,
+			Message:     ErrorInvalidRequestFormat.Error,
+			Description: ErrorInvalidRequestFormat.ErrorDescription,
 		}
 		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 			logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -193,7 +189,7 @@ func (ih *IDPHandler) HandleIDPPutRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	idpDTO := &model.IdpDTO{
+	idpDTO := &IDPDTO{
 		Name:        sysutils.SanitizeString(updateRequest.Name),
 		Description: sysutils.SanitizeString(updateRequest.Description),
 		Properties:  getSanitizedProperties(updateRequest.Properties),
@@ -228,9 +224,9 @@ func (ih *IDPHandler) HandleIDPDeleteRequest(w http.ResponseWriter, r *http.Requ
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidIDPID.Code,
-			Message:     constants.ErrorInvalidIDPID.Error,
-			Description: constants.ErrorInvalidIDPID.ErrorDescription,
+			Code:        ErrorInvalidIDPID.Code,
+			Message:     ErrorInvalidIDPID.Error,
+			Description: ErrorInvalidIDPID.ErrorDescription,
 		}
 		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 			logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -275,9 +271,9 @@ func writeServiceErrorResponse(w http.ResponseWriter, svcErr *serviceerror.Servi
 // getClientErrorStatusCode returns the appropriate HTTP status code for client errors.
 func getClientErrorStatusCode(errorCode string) int {
 	switch errorCode {
-	case constants.ErrorIDPNotFound.Code:
+	case ErrorIDPNotFound.Code:
 		return http.StatusNotFound
-	case constants.ErrorIDPAlreadyExists.Code:
+	case ErrorIDPAlreadyExists.Code:
 		return http.StatusConflict
 	default:
 		return http.StatusBadRequest
@@ -298,8 +294,8 @@ func getSanitizedProperties(properties []cmodels.Property) []cmodels.Property {
 }
 
 // getIDPResponse constructs the response for a identity provider.
-func getIDPResponse(idp model.IdpDTO) model.IdpResponse {
-	returnIDP := model.IdpResponse{
+func getIDPResponse(idp IDPDTO) idpResponse {
+	returnIDP := idpResponse{
 		ID:          idp.ID,
 		Name:        idp.Name,
 		Description: idp.Description,

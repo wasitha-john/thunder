@@ -29,7 +29,7 @@ import (
 	"github.com/asgardeo/thunder/internal/executor/oidcauth"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
-	idpsvc "github.com/asgardeo/thunder/internal/idp/service"
+	"github.com/asgardeo/thunder/internal/idp"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -81,7 +81,7 @@ func NewGoogleOIDCAuthExecutorFromProps(execProps flowmodel.ExecutorProperties,
 
 	oAuthSvc := authnoauth.NewOAuthAuthnService(
 		httpservice.NewHTTPClientWithTimeout(flowconst.DefaultHTTPTimeout),
-		idpsvc.NewIDPService(),
+		idp.NewIDPService(),
 		endpoints,
 	)
 	oidcAuthSvc := authnoidc.NewOIDCAuthnService(oAuthSvc, nil)
@@ -136,7 +136,7 @@ func NewGoogleOIDCAuthExecutor(id, name string, properties map[string]string,
 
 	oAuthSvc := authnoauth.NewOAuthAuthnService(
 		httpservice.NewHTTPClientWithTimeout(flowconst.DefaultHTTPTimeout),
-		idpsvc.NewIDPService(),
+		idp.NewIDPService(),
 		endpoints,
 	)
 	oidcAuthSvc := authnoidc.NewOIDCAuthnService(oAuthSvc, nil)

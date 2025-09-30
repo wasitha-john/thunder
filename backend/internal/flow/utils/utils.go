@@ -32,9 +32,7 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/constants"
 	"github.com/asgardeo/thunder/internal/flow/jsonmodel"
 	"github.com/asgardeo/thunder/internal/flow/model"
-	idpconst "github.com/asgardeo/thunder/internal/idp/constants"
-	idpmodel "github.com/asgardeo/thunder/internal/idp/model"
-	idpservice "github.com/asgardeo/thunder/internal/idp/service"
+	"github.com/asgardeo/thunder/internal/idp"
 	"github.com/asgardeo/thunder/internal/system/cmodels"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
@@ -279,25 +277,25 @@ func GetExecutorByName(execConfig *model.ExecutorConfig) (model.ExecutorInterfac
 }
 
 // getIDP retrieves the IDP by its name. Returns an error if the IDP does not exist or if the name is empty.
-func getIDP(idpName string) (*idpmodel.IdpDTO, error) {
+func getIDP(idpName string) (*idp.IDPDTO, error) {
 	if idpName == "" {
 		return nil, fmt.Errorf("IDP name cannot be empty")
 	}
 
-	idpSvc := idpservice.NewIDPService()
-	idp, svcErr := idpSvc.GetIdentityProviderByName(idpName)
+	idpSvc := idp.NewIDPService()
+	identityProvider, svcErr := idpSvc.GetIdentityProviderByName(idpName)
 	if svcErr != nil {
-		if svcErr.Code == idpconst.ErrorIDPNotFound.Code {
+		if svcErr.Code == idp.ErrorIDPNotFound.Code {
 			return nil, fmt.Errorf("IDP with name %s does not exist", idpName)
 		}
 		return nil, fmt.Errorf("error while getting IDP with the name %s: code: %s, error: %s",
 			idpName, svcErr.Code, svcErr.ErrorDescription)
 	}
-	if idp == nil {
+	if identityProvider == nil {
 		return nil, fmt.Errorf("IDP with name %s does not exist", idpName)
 	}
 
-	return idp, nil
+	return identityProvider, nil
 }
 
 // getIDPConfigs retrieves the IDP configurations for a given executor configuration.

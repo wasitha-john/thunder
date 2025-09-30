@@ -29,7 +29,7 @@ import (
 	"github.com/asgardeo/thunder/internal/executor/oauth/model"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
-	idpsvc "github.com/asgardeo/thunder/internal/idp/service"
+	"github.com/asgardeo/thunder/internal/idp"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	httpservice "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -69,7 +69,7 @@ func NewGithubOAuthExecutor(id, name string, properties map[string]string,
 	httpClient := httpservice.NewHTTPClientWithTimeout(flowconst.DefaultHTTPTimeout)
 	authNService := authnoauth.NewOAuthAuthnService(
 		httpClient,
-		idpsvc.NewIDPService(),
+		idp.NewIDPService(),
 		endpoints,
 	)
 	githubAuthService := authngithub.NewGithubOAuthAuthnService(

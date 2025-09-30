@@ -26,7 +26,7 @@ import (
 	"net/url"
 	"strings"
 
-	idpmodel "github.com/asgardeo/thunder/internal/idp/model"
+	"github.com/asgardeo/thunder/internal/idp"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	sysconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
@@ -36,7 +36,7 @@ import (
 )
 
 // parseIDPConfig extracts the OAuth client configuration from the identity provider details.
-func parseIDPConfig(idp *idpmodel.IdpDTO) (*OAuthClientConfig, error) {
+func parseIDPConfig(idp *idp.IDPDTO) (*OAuthClientConfig, error) {
 	oAuthClientConfig := OAuthClientConfig{
 		AdditionalParams: make(map[string]string),
 	}
