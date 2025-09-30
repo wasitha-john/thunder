@@ -16,16 +16,13 @@
  * under the License.
  */
 
-// Package store provides the implementation for identity provider persistence operations.
-package store
+package idp
 
 import (
 	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/asgardeo/thunder/internal/idp/constants"
-	"github.com/asgardeo/thunder/internal/idp/model"
 	"github.com/asgardeo/thunder/internal/system/cmodels"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
@@ -33,27 +30,31 @@ import (
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
-// IDPStoreInterface defines the interface for identity provider store operations.
-type IDPStoreInterface interface {
-	CreateIdentityProvider(idp model.IdpDTO) error
-	GetIdentityProviderList() ([]model.BasicIdpDTO, error)
-	GetIdentityProvider(idpID string) (*model.IdpDTO, error)
-	GetIdentityProviderByName(idpName string) (*model.IdpDTO, error)
-	UpdateIdentityProvider(idp *model.IdpDTO) error
+// idpStoreInterface defines the interface for identity provider store operations.
+type idpStoreInterface interface {
+	CreateIdentityProvider(idp IDPDTO) error
+	GetIdentityProviderList() ([]BasicIDPDTO, error)
+	GetIdentityProvider(idpID string) (*IDPDTO, error)
+	GetIdentityProviderByName(idpName string) (*IDPDTO, error)
+	UpdateIdentityProvider(idp *IDPDTO) error
 	DeleteIdentityProvider(idpID string) error
 }
 
-// IDPStore is the default implementation of IDPStoreInterface.
-type IDPStore struct{}
+// idpStore is the default implementation of IDPStoreInterface.
+type idpStore struct {
+	dbProvider provider.DBProviderInterface
+}
 
-// NewIDPStore creates a new instance of IDPStore.
-func NewIDPStore() IDPStoreInterface {
-	return &IDPStore{}
+// newIDPStore creates a new instance of IDPStore.
+func newIDPStore() idpStoreInterface {
+	return &idpStore{
+		dbProvider: provider.GetDBProvider(),
+	}
 }
 
 // CreateIdentityProvider handles the IdP creation in the database.
-func (s *IDPStore) CreateIdentityProvider(idp model.IdpDTO) error {
-	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
+func (s *idpStore) CreateIdentityProvider(idp IDPDTO) error {
+	dbClient, err := s.dbProvider.GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
@@ -69,7 +70,7 @@ func (s *IDPStore) CreateIdentityProvider(idp model.IdpDTO) error {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	_, err = tx.Exec(QueryCreateIdentityProvider.Query, idp.ID, idp.Name, idp.Description)
+	_, err = tx.Exec(queryCreateIdentityProvider.Query, idp.ID, idp.Name, idp.Description)
 	if err != nil {
 		retErr := fmt.Errorf("failed to execute query: %w", err)
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
@@ -91,7 +92,7 @@ func (s *IDPStore) CreateIdentityProvider(idp model.IdpDTO) error {
 			}
 		}
 
-		propertyInsertQuery := QueryInsertIDPProperties
+		propertyInsertQuery := queryInsertIDPProperties
 		propertyInsertQuery.Query = fmt.Sprintf(propertyInsertQuery.Query, strings.Join(queryValues, ", "))
 
 		_, err = tx.Exec(propertyInsertQuery.Query)
@@ -116,18 +117,18 @@ func (s *IDPStore) CreateIdentityProvider(idp model.IdpDTO) error {
 }
 
 // GetIdentityProviderList retrieves a list of IdPs from the database.
-func (s *IDPStore) GetIdentityProviderList() ([]model.BasicIdpDTO, error) {
-	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
+func (s *idpStore) GetIdentityProviderList() ([]BasicIDPDTO, error) {
+	dbClient, err := s.dbProvider.GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	results, err := dbClient.Query(QueryGetIdentityProviderList)
+	results, err := dbClient.Query(queryGetIdentityProviderList)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	idpList := make([]model.BasicIdpDTO, 0)
+	idpList := make([]BasicIDPDTO, 0)
 	for _, row := range results {
 		idp, err := buildIDPFromResultRow(row)
 		if err != nil {
@@ -140,13 +141,13 @@ func (s *IDPStore) GetIdentityProviderList() ([]model.BasicIdpDTO, error) {
 }
 
 // getIDPProperties retrieves the properties of a specific IdP by its ID.
-func (s *IDPStore) getIDPProperties(idpID string) ([]cmodels.Property, error) {
-	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
+func (s *idpStore) getIDPProperties(idpID string) ([]cmodels.Property, error) {
+	dbClient, err := s.dbProvider.GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	results, err := dbClient.Query(QueryGetIDPProperties, idpID)
+	results, err := dbClient.Query(queryGetIDPProperties, idpID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -155,18 +156,18 @@ func (s *IDPStore) getIDPProperties(idpID string) ([]cmodels.Property, error) {
 }
 
 // GetIdentityProvider retrieves a specific idp by its ID from the database.
-func (s *IDPStore) GetIdentityProvider(id string) (*model.IdpDTO, error) {
-	return s.getIDP(QueryGetIdentityProviderByID, id)
+func (s *idpStore) GetIdentityProvider(id string) (*IDPDTO, error) {
+	return s.getIDP(queryGetIdentityProviderByID, id)
 }
 
 // GetIdentityProviderByName retrieves a specific idp by its name from the database.
-func (s *IDPStore) GetIdentityProviderByName(name string) (*model.IdpDTO, error) {
-	return s.getIDP(QueryGetIdentityProviderByName, name)
+func (s *idpStore) GetIdentityProviderByName(name string) (*IDPDTO, error) {
+	return s.getIDP(queryGetIdentityProviderByName, name)
 }
 
 // getIDP retrieves an IDP based on the provided query and identifier.
-func (s *IDPStore) getIDP(query dbmodel.DBQuery, identifier string) (*model.IdpDTO, error) {
-	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
+func (s *idpStore) getIDP(query dbmodel.DBQuery, identifier string) (*IDPDTO, error) {
+	dbClient, err := s.dbProvider.GetDBClient("identity")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
@@ -176,7 +177,7 @@ func (s *IDPStore) getIDP(query dbmodel.DBQuery, identifier string) (*model.IdpD
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	if len(results) == 0 {
-		return nil, constants.ErrIDPNotFound
+		return nil, ErrIDPNotFound
 	}
 	if len(results) != 1 {
 		return nil, fmt.Errorf("unexpected number of results: %d", len(results))
@@ -189,7 +190,7 @@ func (s *IDPStore) getIDP(query dbmodel.DBQuery, identifier string) (*model.IdpD
 		return nil, fmt.Errorf("failed to build idp from result row: %w", err)
 	}
 
-	idp := &model.IdpDTO{
+	idp := &IDPDTO{
 		ID:          basicIDP.ID,
 		Name:        basicIDP.Name,
 		Description: basicIDP.Description,
@@ -206,8 +207,8 @@ func (s *IDPStore) getIDP(query dbmodel.DBQuery, identifier string) (*model.IdpD
 }
 
 // UpdateIdentityProvider updates the idp in the database.
-func (s *IDPStore) UpdateIdentityProvider(idp *model.IdpDTO) error {
-	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
+func (s *idpStore) UpdateIdentityProvider(idp *IDPDTO) error {
+	dbClient, err := s.dbProvider.GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
@@ -224,7 +225,7 @@ func (s *IDPStore) UpdateIdentityProvider(idp *model.IdpDTO) error {
 	}
 
 	// Update the IDP in the database
-	if _, err := tx.Exec(QueryUpdateIdentityProviderByID.Query, idp.ID, idp.Name, idp.Description); err != nil {
+	if _, err := tx.Exec(queryUpdateIdentityProviderByID.Query, idp.ID, idp.Name, idp.Description); err != nil {
 		retErr := fmt.Errorf("failed to execute query: %w", err)
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			retErr = errors.Join(retErr, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
@@ -233,7 +234,7 @@ func (s *IDPStore) UpdateIdentityProvider(idp *model.IdpDTO) error {
 	}
 
 	// delete existing properties for the IdP
-	if _, err := tx.Exec(QueryDeleteIDPProperties.Query, idp.ID); err != nil {
+	if _, err := tx.Exec(queryDeleteIDPProperties.Query, idp.ID); err != nil {
 		retErr := fmt.Errorf("failed to execute query for deleting existing properties: %w", err)
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			retErr = errors.Join(retErr, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
@@ -256,7 +257,7 @@ func (s *IDPStore) UpdateIdentityProvider(idp *model.IdpDTO) error {
 		}
 
 		// Insert new properties for the IdP
-		propertyInsertQuery := QueryInsertIDPProperties
+		propertyInsertQuery := queryInsertIDPProperties
 		propertyInsertQuery.Query = fmt.Sprintf(propertyInsertQuery.Query, strings.Join(queryValues, ", "))
 		if _, err := tx.Exec(propertyInsertQuery.Query); err != nil {
 			retErr := fmt.Errorf("failed to execute query for inserting properties: %w", err)
@@ -280,15 +281,15 @@ func (s *IDPStore) UpdateIdentityProvider(idp *model.IdpDTO) error {
 }
 
 // DeleteIdentityProvider deletes the idp from the database.
-func (s *IDPStore) DeleteIdentityProvider(id string) error {
+func (s *idpStore) DeleteIdentityProvider(id string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IdPStore"))
 
-	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
+	dbClient, err := s.dbProvider.GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	rowsAffected, err := dbClient.Execute(QueryDeleteIdentityProviderByID, id)
+	rowsAffected, err := dbClient.Execute(queryDeleteIdentityProviderByID, id)
 	if err != nil {
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -299,7 +300,7 @@ func (s *IDPStore) DeleteIdentityProvider(id string) error {
 	return nil
 }
 
-func buildIDPFromResultRow(row map[string]interface{}) (*model.BasicIdpDTO, error) {
+func buildIDPFromResultRow(row map[string]interface{}) (*BasicIDPDTO, error) {
 	idpID, ok := row["idp_id"].(string)
 	if !ok {
 		return nil, fmt.Errorf("failed to parse idp_id as string")
@@ -315,7 +316,7 @@ func buildIDPFromResultRow(row map[string]interface{}) (*model.BasicIdpDTO, erro
 		return nil, fmt.Errorf("failed to parse description as string")
 	}
 
-	idp := model.BasicIdpDTO{
+	idp := BasicIDPDTO{
 		ID:          idpID,
 		Name:        idpName,
 		Description: idpDescription,

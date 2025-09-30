@@ -24,21 +24,21 @@ package services
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/idp/handler"
+	"github.com/asgardeo/thunder/internal/idp"
 	"github.com/asgardeo/thunder/internal/system/server"
 )
 
 // IDPService is the service for identity provider management operations.
 type IDPService struct {
 	ServerOpsService server.ServerOperationServiceInterface
-	idpHandler       *handler.IDPHandler
+	idpHandler       *idp.IDPHandler
 }
 
 // NewIDPService creates a new instance of IDPService.
 func NewIDPService(mux *http.ServeMux) ServiceInterface {
 	instance := &IDPService{
 		ServerOpsService: server.NewServerOperationService(),
-		idpHandler:       handler.NewIDPHandler(),
+		idpHandler:       idp.NewIDPHandler(),
 	}
 	instance.RegisterRoutes(mux)
 

@@ -16,8 +16,7 @@
  * under the License.
  */
 
-// Package constants defined the constants related to identity provider operations.
-package constants
+package idp
 
 import (
 	"errors"

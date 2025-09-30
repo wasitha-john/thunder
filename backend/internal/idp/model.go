@@ -16,43 +16,42 @@
  * under the License.
  */
 
-// Package model defines the data structures and interfaces for IdP management.
-package model
+package idp
 
 import "github.com/asgardeo/thunder/internal/system/cmodels"
 
-// IdpDTO represents the data transfer object for an identity provider.
-type IdpDTO struct {
+// IDPDTO represents the data transfer object for an identity provider.
+type IDPDTO struct {
 	ID          string
 	Name        string
 	Description string
 	Properties  []cmodels.Property
 }
 
-// BasicIdpDTO represents a basic data transfer object for an identity provider.
-type BasicIdpDTO struct {
+// BasicIDPDTO represents a basic data transfer object for an identity provider.
+type BasicIDPDTO struct {
 	ID          string
 	Name        string
 	Description string
 }
 
-// IdpRequest represents the request payload for creating or updating an identity provider.
-type IdpRequest struct {
+// idpRequest represents the request payload for creating or updating an identity provider.
+type idpRequest struct {
 	Name        string             `json:"name"`
 	Description string             `json:"description,omitempty"`
 	Properties  []cmodels.Property `json:"properties,omitempty"`
 }
 
-// IdpResponse represents the response payload for an identity provider.
-type IdpResponse struct {
+// idpResponse represents the response payload for an identity provider.
+type idpResponse struct {
 	ID          string             `json:"id"`
 	Name        string             `json:"name"`
 	Description string             `json:"description,omitempty"`
 	Properties  []cmodels.Property `json:"properties,omitempty"`
 }
 
-// BasicIdpResponse represents a basic response payload for an identity provider.
-type BasicIdpResponse struct {
+// basicIDPResponse represents a basic response payload for an identity provider.
+type basicIDPResponse struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`

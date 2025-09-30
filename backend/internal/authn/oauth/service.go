@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
-	idpservice "github.com/asgardeo/thunder/internal/idp/service"
+	"github.com/asgardeo/thunder/internal/idp"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	httpservice "github.com/asgardeo/thunder/internal/system/http"
@@ -63,19 +63,19 @@ type OAuthAuthnServiceInterface interface {
 // oAuthAuthnService is the default implementation of OAuthAuthnServiceInterface.
 type oAuthAuthnService struct {
 	httpClient  httpservice.HTTPClientInterface
-	idpService  idpservice.IDPServiceInterface
+	idpService  idp.IDPServiceInterface
 	userService userservice.UserServiceInterface
 	endpoints   OAuthEndpoints
 }
 
 // NewOAuthAuthnService creates a new instance of OAuth authenticator service.
 func NewOAuthAuthnService(httpClient httpservice.HTTPClientInterface,
-	idpSvc idpservice.IDPServiceInterface, endpoints OAuthEndpoints) OAuthAuthnServiceInterface {
+	idpSvc idp.IDPServiceInterface, endpoints OAuthEndpoints) OAuthAuthnServiceInterface {
 	if httpClient == nil {
 		httpClient = httpservice.NewHTTPClientWithTimeout(authncm.DefaultHTTPTimeout)
 	}
 	if idpSvc == nil {
-		idpSvc = idpservice.NewIDPService()
+		idpSvc = idp.NewIDPService()
 	}
 
 	return &oAuthAuthnService{
