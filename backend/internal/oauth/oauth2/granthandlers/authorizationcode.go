@@ -29,8 +29,8 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/store"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/pkce"
 	"github.com/asgardeo/thunder/internal/system/config"
-	"github.com/asgardeo/thunder/internal/system/crypto/pkce"
 	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
 	userservice "github.com/asgardeo/thunder/internal/user/service"
@@ -130,8 +130,9 @@ func (h *authorizationCodeGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 		}
 
 		// Validate PKCE
-		if err := pkce.ValidatePKCE(authCode.CodeChallenge, authCode.CodeChallengeMethod, tokenRequest.CodeVerifier); err != nil {
-			logger.Error("PKCE validation failed", log.Error(err))
+		if err := pkce.ValidatePKCE(authCode.CodeChallenge, authCode.CodeChallengeMethod,
+			tokenRequest.CodeVerifier); err != nil {
+			logger.Debug("PKCE validation failed", log.Error(err))
 			return nil, &model.ErrorResponse{
 				Error:            constants.ErrorInvalidGrant,
 				ErrorDescription: "Invalid code verifier",

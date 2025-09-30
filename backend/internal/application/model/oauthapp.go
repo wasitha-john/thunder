@@ -124,7 +124,8 @@ func (o *OAuthAppConfigProcessedDTO) RequiresPKCE() bool {
 
 // IsPublicClient checks if this is a public client.
 func (o *OAuthAppConfigProcessedDTO) IsPublicClient() bool {
-	return slices.Contains(o.TokenEndpointAuthMethod, oauth2const.TokenEndpointAuthMethodNone)
+	return len(o.TokenEndpointAuthMethod) == 1 &&
+		slices.Contains(o.TokenEndpointAuthMethod, oauth2const.TokenEndpointAuthMethodNone)
 }
 
 // isAllowedGrantType checks if the provided grant type is in the allowed list.

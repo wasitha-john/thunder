@@ -244,7 +244,6 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 // It returns the client ID, client secret, token authentication method, and a boolean indicating success.
 func extractClientIDAndSecret(r *http.Request, w http.ResponseWriter) (
 	string, string, constants.TokenEndpointAuthMethod, bool) {
-
 	var clientID string
 	var clientSecret string
 	var tokenAuthMethod constants.TokenEndpointAuthMethod

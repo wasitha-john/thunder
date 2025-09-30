@@ -16,12 +16,19 @@
  * under the License.
  */
 
+// Package pkce provides PKCE (Proof Key for Code Exchange) validation utilities
 package pkce
 
 import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+)
+
+// PKCE Code Challenge Methods.
+const (
+	CodeChallengeMethodPlain = "plain"
+	CodeChallengeMethodS256  = "S256"
 )
 
 // PKCE validation errors
@@ -32,10 +39,26 @@ var (
 	ErrPKCEValidationFailed   = errors.New("PKCE validation failed")
 )
 
+// isValidASCIIUnreserved validates that a character is in the unreserved set.
+func isValidASCIIUnreserved(c rune) bool {
+	return (c >= 'A' && c <= 'Z') ||
+		(c >= 'a' && c <= 'z') ||
+		(c >= '0' && c <= '9') ||
+		c == '-' || c == '_' || c == '.' || c == '~'
+}
+
+// isValidBase64URLChar validates that a character is in the base64url alphabet.
+func isValidBase64URLChar(c rune) bool {
+	return (c >= 'A' && c <= 'Z') ||
+		(c >= 'a' && c <= 'z') ||
+		(c >= '0' && c <= '9') ||
+		c == '-' || c == '_'
+}
+
 // ValidatePKCE validates the PKCE code verifier against the stored code challenge.
 func ValidatePKCE(codeChallenge, codeChallengeMethod, codeVerifier string) error {
 	if codeChallengeMethod == "" {
-		codeChallengeMethod = "plain"
+		codeChallengeMethod = CodeChallengeMethodPlain
 	}
 
 	if err := validatePKCEParameters(codeChallenge, codeChallengeMethod, codeVerifier); err != nil {
@@ -43,32 +66,42 @@ func ValidatePKCE(codeChallenge, codeChallengeMethod, codeVerifier string) error
 	}
 
 	switch codeChallengeMethod {
-	case "plain":
+	case CodeChallengeMethodPlain:
 		return validatePlainChallenge(codeChallenge, codeVerifier)
-	case "S256":
+	case CodeChallengeMethodS256:
 		return validateS256Challenge(codeChallenge, codeVerifier)
 	default:
 		return ErrInvalidChallengeMethod
 	}
 }
 
-// validatePKCEParameters validates the basic format of PKCE parameters.
-func validatePKCEParameters(codeChallenge, codeChallengeMethod, codeVerifier string) error {
+// validateCodeVerifier validates the format of a code verifier according to RFC 7636.
+func validateCodeVerifier(codeVerifier string) error {
 	if codeVerifier == "" {
 		return ErrInvalidCodeVerifier
 	}
 	if len(codeVerifier) < 43 || len(codeVerifier) > 128 {
 		return ErrInvalidCodeVerifier
 	}
-	if !isValidCodeVerifier(codeVerifier) {
-		return ErrInvalidCodeVerifier
+	for _, c := range codeVerifier {
+		if !isValidASCIIUnreserved(c) {
+			return ErrInvalidCodeVerifier
+		}
+	}
+	return nil
+}
+
+// validatePKCEParameters validates the basic format of PKCE parameters.
+func validatePKCEParameters(codeChallenge, codeChallengeMethod, codeVerifier string) error {
+	if err := validateCodeVerifier(codeVerifier); err != nil {
+		return err
 	}
 
 	if codeChallenge == "" {
 		return ErrInvalidCodeChallenge
 	}
 
-	if codeChallengeMethod != "plain" && codeChallengeMethod != "S256" {
+	if codeChallengeMethod != CodeChallengeMethodPlain && codeChallengeMethod != CodeChallengeMethodS256 {
 		return ErrInvalidChallengeMethod
 	}
 
@@ -94,40 +127,20 @@ func validateS256Challenge(codeChallenge, codeVerifier string) error {
 	return nil
 }
 
-// isValidCodeVerifier checks if the code verifier contains only valid characters.
-func isValidCodeVerifier(codeVerifier string) bool {
-	for i := 0; i < len(codeVerifier); i++ {
-		c := codeVerifier[i]
-		if !((c >= 'A' && c <= 'Z') ||
-			(c >= 'a' && c <= 'z') ||
-			(c >= '0' && c <= '9') ||
-			c == '-' || c == '_' || c == '.' || c == '~') {
-			return false
-		}
-	}
-	return true
-}
-
 // GenerateCodeChallenge generates a code challenge from a code verifier using the specified method.
 func GenerateCodeChallenge(codeVerifier, method string) (string, error) {
-	if codeVerifier == "" {
-		return "", ErrInvalidCodeVerifier
+	if err := validateCodeVerifier(codeVerifier); err != nil {
+		return "", err
 	}
-	if len(codeVerifier) < 43 || len(codeVerifier) > 128 {
-		return "", ErrInvalidCodeVerifier
-	}
-	if !isValidCodeVerifier(codeVerifier) {
-		return "", ErrInvalidCodeVerifier
-	}
-	
-	if method != "plain" && method != "S256" {
+
+	if method != CodeChallengeMethodPlain && method != CodeChallengeMethodS256 {
 		return "", ErrInvalidChallengeMethod
 	}
 
 	switch method {
-	case "plain":
+	case CodeChallengeMethodPlain:
 		return codeVerifier, nil
-	case "S256":
+	case CodeChallengeMethodS256:
 		hash := sha256.Sum256([]byte(codeVerifier))
 		return base64.RawURLEncoding.EncodeToString(hash[:]), nil
 	default:
@@ -138,30 +151,29 @@ func GenerateCodeChallenge(codeVerifier, method string) (string, error) {
 // ValidateCodeChallenge validates the format of a code challenge according to RFC 7636.
 func ValidateCodeChallenge(codeChallenge, codeChallengeMethod string) error {
 	if codeChallengeMethod == "" {
-		codeChallengeMethod = "plain"
+		codeChallengeMethod = CodeChallengeMethodPlain
 	}
 
-	if codeChallengeMethod == "plain" {
+	if codeChallengeMethod == CodeChallengeMethodPlain {
 		if len(codeChallenge) < 43 || len(codeChallenge) > 128 {
 			return ErrInvalidCodeChallenge
 		}
-		if !isValidCodeVerifier(codeChallenge) {
-			return ErrInvalidCodeChallenge
+
+		for _, c := range codeChallenge {
+			if !isValidASCIIUnreserved(c) {
+				return ErrInvalidCodeChallenge
+			}
 		}
 		return nil
 	}
 
-	if codeChallengeMethod == "S256" {
+	if codeChallengeMethod == CodeChallengeMethodS256 {
 		if len(codeChallenge) != 43 {
 			return ErrInvalidCodeChallenge
 		}
-		// Validate base64url characters
-		for i := 0; i < len(codeChallenge); i++ {
-			c := codeChallenge[i]
-			if !((c >= 'A' && c <= 'Z') ||
-				(c >= 'a' && c <= 'z') ||
-				(c >= '0' && c <= '9') ||
-				c == '-' || c == '_') {
+
+		for _, c := range codeChallenge {
+			if !isValidBase64URLChar(c) {
 				return ErrInvalidCodeChallenge
 			}
 		}

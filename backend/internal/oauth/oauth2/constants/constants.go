@@ -149,12 +149,6 @@ const (
 	TokenTypeBearer = "Bearer"
 )
 
-// PKCE Code Challenge Methods.
-const (
-	CodeChallengeMethodPlain string = "plain"
-	CodeChallengeMethodS256  string = "S256"
-)
-
 // OAuth2 error codes.
 const (
 	ErrorInvalidRequest          string = "invalid_request"
