@@ -50,31 +50,45 @@ var (
 		Error:            "Invalid identity provider name",
 		ErrorDescription: "The provided identity provider name is invalid or empty",
 	}
+	// ErrorInvalidIDPType is the error returned when an invalid identity provider type is provided.
+	ErrorInvalidIDPType = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "IDP-1004",
+		Error:            "Invalid identity provider type",
+		ErrorDescription: "The provided identity provider type is invalid or empty",
+	}
 	// ErrorIDPAlreadyExists is the error returned when an identity provider with the same name already exists.
 	ErrorIDPAlreadyExists = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "IDP-1004",
+		Code:             "IDP-1005",
 		Error:            "Identity provider already exists",
 		ErrorDescription: "An identity provider with the same name already exists",
 	}
-	// ErrorInvalidIDPProperties is the error returned when invalid identity provider properties are provided.
-	ErrorInvalidIDPProperties = serviceerror.ServiceError{
+	// ErrorInvalidIDPProperty is the error returned when an invalid identity provider property is provided.
+	ErrorInvalidIDPProperty = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "IDP-1005",
-		Error:            "Invalid identity provider properties",
-		ErrorDescription: "One or more identity provider properties are invalid",
+		Code:             "IDP-1006",
+		Error:            "Invalid identity provider property",
+		ErrorDescription: "One or more identity provider properties are invalid or empty",
+	}
+	// ErrorUnsupportedIDPProperty is the error returned when an unsupported identity provider property is provided.
+	ErrorUnsupportedIDPProperty = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "IDP-1007",
+		Error:            "Unsupported identity provider property",
+		ErrorDescription: "One or more identity provider properties are not supported",
 	}
 	// ErrorIDPNil is the error returned when the identity provider object is nil.
 	ErrorIDPNil = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "IDP-1006",
+		Code:             "IDP-1008",
 		Error:            "Identity provider cannot be null",
 		ErrorDescription: "The identity provider object cannot be null or empty",
 	}
 	// ErrorInvalidRequestFormat is the error returned when the request format is invalid.
 	ErrorInvalidRequestFormat = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "IDP-1007",
+		Code:             "IDP-1009",
 		Error:            "Invalid request format",
 		ErrorDescription: "The request body is malformed or contains invalid data",
 	}

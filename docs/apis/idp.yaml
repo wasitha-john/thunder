@@ -29,7 +29,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IdpListResponse'
+                $ref: '#/components/schemas/IDPListResponse'
         "500":
           description: 'Internal Server Error: An unexpected error occurred while processing the request'
           content:
@@ -48,14 +48,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/IdpRequest'
+              $ref: '#/components/schemas/IDPRequest'
       responses:
         "201":
           description: Created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IdpResponse'
+                $ref: '#/components/schemas/IDPResponse'
         "400":
           description: 'Bad Request: The request body is malformed or contains invalid data.'
           content:
@@ -102,7 +102,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IdpResponse'
+                $ref: '#/components/schemas/IDPResponse'
         "400":
           description: 'Bad Request: The request body is malformed or contains invalid data.'
           content:
@@ -148,14 +148,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/IdpRequest'
+              $ref: '#/components/schemas/IDPRequest'
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IdpResponse'
+                $ref: '#/components/schemas/IDPResponse'
         "400":
           description: 'Bad Request: The request body is malformed or contains invalid data.'
           content:
@@ -227,10 +227,11 @@ paths:
 
 components:
   schemas:
-    IdpRequest:
+    IDPRequest:
       type: object
       required:
         - name
+        - type
       properties:
         name:
           type: string
@@ -240,10 +241,19 @@ components:
           type: string
           description: Description of the identity provider
           example: "Google OIDC identity provider for employee authentication"
+        type:
+          type: string
+          description: Type of the identity provider (e.g., OAUTH)
+          example: "GOOGLE"
+          enum:
+            - OAUTH
+            - OIDC
+            - GOOGLE
+            - GITHUB
         properties:
           type: array
           items:
-            $ref: '#/components/schemas/IdpProperty'
+            $ref: '#/components/schemas/IDPProperty'
           description: Properties of the identity provider
           example:
             - name: "client_id"
@@ -256,7 +266,7 @@ components:
               value: "openid email profile"
               is_secret: false
 
-    IdpResponse:
+    IDPResponse:
       type: object
       properties:
         id:
@@ -271,10 +281,19 @@ components:
           type: string
           description: Description of the identity provider
           example: "Google OIDC identity provider for employee authentication"
+        type:
+          type: string
+          description: Type of the identity provider (e.g., OAUTH)
+          example: "GOOGLE"
+          enum:
+            - OAUTH
+            - OIDC
+            - GOOGLE
+            - GITHUB
         properties:
           type: array
           items:
-            $ref: '#/components/schemas/IdpProperty'
+            $ref: '#/components/schemas/IDPProperty'
           description: Properties of the identity provider
           example:
             - name: "client_id"
@@ -287,7 +306,7 @@ components:
               value: "openid email profile"
               is_secret: false
 
-    BasicIdpResponse:
+    BasicIDPResponse:
       type: object
       properties:
         id:
@@ -302,20 +321,31 @@ components:
           type: string
           description: Description of the identity provider
           example: "Google OIDC identity provider for employee authentication"
+        type:
+          type: string
+          description: Type of the identity provider (e.g., OAUTH)
+          example: "GOOGLE"
+          enum:
+            - OAUTH
+            - OIDC
+            - GOOGLE
+            - GITHUB
     
-    IdpListResponse:
+    IDPListResponse:
       type: array
       items:
-        $ref: '#/components/schemas/BasicIdpResponse'
+        $ref: '#/components/schemas/BasicIDPResponse'
       example:
         - id: "550e8400-e29b-41d4-a716-446655440000"
           name: "Google"
           description: "Google OIDC identity provider for employee authentication"
+          type: "GOOGLE"
         - id: "660e8400-e29b-41d4-a716-446655440001"
           name: "GitHub"
           description: "GitHub OAuth identity provider for developer authentication"
+          type: "GITHUB"
 
-    IdpProperty:
+    IDPProperty:
       type: object
       properties:
         name:

@@ -70,7 +70,7 @@ func (s *idpStore) CreateIdentityProvider(idp IDPDTO) error {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	_, err = tx.Exec(queryCreateIdentityProvider.Query, idp.ID, idp.Name, idp.Description)
+	_, err = tx.Exec(queryCreateIdentityProvider.Query, idp.ID, idp.Name, idp.Description, idp.Type)
 	if err != nil {
 		retErr := fmt.Errorf("failed to execute query: %w", err)
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
@@ -194,6 +194,7 @@ func (s *idpStore) getIDP(query dbmodel.DBQuery, identifier string) (*IDPDTO, er
 		ID:          basicIDP.ID,
 		Name:        basicIDP.Name,
 		Description: basicIDP.Description,
+		Type:        basicIDP.Type,
 	}
 
 	// Retrieve properties for the IdP
@@ -225,7 +226,8 @@ func (s *idpStore) UpdateIdentityProvider(idp *IDPDTO) error {
 	}
 
 	// Update the IDP in the database
-	if _, err := tx.Exec(queryUpdateIdentityProviderByID.Query, idp.ID, idp.Name, idp.Description); err != nil {
+	if _, err := tx.Exec(queryUpdateIdentityProviderByID.Query, idp.ID, idp.Name,
+		idp.Description, idp.Type); err != nil {
 		retErr := fmt.Errorf("failed to execute query: %w", err)
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			retErr = errors.Join(retErr, fmt.Errorf("failed to rollback transaction: %w", rollbackErr))
@@ -316,10 +318,16 @@ func buildIDPFromResultRow(row map[string]interface{}) (*BasicIDPDTO, error) {
 		return nil, fmt.Errorf("failed to parse description as string")
 	}
 
+	idpType, ok := row["type"].(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to parse type as string")
+	}
+
 	idp := BasicIDPDTO{
 		ID:          idpID,
 		Name:        idpName,
 		Description: idpDescription,
+		Type:        IDPType(idpType),
 	}
 
 	return &idp, nil

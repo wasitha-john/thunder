@@ -336,18 +336,6 @@ func DeleteIDP(idpID string) error {
 	return nil
 }
 
-// CreateLocalIDP creates a Local identity provider for testing
-func CreateLocalIDP() (string, error) {
-	localIDP := IDP{
-		Name:        "Local",
-		Description: "Local Identity Provider for testing",
-		Properties: []IDPProperty{
-			{Name: "type", Value: "local", IsSecret: false},
-		},
-	}
-	return CreateIDP(localIDP)
-}
-
 // GetUserAttributes extracts user attributes from JSON into a map
 func GetUserAttributes(user User) (map[string]interface{}, error) {
 	var userAttrs map[string]interface{}
