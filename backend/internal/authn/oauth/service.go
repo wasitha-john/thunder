@@ -110,7 +110,12 @@ func (s *oAuthAuthnService) GetOAuthClientConfig(idpID string) (
 		return nil, &ErrorInvalidIDP
 	}
 
-	oAuthClientConfig := parseIDPConfig(idp)
+	oAuthClientConfig, err := parseIDPConfig(idp)
+	if err != nil {
+		logger.Error("Failed to parse identity provider configurations", log.Error(err))
+		return nil, &ErrorUnexpectedServerError
+	}
+
 	svcErr = s.validateClientConfig(oAuthClientConfig)
 	if svcErr != nil {
 		return nil, svcErr
