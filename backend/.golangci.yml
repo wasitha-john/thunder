@@ -19,8 +19,6 @@
 run:
   timeout: 5m
   allow-parallel-runners: true
-  skip-dirs:
-    - tests/mocks
 
 linters:
   disable-all: true
@@ -95,6 +93,8 @@ issues:
   max-same-issues: 0
   max-issues-per-linter: 0
   exclude-use-default: false
+  exclude-dirs:
+    - tests/mocks
 
 output:
   show-stats: true
