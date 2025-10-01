@@ -78,6 +78,7 @@ curl -kL -H 'Content-Type: application/json' -H 'Accept: application/json' https
 -d '{
   "name": "Google",
   "description": "Login with Google",
+  "type": "GOOGLE",
   "properties": [
     {
       "name": "client_id",
@@ -123,6 +124,7 @@ curl -kL -H 'Content-Type: application/json' -H 'Accept: application/json' https
 -d '{
   "name": "Github",
   "description": "Login with Github",
+  "type": "GITHUB",
   "properties": [
     {
       "name": "client_id",

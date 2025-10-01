@@ -67,6 +67,7 @@ func (ih *IDPHandler) HandleIDPPostRequest(w http.ResponseWriter, r *http.Reques
 	idpDTO := &IDPDTO{
 		Name:        sysutils.SanitizeString(createRequest.Name),
 		Description: sysutils.SanitizeString(createRequest.Description),
+		Type:        IDPType(sysutils.SanitizeString(createRequest.Type)),
 		Properties:  getSanitizedProperties(createRequest.Properties),
 	}
 	createdIDP, svcErr := ih.idpService.CreateIdentityProvider(idpDTO)
@@ -99,7 +100,12 @@ func (ih *IDPHandler) HandleIDPListRequest(w http.ResponseWriter, r *http.Reques
 
 	idpListResponse := make([]basicIDPResponse, 0, len(idpList))
 	for _, idp := range idpList {
-		idpListResponse = append(idpListResponse, basicIDPResponse(idp))
+		idpListResponse = append(idpListResponse, basicIDPResponse{
+			ID:          idp.ID,
+			Name:        idp.Name,
+			Description: idp.Description,
+			Type:        string(idp.Type),
+		})
 	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
@@ -192,6 +198,7 @@ func (ih *IDPHandler) HandleIDPPutRequest(w http.ResponseWriter, r *http.Request
 	idpDTO := &IDPDTO{
 		Name:        sysutils.SanitizeString(updateRequest.Name),
 		Description: sysutils.SanitizeString(updateRequest.Description),
+		Type:        IDPType(sysutils.SanitizeString(updateRequest.Type)),
 		Properties:  getSanitizedProperties(updateRequest.Properties),
 	}
 	idpDTO.ID = id
@@ -299,6 +306,7 @@ func getIDPResponse(idp IDPDTO) idpResponse {
 		ID:          idp.ID,
 		Name:        idp.Name,
 		Description: idp.Description,
+		Type:        string(idp.Type),
 	}
 
 	// Mask secret properties in the response.

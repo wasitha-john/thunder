@@ -73,6 +73,7 @@ func (ts *GoogleAuthFlowTestSuite) SetupSuite() {
 	googleIDP := testutils.IDP{
 		Name:        "Google",
 		Description: "Google Identity Provider for authentication flow testing",
+		Type:        "GOOGLE",
 		Properties: []testutils.IDPProperty{
 			{
 				Name:     "client_id",

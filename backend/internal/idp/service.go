@@ -21,6 +21,8 @@ package idp
 
 import (
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/asgardeo/thunder/internal/system/cmodels"
@@ -55,12 +57,8 @@ func NewIDPService() IDPServiceInterface {
 func (is *idpService) CreateIdentityProvider(idp *IDPDTO) (*IDPDTO, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "IdPService"))
 
-	if idp == nil {
-		return nil, &ErrorIDPNil
-	}
-
-	if strings.TrimSpace(idp.Name) == "" {
-		return nil, &ErrorInvalidIDPName
+	if svcErr := is.validateIDP(idp); svcErr != nil {
+		return nil, svcErr
 	}
 
 	// Check if an identity provider with the same name already exists
@@ -74,14 +72,8 @@ func (is *idpService) CreateIdentityProvider(idp *IDPDTO) (*IDPDTO, *serviceerro
 		return nil, &ErrorIDPAlreadyExists
 	}
 
-	// Validate properties
-	if svcErr := validateIDPProperties(idp.Properties); svcErr != nil {
-		return nil, svcErr
-	}
-
-	idp.ID = utils.GenerateUUID()
-
 	// Create the IdP in the database.
+	idp.ID = utils.GenerateUUID()
 	err = is.idpStore.CreateIdentityProvider(*idp)
 	if err != nil {
 		logger.Error("Failed to create IdP", log.Error(err))
@@ -152,13 +144,8 @@ func (is *idpService) UpdateIdentityProvider(idpID string, idp *IDPDTO) (*IDPDTO
 	if strings.TrimSpace(idpID) == "" {
 		return nil, &ErrorInvalidIDPID
 	}
-
-	if idp == nil {
-		return nil, &ErrorIDPNil
-	}
-
-	if strings.TrimSpace(idp.Name) == "" {
-		return nil, &ErrorInvalidIDPName
+	if svcErr := is.validateIDP(idp); svcErr != nil {
+		return nil, svcErr
 	}
 
 	// Check if the identity provider exists
@@ -187,13 +174,7 @@ func (is *idpService) UpdateIdentityProvider(idpID string, idp *IDPDTO) (*IDPDTO
 		}
 	}
 
-	// Validate properties
-	if svcErr := validateIDPProperties(idp.Properties); svcErr != nil {
-		return nil, svcErr
-	}
-
 	idp.ID = idpID
-
 	err = is.idpStore.UpdateIdentityProvider(idp)
 	if err != nil {
 		logger.Error("Failed to update identity provider", log.Error(err), log.String("idpID", idpID))
@@ -230,11 +211,44 @@ func (is *idpService) DeleteIdentityProvider(idpID string) *serviceerror.Service
 	return nil
 }
 
+// validateIDP validates the identity provider details.
+func (is *idpService) validateIDP(idp *IDPDTO) *serviceerror.ServiceError {
+	if idp == nil {
+		return &ErrorIDPNil
+	}
+	if strings.TrimSpace(idp.Name) == "" {
+		return &ErrorInvalidIDPName
+	}
+
+	// Validate identity provider type
+	if strings.TrimSpace(string(idp.Type)) == "" {
+		return &ErrorInvalidIDPType
+	}
+	isValidType := slices.Contains(supportedIDPTypes, idp.Type)
+	if !isValidType {
+		return &ErrorInvalidIDPType
+	}
+
+	return validateIDPProperties(idp.Properties)
+}
+
 // validateIDPProperties validates the identity provider properties.
 func validateIDPProperties(properties []cmodels.Property) *serviceerror.ServiceError {
+	if len(properties) == 0 {
+		return nil
+	}
 	for _, property := range properties {
 		if strings.TrimSpace(property.Name) == "" {
-			return &ErrorInvalidIDPProperties
+			return serviceerror.CustomServiceError(ErrorInvalidIDPProperty,
+				"property names cannot be empty")
+		}
+		if strings.TrimSpace(property.Value) == "" {
+			return serviceerror.CustomServiceError(ErrorInvalidIDPProperty,
+				fmt.Sprintf("property value cannot be empty for property '%s'", property.Name))
+		}
+		if !slices.Contains(supportedIDPProperties, property.Name) {
+			return serviceerror.CustomServiceError(ErrorUnsupportedIDPProperty,
+				fmt.Sprintf("property '%s' is not supported", property.Name))
 		}
 	}
 	return nil

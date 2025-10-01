@@ -36,3 +36,17 @@ type ServiceError struct {
 	Error            string           `json:"error"`
 	ErrorDescription string           `json:"error_description,omitempty"`
 }
+
+// CustomServiceError creates a new service error based on an existing error with custom description.
+func CustomServiceError(svcError ServiceError, errorDesc string) *ServiceError {
+	err := &ServiceError{
+		Type:             svcError.Type,
+		Code:             svcError.Code,
+		Error:            svcError.Error,
+		ErrorDescription: svcError.ErrorDescription,
+	}
+	if errorDesc != "" {
+		err.ErrorDescription = errorDesc
+	}
+	return err
+}

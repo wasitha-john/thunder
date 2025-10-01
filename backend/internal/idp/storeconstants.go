@@ -24,22 +24,22 @@ var (
 	// queryCreateIdentityProvider is the query to create a new IdP.
 	queryCreateIdentityProvider = model.DBQuery{
 		ID:    "IPQ-IDP_MGT-01",
-		Query: "INSERT INTO IDP (IDP_ID, NAME, DESCRIPTION) VALUES ($1, $2, $3)",
+		Query: "INSERT INTO IDP (IDP_ID, NAME, DESCRIPTION, TYPE) VALUES ($1, $2, $3, $4)",
 	}
 	// queryGetIdentityProviderByID is the query to get a IdP by IdP ID.
 	queryGetIdentityProviderByID = model.DBQuery{
 		ID:    "IPQ-IDP_MGT-02",
-		Query: "SELECT IDP_ID, NAME, DESCRIPTION FROM IDP WHERE IDP_ID = $1",
+		Query: "SELECT IDP_ID, NAME, DESCRIPTION, TYPE FROM IDP WHERE IDP_ID = $1",
 	}
 	// queryGetIdentityProviderList is the query to get a list of IdPs.
 	queryGetIdentityProviderList = model.DBQuery{
 		ID:    "IPQ-IDP_MGT-03",
-		Query: "SELECT IDP_ID, NAME, DESCRIPTION FROM IDP",
+		Query: "SELECT IDP_ID, NAME, DESCRIPTION, TYPE FROM IDP",
 	}
 	// queryUpdateIdentityProviderByID is the query to update a IdP by IdP ID.
 	queryUpdateIdentityProviderByID = model.DBQuery{
 		ID:    "IPQ-IDP_MGT-04",
-		Query: "UPDATE IDP SET NAME = $2, DESCRIPTION = $3 WHERE IDP_ID = $1",
+		Query: "UPDATE IDP SET NAME = $2, DESCRIPTION = $3, TYPE = $4 WHERE IDP_ID = $1",
 	}
 	// queryDeleteIdentityProviderByID is the query to delete a IdP by IdP ID.
 	queryDeleteIdentityProviderByID = model.DBQuery{
@@ -49,7 +49,7 @@ var (
 	// queryGetIdentityProviderByName is the query to get a IdP by IdP name.
 	queryGetIdentityProviderByName = model.DBQuery{
 		ID:    "IPQ-IDP_MGT-06",
-		Query: "SELECT IDP_ID, NAME, DESCRIPTION FROM IDP WHERE NAME = $1",
+		Query: "SELECT IDP_ID, NAME, DESCRIPTION, TYPE FROM IDP WHERE NAME = $1",
 	}
 	// queryInsertIDPProperties is the query to insert properties for a specific IdP.
 	queryInsertIDPProperties = model.DBQuery{

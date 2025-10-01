@@ -25,6 +25,7 @@ type IDPDTO struct {
 	ID          string
 	Name        string
 	Description string
+	Type        IDPType
 	Properties  []cmodels.Property
 }
 
@@ -33,12 +34,14 @@ type BasicIDPDTO struct {
 	ID          string
 	Name        string
 	Description string
+	Type        IDPType
 }
 
 // idpRequest represents the request payload for creating or updating an identity provider.
 type idpRequest struct {
 	Name        string             `json:"name"`
 	Description string             `json:"description,omitempty"`
+	Type        string             `json:"type"`
 	Properties  []cmodels.Property `json:"properties,omitempty"`
 }
 
@@ -47,6 +50,7 @@ type idpResponse struct {
 	ID          string             `json:"id"`
 	Name        string             `json:"name"`
 	Description string             `json:"description,omitempty"`
+	Type        string             `json:"type"`
 	Properties  []cmodels.Property `json:"properties,omitempty"`
 }
 
@@ -55,4 +59,5 @@ type basicIDPResponse struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	Type        string `json:"type"`
 }

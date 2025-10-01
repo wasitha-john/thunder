@@ -66,6 +66,7 @@ type IDP struct {
 	ID          string        `json:"id,omitempty"`
 	Name        string        `json:"name"`
 	Description string        `json:"description"`
+	Type        string        `json:"type"`
 	Properties  []IDPProperty `json:"properties"`
 }
 
@@ -82,4 +83,11 @@ type UserListResponse struct {
 	Count        int    `json:"count"`
 	Users        []User `json:"users"`
 	Links        []Link `json:"links"`
+}
+
+// ErrorResponse represents an error response from the API
+type ErrorResponse struct {
+	Code        string `json:"code"`
+	Message     string `json:"message"`
+	Description string `json:"description"`
 }

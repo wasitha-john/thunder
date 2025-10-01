@@ -73,6 +73,7 @@ func (ts *GithubAuthFlowTestSuite) SetupSuite() {
 	githubIDP := testutils.IDP{
 		Name:        "Github",
 		Description: "GitHub Identity Provider for authentication flow testing",
+		Type:        "GITHUB",
 		Properties: []testutils.IDPProperty{
 			{
 				Name:     "client_id",

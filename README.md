@@ -688,6 +688,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Google",
         "description": "Login with Google",
+        "type": "GOOGLE",
         "properties": [
             {
                 "name": "client_id",
@@ -818,6 +819,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Github",
         "description": "Login with Github",
+        "type": "GITHUB",
         "properties": [
             {
                 "name": "client_id",
@@ -1214,6 +1216,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Google",
         "description": "Login with Google",
+        "type": "GOOGLE",
         "properties": [
             {
                 "name": "client_id",
@@ -1354,6 +1357,7 @@ curl -kL https://localhost:8090/oauth2/jwks
     -d '{
         "name": "Github",
         "description": "Login with Github",
+        "type": "GITHUB",
         "properties": [
             {
                 "name": "client_id",

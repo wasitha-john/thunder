@@ -22,8 +22,10 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/asgardeo/thunder/tests/integration/testutils"
@@ -38,6 +40,7 @@ var (
 	testGithubIdp = testutils.IDP{
 		Name:        "Test Github IDP",
 		Description: "Github Identity Provider for testing",
+		Type:        "GITHUB",
 		Properties: []testutils.IDPProperty{
 			{
 				Name:     "client_id",
@@ -61,10 +64,10 @@ var (
 			},
 		},
 	}
-
 	testGoogleIdp = testutils.IDP{
 		Name:        "Test Google IDP",
 		Description: "Google Identity Provider for testing",
+		Type:        "GOOGLE",
 		Properties: []testutils.IDPProperty{
 			{
 				Name:     "client_id",
@@ -88,10 +91,10 @@ var (
 			},
 		},
 	}
-
 	idpToCreate = testutils.IDP{
 		Name:        "Test OIDC IDP",
 		Description: "OIDC test identity provider for CRUD operations",
+		Type:        "OAUTH",
 		Properties: []testutils.IDPProperty{
 			{
 				Name:     "client_id",
@@ -115,10 +118,10 @@ var (
 			},
 		},
 	}
-
 	idpToUpdate = testutils.IDP{
 		Name:        "Test Updated IDP",
 		Description: "Updated test identity provider",
+		Type:        "OAUTH",
 		Properties: []testutils.IDPProperty{
 			{
 				Name:     "client_id",
@@ -142,6 +145,153 @@ var (
 			},
 		},
 	}
+
+	idpWithInvalidType = testutils.IDP{
+		Name:        "Invalid Type IDP",
+		Description: "IDP with unsupported type",
+		Type:        "INVALID_TYPE",
+		Properties: []testutils.IDPProperty{
+			{
+				Name:     "client_id",
+				Value:    "test_client",
+				IsSecret: false,
+			},
+		},
+	}
+	idpWithEmptyType = testutils.IDP{
+		Name:        "Empty Type IDP",
+		Description: "IDP with empty type",
+		Type:        "",
+		Properties: []testutils.IDPProperty{
+			{
+				Name:     "client_id",
+				Value:    "test_client",
+				IsSecret: false,
+			},
+		},
+	}
+	idpWithEmptyName = testutils.IDP{
+		Name:        "",
+		Description: "IDP with empty name",
+		Type:        "OAUTH",
+		Properties: []testutils.IDPProperty{
+			{
+				Name:     "client_id",
+				Value:    "test_client",
+				IsSecret: false,
+			},
+		},
+	}
+	idpWithUnsupportedProperty = testutils.IDP{
+		Name:        "Unsupported Property IDP",
+		Description: "IDP with unsupported property",
+		Type:        "OAUTH",
+		Properties: []testutils.IDPProperty{
+			{
+				Name:     "client_id",
+				Value:    "test_client",
+				IsSecret: false,
+			},
+			{
+				Name:     "unsupported_property",
+				Value:    "some_value",
+				IsSecret: false,
+			},
+		},
+	}
+	idpWithEmptyPropertyName = testutils.IDP{
+		Name:        "Empty Property Name IDP",
+		Description: "IDP with empty property name",
+		Type:        "OAUTH",
+		Properties: []testutils.IDPProperty{
+			{
+				Name:     "client_id",
+				Value:    "test_client",
+				IsSecret: false,
+			},
+			{
+				Name:     "",
+				Value:    "some_value",
+				IsSecret: false,
+			},
+		},
+	}
+	idpWithEmptyPropertyValue = testutils.IDP{
+		Name:        "Empty Property Value IDP",
+		Description: "IDP with empty property value",
+		Type:        "OAUTH",
+		Properties: []testutils.IDPProperty{
+			{
+				Name:     "client_id",
+				Value:    "test_client",
+				IsSecret: false,
+			},
+			{
+				Name:     "client_secret",
+				Value:    "",
+				IsSecret: true,
+			},
+		},
+	}
+
+	// Valid IDP with all supported properties
+	idpWithAllOAuthProperties = testutils.IDP{
+		Name:        "Complete OAuth IDP",
+		Description: "OAuth IDP with all supported properties",
+		Type:        "OAUTH",
+		Properties: []testutils.IDPProperty{
+			{
+				Name:     "client_id",
+				Value:    "oauth_client_id",
+				IsSecret: false,
+			},
+			{
+				Name:     "client_secret",
+				Value:    "oauth_client_secret",
+				IsSecret: true,
+			},
+			{
+				Name:     "redirect_uri",
+				Value:    "https://localhost:3000/oauth/callback",
+				IsSecret: false,
+			},
+			{
+				Name:     "scopes",
+				Value:    "openid,profile,email",
+				IsSecret: false,
+			},
+			{
+				Name:     "authorization_endpoint",
+				Value:    "https://provider.com/oauth/authorize",
+				IsSecret: false,
+			},
+			{
+				Name:     "token_endpoint",
+				Value:    "https://provider.com/oauth/token",
+				IsSecret: false,
+			},
+			{
+				Name:     "userinfo_endpoint",
+				Value:    "https://provider.com/oauth/userinfo",
+				IsSecret: false,
+			},
+			{
+				Name:     "logout_endpoint",
+				Value:    "https://provider.com/oauth/logout",
+				IsSecret: false,
+			},
+			{
+				Name:     "jwks_endpoint",
+				Value:    "https://provider.com/.well-known/jwks.json",
+				IsSecret: false,
+			},
+			{
+				Name:     "prompt",
+				Value:    "consent",
+				IsSecret: false,
+			},
+		},
+	}
 )
 
 var (
@@ -160,10 +310,8 @@ func TestIdpAPITestSuite(t *testing.T) {
 	suite.Run(t, new(IdpAPITestSuite))
 }
 
-// SetupSuite creates test IDPs via API
 func (ts *IdpAPITestSuite) SetupSuite() {
 	// Create all test IDPs
-
 	githubId, err := testutils.CreateIDP(testGithubIdp)
 	if err != nil {
 		ts.T().Fatalf("Failed to create test Github IDP during setup: %v", err)
@@ -184,16 +332,17 @@ func (ts *IdpAPITestSuite) SetupSuite() {
 
 	// Build the list of created IDPs for test validations
 	testIdps = []testutils.IDP{
-		{ID: testGithubIdpID, Name: testGithubIdp.Name, Description: testGithubIdp.Description, Properties: testGithubIdp.Properties},
-		{ID: testGoogleIdpID, Name: testGoogleIdp.Name, Description: testGoogleIdp.Description, Properties: testGoogleIdp.Properties},
-		{ID: createdIdpID, Name: idpToCreate.Name, Description: idpToCreate.Description, Properties: idpToCreate.Properties},
+		{ID: testGithubIdpID, Name: testGithubIdp.Name, Description: testGithubIdp.Description,
+			Type: testGithubIdp.Type, Properties: testGithubIdp.Properties},
+		{ID: testGoogleIdpID, Name: testGoogleIdp.Name, Description: testGoogleIdp.Description,
+			Type: testGoogleIdp.Type, Properties: testGoogleIdp.Properties},
+		{ID: createdIdpID, Name: idpToCreate.Name, Description: idpToCreate.Description,
+			Type: idpToCreate.Type, Properties: idpToCreate.Properties},
 	}
 }
 
-// TearDownSuite cleans up all test IDPs
 func (ts *IdpAPITestSuite) TearDownSuite() {
 	// Delete all test IDPs
-
 	if testGithubIdpID != "" {
 		err := testutils.DeleteIDP(testGithubIdpID)
 		if err != nil {
@@ -216,9 +365,7 @@ func (ts *IdpAPITestSuite) TearDownSuite() {
 	}
 }
 
-// Test IdP listing
 func (ts *IdpAPITestSuite) TestIdpListing() {
-
 	req, err := http.NewRequest("GET", testServerURL+"/identity-providers", nil)
 	if err != nil {
 		ts.T().Fatalf("Failed to create request: %v", err)
@@ -263,7 +410,8 @@ func (ts *IdpAPITestSuite) TestIdpListing() {
 	for _, expectedIdp := range testIdps {
 		found := false
 		for _, idp := range basicIdps {
-			if idp.ID == expectedIdp.ID && idp.Name == expectedIdp.Name && idp.Description == expectedIdp.Description {
+			if idp.ID == expectedIdp.ID && idp.Name == expectedIdp.Name &&
+				idp.Description == expectedIdp.Description {
 				found = true
 				break
 			}
@@ -274,9 +422,7 @@ func (ts *IdpAPITestSuite) TestIdpListing() {
 	}
 }
 
-// Test idP get by ID
 func (ts *IdpAPITestSuite) TestIdpGetByID() {
-
 	if createdIdpID == "" {
 		ts.T().Fatal("IdP ID is not available for retrieval")
 	}
@@ -284,9 +430,197 @@ func (ts *IdpAPITestSuite) TestIdpGetByID() {
 	retrieveAndValidateIdpDetails(ts, idp)
 }
 
-// Test idP update
-func (ts *IdpAPITestSuite) TestIdpUpdate() {
+func (ts *IdpAPITestSuite) TestCreateIdpSuccess() {
+	successTestCases := []struct {
+		name        string
+		idp         testutils.IDP
+		description string
+	}{
+		{
+			name: "BasicOAuthIDP",
+			idp: testutils.IDP{
+				Name:        "Test Success OAuth IDP",
+				Description: "Basic OAuth IDP for success testing",
+				Type:        "OAUTH",
+				Properties: []testutils.IDPProperty{
+					{
+						Name:     "client_id",
+						Value:    "test_success_client",
+						IsSecret: false,
+					},
+					{
+						Name:     "client_secret",
+						Value:    "test_success_secret",
+						IsSecret: true,
+					},
+				},
+			},
+			description: "Should successfully create basic OAuth IDP",
+		},
+		{
+			name: "BasicGoogleIDP",
+			idp: testutils.IDP{
+				Name:        "Test Success Google IDP",
+				Description: "Basic Google IDP for success testing",
+				Type:        "GOOGLE",
+				Properties: []testutils.IDPProperty{
+					{
+						Name:     "client_id",
+						Value:    "test_google_success_client",
+						IsSecret: false,
+					},
+					{
+						Name:     "client_secret",
+						Value:    "test_google_success_secret",
+						IsSecret: true,
+					},
+				},
+			},
+			description: "Should successfully create basic Google IDP",
+		},
+		{
+			name: "BasicGithubIDP",
+			idp: testutils.IDP{
+				Name:        "Test Success Github IDP",
+				Description: "Basic Github IDP for success testing",
+				Type:        "GITHUB",
+				Properties: []testutils.IDPProperty{
+					{
+						Name:     "client_id",
+						Value:    "test_github_success_client",
+						IsSecret: false,
+					},
+					{
+						Name:     "client_secret",
+						Value:    "test_github_success_secret",
+						IsSecret: true,
+					},
+				},
+			},
+			description: "Should successfully create basic Github IDP",
+		},
+	}
 
+	for _, tc := range successTestCases {
+		ts.T().Run(tc.name, func(t *testing.T) {
+			// Create the IDP
+			idpID, err := testutils.CreateIDP(tc.idp)
+			if err != nil {
+				t.Fatalf("Failed to create IDP for test case %s: %v", tc.name, err)
+			}
+
+			// Validate that the IDP was created correctly
+			retrieveAndValidateIdpDetails(ts, testutils.IDP{
+				ID:          idpID,
+				Name:        tc.idp.Name,
+				Description: tc.idp.Description,
+				Type:        tc.idp.Type,
+				Properties:  tc.idp.Properties,
+			})
+
+			// Clean up
+			err = testutils.DeleteIDP(idpID)
+			if err != nil {
+				t.Logf("Failed to clean up test IDP for test case %s: %v", tc.name, err)
+			}
+
+			t.Logf("Test case %s passed: %s", tc.name, tc.description)
+		})
+	}
+}
+
+func (ts *IdpAPITestSuite) TestCreateIdpWithError() {
+	testCases := []struct {
+		name              string
+		idp               testutils.IDP
+		expectedStatus    int
+		expectedErrorCode string
+		description       string
+	}{
+		{
+			name:              "InvalidType",
+			idp:               idpWithInvalidType,
+			expectedStatus:    http.StatusBadRequest,
+			expectedErrorCode: "IDP-1004",
+			description:       "Should return error for unsupported IDP type",
+		},
+		{
+			name:              "EmptyType",
+			idp:               idpWithEmptyType,
+			expectedStatus:    http.StatusBadRequest,
+			expectedErrorCode: "IDP-1004",
+			description:       "Should return error for empty IDP type",
+		},
+		{
+			name:              "EmptyName",
+			idp:               idpWithEmptyName,
+			expectedStatus:    http.StatusBadRequest,
+			expectedErrorCode: "IDP-1003",
+			description:       "Should return error for empty IDP name",
+		},
+		{
+			name:              "UnsupportedProperty",
+			idp:               idpWithUnsupportedProperty,
+			expectedStatus:    http.StatusBadRequest,
+			expectedErrorCode: "IDP-1007",
+			description:       "Should return error for unsupported property",
+		},
+		{
+			name:              "EmptyPropertyName",
+			idp:               idpWithEmptyPropertyName,
+			expectedStatus:    http.StatusBadRequest,
+			expectedErrorCode: "IDP-1006",
+			description:       "Should return error for empty property name",
+		},
+		{
+			name:              "EmptyPropertyValue",
+			idp:               idpWithEmptyPropertyValue,
+			expectedStatus:    http.StatusBadRequest,
+			expectedErrorCode: "IDP-1006",
+			description:       "Should return error for empty property value",
+		},
+	}
+
+	for _, tc := range testCases {
+		ts.T().Run(tc.name, func(t *testing.T) {
+			idpJSON, err := json.Marshal(tc.idp)
+			if err != nil {
+				t.Fatalf("Failed to marshal IDP for test case %s: %v", tc.name, err)
+			}
+
+			resp, err := makeIDPAPIRequest("POST", "/identity-providers", bytes.NewReader(idpJSON))
+			if err != nil {
+				t.Fatalf("Failed to send request for test case %s: %v", tc.name, err)
+			}
+			defer resp.Body.Close()
+
+			validateErrorResponse(ts, resp, tc.expectedStatus, tc.expectedErrorCode)
+			t.Logf("Test case %s passed: %s", tc.name, tc.description)
+		})
+	}
+}
+
+func (ts *IdpAPITestSuite) TestCreateIdpWithAllSupportedProperties() {
+	idpID, err := testutils.CreateIDP(idpWithAllOAuthProperties)
+	if err != nil {
+		ts.T().Fatalf("Failed to create IDP with all properties: %v", err)
+	}
+
+	retrieveAndValidateIdpDetails(ts, testutils.IDP{
+		ID:          idpID,
+		Name:        idpWithAllOAuthProperties.Name,
+		Description: idpWithAllOAuthProperties.Description,
+		Type:        idpWithAllOAuthProperties.Type,
+		Properties:  idpWithAllOAuthProperties.Properties,
+	})
+
+	err = testutils.DeleteIDP(idpID)
+	if err != nil {
+		ts.T().Logf("Failed to clean up test IDP: %v", err)
+	}
+}
+
+func (ts *IdpAPITestSuite) TestUpdateIdp() {
 	if createdIdpID == "" {
 		ts.T().Fatal("IdP ID is not available for update")
 	}
@@ -328,8 +662,179 @@ func (ts *IdpAPITestSuite) TestIdpUpdate() {
 	})
 }
 
-func retrieveAndValidateIdpDetails(ts *IdpAPITestSuite, expectedIdp testutils.IDP) {
+func (ts *IdpAPITestSuite) TestUpdateIdpWithError() {
+	if createdIdpID == "" {
+		ts.T().Fatal("IdP ID is not available for update test")
+	}
 
+	testCases := []struct {
+		name              string
+		idp               testutils.IDP
+		expectedStatus    int
+		expectedErrorCode string
+		description       string
+	}{
+		{
+			name:              "InvalidType",
+			idp:               idpWithInvalidType,
+			expectedStatus:    http.StatusBadRequest,
+			expectedErrorCode: "IDP-1004",
+			description:       "Should return error for unsupported IDP type during update",
+		},
+		{
+			name:              "UnsupportedProperty",
+			idp:               idpWithUnsupportedProperty,
+			expectedStatus:    http.StatusBadRequest,
+			expectedErrorCode: "IDP-1007",
+			description:       "Should return error for unsupported property during update",
+		},
+	}
+
+	for _, tc := range testCases {
+		ts.T().Run(tc.name, func(t *testing.T) {
+			idpJSON, err := json.Marshal(tc.idp)
+			if err != nil {
+				t.Fatalf("Failed to marshal IDP for test case %s: %v", tc.name, err)
+			}
+
+			resp, err := makeIDPAPIRequest("PUT", "/identity-providers/"+createdIdpID, bytes.NewReader(idpJSON))
+			if err != nil {
+				t.Fatalf("Failed to send request for test case %s: %v", tc.name, err)
+			}
+			defer resp.Body.Close()
+
+			validateErrorResponse(ts, resp, tc.expectedStatus, tc.expectedErrorCode)
+			t.Logf("Test case %s passed: %s", tc.name, tc.description)
+		})
+	}
+}
+
+func (ts *IdpAPITestSuite) TestSupportedIdpTypes() {
+	supportedTypes := []string{"OAUTH", "GOOGLE", "GITHUB"}
+
+	for _, idpType := range supportedTypes {
+		testIDP := testutils.IDP{
+			Name:        fmt.Sprintf("Test %s IDP", idpType),
+			Description: fmt.Sprintf("%s identity provider for testing", idpType),
+			Type:        idpType,
+			Properties: []testutils.IDPProperty{
+				{
+					Name:     "client_id",
+					Value:    fmt.Sprintf("test_%s_client", strings.ToLower(idpType)),
+					IsSecret: false,
+				},
+				{
+					Name:     "client_secret",
+					Value:    fmt.Sprintf("test_%s_secret", strings.ToLower(idpType)),
+					IsSecret: true,
+				},
+			},
+		}
+
+		// Create IDP with the supported type
+		idpID, err := testutils.CreateIDP(testIDP)
+		if err != nil {
+			ts.T().Fatalf("Failed to create IDP with type %s: %v", idpType, err)
+		}
+
+		// Validate type is correctly stored
+		retrieveAndValidateIdpDetails(ts, testutils.IDP{
+			ID:          idpID,
+			Name:        testIDP.Name,
+			Description: testIDP.Description,
+			Type:        testIDP.Type,
+			Properties:  testIDP.Properties,
+		})
+
+		// Clean up
+		err = testutils.DeleteIDP(idpID)
+		if err != nil {
+			ts.T().Logf("Failed to clean up test IDP: %v", err)
+		}
+	}
+}
+
+func (ts *IdpAPITestSuite) TestSupportedPropertyNames() {
+	supportedProperties := []string{
+		"client_id", "client_secret", "redirect_uri", "scopes",
+		"authorization_endpoint", "token_endpoint", "userinfo_endpoint",
+		"logout_endpoint", "jwks_endpoint", "prompt",
+	}
+
+	for _, propertyName := range supportedProperties {
+		testIDP := testutils.IDP{
+			Name:        fmt.Sprintf("Test IDP with %s", propertyName),
+			Description: fmt.Sprintf("Testing %s property", propertyName),
+			Type:        "OAUTH",
+			Properties: []testutils.IDPProperty{
+				{
+					Name:     propertyName,
+					Value:    fmt.Sprintf("test_%s_value", strings.ReplaceAll(propertyName, "_", "")),
+					IsSecret: propertyName == "client_secret",
+				},
+			},
+		}
+
+		// Create IDP with the supported property
+		idpID, err := testutils.CreateIDP(testIDP)
+		if err != nil {
+			ts.T().Fatalf("Failed to create IDP with property %s: %v", propertyName, err)
+		}
+
+		// Clean up
+		err = testutils.DeleteIDP(idpID)
+		if err != nil {
+			ts.T().Logf("Failed to clean up test IDP: %v", err)
+		}
+	}
+}
+
+func (ts *IdpAPITestSuite) TestInvalidIdpId() {
+	// Test GET with invalid ID
+	resp, err := makeIDPAPIRequest("GET", "/identity-providers/invalid-id", nil)
+	if err != nil {
+		ts.T().Fatalf("Failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+	validateErrorResponse(ts, resp, http.StatusNotFound, "IDP-1001")
+
+	// Test PUT with invalid ID
+	idpJSON, err := json.Marshal(idpToUpdate)
+	if err != nil {
+		ts.T().Fatalf("Failed to marshal IDP: %v", err)
+	}
+	resp, err = makeIDPAPIRequest("PUT", "/identity-providers/invalid-id", bytes.NewReader(idpJSON))
+	if err != nil {
+		ts.T().Fatalf("Failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+	validateErrorResponse(ts, resp, http.StatusNotFound, "IDP-1001")
+
+	// Test DELETE with invalid ID - should not return error for idempotency
+	resp, err = makeIDPAPIRequest("DELETE", "/identity-providers/invalid-id", nil)
+	if err != nil {
+		ts.T().Fatalf("Failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+	// DELETE typically returns 204 No Content even for non-existent resources for idempotency
+	if resp.StatusCode != http.StatusNoContent {
+		ts.T().Fatalf("Expected status 204, got %d", resp.StatusCode)
+	}
+}
+
+func (ts *IdpAPITestSuite) TestMalformedJsonRequest() {
+	malformedJSON := `{"name": "test", "type": "OAUTH", "properties":`
+
+	resp, err := makeIDPAPIRequest("POST", "/identity-providers", strings.NewReader(malformedJSON))
+	if err != nil {
+		ts.T().Fatalf("Failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	validateErrorResponse(ts, resp, http.StatusBadRequest, "IDP-1009")
+}
+
+func retrieveAndValidateIdpDetails(ts *IdpAPITestSuite, expectedIdp testutils.IDP) {
 	req, err := http.NewRequest("GET", testServerURL+"/identity-providers/"+expectedIdp.ID, nil)
 	if err != nil {
 		ts.T().Fatalf("Failed to create get request: %v", err)
@@ -405,4 +910,41 @@ func compareIDPs(idp, expectedIdp testutils.IDP) bool {
 	}
 
 	return true
+}
+
+// makeIDPAPIRequest makes an HTTP request and returns the response, useful for testing error cases
+func makeIDPAPIRequest(method, path string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest(method, testServerURL+path, body)
+	if err != nil {
+		return nil, err
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	return client.Do(req)
+}
+
+// validateErrorResponse validates that the response contains the expected error code
+func validateErrorResponse(ts *IdpAPITestSuite, resp *http.Response,
+	expectedStatusCode int, expectedErrorCode string) {
+	if resp.StatusCode != expectedStatusCode {
+		ts.T().Fatalf("Expected status %d, got %d", expectedStatusCode, resp.StatusCode)
+	}
+
+	var errorResp testutils.ErrorResponse
+	err := json.NewDecoder(resp.Body).Decode(&errorResp)
+	if err != nil {
+		ts.T().Fatalf("Failed to parse error response: %v", err)
+	}
+
+	if errorResp.Code != expectedErrorCode {
+		ts.T().Fatalf("Expected error code %s, got %s", expectedErrorCode, errorResp.Code)
+	}
 }
