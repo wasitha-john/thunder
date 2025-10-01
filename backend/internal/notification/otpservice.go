@@ -98,7 +98,7 @@ func (s *otpService) SendOTP(otpDTO common.SendOTPDTO) (*common.SendOTPResultDTO
 		Recipient:  otpDTO.Recipient,
 		Channel:    otpDTO.Channel,
 		SenderID:   otpDTO.SenderID,
-		OTPValue:   hash.HashString(otp.Value),
+		OTPValue:   hash.GenerateThumbprintFromString(otp.Value),
 		ExpiryTime: otp.ExpiryTimeInMillis,
 	}
 
@@ -139,7 +139,7 @@ func (s *otpService) VerifyOTP(otpDTO common.VerifyOTPDTO) (*common.VerifyOTPRes
 	}
 
 	// Verify OTP value by comparing hashes
-	providedOTPHash := hash.HashString(otpDTO.OTPCode)
+	providedOTPHash := hash.GenerateThumbprintFromString(otpDTO.OTPCode)
 	if providedOTPHash != sessionData.OTPValue {
 		logger.Debug("Invalid OTP provided")
 		return &common.VerifyOTPResultDTO{
