@@ -217,6 +217,75 @@ func (_c *JWTServiceInterfaceMock_Init_Call) RunAndReturn(run func() error) *JWT
 	return _c
 }
 
+// VerifyJWT provides a mock function for the type JWTServiceInterfaceMock
+func (_mock *JWTServiceInterfaceMock) VerifyJWT(jwtToken string, jwtPublicKey *rsa.PublicKey, expectedAud string, expectedIss string) error {
+	ret := _mock.Called(jwtToken, jwtPublicKey, expectedAud, expectedIss)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyJWT")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string, *rsa.PublicKey, string, string) error); ok {
+		r0 = returnFunc(jwtToken, jwtPublicKey, expectedAud, expectedIss)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// JWTServiceInterfaceMock_VerifyJWT_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyJWT'
+type JWTServiceInterfaceMock_VerifyJWT_Call struct {
+	*mock.Call
+}
+
+// VerifyJWT is a helper method to define mock.On call
+//   - jwtToken string
+//   - jwtPublicKey *rsa.PublicKey
+//   - expectedAud string
+//   - expectedIss string
+func (_e *JWTServiceInterfaceMock_Expecter) VerifyJWT(jwtToken interface{}, jwtPublicKey interface{}, expectedAud interface{}, expectedIss interface{}) *JWTServiceInterfaceMock_VerifyJWT_Call {
+	return &JWTServiceInterfaceMock_VerifyJWT_Call{Call: _e.mock.On("VerifyJWT", jwtToken, jwtPublicKey, expectedAud, expectedIss)}
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWT_Call) Run(run func(jwtToken string, jwtPublicKey *rsa.PublicKey, expectedAud string, expectedIss string)) *JWTServiceInterfaceMock_VerifyJWT_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 *rsa.PublicKey
+		if args[1] != nil {
+			arg1 = args[1].(*rsa.PublicKey)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWT_Call) Return(err error) *JWTServiceInterfaceMock_VerifyJWT_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWT_Call) RunAndReturn(run func(jwtToken string, jwtPublicKey *rsa.PublicKey, expectedAud string, expectedIss string) error) *JWTServiceInterfaceMock_VerifyJWT_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // VerifyJWTSignature provides a mock function for the type JWTServiceInterfaceMock
 func (_mock *JWTServiceInterfaceMock) VerifyJWTSignature(jwtToken string, jwtPublicKey *rsa.PublicKey) error {
 	ret := _mock.Called(jwtToken, jwtPublicKey)
@@ -327,6 +396,75 @@ func (_c *JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call) Return(err er
 }
 
 func (_c *JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call) RunAndReturn(run func(jwtToken string, jwksURL string) error) *JWTServiceInterfaceMock_VerifyJWTSignatureWithJWKS_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VerifyJWTWithJWKS provides a mock function for the type JWTServiceInterfaceMock
+func (_mock *JWTServiceInterfaceMock) VerifyJWTWithJWKS(jwtToken string, jwksURL string, expectedAud string, expectedIss string) error {
+	ret := _mock.Called(jwtToken, jwksURL, expectedAud, expectedIss)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyJWTWithJWKS")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string, string, string, string) error); ok {
+		r0 = returnFunc(jwtToken, jwksURL, expectedAud, expectedIss)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// JWTServiceInterfaceMock_VerifyJWTWithJWKS_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyJWTWithJWKS'
+type JWTServiceInterfaceMock_VerifyJWTWithJWKS_Call struct {
+	*mock.Call
+}
+
+// VerifyJWTWithJWKS is a helper method to define mock.On call
+//   - jwtToken string
+//   - jwksURL string
+//   - expectedAud string
+//   - expectedIss string
+func (_e *JWTServiceInterfaceMock_Expecter) VerifyJWTWithJWKS(jwtToken interface{}, jwksURL interface{}, expectedAud interface{}, expectedIss interface{}) *JWTServiceInterfaceMock_VerifyJWTWithJWKS_Call {
+	return &JWTServiceInterfaceMock_VerifyJWTWithJWKS_Call{Call: _e.mock.On("VerifyJWTWithJWKS", jwtToken, jwksURL, expectedAud, expectedIss)}
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWTWithJWKS_Call) Run(run func(jwtToken string, jwksURL string, expectedAud string, expectedIss string)) *JWTServiceInterfaceMock_VerifyJWTWithJWKS_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWTWithJWKS_Call) Return(err error) *JWTServiceInterfaceMock_VerifyJWTWithJWKS_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *JWTServiceInterfaceMock_VerifyJWTWithJWKS_Call) RunAndReturn(run func(jwtToken string, jwksURL string, expectedAud string, expectedIss string) error) *JWTServiceInterfaceMock_VerifyJWTWithJWKS_Call {
 	_c.Call.Return(run)
 	return _c
 }

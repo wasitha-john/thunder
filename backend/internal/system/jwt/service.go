@@ -55,6 +55,8 @@ type JWTServiceInterface interface {
 	Init() error
 	GetPublicKey() *rsa.PublicKey
 	GenerateJWT(sub, aud, iss string, validityPeriod int64, claims map[string]interface{}) (string, int64, error)
+	VerifyJWT(jwtToken string, jwtPublicKey *rsa.PublicKey, expectedAud, expectedIss string) error
+	VerifyJWTWithJWKS(jwtToken, jwksURL, expectedAud, expectedIss string) error
 	VerifyJWTSignature(jwtToken string, jwtPublicKey *rsa.PublicKey) error
 	VerifyJWTSignatureWithJWKS(jwtToken string, jwksURL string) error
 }
@@ -211,6 +213,35 @@ func (js *JWTService) GenerateJWT(sub, aud, iss string, validityPeriod int64, cl
 	return signingInput + "." + signatureBase64, iat.Unix(), nil
 }
 
+// VerifyJWT verifies the JWT token using the provided public key.
+func (js *JWTService) VerifyJWT(jwtToken string, jwtPublicKey *rsa.PublicKey,
+	expectedAud, expectedIss string) error {
+	parts := strings.Split(jwtToken, ".")
+	if len(parts) != 3 {
+		return errors.New("invalid JWT token format")
+	}
+
+	if err := js.VerifyJWTSignature(jwtToken, jwtPublicKey); err != nil {
+		return fmt.Errorf("invalid token signature: %w", err)
+	}
+
+	return js.verifyJWTClaims(jwtToken, expectedAud, expectedIss)
+}
+
+// VerifyJWTWithJWKS verifies the JWT token using a JWK Set (JWKS) endpoint.
+func (js *JWTService) VerifyJWTWithJWKS(jwtToken, jwksURL, expectedAud, expectedIss string) error {
+	parts := strings.Split(jwtToken, ".")
+	if len(parts) != 3 {
+		return errors.New("invalid JWT token format")
+	}
+
+	if err := js.VerifyJWTSignatureWithJWKS(jwtToken, jwksURL); err != nil {
+		return fmt.Errorf("invalid token signature: %w", err)
+	}
+
+	return js.verifyJWTClaims(jwtToken, expectedAud, expectedIss)
+}
+
 // VerifyJWTSignature verifies the signature of a JWT token using the provided public key.
 func (js *JWTService) VerifyJWTSignature(jwtToken string, jwtPublicKey *rsa.PublicKey) error {
 	parts := strings.Split(jwtToken, ".")
@@ -298,6 +329,56 @@ func (js *JWTService) VerifyJWTSignatureWithJWKS(jwtToken string, jwksURL string
 	// Verify JWT signature
 	if err := js.VerifyJWTSignature(jwtToken, pubKey); err != nil {
 		return fmt.Errorf("invalid token signature: %w", err)
+	}
+
+	return nil
+}
+
+// verifyJWTClaims verifies the standard claims of a JWT token.
+func (js *JWTService) verifyJWTClaims(jwtToken string, expectedAud, expectedIss string) error {
+	// Decode the JWT payload
+	payload, err := DecodeJWTPayload(jwtToken)
+	if err != nil {
+		return fmt.Errorf("failed to decode JWT payload: %w", err)
+	}
+
+	// Validate standard claims (exp, nbf, aud, iss)
+	now := time.Now().Unix()
+
+	if exp, ok := payload["exp"].(float64); ok {
+		if now > int64(exp) {
+			return errors.New("token has expired")
+		}
+	} else {
+		return errors.New("missing or invalid 'exp' claim")
+	}
+
+	if nbf, ok := payload["nbf"].(float64); ok {
+		if now < int64(nbf) {
+			return errors.New("token not valid yet (nbf)")
+		}
+	} else {
+		return errors.New("missing or invalid 'nbf' claim")
+	}
+
+	if expectedAud != "" {
+		if aud, ok := payload["aud"].(string); ok {
+			if aud != expectedAud {
+				return fmt.Errorf("invalid audience: expected %s, got %s", expectedAud, aud)
+			}
+		} else {
+			return errors.New("missing or invalid 'aud' claim")
+		}
+	}
+
+	if expectedIss != "" {
+		if iss, ok := payload["iss"].(string); ok {
+			if iss != expectedIss {
+				return fmt.Errorf("invalid issuer: expected %s, got %s", expectedIss, iss)
+			}
+		} else {
+			return errors.New("missing or invalid 'iss' claim")
+		}
 	}
 
 	return nil

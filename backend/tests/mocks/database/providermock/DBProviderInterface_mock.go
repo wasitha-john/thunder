@@ -9,9 +9,9 @@ import (
 	mock "github.com/stretchr/testify/mock"
 )
 
-// GetDBProviderInterfaceMock creates a new instance of DBProviderInterfaceMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// NewDBProviderInterfaceMock creates a new instance of DBProviderInterfaceMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
-func GetDBProviderInterfaceMock(t interface {
+func NewDBProviderInterfaceMock(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *DBProviderInterfaceMock {

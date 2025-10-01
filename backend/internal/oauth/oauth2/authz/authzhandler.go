@@ -214,8 +214,8 @@ func (ah *AuthorizeHandler) handleAuthorizationResponseFromEngine(msg *model.OAu
 		return
 	}
 
-	// Verify the assertion signature.
-	err := ah.verifyAssertionSignature(assertion, logger)
+	// Verify the assertion.
+	err := ah.verifyAssertion(assertion, logger)
 	if err != nil {
 		ah.writeAuthZResponseToErrorPage(w, oauth2const.ErrorInvalidRequest, err.Error(), sessionData)
 		return
@@ -503,14 +503,14 @@ func getAuthorizationCode(oAuthMessage *model.OAuthMessage, authUserID string) (
 	}, nil
 }
 
-// verifyAssertionSignature verifies the signature of the JWT assertion.
-func (ah *AuthorizeHandler) verifyAssertionSignature(assertion string, logger *log.Logger) error {
+// verifyAssertion verifies the JWT assertion.
+func (ah *AuthorizeHandler) verifyAssertion(assertion string, logger *log.Logger) error {
 	pubKey := ah.JWTService.GetPublicKey()
 	if pubKey == nil {
 		logger.Error("Server public key is not available for JWT assertion verification")
 		return errors.New("Internal server error")
 	}
-	if err := ah.JWTService.VerifyJWTSignature(assertion, pubKey); err != nil {
+	if err := ah.JWTService.VerifyJWT(assertion, pubKey, "", ""); err != nil {
 		return errors.New("Invalid assertion signature")
 	}
 

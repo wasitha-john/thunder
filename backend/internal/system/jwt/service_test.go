@@ -44,6 +44,13 @@ import (
 	"github.com/asgardeo/thunder/tests/mocks/certmock"
 )
 
+const (
+	testAudience = "test-audience"
+	testIssuer   = "test-issuer"
+	testAud      = "test-aud"
+	testIss      = "test-iss"
+)
+
 type JWTServiceTestSuite struct {
 	suite.Suite
 	mockCertService *certmock.SystemCertificateServiceInterfaceMock
@@ -383,8 +390,8 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 		{
 			name:     "Success",
 			sub:      "test-subject",
-			aud:      "test-audience",
-			iss:      "test-issuer",
+			aud:      testAudience,
+			iss:      testIssuer,
 			validity: 3600,
 			claims: map[string]interface{}{
 				"name":  "John Doe",
@@ -420,8 +427,8 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 				assert.NoError(t, err)
 
 				assert.Equal(t, "test-subject", payload["sub"])
-				assert.Equal(t, "test-audience", payload["aud"])
-				assert.Equal(t, "test-issuer", payload["iss"])
+				assert.Equal(t, testAudience, payload["aud"])
+				assert.Equal(t, testIssuer, payload["iss"])
 				assert.NotEmpty(t, payload["jti"])
 
 				// Check claims
@@ -435,8 +442,8 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 		{
 			name:     "DefaultValidity",
 			sub:      "test-subject",
-			aud:      "test-audience",
-			iss:      "test-issuer",
+			aud:      testAudience,
+			iss:      testIssuer,
 			validity: 0, // Should use default
 			claims:   map[string]interface{}{},
 			setupMock: func() func() {
@@ -451,7 +458,7 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 		{
 			name:     "DefaultIssuer",
 			sub:      "test-subject",
-			aud:      "test-audience",
+			aud:      testAudience,
 			iss:      "", // Should use default
 			validity: 3600,
 			claims:   map[string]interface{}{},
@@ -528,8 +535,8 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 		{
 			name:     "WithEmptyClaims",
 			sub:      "test-subject",
-			aud:      "test-audience",
-			iss:      "test-issuer",
+			aud:      testAudience,
+			iss:      testIssuer,
 			validity: 1800,
 			claims:   nil,
 			setupMock: func() func() {
@@ -606,8 +613,566 @@ func (suite *JWTServiceTestSuite) TestGenerateJWTScenarios() {
 	}
 }
 
+func (suite *JWTServiceTestSuite) TestVerifyJWT() {
+	testCases := []struct {
+		name          string
+		setupFunc     func() (string, *rsa.PublicKey, string, string)
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "ValidJWT",
+			setupFunc: func() (string, *rsa.PublicKey, string, string) {
+				aud := testAudience
+				iss := testIssuer
+				token := suite.createBasicJWT(aud, iss,
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+				return token, &suite.testPrivateKey.PublicKey, aud, iss
+			},
+			expectError: false,
+		},
+		{
+			name: "ValidJWTWithEmptyExpectedAudience",
+			setupFunc: func() (string, *rsa.PublicKey, string, string) {
+				iss := testIssuer
+				token := suite.createBasicJWT("any-audience", iss,
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+				return token, &suite.testPrivateKey.PublicKey, "", iss // Empty expected audience
+			},
+			expectError: false,
+		},
+		{
+			name: "ValidJWTWithEmptyExpectedIssuer",
+			setupFunc: func() (string, *rsa.PublicKey, string, string) {
+				aud := testAudience
+				token := suite.createBasicJWT(aud, "any-issuer",
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+				return token, &suite.testPrivateKey.PublicKey, aud, "" // Empty expected issuer
+			},
+			expectError: false,
+		},
+		{
+			name: "InvalidJWTFormat",
+			setupFunc: func() (string, *rsa.PublicKey, string, string) {
+				return suite.createMalformedJWT(), &suite.testPrivateKey.PublicKey, testAud, testIss
+			},
+			expectError:   true,
+			errorContains: "invalid JWT token format",
+		},
+		{
+			name: "InvalidSignature",
+			setupFunc: func() (string, *rsa.PublicKey, string, string) {
+				// Create a valid token first, then invalidate the signature
+				token := suite.createBasicJWT(testAud, testIss, time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+
+				// Replace signature to make it invalid
+				parts := strings.Split(token, ".")
+				if len(parts) == 3 {
+					token = parts[0] + "." + parts[1] + ".invalidSignature123"
+				}
+				return token, &suite.testPrivateKey.PublicKey, testAud, testIss
+			},
+			expectError:   true,
+			errorContains: "invalid token signature",
+		},
+		{
+			name: "ExpiredToken",
+			setupFunc: func() (string, *rsa.PublicKey, string, string) {
+				aud := testAudience
+				iss := testIssuer
+				expiredTime := time.Now().Add(-time.Hour).Unix() // Expired 1 hour ago
+				token := suite.createBasicJWT(aud, iss,
+					expiredTime, time.Now().Add(-2*time.Hour).Unix())
+				return token, &suite.testPrivateKey.PublicKey, aud, iss
+			},
+			expectError:   true,
+			errorContains: "token has expired",
+		},
+		{
+			name: "TokenNotValidYet",
+			setupFunc: func() (string, *rsa.PublicKey, string, string) {
+				aud := testAudience
+				iss := testIssuer
+				futureTime := time.Now().Add(time.Hour).Unix() // Valid 1 hour from now
+				token := suite.createBasicJWT(aud, iss,
+					time.Now().Add(2*time.Hour).Unix(), futureTime)
+				return token, &suite.testPrivateKey.PublicKey, aud, iss
+			},
+			expectError:   true,
+			errorContains: "token not valid yet (nbf)",
+		},
+		{
+			name: "InvalidAudience",
+			setupFunc: func() (string, *rsa.PublicKey, string, string) {
+				aud := "wrong-audience"
+				iss := testIssuer
+				token := suite.createBasicJWT(aud, iss,
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+				return token, &suite.testPrivateKey.PublicKey, "expected-audience", iss
+			},
+			expectError:   true,
+			errorContains: "invalid audience",
+		},
+		{
+			name: "InvalidIssuer",
+			setupFunc: func() (string, *rsa.PublicKey, string, string) {
+				aud := testAudience
+				iss := "wrong-issuer"
+				token := suite.createBasicJWT(aud, iss,
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+				return token, &suite.testPrivateKey.PublicKey, aud, "expected-issuer"
+			},
+			expectError:   true,
+			errorContains: "invalid issuer",
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			token, pubKey, expectedAud, expectedIss := tc.setupFunc()
+
+			err := suite.jwtService.VerifyJWT(token, pubKey, expectedAud, expectedIss)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.errorContains != "" {
+					assert.Contains(t, err.Error(), tc.errorContains)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func (suite *JWTServiceTestSuite) TestVerifyJWTWithJWKS() {
+	testCases := []struct {
+		name          string
+		setupFunc     func() (string, string, string, string)
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "ValidJWTWithJWKS",
+			setupFunc: func() (string, string, string, string) {
+				aud := testAudience
+				iss := testIssuer
+				token := suite.createBasicJWT(aud, iss,
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+
+				mockServer := suite.mockJWKSServer()
+				suite.T().Cleanup(mockServer.Close)
+
+				return token, mockServer.URL, aud, iss
+			},
+			expectError: false,
+		},
+		{
+			name: "ValidJWTWithEmptyExpectedClaims",
+			setupFunc: func() (string, string, string, string) {
+				token := suite.createBasicJWT("any-aud", "any-iss",
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+
+				mockServer := suite.mockJWKSServer()
+				suite.T().Cleanup(mockServer.Close)
+
+				return token, mockServer.URL, "", "" // Empty expected aud and iss
+			},
+			expectError: false,
+		},
+		{
+			name: "InvalidJWTFormat",
+			setupFunc: func() (string, string, string, string) {
+				mockServer := suite.mockJWKSServer()
+				suite.T().Cleanup(mockServer.Close)
+
+				return suite.createMalformedJWT(), mockServer.URL, testAud, testIss
+			},
+			expectError:   true,
+			errorContains: "invalid JWT token format",
+		},
+		{
+			name: "InvalidSignatureWithJWKS",
+			setupFunc: func() (string, string, string, string) {
+				// Create a valid token first, then invalidate the signature
+				token := suite.createBasicJWT(testAud, testIss, time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+
+				// Replace signature to make it invalid
+				parts := strings.Split(token, ".")
+				if len(parts) == 3 {
+					token = parts[0] + "." + parts[1] + ".invalidSignature123"
+				}
+
+				mockServer := suite.mockJWKSServer()
+				suite.T().Cleanup(mockServer.Close)
+
+				return token, mockServer.URL, testAud, testIss
+			},
+			expectError:   true,
+			errorContains: "invalid token signature",
+		},
+		{
+			name: "ExpiredTokenWithJWKS",
+			setupFunc: func() (string, string, string, string) {
+				aud := testAudience
+				iss := testIssuer
+				expiredTime := time.Now().Add(-time.Hour).Unix() // Expired 1 hour ago
+				token := suite.createBasicJWT(aud, iss,
+					expiredTime, time.Now().Add(-2*time.Hour).Unix())
+
+				mockServer := suite.mockJWKSServer()
+				suite.T().Cleanup(mockServer.Close)
+
+				return token, mockServer.URL, aud, iss
+			},
+			expectError:   true,
+			errorContains: "token has expired",
+		},
+		{
+			name: "TokenNotValidYetWithJWKS",
+			setupFunc: func() (string, string, string, string) {
+				aud := testAudience
+				iss := testIssuer
+				futureTime := time.Now().Add(time.Hour).Unix() // Valid 1 hour from now
+				token := suite.createBasicJWT(aud, iss,
+					time.Now().Add(2*time.Hour).Unix(), futureTime)
+
+				mockServer := suite.mockJWKSServer()
+				suite.T().Cleanup(mockServer.Close)
+
+				return token, mockServer.URL, aud, iss
+			},
+			expectError:   true,
+			errorContains: "token not valid yet (nbf)",
+		},
+		{
+			name: "InvalidAudienceWithJWKS",
+			setupFunc: func() (string, string, string, string) {
+				aud := "wrong-audience"
+				iss := testIssuer
+				token := suite.createBasicJWT(aud, iss,
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+
+				mockServer := suite.mockJWKSServer()
+				suite.T().Cleanup(mockServer.Close)
+
+				return token, mockServer.URL, "expected-audience", iss
+			},
+			expectError:   true,
+			errorContains: "invalid audience",
+		},
+		{
+			name: "InvalidIssuerWithJWKS",
+			setupFunc: func() (string, string, string, string) {
+				aud := testAudience
+				iss := "wrong-issuer"
+				token := suite.createBasicJWT(aud, iss,
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+
+				mockServer := suite.mockJWKSServer()
+				suite.T().Cleanup(mockServer.Close)
+
+				return token, mockServer.URL, aud, "expected-issuer"
+			},
+			expectError:   true,
+			errorContains: "invalid issuer",
+		},
+		{
+			name: "JWKSNetworkError",
+			setupFunc: func() (string, string, string, string) {
+				token := suite.createBasicJWT(testAud, testIss,
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+
+				return token, "http://localhost:99999/invalid", testAud, testIss
+			},
+			expectError:   true,
+			errorContains: "invalid token signature",
+		},
+		{
+			name: "JWKSHTTPError",
+			setupFunc: func() (string, string, string, string) {
+				token := suite.createBasicJWT(testAud, testIss,
+					time.Now().Add(time.Hour).Unix(), time.Now().Unix())
+
+				// Create a server that returns 404
+				errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusNotFound)
+				}))
+				suite.T().Cleanup(errorServer.Close)
+
+				return token, errorServer.URL, testAud, testIss
+			},
+			expectError:   true,
+			errorContains: "invalid token signature",
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			token, jwksURL, expectedAud, expectedIss := tc.setupFunc()
+
+			err := suite.jwtService.VerifyJWTWithJWKS(token, jwksURL, expectedAud, expectedIss)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.errorContains != "" {
+					assert.Contains(t, err.Error(), tc.errorContains)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func (suite *JWTServiceTestSuite) TestVerifyJWTClaimsEdgeCases() {
+	testCases := []struct {
+		name          string
+		setupFunc     func() string
+		expectedAud   string
+		expectedIss   string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "MissingExpClaim",
+			setupFunc: func() string {
+				payload := map[string]interface{}{
+					"sub": "test-subject",
+					"aud": testAudience,
+					"iss": testIssuer,
+					"iat": time.Now().Unix(),
+					"nbf": time.Now().Unix(),
+					// Missing exp claim
+				}
+
+				header := map[string]interface{}{
+					"alg": "RS256",
+					"typ": "JWT",
+					"kid": "test-kid",
+				}
+
+				headerJSON, _ := json.Marshal(header)
+				payloadJSON, _ := json.Marshal(payload)
+
+				headerBase64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+				payloadBase64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+
+				signingInput := headerBase64 + "." + payloadBase64
+				hashed := sha256.Sum256([]byte(signingInput))
+				signature, _ := rsa.SignPKCS1v15(rand.Reader, suite.testPrivateKey, crypto.SHA256, hashed[:])
+				signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
+
+				return headerBase64 + "." + payloadBase64 + "." + signatureBase64
+			},
+			expectedAud:   testAudience,
+			expectedIss:   testIssuer,
+			expectError:   true,
+			errorContains: "missing or invalid 'exp' claim",
+		},
+		{
+			name: "MissingNbfClaim",
+			setupFunc: func() string {
+				payload := map[string]interface{}{
+					"sub": "test-subject",
+					"aud": testAudience,
+					"iss": testIssuer,
+					"exp": time.Now().Add(time.Hour).Unix(),
+					"iat": time.Now().Unix(),
+					// Missing nbf claim
+				}
+
+				header := map[string]interface{}{
+					"alg": "RS256",
+					"typ": "JWT",
+					"kid": "test-kid",
+				}
+
+				headerJSON, _ := json.Marshal(header)
+				payloadJSON, _ := json.Marshal(payload)
+
+				headerBase64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+				payloadBase64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+
+				signingInput := headerBase64 + "." + payloadBase64
+				hashed := sha256.Sum256([]byte(signingInput))
+				signature, _ := rsa.SignPKCS1v15(rand.Reader, suite.testPrivateKey, crypto.SHA256, hashed[:])
+				signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
+
+				return headerBase64 + "." + payloadBase64 + "." + signatureBase64
+			},
+			expectedAud:   testAudience,
+			expectedIss:   testIssuer,
+			expectError:   true,
+			errorContains: "missing or invalid 'nbf' claim",
+		},
+		{
+			name: "MissingAudClaim",
+			setupFunc: func() string {
+				payload := map[string]interface{}{
+					"sub": "test-subject",
+					"iss": testIssuer,
+					"exp": time.Now().Add(time.Hour).Unix(),
+					"iat": time.Now().Unix(),
+					"nbf": time.Now().Unix(),
+					// Missing aud claim
+				}
+				return suite.createJWTWithCustomPayload(payload)
+			},
+			expectedAud:   testAudience,
+			expectedIss:   testIssuer,
+			expectError:   true,
+			errorContains: "missing or invalid 'aud' claim",
+		},
+		{
+			name: "MissingIssClaim",
+			setupFunc: func() string {
+				payload := map[string]interface{}{
+					"sub": "test-subject",
+					"aud": testAudience,
+					"exp": time.Now().Add(time.Hour).Unix(),
+					"iat": time.Now().Unix(),
+					"nbf": time.Now().Unix(),
+					// Missing iss claim
+				}
+				return suite.createJWTWithCustomPayload(payload)
+			},
+			expectedAud:   testAudience,
+			expectedIss:   testIssuer,
+			expectError:   true,
+			errorContains: "missing or invalid 'iss' claim",
+		},
+		{
+			name: "InvalidExpClaimType",
+			setupFunc: func() string {
+				payload := map[string]interface{}{
+					"sub": "test-subject",
+					"aud": testAudience,
+					"iss": testIssuer,
+					"exp": "invalid-exp-type", // Wrong type
+					"iat": time.Now().Unix(),
+					"nbf": time.Now().Unix(),
+				}
+
+				header := map[string]interface{}{
+					"alg": "RS256",
+					"typ": "JWT",
+					"kid": "test-kid",
+				}
+
+				headerJSON, _ := json.Marshal(header)
+				payloadJSON, _ := json.Marshal(payload)
+
+				headerBase64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+				payloadBase64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+
+				signingInput := headerBase64 + "." + payloadBase64
+				hashed := sha256.Sum256([]byte(signingInput))
+				signature, _ := rsa.SignPKCS1v15(rand.Reader, suite.testPrivateKey, crypto.SHA256, hashed[:])
+				signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
+
+				return headerBase64 + "." + payloadBase64 + "." + signatureBase64
+			},
+			expectedAud:   testAudience,
+			expectedIss:   testIssuer,
+			expectError:   true,
+			errorContains: "missing or invalid 'exp' claim",
+		},
+		{
+			name: "InvalidNbfClaimType",
+			setupFunc: func() string {
+				payload := map[string]interface{}{
+					"sub": "test-subject",
+					"aud": testAudience,
+					"iss": testIssuer,
+					"exp": time.Now().Add(time.Hour).Unix(),
+					"iat": time.Now().Unix(),
+					"nbf": "invalid-nbf-type", // Wrong type
+				}
+
+				header := map[string]interface{}{
+					"alg": "RS256",
+					"typ": "JWT",
+					"kid": "test-kid",
+				}
+
+				headerJSON, _ := json.Marshal(header)
+				payloadJSON, _ := json.Marshal(payload)
+
+				headerBase64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+				payloadBase64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+
+				signingInput := headerBase64 + "." + payloadBase64
+				hashed := sha256.Sum256([]byte(signingInput))
+				signature, _ := rsa.SignPKCS1v15(rand.Reader, suite.testPrivateKey, crypto.SHA256, hashed[:])
+				signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
+
+				return headerBase64 + "." + payloadBase64 + "." + signatureBase64
+			},
+			expectedAud:   testAudience,
+			expectedIss:   testIssuer,
+			expectError:   true,
+			errorContains: "missing or invalid 'nbf' claim",
+		},
+		{
+			name: "InvalidAudClaimType",
+			setupFunc: func() string {
+				payload := map[string]interface{}{
+					"sub": "test-subject",
+					"aud": 12345, // Wrong type
+					"iss": testIssuer,
+					"exp": time.Now().Add(time.Hour).Unix(),
+					"iat": time.Now().Unix(),
+					"nbf": time.Now().Unix(),
+				}
+				return suite.createJWTWithCustomPayload(payload)
+			},
+			expectedAud:   testAudience,
+			expectedIss:   testIssuer,
+			expectError:   true,
+			errorContains: "missing or invalid 'aud' claim",
+		},
+		{
+			name: "InvalidIssClaimType",
+			setupFunc: func() string {
+				payload := map[string]interface{}{
+					"sub": "test-subject",
+					"aud": testAudience,
+					"iss": 12345, // Wrong type
+					"exp": time.Now().Add(time.Hour).Unix(),
+					"iat": time.Now().Unix(),
+					"nbf": time.Now().Unix(),
+				}
+				return suite.createJWTWithCustomPayload(payload)
+			},
+			expectedAud:   testAudience,
+			expectedIss:   testIssuer,
+			expectError:   true,
+			errorContains: "missing or invalid 'iss' claim",
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			token := tc.setupFunc()
+			publicKey := &suite.testPrivateKey.PublicKey
+
+			err := suite.jwtService.VerifyJWT(token, publicKey, tc.expectedAud, tc.expectedIss)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.errorContains != "" {
+					assert.Contains(t, err.Error(), tc.errorContains)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func (suite *JWTServiceTestSuite) TestVerifyJWTSignature() {
-	validToken, _, err := suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
+	validToken, _, err := suite.jwtService.GenerateJWT("test-subject", testAudience, testIssuer, 3600, nil)
 	assert.NoError(suite.T(), err)
 
 	wrongKey, _ := rsa.GenerateKey(rand.Reader, 2048)
@@ -645,7 +1210,7 @@ func (suite *JWTServiceTestSuite) TestVerifyJWTSignature() {
 }
 
 func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKS() {
-	token, _, err := suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
+	token, _, err := suite.jwtService.GenerateJWT("test-subject", testAudience, testIssuer, 3600, nil)
 	assert.NoError(suite.T(), err)
 
 	testServer := suite.mockJWKSServer()
@@ -722,7 +1287,7 @@ func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKSHTTPErrors() {
 				}))
 			},
 			setupToken: func() string {
-				token, _, _ := suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
+				token, _, _ := suite.jwtService.GenerateJWT("test-subject", testAudience, testIssuer, 3600, nil)
 				return token
 			},
 			expectedError: "failed to fetch JWKS, status code: 404",
@@ -739,7 +1304,7 @@ func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKSHTTPErrors() {
 				}))
 			},
 			setupToken: func() string {
-				token, _, _ := suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
+				token, _, _ := suite.jwtService.GenerateJWT("test-subject", testAudience, testIssuer, 3600, nil)
 				return token
 			},
 			expectedError: "failed to parse JWKS",
@@ -768,7 +1333,7 @@ func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKSHTTPErrors() {
 				}))
 			},
 			setupToken: func() string {
-				token, _, _ := suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
+				token, _, _ := suite.jwtService.GenerateJWT("test-subject", testAudience, testIssuer, 3600, nil)
 				return token
 			},
 			expectedError: "no matching key found",
@@ -796,7 +1361,7 @@ func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKSHTTPErrors() {
 				}))
 			},
 			setupToken: func() string {
-				token, _, _ := suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
+				token, _, _ := suite.jwtService.GenerateJWT("test-subject", testAudience, testIssuer, 3600, nil)
 				return token
 			},
 			expectedError: "failed to convert JWK to RSA public key",
@@ -838,7 +1403,7 @@ func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKSHTTPErrors() {
 
 func (suite *JWTServiceTestSuite) TestVerifyJWTSignatureWithJWKSNetworkError() {
 	// Test with invalid URL to trigger network error
-	token, _, err := suite.jwtService.GenerateJWT("test-subject", "test-audience", "test-issuer", 3600, nil)
+	token, _, err := suite.jwtService.GenerateJWT("test-subject", testAudience, testIssuer, 3600, nil)
 	assert.NoError(suite.T(), err)
 
 	err = suite.jwtService.VerifyJWTSignatureWithJWKS(token, "http://localhost:99999/invalid")
@@ -973,4 +1538,86 @@ func (suite *JWTServiceTestSuite) mockJWKSServer() *httptest.Server {
 	}))
 
 	return server
+}
+
+// Helper method to create a JWT with custom claims and validity
+func (suite *JWTServiceTestSuite) createJWTWithClaims(sub, aud, iss string, exp int64, nbf int64,
+	customClaims map[string]interface{}) string {
+	// Create payload
+	payload := map[string]interface{}{
+		"sub": sub,
+		"aud": aud,
+		"iss": iss,
+		"exp": exp,
+		"iat": time.Now().Unix(),
+		"nbf": nbf,
+		"jti": "test-jti-" + fmt.Sprintf("%d", time.Now().UnixNano()),
+	}
+
+	// Add custom claims if provided
+	for k, v := range customClaims {
+		payload[k] = v
+	}
+
+	// Create header
+	header := map[string]interface{}{
+		"alg": "RS256",
+		"typ": "JWT",
+		"kid": "test-kid",
+	}
+
+	headerJSON, _ := json.Marshal(header)
+	payloadJSON, _ := json.Marshal(payload)
+
+	// Encode header and payload
+	headerBase64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+	payloadBase64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+
+	// Create signature input
+	signingInput := headerBase64 + "." + payloadBase64
+
+	// Sign
+	hashed := sha256.Sum256([]byte(signingInput))
+	signature, err := rsa.SignPKCS1v15(rand.Reader, suite.testPrivateKey, crypto.SHA256, hashed[:])
+	if err != nil {
+		suite.T().Fatalf("Failed to sign JWT: %v", err)
+	}
+
+	// Encode signature
+	signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
+
+	// Create full JWT
+	return headerBase64 + "." + payloadBase64 + "." + signatureBase64
+}
+
+// Helper method to create an invalid JWT (malformed)
+func (suite *JWTServiceTestSuite) createMalformedJWT() string {
+	return "invalid.jwt"
+}
+
+// Helper method to create a JWT with custom payload for testing edge cases
+func (suite *JWTServiceTestSuite) createJWTWithCustomPayload(payload map[string]interface{}) string {
+	header := map[string]interface{}{
+		"alg": "RS256",
+		"typ": "JWT",
+		"kid": "test-kid",
+	}
+
+	headerJSON, _ := json.Marshal(header)
+	payloadJSON, _ := json.Marshal(payload)
+
+	headerBase64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+	payloadBase64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+
+	signingInput := headerBase64 + "." + payloadBase64
+	hashed := sha256.Sum256([]byte(signingInput))
+	signature, _ := rsa.SignPKCS1v15(rand.Reader, suite.testPrivateKey, crypto.SHA256, hashed[:])
+	signatureBase64 := base64.RawURLEncoding.EncodeToString(signature)
+
+	return headerBase64 + "." + payloadBase64 + "." + signatureBase64
+}
+
+// Helper method to create a JWT with basic claims for testing
+func (suite *JWTServiceTestSuite) createBasicJWT(aud, iss string, exp int64, nbf int64) string {
+	return suite.createJWTWithClaims("test-subject", aud, iss, exp, nbf, nil)
 }

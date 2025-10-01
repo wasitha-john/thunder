@@ -77,7 +77,7 @@ func (h *refreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 	*model.TokenResponseDTO, *model.ErrorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "RefreshTokenGrantHandler"))
 
-	if errResp := h.verifyRefreshTokenSignature(tokenRequest.RefreshToken, logger); errResp != nil {
+	if errResp := h.verifyRefreshToken(tokenRequest.RefreshToken, logger); errResp != nil {
 		return nil, errResp
 	}
 
@@ -270,9 +270,8 @@ func (h *refreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 	return nil
 }
 
-// verifyRefreshTokenSignature verifies the signature of the refresh token using the server's public key.
-func (h *refreshTokenGrantHandler) verifyRefreshTokenSignature(refreshToken string,
-	logger *log.Logger) *model.ErrorResponse {
+// verifyRefreshToken verifies the refresh token using the server's public key.
+func (h *refreshTokenGrantHandler) verifyRefreshToken(refreshToken string, logger *log.Logger) *model.ErrorResponse {
 	pubKey := h.JWTService.GetPublicKey()
 	if pubKey == nil {
 		logger.Error("Server public key is not available for JWT verification")
@@ -281,7 +280,7 @@ func (h *refreshTokenGrantHandler) verifyRefreshTokenSignature(refreshToken stri
 			ErrorDescription: "Server public key not available",
 		}
 	}
-	if err := h.JWTService.VerifyJWTSignature(refreshToken, pubKey); err != nil {
+	if err := h.JWTService.VerifyJWT(refreshToken, pubKey, "", ""); err != nil {
 		logger.Error("Failed to verify refresh token signature", log.Error(err))
 		return &model.ErrorResponse{
 			Error:            constants.ErrorInvalidRequest,
