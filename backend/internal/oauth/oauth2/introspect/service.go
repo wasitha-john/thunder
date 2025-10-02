@@ -22,7 +22,6 @@ package introspect
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/system/jwt"
@@ -55,7 +54,7 @@ func (s *TokenIntrospectionService) IntrospectToken(token, tokenTypeHint string)
 		return nil, errors.New("token is required")
 	}
 
-	if valid, err := s.verifyTokenSignature(logger, token); err != nil {
+	if valid, err := s.validateToken(logger, token); err != nil {
 		return nil, fmt.Errorf("failed to verify token signature: %w", err)
 	} else if !valid {
 		return &IntrospectResponse{
@@ -71,54 +70,24 @@ func (s *TokenIntrospectionService) IntrospectToken(token, tokenTypeHint string)
 		}, nil
 	}
 
-	if !s.isValidToken(payload) {
-		logger.Debug("Token is not valid based on its claims")
-		return &IntrospectResponse{
-			Active: false,
-		}, nil
-	}
+	// TODO: Add validations for token revocation and validity to be used by the resource server
+	//  who makes the introspection call when the support is implemented.
 
 	return s.prepareValidResponse(payload), nil
 }
 
-// verifyTokenSignature verifies the signature of the JWT token.
-func (s *TokenIntrospectionService) verifyTokenSignature(logger *log.Logger, token string) (bool, error) {
+// validateToken verifies the signature and validity of the token.
+func (s *TokenIntrospectionService) validateToken(logger *log.Logger, token string) (bool, error) {
 	pubKey := s.jwtService.GetPublicKey()
 	if pubKey == nil {
 		logger.Error("Server public key is not available for JWT verification")
 		return false, errors.New("public key is not available")
 	}
-	if err := s.jwtService.VerifyJWTSignature(token, pubKey); err != nil {
-		logger.Debug("Failed to verify token signature", log.Error(err))
+	if err := s.jwtService.VerifyJWT(token, pubKey, "", ""); err != nil {
+		logger.Debug("Failed to verify refresh token", log.Error(err))
 		return false, nil
 	}
 	return true, nil
-}
-
-// isValidToken checks if the token is valid based on its claims.
-func (s *TokenIntrospectionService) isValidToken(payload map[string]interface{}) bool {
-	// Check if the token is expired
-	exp, ok := payload["exp"].(float64)
-	if !ok {
-		return false
-	}
-	if int64(exp) < time.Now().Unix() {
-		return false
-	}
-
-	// Check if the token's validity period has started
-	nbf, ok := payload["nbf"].(float64)
-	if !ok {
-		return false
-	}
-	if int64(nbf) > time.Now().Unix() {
-		return false
-	}
-
-	// TODO: Add validations for token revocation and validity to be used by the resource server
-	//  making the introspection call when the support is implemented.
-
-	return true
 }
 
 // prepareValidResponse prepares the response for a valid token introspection.

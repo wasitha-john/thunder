@@ -111,7 +111,7 @@ func (s *TokenIntrospectionServiceTestSuite) TestIntrospectToken_InvalidSignatur
 
 	invalidToken := signingInput + "." + signatureEncoded
 
-	s.jwtServiceMock.On("VerifyJWTSignature", invalidToken, &s.privateKey.PublicKey).Return(
+	s.jwtServiceMock.On("VerifyJWT", invalidToken, &s.privateKey.PublicKey, "", "").Return(
 		errors.New("invalid signature"))
 
 	// Test with a token having invalid signature
@@ -219,12 +219,27 @@ func (s *TokenIntrospectionServiceTestSuite) TestIntrospectToken() {
 				token = tc.tokenFn(s)
 			}
 
-			// Mock VerifyJWTSignature based on test case
-			if tc.name == "InvalidTokenFormat" {
-				s.jwtServiceMock.On("VerifyJWTSignature", token, &s.privateKey.PublicKey).Return(
+			// Mock VerifyJWT based on test case
+			switch tc.name {
+			case "InvalidTokenFormat":
+				s.jwtServiceMock.On("VerifyJWT", token, &s.privateKey.PublicKey, "", "").Return(
 					errors.New("invalid token format"))
-			} else {
-				s.jwtServiceMock.On("VerifyJWTSignature", token, &s.privateKey.PublicKey).Return(nil)
+			case "ExpiredToken":
+				s.jwtServiceMock.On("VerifyJWT", token, &s.privateKey.PublicKey, "", "").Return(
+					errors.New("token has expired"))
+			case "FutureToken":
+				s.jwtServiceMock.On("VerifyJWT", token, &s.privateKey.PublicKey, "", "").Return(
+					errors.New("token not valid yet (nbf)"))
+			case "TokenWithMissingExpClaim":
+				s.jwtServiceMock.On("VerifyJWT", token, &s.privateKey.PublicKey, "", "").Return(
+					errors.New("missing or invalid 'exp' claim"))
+			case "TokenWithMissingNbfClaim":
+				s.jwtServiceMock.On("VerifyJWT", token, &s.privateKey.PublicKey, "", "").Return(
+					errors.New("missing or invalid 'nbf' claim"))
+			case "ValidToken", "TokenWithMissingOptionalClaims":
+				s.jwtServiceMock.On("VerifyJWT", token, &s.privateKey.PublicKey, "", "").Return(nil)
+			default:
+				s.jwtServiceMock.On("VerifyJWT", token, &s.privateKey.PublicKey, "", "").Return(nil)
 			}
 
 			response, err := s.introspectService.IntrospectToken(token, "")
