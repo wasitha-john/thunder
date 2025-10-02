@@ -50,12 +50,6 @@ func getNotificationStore() notificationStoreInterface {
 
 // createSender creates a new notification sender.
 func (s *notificationStore) createSender(sender common.NotificationSenderDTO) error {
-	for i := range sender.Properties {
-		if err := sender.Properties[i].Encrypt(); err != nil {
-			return fmt.Errorf("failed to encrypt secret properties: %w", err)
-		}
-	}
-
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
 			_, err := tx.Exec(queryCreateNotificationSender.Query, sender.Name, sender.ID,
@@ -65,8 +59,14 @@ func (s *notificationStore) createSender(sender common.NotificationSenderDTO) er
 	}
 	for _, prop := range sender.Properties {
 		queries = append(queries, func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(queryCreateNotificationSenderProperty.Query, sender.ID,
-				prop.Name, prop.Value, sysutils.BoolToNumString(prop.IsSecret), sysutils.BoolToNumString(prop.IsEncrypted()))
+			_, err := tx.Exec(
+				queryCreateNotificationSenderProperty.Query,
+				sender.ID,
+				prop.GetName(),
+				prop.GetStorageValue(),
+				sysutils.BoolToNumString(prop.IsSecret()),
+				sysutils.BoolToNumString(prop.IsEncrypted()),
+			)
 			return err
 		})
 	}
@@ -178,12 +178,6 @@ func (s *notificationStore) getSender(query dbmodel.DBQuery,
 
 // updateSender updates an existing notification sender.
 func (s *notificationStore) updateSender(id string, sender common.NotificationSenderDTO) error {
-	for i := range sender.Properties {
-		if err := sender.Properties[i].Encrypt(); err != nil {
-			return fmt.Errorf("failed to encrypt secret properties: %w", err)
-		}
-	}
-
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
 			_, err := tx.Exec(queryUpdateNotificationSender.Query, sender.Name, sender.Description,
@@ -197,8 +191,14 @@ func (s *notificationStore) updateSender(id string, sender common.NotificationSe
 	}
 	for _, prop := range sender.Properties {
 		queries = append(queries, func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(queryCreateNotificationSenderProperty.Query, id, prop.Name,
-				prop.Value, sysutils.BoolToNumString(prop.IsSecret), sysutils.BoolToNumString(prop.IsEncrypted()))
+			_, err := tx.Exec(
+				queryCreateNotificationSenderProperty.Query,
+				id,
+				prop.GetName(),
+				prop.GetStorageValue(),
+				sysutils.BoolToNumString(prop.IsSecret()),
+				sysutils.BoolToNumString(prop.IsEncrypted()),
+			)
 			return err
 		})
 	}
@@ -325,13 +325,8 @@ func buildSenderPropertiesFromResultSet(results []map[string]interface{}, id str
 		}
 		isEncrypted := sysutils.NumStringToBool(isEncryptedStr)
 
-		property := cmodels.Property{
-			Name:     propName,
-			Value:    propValue,
-			IsSecret: isSecret,
-		}
-		property.SetEncrypted(isEncrypted)
-		properties = append(properties, property)
+		property := cmodels.NewRawProperty(propName, propValue, isSecret, isEncrypted)
+		properties = append(properties, *property)
 	}
 
 	return properties, nil

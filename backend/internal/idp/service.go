@@ -238,17 +238,22 @@ func validateIDPProperties(properties []cmodels.Property) *serviceerror.ServiceE
 		return nil
 	}
 	for _, property := range properties {
-		if strings.TrimSpace(property.Name) == "" {
+		if strings.TrimSpace(property.GetName()) == "" {
 			return serviceerror.CustomServiceError(ErrorInvalidIDPProperty,
 				"property names cannot be empty")
 		}
-		if strings.TrimSpace(property.Value) == "" {
+		propertyValue, err := property.GetValue()
+		if err != nil {
 			return serviceerror.CustomServiceError(ErrorInvalidIDPProperty,
-				fmt.Sprintf("property value cannot be empty for property '%s'", property.Name))
+				fmt.Sprintf("failed to get value for property '%s': %v", property.GetName(), err))
 		}
-		if !slices.Contains(supportedIDPProperties, property.Name) {
+		if strings.TrimSpace(propertyValue) == "" {
+			return serviceerror.CustomServiceError(ErrorInvalidIDPProperty,
+				fmt.Sprintf("property value cannot be empty for property '%s'", property.GetName()))
+		}
+		if !slices.Contains(supportedIDPProperties, property.GetName()) {
 			return serviceerror.CustomServiceError(ErrorUnsupportedIDPProperty,
-				fmt.Sprintf("property '%s' is not supported", property.Name))
+				fmt.Sprintf("property '%s' is not supported", property.GetName()))
 		}
 	}
 	return nil

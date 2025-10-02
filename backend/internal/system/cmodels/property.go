@@ -27,10 +27,56 @@ import (
 
 // Property represents a generic property with Name, Value, IsSecret, and isEncrypted fields.
 type Property struct {
-	Name        string `json:"name"`
-	Value       string `json:"value"`
-	IsSecret    bool   `json:"is_secret"`
+	name        string
+	value       string
+	isSecret    bool
 	isEncrypted bool
+}
+
+// PropertyDTO represents a property for API communication.
+type PropertyDTO struct {
+	Name     string `json:"name"`
+	Value    string `json:"value"`
+	IsSecret bool   `json:"is_secret"`
+}
+
+// NewRawProperty creates a new Property instance with the given parameters.
+func NewRawProperty(name, value string, isSecret, isEncrypted bool) *Property {
+	return &Property{
+		name:        name,
+		value:       value,
+		isSecret:    isSecret,
+		isEncrypted: isEncrypted,
+	}
+}
+
+// NewProperty creates a new Property instance with the given parameters.
+// If isSecret is true, the value will be automatically encrypted.
+func NewProperty(name, value string, isSecret bool) (*Property, error) {
+	property := &Property{
+		name:        name,
+		value:       value,
+		isSecret:    isSecret,
+		isEncrypted: false,
+	}
+
+	if isSecret && value != "" {
+		if err := property.Encrypt(); err != nil {
+			return nil, fmt.Errorf("failed to encrypt property %s: %w", name, err)
+		}
+	}
+
+	return property, nil
+}
+
+// GetName returns the name of the property
+func (p *Property) GetName() string {
+	return p.name
+}
+
+// IsSecret returns whether the property is a secret
+func (p *Property) IsSecret() bool {
+	return p.isSecret
 }
 
 // IsEncrypted returns whether the property value is encrypted
@@ -43,16 +89,21 @@ func (p *Property) SetEncrypted(encrypted bool) {
 	p.isEncrypted = encrypted
 }
 
+// GetStorageValue returns the value as is
+func (p *Property) GetStorageValue() string {
+	return p.value
+}
+
 // GetValue returns the decrypted value if it's a secret, otherwise returns the plain value
 func (p *Property) GetValue() (string, error) {
-	if !p.IsSecret || !p.IsEncrypted() {
-		return p.Value, nil
+	if !p.IsSecret() || !p.IsEncrypted() {
+		return p.value, nil
 	}
 
 	cryptoService := crypto.GetCryptoService()
-	decryptedValue, err := cryptoService.DecryptString(p.Value)
+	decryptedValue, err := cryptoService.DecryptString(p.value)
 	if err != nil {
-		return "", fmt.Errorf("failed to decrypt secret property %s: %w", p.Name, err)
+		return "", fmt.Errorf("failed to decrypt secret property %s: %w", p.GetName(), err)
 	}
 
 	return decryptedValue, nil
@@ -60,17 +111,36 @@ func (p *Property) GetValue() (string, error) {
 
 // Encrypt encrypts the value if it's a secret property
 func (p *Property) Encrypt() error {
-	if !p.IsSecret || p.Value == "" || p.IsEncrypted() {
+	if !p.IsSecret() || p.value == "" || p.IsEncrypted() {
 		return nil
 	}
 
 	cryptoService := crypto.GetCryptoService()
-	encryptedValue, err := cryptoService.EncryptString(p.Value)
+	encryptedValue, err := cryptoService.EncryptString(p.value)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt secret property %s: %w", p.Name, err)
+		return fmt.Errorf("failed to encrypt secret property %s: %w", p.GetName(), err)
 	}
 
-	p.Value = encryptedValue
+	p.value = encryptedValue
 	p.SetEncrypted(true)
 	return nil
+}
+
+// ToProperty converts PropertyDTO to Property.
+func (dto *PropertyDTO) ToProperty() (*Property, error) {
+	return NewProperty(dto.Name, dto.Value, dto.IsSecret)
+}
+
+// ToPropertyDTO converts Property to PropertyDTO.
+func (p *Property) ToPropertyDTO() (*PropertyDTO, error) {
+	value, err := p.GetValue()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get value for property %s: %w", p.GetName(), err)
+	}
+
+	return &PropertyDTO{
+		Name:     p.GetName(),
+		Value:    value,
+		IsSecret: p.IsSecret(),
+	}, nil
 }

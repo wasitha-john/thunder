@@ -20,6 +20,7 @@ package idp
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -64,11 +65,18 @@ func (ih *IDPHandler) HandleIDPPostRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	properties, err := getSanitizedProperties(createRequest.Properties)
+	if err != nil {
+		logger.Error("Failed to sanitize properties", log.Error(err))
+		writeServiceErrorResponse(w, &ErrorInternalServerError, logger)
+		return
+	}
+
 	idpDTO := &IDPDTO{
 		Name:        sysutils.SanitizeString(createRequest.Name),
 		Description: sysutils.SanitizeString(createRequest.Description),
 		Type:        IDPType(sysutils.SanitizeString(createRequest.Type)),
-		Properties:  getSanitizedProperties(createRequest.Properties),
+		Properties:  properties,
 	}
 	createdIDP, svcErr := ih.idpService.CreateIdentityProvider(idpDTO)
 	if svcErr != nil {
@@ -76,7 +84,12 @@ func (ih *IDPHandler) HandleIDPPostRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	idpResponse := getIDPResponse(*createdIDP)
+	idpResponse, err := getIDPResponse(*createdIDP)
+	if err != nil {
+		logger.Error("Failed to convert IDP to response", log.String("idp", createdIDP.Name), log.Error(err))
+		writeServiceErrorResponse(w, &ErrorInternalServerError, logger)
+		return
+	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusCreated)
@@ -145,7 +158,12 @@ func (ih *IDPHandler) HandleIDPGetRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	idpResponse := getIDPResponse(*idp)
+	idpResponse, err := getIDPResponse(*idp)
+	if err != nil {
+		logger.Error("Failed to convert IDP to response", log.String("idp", idp.Name), log.Error(err))
+		writeServiceErrorResponse(w, &ErrorInternalServerError, logger)
+		return
+	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
@@ -195,11 +213,18 @@ func (ih *IDPHandler) HandleIDPPutRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	properties, err := getSanitizedProperties(updateRequest.Properties)
+	if err != nil {
+		logger.Error("Failed to sanitize properties", log.Error(err))
+		writeServiceErrorResponse(w, &ErrorInternalServerError, logger)
+		return
+	}
+
 	idpDTO := &IDPDTO{
 		Name:        sysutils.SanitizeString(updateRequest.Name),
 		Description: sysutils.SanitizeString(updateRequest.Description),
 		Type:        IDPType(sysutils.SanitizeString(updateRequest.Type)),
-		Properties:  getSanitizedProperties(updateRequest.Properties),
+		Properties:  properties,
 	}
 	idpDTO.ID = id
 
@@ -209,7 +234,12 @@ func (ih *IDPHandler) HandleIDPPutRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	idpResponse := getIDPResponse(*idp)
+	idpResponse, err := getIDPResponse(*idp)
+	if err != nil {
+		logger.Error("Failed to convert IDP to response", log.String("idp", idp.Name), log.Error(err))
+		writeServiceErrorResponse(w, &ErrorInternalServerError, logger)
+		return
+	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
@@ -287,21 +317,26 @@ func getClientErrorStatusCode(errorCode string) int {
 	}
 }
 
-// getSanitizedProperties sanitizes the properties of an identity provider.
-func getSanitizedProperties(properties []cmodels.Property) []cmodels.Property {
-	sanitizedProperties := make([]cmodels.Property, 0, len(properties))
-	for _, property := range properties {
-		sanitizedProperties = append(sanitizedProperties, cmodels.Property{
-			Name:     sysutils.SanitizeString(property.Name),
-			Value:    sysutils.SanitizeString(property.Value),
-			IsSecret: property.IsSecret,
-		})
+// getSanitizedProperties sanitizes a slice of PropertyDTOs and converts them to Properties.
+func getSanitizedProperties(propDTOs []cmodels.PropertyDTO) ([]cmodels.Property, error) {
+	properties := make([]cmodels.Property, 0, len(propDTOs))
+	for _, propDTO := range propDTOs {
+		sanitizedDTO := cmodels.PropertyDTO{
+			Name:     sysutils.SanitizeString(propDTO.Name),
+			Value:    sysutils.SanitizeString(propDTO.Value),
+			IsSecret: propDTO.IsSecret,
+		}
+		property, err := sanitizedDTO.ToProperty()
+		if err != nil {
+			return nil, err
+		}
+		properties = append(properties, *property)
 	}
-	return sanitizedProperties
+	return properties, nil
 }
 
 // getIDPResponse constructs the response for a identity provider.
-func getIDPResponse(idp IDPDTO) idpResponse {
+func getIDPResponse(idp IDPDTO) (idpResponse, error) {
 	returnIDP := idpResponse{
 		ID:          idp.ID,
 		Name:        idp.Name,
@@ -309,20 +344,25 @@ func getIDPResponse(idp IDPDTO) idpResponse {
 		Type:        string(idp.Type),
 	}
 
-	// Mask secret properties in the response.
-	idpProperties := make([]cmodels.Property, 0, len(idp.Properties))
+	// Convert Property to PropertyDTO and mask secret properties in the response.
+	idpProperties := make([]cmodels.PropertyDTO, 0, len(idp.Properties))
 	for _, property := range idp.Properties {
-		if property.IsSecret {
-			idpProperties = append(idpProperties, cmodels.Property{
-				Name:     property.Name,
+		if property.IsSecret() {
+			maskedProperty := &cmodels.PropertyDTO{
+				Name:     property.GetName(),
 				Value:    "******",
-				IsSecret: property.IsSecret,
-			})
+				IsSecret: property.IsSecret(),
+			}
+			idpProperties = append(idpProperties, *maskedProperty)
 		} else {
-			idpProperties = append(idpProperties, property)
+			propertyDTO, err := property.ToPropertyDTO()
+			if err != nil {
+				return idpResponse{}, fmt.Errorf("failed to convert property %s: %w", property.GetName(), err)
+			}
+			idpProperties = append(idpProperties, *propertyDTO)
 		}
 	}
 	returnIDP.Properties = idpProperties
 
-	return returnIDP
+	return returnIDP, nil
 }
