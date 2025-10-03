@@ -100,8 +100,11 @@ func validateTwilioProperties(properties []cmodels.Property) error {
 	sIDRegex := `^AC[0-9a-fA-F]{32}$`
 	sid := ""
 	for _, prop := range properties {
-		if prop.Name == common.TwilioPropKeyAccountSID {
-			sid = prop.Value
+		if prop.GetName() == common.TwilioPropKeyAccountSID {
+			propValue, err := prop.GetValue()
+			if err == nil {
+				sid = propValue
+			}
 			break
 		}
 	}
@@ -135,16 +138,20 @@ func validateCustomProperties(properties []cmodels.Property) error {
 	httpMethod := ""
 	contentType := ""
 	for _, prop := range properties {
-		if prop.Name == "" {
+		if prop.GetName() == "" {
 			return errors.New("properties must have non-empty name")
 		}
-		switch prop.Name {
+		propValue, err := prop.GetValue()
+		if err != nil {
+			continue
+		}
+		switch prop.GetName() {
 		case common.CustomPropKeyURL:
-			url = prop.Value
+			url = propValue
 		case common.CustomPropKeyHTTPMethod:
-			httpMethod = strings.ToUpper(prop.Value)
+			httpMethod = strings.ToUpper(propValue)
 		case common.CustomPropKeyContentType:
-			contentType = strings.ToUpper(prop.Value)
+			contentType = strings.ToUpper(propValue)
 		}
 	}
 	if url == "" {
@@ -163,11 +170,11 @@ func validateCustomProperties(properties []cmodels.Property) error {
 // validateSenderProperties validates the properties for a notification sender.
 func validateSenderProperties(properties []cmodels.Property, requiredProperties map[string]bool) error {
 	for _, prop := range properties {
-		if prop.Name == "" {
+		if prop.GetName() == "" {
 			return errors.New("properties must have non-empty name")
 		}
-		if _, exists := requiredProperties[prop.Name]; exists {
-			requiredProperties[prop.Name] = true
+		if _, exists := requiredProperties[prop.GetName()]; exists {
+			requiredProperties[prop.GetName()] = true
 		}
 	}
 

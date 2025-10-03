@@ -55,10 +55,10 @@ func NewTwilioClient(sender common.NotificationSenderDTO) (MessageClientInterfac
 	for _, prop := range sender.Properties {
 		value, err := prop.GetValue()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get property value for %s: %w", prop.Name, err)
+			return nil, fmt.Errorf("failed to get property value for %s: %w", prop.GetName(), err)
 		}
 
-		switch prop.Name {
+		switch prop.GetName() {
 		case common.TwilioPropKeyAccountSID:
 			client.accountSID = value
 		case common.TwilioPropKeyAuthToken:
@@ -66,7 +66,7 @@ func NewTwilioClient(sender common.NotificationSenderDTO) (MessageClientInterfac
 		case common.TwilioPropKeySenderID:
 			client.senderID = value
 		default:
-			logger.Warn("Unknown property for Twilio client", log.String("property", prop.Name))
+			logger.Warn("Unknown property for Twilio client", log.String("property", prop.GetName()))
 		}
 	}
 	client.url = fmt.Sprintf(twilioURL, client.accountSID)

@@ -43,7 +43,7 @@ func parseIDPConfig(idp *idp.IDPDTO) (*OAuthClientConfig, error) {
 
 	var scopesRaw string
 	for _, prop := range idp.Properties {
-		name := strings.TrimSpace(prop.Name)
+		name := strings.TrimSpace(prop.GetName())
 		value, err := prop.GetValue()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get value for property %s: %w", name, err)

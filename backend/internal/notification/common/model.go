@@ -48,19 +48,19 @@ type NotificationSenderDTO struct {
 
 // NotificationSenderRequest represents the request structure for creating or updating a notification sender.
 type NotificationSenderRequest struct {
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	Provider    string             `json:"provider"`
-	Properties  []cmodels.Property `json:"properties"`
+	Name        string                `json:"name"`
+	Description string                `json:"description"`
+	Provider    string                `json:"provider"`
+	Properties  []cmodels.PropertyDTO `json:"properties"`
 }
 
 // NotificationSenderResponse represents the response structure for a notification sender.
 type NotificationSenderResponse struct {
-	ID          string              `json:"id"`
-	Name        string              `json:"name"`
-	Description string              `json:"description"`
-	Provider    MessageProviderType `json:"provider"`
-	Properties  []cmodels.Property  `json:"properties"`
+	ID          string                `json:"id"`
+	Name        string                `json:"name"`
+	Description string                `json:"description"`
+	Provider    MessageProviderType   `json:"provider"`
+	Properties  []cmodels.PropertyDTO `json:"properties"`
 }
 
 // SendOTPRequest represents the request structure for sending an OTP.

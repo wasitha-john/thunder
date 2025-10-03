@@ -39,19 +39,19 @@ type BasicIDPDTO struct {
 
 // idpRequest represents the request payload for creating or updating an identity provider.
 type idpRequest struct {
-	Name        string             `json:"name"`
-	Description string             `json:"description,omitempty"`
-	Type        string             `json:"type"`
-	Properties  []cmodels.Property `json:"properties,omitempty"`
+	Name        string                `json:"name"`
+	Description string                `json:"description,omitempty"`
+	Type        string                `json:"type"`
+	Properties  []cmodels.PropertyDTO `json:"properties,omitempty"`
 }
 
 // idpResponse represents the response payload for an identity provider.
 type idpResponse struct {
-	ID          string             `json:"id"`
-	Name        string             `json:"name"`
-	Description string             `json:"description,omitempty"`
-	Type        string             `json:"type"`
-	Properties  []cmodels.Property `json:"properties,omitempty"`
+	ID          string                `json:"id"`
+	Name        string                `json:"name"`
+	Description string                `json:"description,omitempty"`
+	Type        string                `json:"type"`
+	Properties  []cmodels.PropertyDTO `json:"properties,omitempty"`
 }
 
 // basicIDPResponse represents a basic response payload for an identity provider.

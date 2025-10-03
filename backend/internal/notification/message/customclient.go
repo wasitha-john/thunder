@@ -55,10 +55,10 @@ func NewCustomClient(sender common.NotificationSenderDTO) (MessageClientInterfac
 	for _, prop := range sender.Properties {
 		value, err := prop.GetValue()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get property value for %s: %w", prop.Name, err)
+			return nil, fmt.Errorf("failed to get property value for %s: %w", prop.GetName(), err)
 		}
 
-		switch prop.Name {
+		switch prop.GetName() {
 		case common.CustomPropKeyURL:
 			client.url = value
 		case common.CustomPropKeyHTTPMethod:
@@ -72,7 +72,7 @@ func NewCustomClient(sender common.NotificationSenderDTO) (MessageClientInterfac
 		case common.CustomPropKeyContentType:
 			client.contentType = strings.ToUpper(value)
 		default:
-			logger.Warn("Unknown property for Custom client", log.String("property", prop.Name))
+			logger.Warn("Unknown property for Custom client", log.String("property", prop.GetName()))
 		}
 	}
 

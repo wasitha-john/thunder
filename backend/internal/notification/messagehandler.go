@@ -20,6 +20,7 @@ package notification
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -58,7 +59,13 @@ func (h *MessageNotificationSenderHandler) HandleSenderListRequest(w http.Respon
 
 	senderResponses := make([]common.NotificationSenderResponse, 0, len(senders))
 	for _, sender := range senders {
-		senderResponses = append(senderResponses, getSenderResponseFromDTO(&sender))
+		senderResponse, err := getSenderResponseFromDTO(&sender)
+		if err != nil {
+			logger.Error("Failed to convert sender to response", log.String("sender", sender.Name), log.Error(err))
+			h.handleError(w, logger, &ErrorInternalServerError, "Failed to convert sender to response: "+err.Error())
+			return
+		}
+		senderResponses = append(senderResponses, senderResponse)
 	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
@@ -81,7 +88,13 @@ func (h *MessageNotificationSenderHandler) HandleSenderCreateRequest(w http.Resp
 		return
 	}
 
-	senderDTO := getDTOFromSenderRequest(sender)
+	senderDTO, err := getDTOFromSenderRequest(sender)
+	if err != nil {
+		logger.Error("Failed to process sender request", log.Error(err))
+		h.handleError(w, logger, &ErrorInternalServerError, "Failed to process sender request: "+err.Error())
+		return
+	}
+
 	createdSender, svcErr := h.mgtService.CreateSender(*senderDTO)
 	if svcErr != nil {
 		if svcErr.Code == ErrorDuplicateSenderName.Code {
@@ -105,7 +118,12 @@ func (h *MessageNotificationSenderHandler) HandleSenderCreateRequest(w http.Resp
 		return
 	}
 
-	senderResponse := getSenderResponseFromDTO(createdSender)
+	senderResponse, err := getSenderResponseFromDTO(createdSender)
+	if err != nil {
+		logger.Error("Failed to convert sender to response", log.String("sender", createdSender.Name), log.Error(err))
+		h.handleError(w, logger, &ErrorInternalServerError, "Failed to convert sender to response: "+err.Error())
+		return
+	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusCreated)
@@ -147,7 +165,12 @@ func (h *MessageNotificationSenderHandler) HandleSenderGetRequest(w http.Respons
 		return
 	}
 
-	senderResponse := getSenderResponseFromDTO(sender)
+	senderResponse, err := getSenderResponseFromDTO(sender)
+	if err != nil {
+		logger.Error("Failed to convert sender to response", log.String("sender", sender.Name), log.Error(err))
+		h.handleError(w, logger, &ErrorInternalServerError, "Failed to convert sender to response: "+err.Error())
+		return
+	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
@@ -174,14 +197,25 @@ func (h *MessageNotificationSenderHandler) HandleSenderUpdateRequest(w http.Resp
 		return
 	}
 
-	senderDTO := getDTOFromSenderRequest(sender)
+	senderDTO, err := getDTOFromSenderRequest(sender)
+	if err != nil {
+		logger.Error("Failed to process sender request", log.Error(err))
+		h.handleError(w, logger, &ErrorInternalServerError, "Failed to process sender request: "+err.Error())
+		return
+	}
+
 	updatedSender, svcErr := h.mgtService.UpdateSender(id, *senderDTO)
 	if svcErr != nil {
 		h.handleError(w, logger, svcErr, "")
 		return
 	}
 
-	senderResponse := getSenderResponseFromDTO(updatedSender)
+	senderResponse, err := getSenderResponseFromDTO(updatedSender)
+	if err != nil {
+		logger.Error("Failed to convert sender to response", log.String("sender", updatedSender.Name), log.Error(err))
+		h.handleError(w, logger, &ErrorInternalServerError, "Failed to convert sender to response: "+err.Error())
+		return
+	}
 
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
@@ -318,19 +352,24 @@ func (h *MessageNotificationSenderHandler) validateSenderID(w http.ResponseWrite
 }
 
 // getDTOFromSenderRequest sanitizes the sender request and converts it to a NotificationSenderDTO.
-func getDTOFromSenderRequest(sender *common.NotificationSenderRequest) *common.NotificationSenderDTO {
+func getDTOFromSenderRequest(sender *common.NotificationSenderRequest) (*common.NotificationSenderDTO, error) {
 	name := sysutils.SanitizeString(sender.Name)
 	description := sysutils.SanitizeString(sender.Description)
 	providerStr := sysutils.SanitizeString(sender.Provider)
 
 	// Sanitize properties
 	properties := make([]cmodels.Property, 0, len(sender.Properties))
-	for _, prop := range sender.Properties {
-		properties = append(properties, cmodels.Property{
-			Name:     sysutils.SanitizeString(prop.Name),
-			Value:    sysutils.SanitizeString(prop.Value),
-			IsSecret: prop.IsSecret,
-		})
+	for _, propDTO := range sender.Properties {
+		sanitizedDTO := cmodels.PropertyDTO{
+			Name:     sysutils.SanitizeString(propDTO.Name),
+			Value:    sysutils.SanitizeString(propDTO.Value),
+			IsSecret: propDTO.IsSecret,
+		}
+		property, err := sanitizedDTO.ToProperty()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create property %s: %w", propDTO.Name, err)
+		}
+		properties = append(properties, *property)
 	}
 
 	senderDTO := common.NotificationSenderDTO{
@@ -340,11 +379,11 @@ func getDTOFromSenderRequest(sender *common.NotificationSenderRequest) *common.N
 		Provider:    common.MessageProviderType(providerStr),
 		Properties:  properties,
 	}
-	return &senderDTO
+	return &senderDTO, nil
 }
 
 // getSenderResponseFromDTO converts a NotificationSenderDTO to a response object, masking secret properties.
-func getSenderResponseFromDTO(sender *common.NotificationSenderDTO) common.NotificationSenderResponse {
+func getSenderResponseFromDTO(sender *common.NotificationSenderDTO) (common.NotificationSenderResponse, error) {
 	returnSender := common.NotificationSenderResponse{
 		ID:          sender.ID,
 		Name:        sender.Name,
@@ -353,19 +392,24 @@ func getSenderResponseFromDTO(sender *common.NotificationSenderDTO) common.Notif
 	}
 
 	// Mask secret properties in the response.
-	senderProperties := make([]cmodels.Property, 0, len(sender.Properties))
+	senderProperties := make([]cmodels.PropertyDTO, 0, len(sender.Properties))
 	for _, property := range sender.Properties {
-		if property.IsSecret {
-			senderProperties = append(senderProperties, cmodels.Property{
-				Name:     property.Name,
+		if property.IsSecret() {
+			maskedProperty := &cmodels.PropertyDTO{
+				Name:     property.GetName(),
 				Value:    "******",
-				IsSecret: property.IsSecret,
-			})
+				IsSecret: property.IsSecret(),
+			}
+			senderProperties = append(senderProperties, *maskedProperty)
 		} else {
-			senderProperties = append(senderProperties, property)
+			propertyDTO, err := property.ToPropertyDTO()
+			if err != nil {
+				return common.NotificationSenderResponse{}, fmt.Errorf("failed to convert property %s: %w", property.GetName(), err)
+			}
+			senderProperties = append(senderProperties, *propertyDTO)
 		}
 	}
 	returnSender.Properties = senderProperties
 
-	return returnSender
+	return returnSender, nil
 }

@@ -59,12 +59,6 @@ func (s *idpStore) CreateIdentityProvider(idp IDPDTO) error {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	for i := range idp.Properties {
-		if err := idp.Properties[i].Encrypt(); err != nil {
-			return fmt.Errorf("failed to encrypt secret properties: %w", err)
-		}
-	}
-
 	tx, err := dbClient.BeginTx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -82,10 +76,11 @@ func (s *idpStore) CreateIdentityProvider(idp IDPDTO) error {
 	if len(idp.Properties) > 0 {
 		queryValues := make([]string, 0, len(idp.Properties))
 		for _, property := range idp.Properties {
-			if property.Name != "" {
+			if property.GetName() != "" {
+				propertyValue := property.GetStorageValue()
 				queryValues = append(queryValues, fmt.Sprintf("('%s', '%s', '%s', '%s', '%s')",
-					idp.ID, property.Name, property.Value,
-					sysutils.BoolToNumString(property.IsSecret),
+					idp.ID, property.GetName(), propertyValue,
+					sysutils.BoolToNumString(property.IsSecret()),
 					sysutils.BoolToNumString(property.IsEncrypted())))
 			} else {
 				return fmt.Errorf("property name cannot be empty")
@@ -214,12 +209,6 @@ func (s *idpStore) UpdateIdentityProvider(idp *IDPDTO) error {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	for i := range idp.Properties {
-		if err := idp.Properties[i].Encrypt(); err != nil {
-			return fmt.Errorf("failed to encrypt secret properties: %w", err)
-		}
-	}
-
 	tx, err := dbClient.BeginTx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -248,10 +237,11 @@ func (s *idpStore) UpdateIdentityProvider(idp *IDPDTO) error {
 	if len(idp.Properties) > 0 {
 		queryValues := make([]string, 0, len(idp.Properties))
 		for _, property := range idp.Properties {
-			if property.Name != "" {
+			if property.GetName() != "" {
+				propertyValue := property.GetStorageValue()
 				queryValues = append(queryValues, fmt.Sprintf("('%s', '%s', '%s', '%s', '%s')",
-					idp.ID, property.Name, property.Value,
-					sysutils.BoolToNumString(property.IsSecret),
+					idp.ID, property.GetName(), propertyValue,
+					sysutils.BoolToNumString(property.IsSecret()),
 					sysutils.BoolToNumString(property.IsEncrypted())))
 			} else {
 				return fmt.Errorf("property name cannot be empty")
@@ -360,13 +350,8 @@ func buildIDPPropertiesFromResultSet(results []map[string]interface{}) ([]cmodel
 		}
 		isEncrypted := sysutils.NumStringToBool(isEncryptedStr)
 
-		property := cmodels.Property{
-			Name:     propertyName,
-			Value:    propertyValue,
-			IsSecret: isSecret,
-		}
-		property.SetEncrypted(isEncrypted)
-		properties = append(properties, property)
+		property := cmodels.NewRawProperty(propertyName, propertyValue, isSecret, isEncrypted)
+		properties = append(properties, *property)
 	}
 
 	return properties, nil

@@ -313,7 +313,7 @@ func getIDPConfigs(idpProperties []cmodels.Property, execConfig *model.ExecutorC
 			return "", "", "", nil, nil, err
 		}
 
-		switch prop.Name {
+		switch prop.GetName() {
 		case "client_id":
 			clientID = value
 		case "client_secret":
@@ -323,7 +323,7 @@ func getIDPConfigs(idpProperties []cmodels.Property, execConfig *model.ExecutorC
 		case "scopes":
 			scopesStr = value
 		default:
-			additionalParams[prop.Name] = value
+			additionalParams[prop.GetName()] = value
 		}
 	}
 	if clientID == "" || clientSecret == "" || redirectURI == "" || scopesStr == "" {
