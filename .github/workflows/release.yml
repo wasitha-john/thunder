@@ -543,6 +543,48 @@ jobs:
           # Handle other 'latest' references
           INTRO=$(echo "$INTRO" | sed "s/latest release of WSO2 Thunder/$RELEASE_VERSION release of WSO2 Thunder/g")
           QUICKSTART=$(echo "$QUICKSTART" | sed "s/latest release of WSO2 Thunder/$RELEASE_VERSION release of WSO2 Thunder/g")
+          
+          # Add direct download links for Thunder server - replace download instruction and example paragraph
+          # Create the Thunder downloads table with proper newlines using printf
+          THUNDER_TABLE=$(printf "%s\n%s\n%s\n%s\n%s\n%s\n%s" \
+            "| OS | Architecture | Download Link |" \
+            "|-------|-------------|-------------|" \
+            "| macOS | ARM64 (Apple Silicon) | [thunder-${RELEASE_VERSION}-macos-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-macos-arm64.zip) |" \
+            "| macOS | x64 (Intel) | [thunder-${RELEASE_VERSION}-macos-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-macos-x64.zip) |" \
+            "| Linux | x64 | [thunder-${RELEASE_VERSION}-linux-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-linux-x64.zip) |" \
+            "| Linux | ARM64 | [thunder-${RELEASE_VERSION}-linux-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-linux-arm64.zip) |" \
+            "| Windows | x64 | [thunder-${RELEASE_VERSION}-win-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-win-x64.zip) |")
+          
+          # Replace the download instruction with the table using awk for proper handling
+          QUICKSTART=$(echo "$QUICKSTART" | awk -v table="$THUNDER_TABLE" '
+            /Download `thunder-.*-<os>-<arch>\.zip` from the \[.*release\]/ {
+              print table
+              next
+            }
+            { print }
+          ')
+          
+          # Remove the example paragraph that follows (it's now redundant with the table)
+          QUICKSTART=$(echo "$QUICKSTART" | sed '/For example, if you are using a MacOS machine with a Apple Silicon (ARM64) processor, you would download `thunder-'"$RELEASE_VERSION"'-macos-arm64\.zip`\./d')
+          
+          # Create the Sample App downloads table with proper newlines using printf
+          SAMPLE_TABLE=$(printf "%s\n%s\n%s\n%s\n%s\n%s\n%s" \
+            "| OS | Architecture | Download Link |" \
+            "|-------|-------------|-------------|" \
+            "| macOS | ARM64 (Apple Silicon) | [sample-app-${RELEASE_VERSION}-macos-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-macos-arm64.zip) |" \
+            "| macOS | x64 (Intel) | [sample-app-${RELEASE_VERSION}-macos-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-macos-x64.zip) |" \
+            "| Linux | x64 | [sample-app-${RELEASE_VERSION}-linux-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-linux-x64.zip) |" \
+            "| Linux | ARM64 | [sample-app-${RELEASE_VERSION}-linux-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-linux-arm64.zip) |" \
+            "| Windows | x64 | [sample-app-${RELEASE_VERSION}-win-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-win-x64.zip) |")
+          
+          # Replace the sample app download instruction with the table using awk
+          QUICKSTART=$(echo "$QUICKSTART" | awk -v table="$SAMPLE_TABLE" '
+            /Download `sample-app-.*-<os>-<arch>\.zip` from the \[.*release\]/ {
+              print table
+              next
+            }
+            { print }
+          ')
 
           # Get changelog from Release Drafter
           CHANGELOG="${{ steps.changelog.outputs.body }}"
