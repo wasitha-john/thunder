@@ -372,7 +372,10 @@ To try out the Client Credentials flow, follow these steps:
                         "https://localhost:3000"
                     ],
                     "grant_types": [
-                        "client_credentials"
+                        "authorization_code"
+                    ],
+                    "response_types": [
+                        "code"
                     ],
                     "token_endpoint_auth_methods": [
                         "client_secret_basic",
