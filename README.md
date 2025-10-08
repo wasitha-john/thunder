@@ -339,7 +339,9 @@ To try out the Client Credentials flow, follow these steps:
 
 1. **Configure a Gate Client**
 
-    Authorization code flow requires you to setup a gate client to handle the login and error redirection. Add the following configurations to the `deployment.yaml` file to configure your own gate client.
+    Authorization code flow requires you to setup a gate client to handle the login and error redirection. You can implement your own client following the [sample gate client implementation](./frontend/apps/gate/).
+  
+    Add the following configurations to the `deployment.yaml` file to configure the gate client.
 
     ```yaml
     gate_client:
@@ -495,7 +497,10 @@ To try out the Client Credentials flow, follow these steps:
                         "https://localhost:3000"
                     ],
                     "grant_types": [
-                        "client_credentials"
+                        "authorization_code", "refresh_token"
+                    ],
+                    "response_types": [
+                        "code"
                     ],
                     "token_endpoint_auth_methods": [
                         "client_secret_basic",
