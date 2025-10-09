@@ -320,8 +320,6 @@ func StopServer() {
 	if serverCmd != nil {
 		// Send SIGTERM for graceful shutdown (allows coverage data to be written)
 		serverCmd.Process.Signal(syscall.SIGTERM)
-		// Wait a moment for coverage data to be flushed
-		time.Sleep(100 * time.Millisecond)
 		// Wait for the process to exit (with timeout)
 		done := make(chan error, 1)
 		go func() {
@@ -331,8 +329,8 @@ func StopServer() {
 		select {
 		case <-done:
 			// Process exited gracefully
-			// Give a bit more time for coverage files to be written
-			time.Sleep(200 * time.Millisecond)
+			// Give a brief moment for coverage files to be fully flushed to disk
+			time.Sleep(100 * time.Millisecond)
 		case <-time.After(3 * time.Second):
 			// Timeout - force kill
 			log.Println("Server did not stop gracefully, forcing kill...")

@@ -31,9 +31,9 @@ GOLANGCI_LINT_VERSION ?= v1.64.8
 $(TOOL_BIN):
 	mkdir -p $(TOOL_BIN)
 
-all: prepare clean test_unit build_with_coverage build
+all: prepare clean build_with_coverage build
 
-backend: prepare clean test_unit build_backend test_integration
+backend: prepare clean build_with_coverage build_backend
 
 prepare:
 	chmod +x build.sh
@@ -65,9 +65,14 @@ test_integration:
 	./build.sh test_integration $(OS) $(ARCH)
 
 build_with_coverage:
-	./build.sh clean $(OS) $(ARCH)
+	@echo "================================================================"
+	@echo "Building with coverage for unit and integration tests..."
+	@echo "================================================================"
+	./build.sh test_unit $(OS) $(ARCH)
 	ENABLE_COVERAGE=true ./build.sh build_backend $(OS) $(ARCH)
 	./build.sh test_integration $(OS) $(ARCH)
+	./build.sh merge_coverage $(OS) $(ARCH)
+	@echo "================================================================"
 
 run:
 	./build.sh run $(OS) $(ARCH)
@@ -102,7 +107,7 @@ help:
 	@echo "  build_samples                 - Build sample applications."
 	@echo "  test_unit                     - Run unit tests."
 	@echo "  test_integration              - Run integration tests."
-	@echo "  build_with_coverage  		   - Build with coverage flags and run tests to collect coverage data."
+	@echo "  build_with_coverage  		   - Build with coverage flags, run unit and integration tests, and generate combined coverage report."
 	@echo "  test                          - Run all tests (unit and integration)."
 	@echo "  run                           - Build and run the application locally."
 	@echo "  docker-build                  - Build single-arch Docker image with version tag."
