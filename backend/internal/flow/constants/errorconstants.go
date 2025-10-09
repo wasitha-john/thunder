@@ -244,3 +244,11 @@ var ErrorApplicationRetrievalServerError = serviceerror.ServiceError{
 	Error:            "Application retrieval error",
 	ErrorDescription: "Server error while retrieving application details",
 }
+
+// ErrorRetrievingContextInStore defines the error response for errors while retrieving the flow context in the store.
+var ErrorRetrievingContextInStore = serviceerror.ServiceError{
+	Code:             "FES-5021",
+	Type:             serviceerror.ServerErrorType,
+	Error:            "Something went wrong",
+	ErrorDescription: "Error retrieving flow context from the store",
+}

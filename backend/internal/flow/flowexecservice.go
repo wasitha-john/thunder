@@ -203,7 +203,7 @@ func (s *FlowExecService) loadContextFromStore(flowID string) (*model.EngineCont
 
 	dbModel, err := s.flowStore.GetFlowContext(flowID)
 	if err != nil {
-		return nil, &constants.ErrorUpdatingContextInStore
+		return nil, &constants.ErrorRetrievingContextInStore
 	}
 
 	if dbModel == nil {
