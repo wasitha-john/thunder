@@ -19,7 +19,14 @@
 // Package message defines the service and interfaces for sending messages.
 package message
 
-import "github.com/asgardeo/thunder/internal/notification/common"
+import (
+	"time"
+
+	"github.com/asgardeo/thunder/internal/notification/common"
+)
+
+// httpClientTimeout is the timeout duration for the HTTP client.
+const httpClientTimeout = 10 * time.Second
 
 // MessageClientInterface defines the client interface for sending messages.
 type MessageClientInterface interface {
