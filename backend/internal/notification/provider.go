@@ -19,6 +19,12 @@
 // Package notification contains the implementation of notification sender services.
 package notification
 
+import (
+	"github.com/asgardeo/thunder/internal/system/jwt"
+)
+
+// TODO: This provider need to be removed once all usages are migrated to dependency injection.
+
 // NotificationServiceProviderInterface defines the interface for the notification service provider
 type NotificationServiceProviderInterface interface {
 	GetNotificationSenderMgtService() NotificationSenderMgtSvcInterface
@@ -35,10 +41,12 @@ func NewNotificationSenderServiceProvider() NotificationServiceProviderInterface
 
 // GetNotificationSenderMgtService returns a notification sender management service instance
 func (mnp *NotificationServiceProvider) GetNotificationSenderMgtService() NotificationSenderMgtSvcInterface {
-	return getNotificationSenderMgtService()
+	return newNotificationSenderMgtService()
 }
 
 // GetOTPService returns an OTP service instance
 func (mnp *NotificationServiceProvider) GetOTPService() OTPServiceInterface {
-	return getOTPService()
+	mgtService := newNotificationSenderMgtService()
+	jwtService := jwt.GetJWTService()
+	return newOTPService(mgtService, jwtService)
 }

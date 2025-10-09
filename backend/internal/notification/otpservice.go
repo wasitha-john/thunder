@@ -45,11 +45,12 @@ type otpService struct {
 	notifSenderSvc NotificationSenderMgtSvcInterface
 }
 
-// getOTPService returns a new instance of OTPServiceInterface.
-func getOTPService() OTPServiceInterface {
+// newOTPService returns a new instance of OTPServiceInterface.
+func newOTPService(
+	notifSenderSvc NotificationSenderMgtSvcInterface, jwtSvc jwt.JWTServiceInterface) OTPServiceInterface {
 	return &otpService{
-		jwtSvc:         jwt.GetJWTService(),
-		notifSenderSvc: getNotificationSenderMgtService(),
+		jwtSvc:         jwtSvc,
+		notifSenderSvc: notifSenderSvc,
 	}
 }
 

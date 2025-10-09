@@ -41,8 +41,8 @@ type notificationStoreInterface interface {
 // notificationStore is the implementation of notificationStoreInterface.
 type notificationStore struct{}
 
-// getNotificationStore returns a new instance of notificationStoreInterface.
-func getNotificationStore() notificationStoreInterface {
+// newNotificationStore returns a new instance of notificationStoreInterface.
+func newNotificationStore() notificationStoreInterface {
 	return &notificationStore{}
 }
 

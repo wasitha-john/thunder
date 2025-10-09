@@ -32,13 +32,10 @@ import (
 	"time"
 
 	"github.com/asgardeo/thunder/internal/cert"
-	"github.com/asgardeo/thunder/internal/flow"
 	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
-	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/internal/system/managers"
 )
 
 // shutdownTimeout defines the timeout duration for graceful shutdown.
@@ -54,12 +51,17 @@ func main() {
 		logger.Fatal("Failed to initialize configurations")
 	}
 
-	mux := initMultiplexer(logger)
+	// Initialize the cache manager.
+	initCacheManager(logger)
+
+	// Create a new HTTP multiplexer.
+	mux := http.NewServeMux()
 	if mux == nil {
 		logger.Fatal("Failed to initialize multiplexer")
 	}
 
-	initFlowService(logger)
+	// Register the services.
+	registerServices(mux)
 
 	// Setup signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -116,38 +118,7 @@ func initThunderConfigurations(logger *log.Logger, thunderHome string) *config.C
 		logger.Fatal("Failed to initialize thunder runtime", log.Error(err))
 	}
 
-	// Initialize the cache manager.
-	initCacheManager(logger)
-
-	// Load the server's private key for signing JWTs.
-	jwtService := jwt.GetJWTService()
-	if err := jwtService.Init(); err != nil {
-		logger.Fatal("Failed to load private key", log.Error(err))
-	}
-
 	return cfg
-}
-
-// initMultiplexer initializes the HTTP multiplexer and registers the services.
-func initMultiplexer(logger *log.Logger) *http.ServeMux {
-	mux := http.NewServeMux()
-	serviceManager := managers.NewServiceManager(mux)
-
-	// Register the services.
-	err := serviceManager.RegisterServices()
-	if err != nil {
-		logger.Fatal("Failed to register the services", log.Error(err))
-	}
-
-	return mux
-}
-
-// initFlowService initializes the flow service.
-func initFlowService(logger *log.Logger) {
-	svc := flow.GetFlowExecService()
-	if err := svc.Init(); err != nil {
-		logger.Fatal("Failed to initialize flow service", log.Error(err))
-	}
 }
 
 // initCacheManager initializes the cache manager with centralized cleanup.

@@ -16,42 +16,32 @@
  * under the License.
  */
 
-// Package services handles the registration of routes and services for the system.
-//
-//nolint:dupl // Ignoring false positive duplicate code
-package services
+// Package idp handles the identity provider management operations.
+package idp
 
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/idp"
 	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
-// IDPService is the service for identity provider management operations.
-type IDPService struct {
-	idpHandler *idp.IDPHandler
-}
-
-// NewIDPService creates a new instance of IDPService.
-func NewIDPService(mux *http.ServeMux) ServiceInterface {
-	instance := &IDPService{
-		idpHandler: idp.NewIDPHandler(),
-	}
-	instance.RegisterRoutes(mux)
-
-	return instance
+// Initialize initializes the IDP service and registers its routes.
+func Initialize(mux *http.ServeMux) IDPServiceInterface {
+	idpService := newIDPService()
+	idpHandler := newIDPHandler(idpService)
+	registerRoutes(mux, idpHandler)
+	return idpService
 }
 
 // RegisterRoutes registers the routes for identity provider operations.
-func (s *IDPService) RegisterRoutes(mux *http.ServeMux) {
+func registerRoutes(mux *http.ServeMux, idpHandler *IDPHandler) {
 	opts1 := middleware.CORSOptions{
 		AllowedMethods:   "GET, POST",
 		AllowedHeaders:   "Content-Type, Authorization",
 		AllowCredentials: true,
 	}
-	mux.HandleFunc(middleware.WithCORS("POST /identity-providers", s.idpHandler.HandleIDPPostRequest, opts1))
-	mux.HandleFunc(middleware.WithCORS("GET /identity-providers", s.idpHandler.HandleIDPListRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("POST /identity-providers", idpHandler.HandleIDPPostRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("GET /identity-providers", idpHandler.HandleIDPListRequest, opts1))
 	mux.HandleFunc(middleware.WithCORS("OPTIONS /identity-providers",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
@@ -63,11 +53,11 @@ func (s *IDPService) RegisterRoutes(mux *http.ServeMux) {
 		AllowCredentials: true,
 	}
 	mux.HandleFunc(middleware.WithCORS("GET /identity-providers/{id}",
-		s.idpHandler.HandleIDPGetRequest, opts2))
+		idpHandler.HandleIDPGetRequest, opts2))
 	mux.HandleFunc(middleware.WithCORS("PUT /identity-providers/{id}",
-		s.idpHandler.HandleIDPPutRequest, opts2))
+		idpHandler.HandleIDPPutRequest, opts2))
 	mux.HandleFunc(middleware.WithCORS("DELETE /identity-providers/{id}",
-		s.idpHandler.HandleIDPDeleteRequest, opts2))
+		idpHandler.HandleIDPDeleteRequest, opts2))
 	mux.HandleFunc(middleware.WithCORS("OPTIONS /identity-providers/{id}",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)

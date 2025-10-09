@@ -46,11 +46,18 @@ type idpService struct {
 	idpStore idpStoreInterface
 }
 
-// NewIDPService creates a new instance of IdPService.
-func NewIDPService() IDPServiceInterface {
+// newIDPService creates a new instance of IdPService.
+func newIDPService() IDPServiceInterface {
 	return &idpService{
 		idpStore: newIDPStore(),
 	}
+}
+
+// NewIDPService creates a new instance of IdPService for external use.
+// Deprecated: Use dependency injection via Initialize() for new code.
+// TODO: Remove this once all usages are migrated to dependency injection.
+func NewIDPService() IDPServiceInterface {
+	return newIDPService()
 }
 
 // CreateIdentityProvider creates a new Identity Provider.

@@ -16,41 +16,36 @@
  * under the License.
  */
 
-package services
+// Package notification handles the initialization of notification services.
+package notification
 
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/notification"
+	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
-// NotificationSenderService provides HTTP endpoints for managing message notification senders.
-type NotificationSenderService struct {
-	messageNotificationHandler *notification.MessageNotificationSenderHandler
+// Initialize creates and configures the notification service components.
+func Initialize(mux *http.ServeMux, jwtService jwt.JWTServiceInterface) NotificationSenderMgtSvcInterface {
+	mgtService := newNotificationSenderMgtService()
+	otpService := newOTPService(mgtService, jwtService)
+	handler := newMessageNotificationSenderHandler(mgtService, otpService)
+	registerRoutes(mux, handler)
+	return mgtService
 }
 
-// NewNotificationSenderService creates a new instance of NotificationSenderService.
-func NewNotificationSenderService(mux *http.ServeMux) ServiceInterface {
-	instance := &NotificationSenderService{
-		messageNotificationHandler: notification.NewMessageNotificationSenderHandler(),
-	}
-	instance.RegisterRoutes(mux)
-
-	return instance
-}
-
-// RegisterRoutes registers the HTTP routes for the NotificationSenderService.
-func (s *NotificationSenderService) RegisterRoutes(mux *http.ServeMux) {
+// registerRoutes registers the HTTP routes for notification services.
+func registerRoutes(mux *http.ServeMux, handler *MessageNotificationSenderHandler) {
 	opts1 := middleware.CORSOptions{
 		AllowedMethods:   "GET, POST",
 		AllowedHeaders:   "Content-Type, Authorization",
 		AllowCredentials: true,
 	}
 	mux.HandleFunc(middleware.WithCORS("GET /notification-senders/message",
-		s.messageNotificationHandler.HandleSenderListRequest, opts1))
+		handler.HandleSenderListRequest, opts1))
 	mux.HandleFunc(middleware.WithCORS("POST /notification-senders/message",
-		s.messageNotificationHandler.HandleSenderCreateRequest, opts1))
+		handler.HandleSenderCreateRequest, opts1))
 
 	opts2 := middleware.CORSOptions{
 		AllowedMethods:   "GET, PUT, DELETE",
@@ -58,11 +53,11 @@ func (s *NotificationSenderService) RegisterRoutes(mux *http.ServeMux) {
 		AllowCredentials: true,
 	}
 	mux.HandleFunc(middleware.WithCORS("GET /notification-senders/message/{id}",
-		s.messageNotificationHandler.HandleSenderGetRequest, opts2))
+		handler.HandleSenderGetRequest, opts2))
 	mux.HandleFunc(middleware.WithCORS("PUT /notification-senders/message/{id}",
-		s.messageNotificationHandler.HandleSenderUpdateRequest, opts2))
+		handler.HandleSenderUpdateRequest, opts2))
 	mux.HandleFunc(middleware.WithCORS("DELETE /notification-senders/message/{id}",
-		s.messageNotificationHandler.HandleSenderDeleteRequest, opts2))
+		handler.HandleSenderDeleteRequest, opts2))
 
 	opts3 := middleware.CORSOptions{
 		AllowedMethods:   "POST",
@@ -70,7 +65,7 @@ func (s *NotificationSenderService) RegisterRoutes(mux *http.ServeMux) {
 		AllowCredentials: true,
 	}
 	mux.HandleFunc(middleware.WithCORS("POST /notification-senders/otp/send",
-		s.messageNotificationHandler.HandleOTPSendRequest, opts3))
+		handler.HandleOTPSendRequest, opts3))
 	mux.HandleFunc(middleware.WithCORS("POST /notification-senders/otp/verify",
-		s.messageNotificationHandler.HandleOTPVerifyRequest, opts3))
+		handler.HandleOTPVerifyRequest, opts3))
 }
