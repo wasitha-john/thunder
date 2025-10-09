@@ -22,21 +22,10 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
 )
-
-var originCache cache.CacheInterface[[]string]
-
-// getOriginCache returns the origin cache, initializing it if needed.
-func getOriginCache() cache.CacheInterface[[]string] {
-	if originCache == nil {
-		originCache = cache.GetCache[[]string]("OriginCache")
-	}
-	return originCache
-}
 
 // CORSOptions represents the CORS configuration for HTTP requests.
 type CORSOptions struct {
@@ -80,32 +69,19 @@ func applyCORSHeaders(w http.ResponseWriter, r *http.Request, opts CORSOptions) 
 	}
 }
 
-// getAllowedOrigins retrieves the list of allowed origins from configuration with caching.
+// getAllowedOrigins retrieves the list of allowed origins from configuration.
 func getAllowedOrigins() []string {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "CORSMiddleware"))
 
-	// TODO: Revisit this when adding support for the organization concept.
-	cacheKey := cache.CacheKey{
-		Key: "origins",
-	}
-	originList, ok := getOriginCache().Get(cacheKey)
+	// Get origins from configuration
+	runtimeConfig := config.GetThunderRuntime()
+	originList := runtimeConfig.Config.CORS.AllowedOrigins
 
-	if !ok {
-		// Get origins from configuration
-		runtimeConfig := config.GetThunderRuntime()
-		originList = runtimeConfig.Config.CORS.AllowedOrigins
-
-		if len(originList) == 0 {
-			logger.Debug("No allowed origins configured in deployment.yaml")
-			originList = []string{} // Return empty list if no origins configured
-		} else {
-			logger.Debug("Using allowed origins from configuration", log.Int("count", len(originList)))
-		}
-
-		if err := getOriginCache().Set(cacheKey, originList); err != nil {
-			logger.Error("Failed to cache allowed origins", log.Error(err))
-		}
+	if len(originList) == 0 {
+		logger.Debug("No allowed origins configured in deployment.yaml")
+		return []string{} // Return empty list if no origins configured
 	}
 
+	logger.Debug("Using allowed origins from configuration", log.Int("count", len(originList)))
 	return originList
 }

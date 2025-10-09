@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/config"
 )
 
@@ -39,27 +38,13 @@ func TestCORSMiddlewareTestSuite(t *testing.T) {
 }
 
 func (suite *CORSMiddlewareTestSuite) SetupTest() {
-	// Initialize runtime config with cache settings
+	// Initialize runtime config
 	cfg := &config.Config{
 		CORS: config.CORSConfig{
 			AllowedOrigins: []string{"https://example.com", "https://test.com"},
 		},
-		Cache: config.CacheConfig{
-			CleanupInterval: 300, // 5 minutes
-		},
 	}
 	_ = config.InitializeThunderRuntime("/tmp", cfg)
-
-	// Initialize cache
-	cm := cache.GetCacheManager()
-	cm.Init()
-
-	// Reset the origin cache for this test
-	originCache = nil
-
-	// Clear the origin cache before each test
-	cacheKey := cache.CacheKey{Key: "origins"}
-	_ = getOriginCache().Delete(cacheKey)
 }
 
 func (suite *CORSMiddlewareTestSuite) TestWithCORS_ValidOrigin() {
@@ -170,10 +155,6 @@ func (suite *CORSMiddlewareTestSuite) TestWithCORS_WithoutCredentials() {
 }
 
 func (suite *CORSMiddlewareTestSuite) TestGetAllowedOrigins() {
-	// Ensure cache is cleared before test
-	cacheKey := cache.CacheKey{Key: "origins"}
-	_ = getOriginCache().Delete(cacheKey)
-
 	// Call should return configured origins
 	origins := getAllowedOrigins()
 	assert.Len(suite.T(), origins, 2)
