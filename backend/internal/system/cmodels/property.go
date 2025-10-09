@@ -22,7 +22,6 @@ package cmodels
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/asgardeo/thunder/internal/system/crypto"
 )
@@ -39,15 +38,6 @@ type PropertyDTO struct {
 	Name     string `json:"name"`
 	Value    string `json:"value"`
 	IsSecret bool   `json:"is_secret"`
-}
-
-// NewRawProperty creates a new Property instance with the given parameters.
-func NewRawProperty(name, value string, isSecret bool) *Property {
-	return &Property{
-		name:     name,
-		value:    value,
-		isSecret: isSecret,
-	}
 }
 
 // NewProperty creates a new Property instance with the given parameters.
@@ -109,38 +99,28 @@ func (p *Property) Encrypt() error {
 	return nil
 }
 
-// toJSONString returns the property as a JSON string
-func (p *Property) toJSONString() (string, error) {
-	propertyData := map[string]interface{}{
-		"name":      p.GetName(),
-		"value":     p.value,
-		"is_secret": p.IsSecret(),
-	}
-
-	jsonBytes, err := json.Marshal(propertyData)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal property to JSON: %w", err)
-	}
-
-	return string(jsonBytes), nil
-}
-
 // SerializePropertiesToJSONArray serializes an array of properties to a JSON array string
 func SerializePropertiesToJSONArray(properties []Property) (string, error) {
 	if len(properties) == 0 {
 		return "", nil
 	}
 
-	propertiesArray := make([]string, 0, len(properties))
+	propertyDTOs := make([]PropertyDTO, 0, len(properties))
 	for _, property := range properties {
-		propertyJSON, err := property.toJSONString()
-		if err != nil {
-			return "", fmt.Errorf("failed to serialize property %s to JSON: %w", property.GetName(), err)
+		propertyDTO := PropertyDTO{
+			Name:     property.GetName(),
+			Value:    property.value,
+			IsSecret: property.IsSecret(),
 		}
-		propertiesArray = append(propertiesArray, propertyJSON)
+		propertyDTOs = append(propertyDTOs, propertyDTO)
 	}
 
-	return "[" + strings.Join(propertiesArray, ",") + "]", nil
+	jsonBytes, err := json.Marshal(propertyDTOs)
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize properties to JSON: %w", err)
+	}
+
+	return string(jsonBytes), nil
 }
 
 // DeserializePropertiesFromJSON deserializes an array of properties from JSON string
@@ -149,30 +129,19 @@ func DeserializePropertiesFromJSON(propertiesJSON string) ([]Property, error) {
 		return []Property{}, nil
 	}
 
-	var propertiesArray []map[string]interface{}
-	if err := json.Unmarshal([]byte(propertiesJSON), &propertiesArray); err != nil {
+	var propertyDTOs []PropertyDTO
+	if err := json.Unmarshal([]byte(propertiesJSON), &propertyDTOs); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal properties JSON: %w", err)
 	}
 
-	properties := make([]Property, 0, len(propertiesArray))
-	for _, propertyData := range propertiesArray {
-		name, ok := propertyData["name"].(string)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse property name as string")
+	properties := make([]Property, 0, len(propertyDTOs))
+	for _, propertyDTO := range propertyDTOs {
+		property := Property{
+			name:     propertyDTO.Name,
+			value:    propertyDTO.Value,
+			isSecret: propertyDTO.IsSecret,
 		}
-
-		value, ok := propertyData["value"].(string)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse property value as string")
-		}
-
-		isSecret, ok := propertyData["is_secret"].(bool)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse property is_secret as bool")
-		}
-
-		property := NewRawProperty(name, value, isSecret)
-		properties = append(properties, *property)
+		properties = append(properties, property)
 	}
 
 	return properties, nil

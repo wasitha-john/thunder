@@ -56,12 +56,6 @@ func (s *idpStore) CreateIdentityProvider(idp IDPDTO) error {
 		return fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	for _, property := range idp.Properties {
-		if property.GetName() == "" {
-			return fmt.Errorf("property name cannot be empty")
-		}
-	}
-
 	var propertiesJSON string
 	if len(idp.Properties) > 0 {
 		propertiesJSON, err = cmodels.SerializePropertiesToJSONArray(idp.Properties)
@@ -162,12 +156,6 @@ func (s *idpStore) UpdateIdentityProvider(idp *IDPDTO) error {
 	dbClient, err := s.dbProvider.GetDBClient("identity")
 	if err != nil {
 		return fmt.Errorf("failed to get database client: %w", err)
-	}
-
-	for _, property := range idp.Properties {
-		if property.GetName() == "" {
-			return fmt.Errorf("property name cannot be empty")
-		}
 	}
 
 	var propertiesJSON string
