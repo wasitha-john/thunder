@@ -98,7 +98,7 @@ func (c *TwilioClient) SendSMS(sms common.SMSData) error {
 	req.SetBasicAuth(c.accountSID, c.authToken)
 
 	// Send the request
-	client := httpservice.NewHTTPClient()
+	client := httpservice.NewHTTPClientWithTimeout(httpClientTimeout)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send HTTP request: %w", err)
