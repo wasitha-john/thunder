@@ -20,17 +20,18 @@
 package cmodels
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/asgardeo/thunder/internal/system/crypto"
 )
 
-// Property represents a generic property with Name, Value, IsSecret, and isEncrypted fields.
+// Property represents a generic property with name, value, and isSecret fields.
 type Property struct {
-	name        string
-	value       string
-	isSecret    bool
-	isEncrypted bool
+	name     string
+	value    string
+	isSecret bool
 }
 
 // PropertyDTO represents a property for API communication.
@@ -41,12 +42,11 @@ type PropertyDTO struct {
 }
 
 // NewRawProperty creates a new Property instance with the given parameters.
-func NewRawProperty(name, value string, isSecret, isEncrypted bool) *Property {
+func NewRawProperty(name, value string, isSecret bool) *Property {
 	return &Property{
-		name:        name,
-		value:       value,
-		isSecret:    isSecret,
-		isEncrypted: isEncrypted,
+		name:     name,
+		value:    value,
+		isSecret: isSecret,
 	}
 }
 
@@ -54,10 +54,9 @@ func NewRawProperty(name, value string, isSecret, isEncrypted bool) *Property {
 // If isSecret is true, the value will be automatically encrypted.
 func NewProperty(name, value string, isSecret bool) (*Property, error) {
 	property := &Property{
-		name:        name,
-		value:       value,
-		isSecret:    isSecret,
-		isEncrypted: false,
+		name:     name,
+		value:    value,
+		isSecret: isSecret,
 	}
 
 	if isSecret && value != "" {
@@ -79,24 +78,9 @@ func (p *Property) IsSecret() bool {
 	return p.isSecret
 }
 
-// IsEncrypted returns whether the property value is encrypted
-func (p *Property) IsEncrypted() bool {
-	return p.isEncrypted
-}
-
-// SetEncrypted sets the encryption state of the property
-func (p *Property) SetEncrypted(encrypted bool) {
-	p.isEncrypted = encrypted
-}
-
-// GetStorageValue returns the value as is
-func (p *Property) GetStorageValue() string {
-	return p.value
-}
-
 // GetValue returns the decrypted value if it's a secret, otherwise returns the plain value
 func (p *Property) GetValue() (string, error) {
-	if !p.IsSecret() || !p.IsEncrypted() {
+	if !p.IsSecret() {
 		return p.value, nil
 	}
 
@@ -111,7 +95,7 @@ func (p *Property) GetValue() (string, error) {
 
 // Encrypt encrypts the value if it's a secret property
 func (p *Property) Encrypt() error {
-	if !p.IsSecret() || p.value == "" || p.IsEncrypted() {
+	if !p.IsSecret() || p.value == "" {
 		return nil
 	}
 
@@ -122,8 +106,76 @@ func (p *Property) Encrypt() error {
 	}
 
 	p.value = encryptedValue
-	p.SetEncrypted(true)
 	return nil
+}
+
+// toJSONString returns the property as a JSON string
+func (p *Property) toJSONString() (string, error) {
+	propertyData := map[string]interface{}{
+		"name":      p.GetName(),
+		"value":     p.value,
+		"is_secret": p.IsSecret(),
+	}
+
+	jsonBytes, err := json.Marshal(propertyData)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal property to JSON: %w", err)
+	}
+
+	return string(jsonBytes), nil
+}
+
+// SerializePropertiesToJSONArray serializes an array of properties to a JSON array string
+func SerializePropertiesToJSONArray(properties []Property) (string, error) {
+	if len(properties) == 0 {
+		return "", nil
+	}
+
+	propertiesArray := make([]string, 0, len(properties))
+	for _, property := range properties {
+		propertyJSON, err := property.toJSONString()
+		if err != nil {
+			return "", fmt.Errorf("failed to serialize property %s to JSON: %w", property.GetName(), err)
+		}
+		propertiesArray = append(propertiesArray, propertyJSON)
+	}
+
+	return "[" + strings.Join(propertiesArray, ",") + "]", nil
+}
+
+// DeserializePropertiesFromJSON deserializes an array of properties from JSON string
+func DeserializePropertiesFromJSON(propertiesJSON string) ([]Property, error) {
+	if propertiesJSON == "" {
+		return []Property{}, nil
+	}
+
+	var propertiesArray []map[string]interface{}
+	if err := json.Unmarshal([]byte(propertiesJSON), &propertiesArray); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal properties JSON: %w", err)
+	}
+
+	properties := make([]Property, 0, len(propertiesArray))
+	for _, propertyData := range propertiesArray {
+		name, ok := propertyData["name"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse property name as string")
+		}
+
+		value, ok := propertyData["value"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse property value as string")
+		}
+
+		isSecret, ok := propertyData["is_secret"].(bool)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse property is_secret as bool")
+		}
+
+		property := NewRawProperty(name, value, isSecret)
+		properties = append(properties, *property)
+	}
+
+	return properties, nil
 }
 
 // ToProperty converts PropertyDTO to Property.
