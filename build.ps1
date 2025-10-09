@@ -193,10 +193,17 @@ function Build-Backend {
     $env:GOARCH = $GO_ARCH
     $env:CGO_ENABLED = "0"
 
+    # Check if coverage build is requested via ENABLE_COVERAGE environment variable
+    $buildArgs = @('build', '-x')
+    if ($env:ENABLE_COVERAGE -eq "true") {
+        Write-Host "Building with coverage instrumentation enabled..."
+        $buildArgs += @('-cover', '-coverpkg=./...')
+    }
+
     # Construct ldflags safely and pass as an argument array to avoid PowerShell splitting
     $ldflags = "-X main.version=$VERSION -X main.buildDate=$buildDate"
     $outputPath = "../$BUILD_DIR/$output_binary"
-    $buildArgs = @('build', '-x', '-ldflags', $ldflags, '-o', $outputPath, './cmd/server')
+    $buildArgs += @('-ldflags', $ldflags, '-o', $outputPath, './cmd/server')
 
     Write-Host "Executing: go $($buildArgs -join ' ')"
 
@@ -534,10 +541,54 @@ function Test-Integration {
     
     Push-Location $SCRIPT_DIR
     try {
+        # Set up coverage directory for integration tests
+        $coverage_dir = Join-Path (Get-Location) "$OUTPUT_DIR\.test\integration"
+        New-Item -Path $coverage_dir -ItemType Directory -Force | Out-Null
+        
+        # Export coverage directory for the server binary to use
+        $env:GOCOVERDIR = $coverage_dir
+        
+        Write-Host "Coverage data will be collected in: $coverage_dir"
         & go run -C ./tests/integration ./main.go
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Integration tests failed with exit code $LASTEXITCODE"
-            exit 1
+        $test_exit_code = $LASTEXITCODE
+        
+        # Process coverage data if tests passed or failed
+        if ((Test-Path $coverage_dir) -and ((Get-ChildItem $coverage_dir -ErrorAction SilentlyContinue).Count -gt 0)) {
+            Write-Host "================================================================"
+            Write-Host "Processing integration test coverage..."
+            
+            # Convert binary coverage data to text format
+            Push-Location $BACKEND_BASE_DIR
+            try {
+                & go tool covdata textfmt -i="$coverage_dir" -o="../$TARGET_DIR/coverage_integration.out"
+                Write-Host "Integration test coverage report generated in: $TARGET_DIR/coverage_integration.out"
+                
+                # Generate HTML coverage report
+                & go tool cover -html="../$TARGET_DIR/coverage_integration.out" -o="../$TARGET_DIR/coverage_integration.html"
+                Write-Host "Integration test coverage HTML report generated in: $TARGET_DIR/coverage_integration.html"
+                
+                # Display coverage summary
+                Write-Host ""
+                Write-Host "================================================================"
+                Write-Host "Coverage Summary:"
+                & go tool cover -func="../$TARGET_DIR/coverage_integration.out" | Select-Object -Last 1
+                Write-Host "================================================================"
+                Write-Host ""
+            }
+            finally {
+                Pop-Location
+            }
+        }
+        else {
+            Write-Host "================================================================"
+            Write-Host "No coverage data collected"
+        }
+        
+        # Exit with the test exit code
+        if ($test_exit_code -ne 0) {
+            Write-Host "================================================================"
+            Write-Host "Integration tests failed with exit code: $test_exit_code"
+            exit $test_exit_code
         }
     }
     finally {

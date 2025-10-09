@@ -31,8 +31,7 @@ GOLANGCI_LINT_VERSION ?= v1.64.8
 $(TOOL_BIN):
 	mkdir -p $(TOOL_BIN)
 
-# Default target
-all: prepare clean test_unit build test_integration
+all: prepare clean test_unit build_with_coverage build
 
 backend: prepare clean test_unit build_backend test_integration
 
@@ -63,6 +62,11 @@ test_unit:
 	./build.sh test_unit $(OS) $(ARCH)
 
 test_integration:
+	./build.sh test_integration $(OS) $(ARCH)
+
+build_with_coverage:
+	./build.sh clean $(OS) $(ARCH)
+	ENABLE_COVERAGE=true ./build.sh build_backend $(OS) $(ARCH)
 	./build.sh test_integration $(OS) $(ARCH)
 
 run:
@@ -98,6 +102,7 @@ help:
 	@echo "  build_samples                 - Build sample applications."
 	@echo "  test_unit                     - Run unit tests."
 	@echo "  test_integration              - Run integration tests."
+	@echo "  build_with_coverage  		   - Build with coverage flags and run tests to collect coverage data."
 	@echo "  test                          - Run all tests (unit and integration)."
 	@echo "  run                           - Build and run the application locally."
 	@echo "  docker-build                  - Build single-arch Docker image with version tag."
@@ -111,7 +116,7 @@ help:
 .PHONY: all prepare clean clean_all build build_samples package_samples run
 .PHONY: docker-build docker-build-latest docker-build-multiarch 
 .PHONY: docker-build-multiarch-latest docker-build-multiarch-push
-.PHONY: test_unit test_integration test
+.PHONY: test_unit test_integration build_with_coverage test
 .PHONY: lint help go_install_tool golangci-lint
 
 define go_install_tool

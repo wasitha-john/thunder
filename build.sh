@@ -157,8 +157,15 @@ function build_backend() {
         output_binary="${BINARY_NAME}.exe"
     fi
 
+    # Check if coverage build is requested via ENABLE_COVERAGE environment variable
+    local build_flags="-x"
+    if [ "$ENABLE_COVERAGE" = "true" ]; then
+        echo "Building with coverage instrumentation enabled..."
+        build_flags="$build_flags -cover -coverpkg=./..."
+    fi
+
     GOOS=$GO_OS GOARCH=$GO_ARCH CGO_ENABLED=0 go build -C "$BACKEND_BASE_DIR" \
-    -x -ldflags "-X \"main.version=$VERSION\" \
+    $build_flags -ldflags "-X \"main.version=$VERSION\" \
     -X \"main.buildDate=$$(date -u '+%Y-%m-%d %H:%M:%S UTC')\"" \
     -o "../$BUILD_DIR/$output_binary" ./cmd/server
 
@@ -348,7 +355,53 @@ function test_integration() {
     echo "================================================================"
     echo "Running integration tests..."
     cd "$SCRIPT_DIR" || exit 1
+    
+    # Set up coverage directory for integration tests
+    local coverage_dir="$(pwd)/$OUTPUT_DIR/.test/integration"
+    mkdir -p "$coverage_dir"
+    
+    # Export coverage directory for the server binary to use
+    export GOCOVERDIR="$coverage_dir"
+    
+    echo "Coverage data will be collected in: $coverage_dir"
     go run -C ./tests/integration ./main.go
+    test_exit_code=$?
+    
+    # Process coverage data if tests passed or failed
+    if [ -d "$coverage_dir" ] && [ "$(ls -A $coverage_dir 2>/dev/null)" ]; then
+        echo "================================================================"
+        echo "Processing integration test coverage..."
+        
+        # Convert binary coverage data to text format
+        cd "$BACKEND_BASE_DIR" || exit 1
+        go tool covdata textfmt -i="$coverage_dir" -o="../$TARGET_DIR/coverage_integration.out"
+        echo "Integration test coverage report generated in: $TARGET_DIR/coverage_integration.out"
+        
+        # Generate HTML coverage report
+        go tool cover -html="../$TARGET_DIR/coverage_integration.out" -o="../$TARGET_DIR/coverage_integration.html"
+        echo "Integration test coverage HTML report generated in: $TARGET_DIR/coverage_integration.html"
+        
+        # Display coverage summary
+        echo ""
+        echo "================================================================"
+        echo "Coverage Summary:"
+        go tool cover -func="../$TARGET_DIR/coverage_integration.out" | tail -n 1
+        echo "================================================================"
+        echo ""
+        
+        cd "$SCRIPT_DIR" || exit 1
+    else
+        echo "================================================================"
+        echo "No coverage data collected"
+    fi
+    
+    # Exit with the test exit code
+    if [ $test_exit_code -ne 0 ]; then
+        echo "================================================================"
+        echo "Integration tests failed with exit code: $test_exit_code"
+        exit $test_exit_code
+    fi
+    
     echo "================================================================"
 }
 
