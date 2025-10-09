@@ -20,22 +20,29 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
+	"syscall"
 	"time"
 
 	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/flow"
 	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/config"
+	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/managers"
 )
+
+// shutdownTimeout defines the timeout duration for graceful shutdown.
+const shutdownTimeout = 5 * time.Second
 
 func main() {
 	logger := log.GetLogger()
@@ -54,12 +61,22 @@ func main() {
 
 	initFlowService(logger)
 
+	// Setup signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	var server *http.Server
 	if cfg.Server.HTTPOnly {
 		logger.Info("TLS is not enabled, starting server without TLS")
-		startHTTPServer(logger, cfg, mux)
+		server = startHTTPServer(logger, cfg, mux)
 	} else {
-		startTLSServer(logger, cfg, mux, thunderHome)
+		server = startTLSServer(logger, cfg, mux, thunderHome)
 	}
+
+	// Wait for shutdown signal
+	<-sigChan
+	logger.Info("Shutting down server...")
+	gracefulShutdown(logger, server)
 }
 
 // getThunderHome retrieves and return the Thunder home directory.
@@ -143,7 +160,7 @@ func initCacheManager(logger *log.Logger) {
 }
 
 // startTLSServer starts the HTTPS server with TLS configuration.
-func startTLSServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thunderHome string) {
+func startTLSServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, thunderHome string) *http.Server {
 	server, serverAddr := createHTTPServer(logger, cfg, mux)
 
 	// Get TLS configuration from the certificate and key files.
@@ -172,20 +189,30 @@ func startTLSServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux, 
 
 	logger.Info("WSO2 Thunder server started (HTTPS)...", log.String("address", serverAddr))
 
-	if err := server.Serve(ln); err != nil {
-		logger.Fatal("Failed to serve requests", log.Error(err))
-	}
+	// Start server in a goroutine
+	go func() {
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("Failed to serve requests", log.Error(err))
+		}
+	}()
+
+	return server
 }
 
 // startHTTPServer starts the HTTP server without TLS.
-func startHTTPServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux) {
+func startHTTPServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux) *http.Server {
 	server, serverAddr := createHTTPServer(logger, cfg, mux)
 
 	logger.Info("WSO2 Thunder server started (HTTP)...", log.String("address", serverAddr))
 
-	if err := server.ListenAndServe(); err != nil {
-		logger.Fatal("Failed to serve HTTP requests", log.Error(err))
-	}
+	// Start server in a goroutine
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("Failed to serve HTTP requests", log.Error(err))
+		}
+	}()
+
+	return server
 }
 
 // createHTTPServer creates and configures an HTTP server with common settings.
@@ -205,4 +232,27 @@ func createHTTPServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux
 	}
 
 	return server, serverAddr
+}
+
+// gracefulShutdown handles the graceful shutdown of all components.
+func gracefulShutdown(logger *log.Logger, server *http.Server) {
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+
+	// Shutdown HTTP server
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Error("Error during server shutdown", log.Error(err))
+	} else {
+		logger.Debug("HTTP server shutdown completed")
+	}
+
+	// Close database connections
+	dbCloser := provider.GetDBProviderCloser()
+	if err := dbCloser.Close(); err != nil {
+		logger.Error("Error closing database connections", log.Error(err))
+	} else {
+		logger.Debug("Database connections closed successfully")
+	}
+
+	logger.Info("Server shutdown completed")
 }
