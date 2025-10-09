@@ -22,20 +22,18 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz"
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // AuthorizationService defines the service for handling OAuth2 authorization requests.
 type AuthorizationService struct {
-	ServerOpsService server.ServerOperationServiceInterface
-	authHandler      authz.AuthorizeHandlerInterface
+	authHandler authz.AuthorizeHandlerInterface
 }
 
 // NewAuthorizationService creates a new instance of AuthorizationService.
 func NewAuthorizationService(mux *http.ServeMux) ServiceInterface {
 	instance := &AuthorizationService{
-		ServerOpsService: server.NewServerOperationService(),
-		authHandler:      authz.NewAuthorizeHandler(),
+		authHandler: authz.NewAuthorizeHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -44,21 +42,19 @@ func NewAuthorizationService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for the AuthorizationService.
 func (s *AuthorizationService) RegisterRoutes(mux *http.ServeMux) {
-	opts1 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts1 := middleware.CORSOptions{
+		AllowedMethods:   "GET, POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
 
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /oauth2/authorize", &opts1,
-		s.authHandler.HandleAuthorizeGetRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /oauth2/authorize", &opts1,
-		s.authHandler.HandleAuthorizePostRequest)
+	mux.HandleFunc(middleware.WithCORS("GET /oauth2/authorize",
+		s.authHandler.HandleAuthorizeGetRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("POST /oauth2/authorize",
+		s.authHandler.HandleAuthorizePostRequest, opts1))
 
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /oauth2/authorize", &opts1,
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /oauth2/authorize",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
+		}, opts1))
 }

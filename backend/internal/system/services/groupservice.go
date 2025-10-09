@@ -26,20 +26,18 @@ import (
 	"strings"
 
 	"github.com/asgardeo/thunder/internal/group/handler"
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // GroupService is the service for group management operations.
 type GroupService struct {
-	serverOpsService server.ServerOperationServiceInterface
-	groupHandler     *handler.GroupHandler
+	groupHandler *handler.GroupHandler
 }
 
 // NewGroupService creates a new instance of GroupService.
 func NewGroupService(mux *http.ServeMux) ServiceInterface {
 	instance := &GroupService{
-		serverOpsService: server.NewServerOperationService(),
-		groupHandler:     handler.NewGroupHandler(),
+		groupHandler: handler.NewGroupHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -48,27 +46,23 @@ func NewGroupService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for group management operations.
 func (s *GroupService) RegisterRoutes(mux *http.ServeMux) {
-	opts1 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts1 := middleware.CORSOptions{
+		AllowedMethods:   "GET, POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.serverOpsService.WrapHandleFunction(mux, "POST /groups", &opts1, s.groupHandler.HandleGroupPostRequest)
-	s.serverOpsService.WrapHandleFunction(mux, "GET /groups", &opts1, s.groupHandler.HandleGroupListRequest)
-	s.serverOpsService.WrapHandleFunction(mux, "OPTIONS /groups", &opts1, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(middleware.WithCORS("POST /groups", s.groupHandler.HandleGroupPostRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("GET /groups", s.groupHandler.HandleGroupListRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /groups", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
-	})
+	}, opts1))
 
-	opts2 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, PUT, DELETE",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts2 := middleware.CORSOptions{
+		AllowedMethods:   "GET, PUT, DELETE",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.serverOpsService.WrapHandleFunction(mux, "GET /groups/", &opts2,
+	mux.HandleFunc(middleware.WithCORS("GET /groups/",
 		func(w http.ResponseWriter, r *http.Request) {
 			path := strings.TrimPrefix(r.URL.Path, "/groups/")
 			segments := strings.Split(path, "/")
@@ -81,35 +75,25 @@ func (s *GroupService) RegisterRoutes(mux *http.ServeMux) {
 			} else {
 				http.NotFound(w, r)
 			}
-		})
-	s.serverOpsService.WrapHandleFunction(mux, "PUT /groups/{id}", &opts2, s.groupHandler.HandleGroupPutRequest)
-	s.serverOpsService.WrapHandleFunction(mux, "DELETE /groups/{id}", &opts2, s.groupHandler.HandleGroupDeleteRequest)
-	s.serverOpsService.WrapHandleFunction(
-		mux,
-		"OPTIONS /groups/{id}",
-		&opts2,
+		}, opts2))
+	mux.HandleFunc(middleware.WithCORS("PUT /groups/{id}", s.groupHandler.HandleGroupPutRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("DELETE /groups/{id}", s.groupHandler.HandleGroupDeleteRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /groups/{id}",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		},
-	)
+		}, opts2))
 
-	opts3 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts3 := middleware.CORSOptions{
+		AllowedMethods:   "GET, POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.serverOpsService.WrapHandleFunction(mux, "GET /groups/tree/{path...}", &opts3,
-		s.groupHandler.HandleGroupListByPathRequest)
-	s.serverOpsService.WrapHandleFunction(mux, "POST /groups/tree/{path...}", &opts3,
-		s.groupHandler.HandleGroupPostByPathRequest)
-	s.serverOpsService.WrapHandleFunction(
-		mux,
-		"OPTIONS /groups/tree/{path...}",
-		&opts3,
+	mux.HandleFunc(middleware.WithCORS("GET /groups/tree/{path...}",
+		s.groupHandler.HandleGroupListByPathRequest, opts3))
+	mux.HandleFunc(middleware.WithCORS("POST /groups/tree/{path...}",
+		s.groupHandler.HandleGroupPostByPathRequest, opts3))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /groups/tree/{path...}",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		},
-	)
+		}, opts3))
 }

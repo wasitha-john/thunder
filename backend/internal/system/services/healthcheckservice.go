@@ -22,19 +22,17 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/system/healthcheck/handler"
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // HealthCheckService defines the service for handling readiness and liveness checks.
 type HealthCheckService struct {
-	ServerOpsService   server.ServerOperationServiceInterface
 	healthCheckHandler *handler.HealthCheckHandler
 }
 
 // NewHealthCheckService creates a new instance of HealthCheckService.
 func NewHealthCheckService(mux *http.ServeMux) ServiceInterface {
 	instance := &HealthCheckService{
-		ServerOpsService:   server.NewServerOperationService(),
 		healthCheckHandler: handler.NewHealthCheckHandler(),
 	}
 	instance.RegisterRoutes(mux)
@@ -46,25 +44,23 @@ func NewHealthCheckService(mux *http.ServeMux) ServiceInterface {
 //
 //nolint:dupl // Ignoring false positive duplicate code
 func (h *HealthCheckService) RegisterRoutes(mux *http.ServeMux) {
-	opts1 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts1 := middleware.CORSOptions{
+		AllowedMethods:   "GET",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
 
-	h.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /health/liveness", &opts1,
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /health/liveness",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
-	h.ServerOpsService.WrapHandleFunction(mux, "GET /health/liveness", &opts1,
-		h.healthCheckHandler.HandleLivenessRequest)
+		}, opts1))
+	mux.HandleFunc(middleware.WithCORS("GET /health/liveness",
+		h.healthCheckHandler.HandleLivenessRequest, opts1))
 
-	h.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /health/readiness", &opts1,
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /health/readiness",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
-	h.ServerOpsService.WrapHandleFunction(mux, "GET /health/readiness", &opts1,
-		h.healthCheckHandler.HandleReadinessRequest)
+		}, opts1))
+	mux.HandleFunc(middleware.WithCORS("GET /health/readiness",
+		h.healthCheckHandler.HandleReadinessRequest, opts1))
 }

@@ -25,20 +25,18 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/idp"
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // IDPService is the service for identity provider management operations.
 type IDPService struct {
-	ServerOpsService server.ServerOperationServiceInterface
-	idpHandler       *idp.IDPHandler
+	idpHandler *idp.IDPHandler
 }
 
 // NewIDPService creates a new instance of IDPService.
 func NewIDPService(mux *http.ServeMux) ServiceInterface {
 	instance := &IDPService{
-		ServerOpsService: server.NewServerOperationService(),
-		idpHandler:       idp.NewIDPHandler(),
+		idpHandler: idp.NewIDPHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -47,35 +45,31 @@ func NewIDPService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for identity provider operations.
 func (s *IDPService) RegisterRoutes(mux *http.ServeMux) {
-	opts1 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts1 := middleware.CORSOptions{
+		AllowedMethods:   "GET, POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /identity-providers", &opts1, s.idpHandler.HandleIDPPostRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /identity-providers", &opts1, s.idpHandler.HandleIDPListRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /identity-providers", &opts1,
+	mux.HandleFunc(middleware.WithCORS("POST /identity-providers", s.idpHandler.HandleIDPPostRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("GET /identity-providers", s.idpHandler.HandleIDPListRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /identity-providers",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
+		}, opts1))
 
-	opts2 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, PUT, DELETE",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts2 := middleware.CORSOptions{
+		AllowedMethods:   "GET, PUT, DELETE",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /identity-providers/{id}", &opts2,
-		s.idpHandler.HandleIDPGetRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "PUT /identity-providers/{id}", &opts2,
-		s.idpHandler.HandleIDPPutRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /identity-providers/{id}", &opts2,
-		s.idpHandler.HandleIDPDeleteRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /identity-providers/{id}", &opts2,
+	mux.HandleFunc(middleware.WithCORS("GET /identity-providers/{id}",
+		s.idpHandler.HandleIDPGetRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("PUT /identity-providers/{id}",
+		s.idpHandler.HandleIDPPutRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("DELETE /identity-providers/{id}",
+		s.idpHandler.HandleIDPDeleteRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /identity-providers/{id}",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
+		}, opts2))
 }

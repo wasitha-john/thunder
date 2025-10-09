@@ -22,20 +22,18 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/authn"
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // AuthenticationService defines the service for handling authentication-related requests.
 type AuthenticationService struct {
-	ServerOpsService server.ServerOperationServiceInterface
-	authHandler      *authn.AuthenticationHandler
+	authHandler *authn.AuthenticationHandler
 }
 
 // NewAuthenticationService creates a new instance of AuthenticationService.
 func NewAuthenticationService(mux *http.ServeMux) ServiceInterface {
 	instance := &AuthenticationService{
-		ServerOpsService: server.NewServerOperationService(),
-		authHandler:      authn.NewAuthenticationHandler(),
+		authHandler: authn.NewAuthenticationHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -44,59 +42,57 @@ func NewAuthenticationService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for the AuthenticationService.
 func (s *AuthenticationService) RegisterRoutes(mux *http.ServeMux) {
-	opts := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts := middleware.CORSOptions{
+		AllowedMethods:   "POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
 
 	// SMS OTP routes
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /auth/otp/sms/send", &opts,
-		s.authHandler.HandleSendSMSOTPRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /auth/otp/sms/verify", &opts,
-		s.authHandler.HandleVerifySMSOTPRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /auth/otp/sms/send", &opts,
-		optionsNoContentHandler)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /auth/otp/sms/verify", &opts,
-		optionsNoContentHandler)
+	mux.HandleFunc(middleware.WithCORS("POST /auth/otp/sms/send",
+		s.authHandler.HandleSendSMSOTPRequest, opts))
+	mux.HandleFunc(middleware.WithCORS("POST /auth/otp/sms/verify",
+		s.authHandler.HandleVerifySMSOTPRequest, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /auth/otp/sms/send",
+		optionsNoContentHandler, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /auth/otp/sms/verify",
+		optionsNoContentHandler, opts))
 
 	// Google OAuth routes
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /auth/oauth/google/start", &opts,
-		s.authHandler.HandleGoogleAuthStartRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /auth/oauth/google/finish", &opts,
-		s.authHandler.HandleGoogleAuthFinishRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /auth/oauth/google/start", &opts,
+	mux.HandleFunc(middleware.WithCORS("POST /auth/oauth/google/start",
+		s.authHandler.HandleGoogleAuthStartRequest, opts))
+	mux.HandleFunc(middleware.WithCORS("POST /auth/oauth/google/finish",
+		s.authHandler.HandleGoogleAuthFinishRequest, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /auth/oauth/google/start",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /auth/oauth/google/finish", &opts,
-		optionsNoContentHandler)
+		}, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /auth/oauth/google/finish",
+		optionsNoContentHandler, opts))
 
 	// GitHub OAuth routes
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /auth/oauth/github/start", &opts,
-		s.authHandler.HandleGithubAuthStartRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /auth/oauth/github/finish", &opts,
-		s.authHandler.HandleGithubAuthFinishRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /auth/oauth/github/start", &opts,
+	mux.HandleFunc(middleware.WithCORS("POST /auth/oauth/github/start",
+		s.authHandler.HandleGithubAuthStartRequest, opts))
+	mux.HandleFunc(middleware.WithCORS("POST /auth/oauth/github/finish",
+		s.authHandler.HandleGithubAuthFinishRequest, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /auth/oauth/github/start",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /auth/oauth/github/finish", &opts,
-		optionsNoContentHandler)
+		}, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /auth/oauth/github/finish",
+		optionsNoContentHandler, opts))
 
 	// Standard OAuth routes
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /auth/oauth/standard/start", &opts,
-		s.authHandler.HandleStandardOAuthStartRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /auth/oauth/standard/finish", &opts,
-		s.authHandler.HandleStandardOAuthFinishRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /auth/oauth/standard/start", &opts,
+	mux.HandleFunc(middleware.WithCORS("POST /auth/oauth/standard/start",
+		s.authHandler.HandleStandardOAuthStartRequest, opts))
+	mux.HandleFunc(middleware.WithCORS("POST /auth/oauth/standard/finish",
+		s.authHandler.HandleStandardOAuthFinishRequest, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /auth/oauth/standard/start",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /auth/oauth/standard/finish", &opts,
-		optionsNoContentHandler)
+		}, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /auth/oauth/standard/finish",
+		optionsNoContentHandler, opts))
 }
 
 // optionsNoContentHandler handles OPTIONS requests by responding with 204 No Content.

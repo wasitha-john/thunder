@@ -24,21 +24,19 @@ package services
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 	"github.com/asgardeo/thunder/internal/user/handler"
 )
 
 // UserService is the service for user management operations.
 type UserService struct {
-	ServerOpsService server.ServerOperationServiceInterface
-	userHandler      *handler.UserHandler
+	userHandler *handler.UserHandler
 }
 
 // NewUserService creates a new instance of UserService.
 func NewUserService(mux *http.ServeMux) ServiceInterface {
 	instance := &UserService{
-		ServerOpsService: server.NewServerOperationService(),
-		userHandler:      handler.NewUserHandler(),
+		userHandler: handler.NewUserHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -47,66 +45,52 @@ func NewUserService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for user management operations.
 func (s *UserService) RegisterRoutes(mux *http.ServeMux) {
-	opts1 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts1 := middleware.CORSOptions{
+		AllowedMethods:   "GET, POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /users", &opts1, s.userHandler.HandleUserPostRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /users", &opts1, s.userHandler.HandleUserListRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /users", &opts1,
-		func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusNoContent)
-		})
+	mux.HandleFunc(middleware.WithCORS("POST /users", s.userHandler.HandleUserPostRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("GET /users", s.userHandler.HandleUserListRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /users", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}, opts1))
 
-	opts2 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, PUT, DELETE",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts2 := middleware.CORSOptions{
+		AllowedMethods:   "GET, PUT, DELETE",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /users/", &opts2, s.userHandler.HandleUserGetRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "PUT /users/", &opts2, s.userHandler.HandleUserPutRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /users/", &opts2, s.userHandler.HandleUserDeleteRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /users/", &opts2,
-		func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusNoContent)
-		})
+	mux.HandleFunc(middleware.WithCORS("GET /users/", s.userHandler.HandleUserGetRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("PUT /users/", s.userHandler.HandleUserPutRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("DELETE /users/", s.userHandler.HandleUserDeleteRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /users/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}, opts2))
 
-	opts3 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts3 := middleware.CORSOptions{
+		AllowedMethods:   "GET, POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /users/tree/{path...}", &opts3,
-		s.userHandler.HandleUserListByPathRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /users/tree/{path...}", &opts3,
-		s.userHandler.HandleUserPostByPathRequest)
-	s.ServerOpsService.WrapHandleFunction(
-		mux,
-		"OPTIONS /users/tree/{path...}",
-		&opts3,
+	mux.HandleFunc(middleware.WithCORS("GET /users/tree/{path...}",
+		s.userHandler.HandleUserListByPathRequest, opts3))
+	mux.HandleFunc(middleware.WithCORS("POST /users/tree/{path...}",
+		s.userHandler.HandleUserPostByPathRequest, opts3))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /users/tree/{path...}",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		},
-	)
+		}, opts3))
 
-	opts4 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts4 := middleware.CORSOptions{
+		AllowedMethods:   "POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(
-		mux, "POST /users/authenticate", &opts4, s.userHandler.HandleUserAuthenticateRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /users/authenticate", &opts4,
+	mux.HandleFunc(middleware.WithCORS("POST /users/authenticate",
+		s.userHandler.HandleUserAuthenticateRequest, opts4))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /users/authenticate",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
+		}, opts4))
 }
