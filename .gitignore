@@ -100,6 +100,10 @@ backend/server
 frontend/packages/*/modules
 samples/apps/*/server/app
 
+# Test coverage reports
+backend/coverage_unit.out
+backend/coverage_unit.html
+
 # IDE settings
 settings.json
 .cursor/rules/nx-rules.mdc

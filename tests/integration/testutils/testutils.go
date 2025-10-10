@@ -27,6 +27,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -296,7 +297,15 @@ func StartServer(port string, zipFilePattern string) error {
 	cmd := exec.Command(serverPath, "-thunderHome="+extractedProductHome)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = append(os.Environ(), "PORT="+port)
+
+	// Preserve GOCOVERDIR environment variable for coverage collection
+	envVars := []string{"PORT=" + port}
+	if goCoverDir := os.Getenv("GOCOVERDIR"); goCoverDir != "" {
+		envVars = append(envVars, "GOCOVERDIR="+goCoverDir)
+		log.Printf("Coverage collection enabled: GOCOVERDIR=%s\n", goCoverDir)
+	}
+	cmd.Env = append(os.Environ(), envVars...)
+
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start server: %v", err)
@@ -309,8 +318,25 @@ func StartServer(port string, zipFilePattern string) error {
 func StopServer() {
 	log.Println("Stopping server...")
 	if serverCmd != nil {
-		serverCmd.Process.Kill()
-		serverCmd.Wait()
+		// Send SIGTERM for graceful shutdown (allows coverage data to be written)
+		serverCmd.Process.Signal(syscall.SIGTERM)
+		// Wait for the process to exit (with timeout)
+		done := make(chan error, 1)
+		go func() {
+			done <- serverCmd.Wait()
+		}()
+
+		select {
+		case <-done:
+			// Process exited gracefully
+			// Give a brief moment for coverage files to be fully flushed to disk
+			time.Sleep(100 * time.Millisecond)
+		case <-time.After(3 * time.Second):
+			// Timeout - force kill
+			log.Println("Server did not stop gracefully, forcing kill...")
+			serverCmd.Process.Kill()
+			serverCmd.Wait()
+		}
 	}
 	// Clear the stored command
 	serverCmd = nil

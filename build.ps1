@@ -137,6 +137,35 @@ $SAMPLE_BASE_DIR = "samples"
 $SAMPLE_APP_DIR = Join-Path $SAMPLE_BASE_DIR "apps/oauth"
 $SAMPLE_APP_SERVER_DIR = Join-Path $SAMPLE_APP_DIR "server"
 
+function Get-CoverageExclusionPattern {
+    # Read exclusion patterns (full package paths) from .excludecoverage file
+    # This function can be called from any directory
+    
+    $coverage_exclude_file = $null
+    
+    # Check if we're already in the backend directory or need to use relative path
+    if (Test-Path ".excludecoverage") {
+        $coverage_exclude_file = ".excludecoverage"
+    }
+    elseif (Test-Path (Join-Path $SCRIPT_DIR $BACKEND_BASE_DIR ".excludecoverage")) {
+        $coverage_exclude_file = Join-Path $SCRIPT_DIR $BACKEND_BASE_DIR ".excludecoverage"
+    }
+    else {
+        return ""
+    }
+    
+    # Read non-comment, non-empty lines and join with '|' for regex (exact package path matching)
+    $patterns = Get-Content $coverage_exclude_file | Where-Object { 
+        $_ -notmatch '^\s*#' -and $_ -notmatch '^\s*$' 
+    }
+    
+    if ($patterns) {
+        return ($patterns -join '|')
+    }
+    
+    return ""
+}
+
 function Clean-All {
     Write-Host "================================================================"
     Write-Host "Cleaning all build artifacts..."
@@ -193,10 +222,39 @@ function Build-Backend {
     $env:GOARCH = $GO_ARCH
     $env:CGO_ENABLED = "0"
 
+    # Check if coverage build is requested via ENABLE_COVERAGE environment variable
+    $buildArgs = @('build', '-x')
+    if ($env:ENABLE_COVERAGE -eq "true") {
+        Write-Host "Building with coverage instrumentation enabled..."
+        
+        # Build coverage package list, excluding patterns from .excludecoverage
+        Push-Location $BACKEND_BASE_DIR
+        try {
+            $exclude_pattern = Get-CoverageExclusionPattern
+            $coverpkg = ""
+            
+            if ($exclude_pattern) {
+                Write-Host "Excluding coverage for patterns: $exclude_pattern"
+                $packages = & go list ./...
+                $filtered_packages = $packages | Where-Object { $_ -notmatch $exclude_pattern }
+                $coverpkg = $filtered_packages -join ','
+            }
+            else {
+                $packages = & go list ./...
+                $coverpkg = $packages -join ','
+            }
+        }
+        finally {
+            Pop-Location
+        }
+        
+        $buildArgs += @('-cover', "-coverpkg=$coverpkg")
+    }
+
     # Construct ldflags safely and pass as an argument array to avoid PowerShell splitting
     $ldflags = "-X main.version=$VERSION -X main.buildDate=$buildDate"
     $outputPath = "../$BUILD_DIR/$output_binary"
-    $buildArgs = @('build', '-x', '-ldflags', $ldflags, '-o', $outputPath, './cmd/server')
+    $buildArgs += @('-ldflags', $ldflags, '-o', $outputPath, './cmd/server')
 
     Write-Host "Executing: go $($buildArgs -join ' ')"
 
@@ -497,29 +555,59 @@ function Package-Sample-App {
 
 function Test-Unit {
     Write-Host "================================================================"
-    Write-Host "Preparing to run unit tests..."
+    Write-Host "Running unit tests with coverage..."
     
     Push-Location $BACKEND_BASE_DIR
     try {
+        # Build coverage package list
+        $exclude_pattern = Get-CoverageExclusionPattern
+        $coverpkg = ""
+        
+        if ($exclude_pattern) {
+            Write-Host "Excluding coverage for patterns: $exclude_pattern"
+            $packages = & go list ./...
+            $filtered_packages = $packages | Where-Object { $_ -notmatch $exclude_pattern }
+            $coverpkg = $filtered_packages -join ','
+        }
+        else {
+            Write-Host "No exclusion patterns found, including all packages"
+            $packages = & go list ./...
+            $coverpkg = $packages -join ','
+        }
+        
         # Check if gotestsum is available
         $gotestsum = Get-Command gotestsum -ErrorAction SilentlyContinue
         
         if ($gotestsum) {
-            Write-Host "Running unit tests using gotestsum..."
-            & gotestsum -- -v -cover ./...
+            Write-Host "Running unit tests with coverage using gotestsum..."
+            & gotestsum -- -v -coverprofile=coverage_unit.out -covermode=atomic "-coverpkg=$coverpkg" ./...
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "There are unit test failures."
                 exit 1
             }
         }
         else {
-            Write-Host "Running unit tests using go test..."
-            & go test -v -cover ./...
+            Write-Host "Running unit tests with coverage using go test..."
+            & go test -v -coverprofile=coverage_unit.out -covermode=atomic "-coverpkg=$coverpkg" ./...
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "There are unit test failures."
                 exit 1
             }
         }
+        
+        Write-Host "Unit test coverage profile generated in: backend/coverage_unit.out"
+        
+        # Generate HTML coverage report for unit tests
+        & go tool cover -html=coverage_unit.out -o=coverage_unit.html
+        Write-Host "Unit test coverage HTML report generated in: backend/coverage_unit.html"
+        
+        # Display unit test coverage summary
+        Write-Host ""
+        Write-Host "================================================================"
+        Write-Host "Unit Test Coverage Summary:"
+        & go tool cover -func=coverage_unit.out | Select-Object -Last 1
+        Write-Host "================================================================"
+        Write-Host ""
     }
     finally {
         Pop-Location
@@ -534,10 +622,142 @@ function Test-Integration {
     
     Push-Location $SCRIPT_DIR
     try {
+        # Set up coverage directory for integration tests
+        $coverage_dir = Join-Path (Get-Location) "$OUTPUT_DIR\.test\integration"
+        New-Item -Path $coverage_dir -ItemType Directory -Force | Out-Null
+        
+        # Export coverage directory for the server binary to use
+        $env:GOCOVERDIR = $coverage_dir
+        
+        Write-Host "Coverage data will be collected in: $coverage_dir"
         & go run -C ./tests/integration ./main.go
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Integration tests failed with exit code $LASTEXITCODE"
-            exit 1
+        $test_exit_code = $LASTEXITCODE
+        
+        # Process coverage data if tests passed or failed
+        if ((Test-Path $coverage_dir) -and ((Get-ChildItem $coverage_dir -ErrorAction SilentlyContinue).Count -gt 0)) {
+            Write-Host "================================================================"
+            Write-Host "Processing integration test coverage..."
+            
+            # Convert binary coverage data to text format
+            Push-Location $BACKEND_BASE_DIR
+            try {
+                & go tool covdata textfmt -i="$coverage_dir" -o="../$TARGET_DIR/coverage_integration.out"
+                Write-Host "Integration test coverage report generated in: $TARGET_DIR/coverage_integration.out"
+                
+                # Generate HTML coverage report
+                & go tool cover -html="../$TARGET_DIR/coverage_integration.out" -o="../$TARGET_DIR/coverage_integration.html"
+                Write-Host "Integration test coverage HTML report generated in: $TARGET_DIR/coverage_integration.html"
+                
+                # Display coverage summary
+                Write-Host ""
+                Write-Host "================================================================"
+                Write-Host "Coverage Summary:"
+                & go tool cover -func="../$TARGET_DIR/coverage_integration.out" | Select-Object -Last 1
+                Write-Host "================================================================"
+                Write-Host ""
+            }
+            finally {
+                Pop-Location
+            }
+        }
+        else {
+            Write-Host "================================================================"
+            Write-Host "No coverage data collected"
+        }
+        
+        # Exit with the test exit code
+        if ($test_exit_code -ne 0) {
+            Write-Host "================================================================"
+            Write-Host "Integration tests failed with exit code: $test_exit_code"
+            exit $test_exit_code
+        }
+    }
+    finally {
+        Pop-Location
+    }
+    
+    Write-Host "================================================================"
+}
+
+function Merge-Coverage {
+    Write-Host "================================================================"
+    Write-Host "Merging coverage reports..."
+    
+    Push-Location $SCRIPT_DIR
+    try {
+        $unit_coverage = Join-Path $BACKEND_BASE_DIR "coverage_unit.out"
+        $integration_coverage = Join-Path $TARGET_DIR "coverage_integration.out"
+        $combined_coverage = Join-Path $TARGET_DIR "coverage_combined.out"
+        
+        # Check if both coverage files exist
+        if (-not (Test-Path $unit_coverage)) {
+            Write-Host "Warning: Unit test coverage file not found at $unit_coverage"
+            Write-Host "Skipping coverage merge."
+            return
+        }
+        
+        if (-not (Test-Path $integration_coverage)) {
+            Write-Host "Warning: Integration test coverage file not found at $integration_coverage"
+            Write-Host "Skipping coverage merge."
+            return
+        }
+        
+        Write-Host "Merging unit and integration test coverage..."
+        
+        # Get the mode from the first file and write to combined coverage
+        $mode_line = Get-Content $unit_coverage -First 1
+        $mode_line | Set-Content $combined_coverage
+        
+        # Read both files (skip mode lines) and merge overlapping coverage
+        $unit_lines = Get-Content $unit_coverage | Select-Object -Skip 1
+        $integration_lines = Get-Content $integration_coverage | Select-Object -Skip 1
+        
+        # Combine and process coverage data
+        $coverage_map = @{}
+        
+        foreach ($line in ($unit_lines + $integration_lines)) {
+            $parts = $line -split '\s+'
+            if ($parts.Count -ge 3) {
+                $key = "$($parts[0]) $($parts[1])"
+                $count = [int]$parts[2]
+                
+                if ($coverage_map.ContainsKey($key)) {
+                    # For duplicate entries, take the maximum count
+                    if ($count -gt $coverage_map[$key]) {
+                        $coverage_map[$key] = $count
+                    }
+                }
+                else {
+                    $coverage_map[$key] = $count
+                }
+            }
+        }
+        
+        # Sort and write to combined coverage file
+        $sorted_lines = $coverage_map.GetEnumerator() | Sort-Object Key | ForEach-Object {
+            "$($_.Key) $($_.Value)"
+        }
+        
+        $sorted_lines | Add-Content $combined_coverage
+        
+        Write-Host "Combined coverage report generated in: $combined_coverage"
+        
+        # Generate HTML coverage report for combined coverage
+        Push-Location $BACKEND_BASE_DIR
+        try {
+            & go tool cover -html="../$combined_coverage" -o="../$TARGET_DIR/coverage_combined.html"
+            Write-Host "Combined coverage HTML report generated in: $TARGET_DIR/coverage_combined.html"
+            
+            # Display combined coverage summary
+            Write-Host ""
+            Write-Host "================================================================"
+            Write-Host "Combined Test Coverage Summary:"
+            & go tool cover -func="../$combined_coverage" | Select-Object -Last 1
+            Write-Host "================================================================"
+            Write-Host ""
+        }
+        finally {
+            Pop-Location
         }
     }
     finally {
@@ -808,6 +1028,9 @@ switch ($Command) {
     "test_integration" {
         Test-Integration
     }
+    "merge_coverage" {
+        Merge-Coverage
+    }
     "test" {
         Test-Unit
         Test-Integration
@@ -818,15 +1041,16 @@ switch ($Command) {
     default {
         Write-Host "Usage: ./build.ps1 {clean|build|test|run} [OS] [ARCH]"
         Write-Host ""
-        Write-Host "  clean            - Clean build artifacts"
-        Write-Host "  clean_all        - Clean all build artifacts including distributions"
-        Write-Host "  build            - Build the Thunder server and sample applications"
-        Write-Host "  build_backend    - Build the Thunder backend server"
-        Write-Host "  build_samples    - Build the sample applications"
-        Write-Host "  test_unit        - Run unit tests"
-        Write-Host "  test_integration - Run integration tests"
-        Write-Host "  test             - Run all tests (unit and integration)"
-        Write-Host "  run              - Run the Thunder server for development"
+        Write-Host "  clean                    - Clean build artifacts"
+        Write-Host "  clean_all                - Clean all build artifacts including distributions"
+        Write-Host "  build                    - Build the Thunder server and sample applications"
+        Write-Host "  build_backend            - Build the Thunder backend server"
+        Write-Host "  build_samples            - Build the sample applications"
+        Write-Host "  test_unit                - Run unit tests with coverage"
+        Write-Host "  test_integration         - Run integration tests"
+        Write-Host "  merge_coverage           - Merge unit and integration test coverage reports"
+        Write-Host "  test                     - Run all tests (unit and integration)"
+        Write-Host "  run                      - Run the Thunder server for development"
         exit 1
     }
 }

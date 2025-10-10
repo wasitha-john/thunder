@@ -1800,6 +1800,30 @@ The debugger will listen on `localhost:2345` by default.
 **Other IDEs:**
 - Configure DAP client to connect to `127.0.0.1:2345`
 
+### Testing
+
+Thunder includes both unit tests and integration tests:
+
+#### Run Unit Tests
+
+```bash
+make test_unit
+```
+
+#### Run Integration Tests
+
+```bash
+make test_integration
+```
+
+#### Run Tests with Coverage
+
+```bash
+make build_with_coverage
+```
+
+This will build the server with coverage instrumentation, run tests, and generate coverage reports at `target/` directory.
+
 </details>
 
 ---

@@ -116,6 +116,25 @@ SAMPLE_BASE_DIR=samples
 SAMPLE_APP_DIR=$SAMPLE_BASE_DIR/apps/oauth
 SAMPLE_APP_SERVER_DIR=$SAMPLE_APP_DIR/server
 
+function get_coverage_exclusion_pattern() {
+    # Read exclusion patterns (full package paths) from .excludecoverage file
+    local coverage_exclude_file
+    
+    # Check if we're already in the backend directory or need to use relative path
+    if [ -f ".excludecoverage" ]; then
+        coverage_exclude_file=".excludecoverage"
+    elif [ -f "$SCRIPT_DIR/$BACKEND_BASE_DIR/.excludecoverage" ]; then
+        coverage_exclude_file="$SCRIPT_DIR/$BACKEND_BASE_DIR/.excludecoverage"
+    else
+        echo "" >&2
+        return
+    fi
+    
+    # Read non-comment, non-empty lines and join with '|' for grep (exact package path matching)
+    local pattern=$(awk '!/^#/ && NF {if(count++)printf "|"; printf "%s", $0}' "$coverage_exclude_file")
+    echo "$pattern"
+}
+
 function clean_all() {
     echo "================================================================"
     echo "Cleaning all build artifacts..."
@@ -157,8 +176,26 @@ function build_backend() {
         output_binary="${BINARY_NAME}.exe"
     fi
 
+    # Check if coverage build is requested via ENABLE_COVERAGE environment variable
+    local build_flags="-x"
+    if [ "$ENABLE_COVERAGE" = "true" ]; then
+        echo "Building with coverage instrumentation enabled..."
+        # Build coverage package list
+        cd "$BACKEND_BASE_DIR" || exit 1
+        local exclude_pattern=$(get_coverage_exclusion_pattern)
+        local coverpkg
+        if [ -n "$exclude_pattern" ]; then
+            echo "Excluding coverage for patterns: $exclude_pattern"
+            coverpkg=$(go list ./... | grep -v -E "$exclude_pattern" | tr '\n' ',' | sed 's/,$//')
+        else
+            coverpkg=$(go list ./... | tr '\n' ',' | sed 's/,$//')
+        fi
+        cd "$SCRIPT_DIR" || exit 1
+        build_flags="$build_flags -cover -coverpkg=$coverpkg"
+    fi
+
     GOOS=$GO_OS GOARCH=$GO_ARCH CGO_ENABLED=0 go build -C "$BACKEND_BASE_DIR" \
-    -x -ldflags "-X \"main.version=$VERSION\" \
+    $build_flags -ldflags "-X \"main.version=$VERSION\" \
     -X \"main.buildDate=$$(date -u '+%Y-%m-%d %H:%M:%S UTC')\"" \
     -o "../$BUILD_DIR/$output_binary" ./cmd/server
 
@@ -329,18 +366,44 @@ function package_sample_app() {
 
 function test_unit() {
     echo "================================================================"
-    echo "Preparing to run unit tests..."
+    echo "Running unit tests with coverage..."
     cd "$BACKEND_BASE_DIR" || exit 1
     
-    # Use gotestsum if available, otherwise fall back to go test
-    if command -v gotestsum &> /dev/null; then
-        echo "Running unit tests using gotestsum..."
-        gotestsum -- -v -cover ./... || { echo "There are unit test failures."; exit 1; }
+    # Build coverage package list
+    local exclude_pattern=$(get_coverage_exclusion_pattern)
+    local coverpkg
+    if [ -n "$exclude_pattern" ]; then
+        echo "Excluding coverage for patterns: $exclude_pattern"
+        coverpkg=$(go list ./... | grep -v -E "$exclude_pattern" | tr '\n' ',' | sed 's/,$//')
     else
-        echo "Running unit tests using go test..."
-        go test -v -cover ./... || { echo "There are unit test failures."; exit 1; }
+        echo "No exclusion patterns found, including all packages"
+        coverpkg=$(go list ./... | tr '\n' ',' | sed 's/,$//')
     fi
     
+    # Run gotestsum if available, otherwise fallback to go test
+    if command -v gotestsum &> /dev/null; then
+        echo "Running unit tests with coverage using gotestsum..."
+        gotestsum -- -v -coverprofile=coverage_unit.out -covermode=atomic -coverpkg="$coverpkg" ./... || { echo "There are unit test failures."; exit 1; }
+    else
+        echo "Running unit tests with coverage using go test..."
+        go test -v -coverprofile=coverage_unit.out -covermode=atomic -coverpkg="$coverpkg" ./... || { echo "There are unit test failures."; exit 1; }
+    fi
+    
+    echo "Unit test coverage profile generated in: backend/coverage_unit.out"
+    
+    # Generate HTML coverage report for unit tests
+    go tool cover -html=coverage_unit.out -o=coverage_unit.html
+    echo "Unit test coverage HTML report generated in: backend/coverage_unit.html"
+    
+    # Display unit test coverage summary
+    echo ""
+    echo "================================================================"
+    echo "Unit Test Coverage Summary:"
+    go tool cover -func=coverage_unit.out | tail -n 1
+    echo "================================================================"
+    echo ""
+    
+    cd "$SCRIPT_DIR" || exit 1
     echo "================================================================"
 }
 
@@ -348,7 +411,122 @@ function test_integration() {
     echo "================================================================"
     echo "Running integration tests..."
     cd "$SCRIPT_DIR" || exit 1
+    
+    # Set up coverage directory for integration tests
+    local coverage_dir="$(pwd)/$OUTPUT_DIR/.test/integration"
+    mkdir -p "$coverage_dir"
+    
+    # Export coverage directory for the server binary to use
+    export GOCOVERDIR="$coverage_dir"
+    
+    echo "Coverage data will be collected in: $coverage_dir"
     go run -C ./tests/integration ./main.go
+    test_exit_code=$?
+    
+    # Process coverage data if tests passed or failed
+    if [ -d "$coverage_dir" ] && [ "$(ls -A $coverage_dir 2>/dev/null)" ]; then
+        echo "================================================================"
+        echo "Processing integration test coverage..."
+        
+        # Convert binary coverage data to text format
+        cd "$BACKEND_BASE_DIR" || exit 1
+        go tool covdata textfmt -i="$coverage_dir" -o="../$TARGET_DIR/coverage_integration.out"
+        echo "Integration test coverage report generated in: $TARGET_DIR/coverage_integration.out"
+        
+        # Generate HTML coverage report
+        go tool cover -html="../$TARGET_DIR/coverage_integration.out" -o="../$TARGET_DIR/coverage_integration.html"
+        echo "Integration test coverage HTML report generated in: $TARGET_DIR/coverage_integration.html"
+        
+        # Display coverage summary
+        echo ""
+        echo "================================================================"
+        echo "Coverage Summary:"
+        go tool cover -func="../$TARGET_DIR/coverage_integration.out" | tail -n 1
+        echo "================================================================"
+        echo ""
+        
+        cd "$SCRIPT_DIR" || exit 1
+    else
+        echo "================================================================"
+        echo "No coverage data collected"
+    fi
+    
+    # Exit with the test exit code
+    if [ $test_exit_code -ne 0 ]; then
+        echo "================================================================"
+        echo "Integration tests failed with exit code: $test_exit_code"
+        exit $test_exit_code
+    fi
+    
+    echo "================================================================"
+}
+
+function merge_coverage() {
+    echo "================================================================"
+    echo "Merging coverage reports..."
+    cd "$SCRIPT_DIR" || exit 1
+    
+    local unit_coverage="$BACKEND_BASE_DIR/coverage_unit.out"
+    local integration_coverage="$TARGET_DIR/coverage_integration.out"
+    local combined_coverage="$TARGET_DIR/coverage_combined.out"
+    
+    # Check if both coverage files exist
+    if [ ! -f "$unit_coverage" ]; then
+        echo "Warning: Unit test coverage file not found at $unit_coverage"
+        echo "Skipping coverage merge."
+        return 0
+    fi
+    
+    if [ ! -f "$integration_coverage" ]; then
+        echo "Warning: Integration test coverage file not found at $integration_coverage"
+        echo "Skipping coverage merge."
+        return 0
+    fi
+    
+    echo "Merging unit and integration test coverage..."
+    
+    # Get the mode from the first file and write to combined coverage
+    head -n 1 "$unit_coverage" > "$combined_coverage"
+    
+    # Combine both files (skip mode lines) and merge overlapping coverage
+    { tail -n +2 "$unit_coverage"; tail -n +2 "$integration_coverage"; } | \
+        awk '
+        {
+            key = $1 " " $2
+            if (!(key in lines)) {
+                lines[key] = $0
+                count[key] = $3
+            } else {
+                # For duplicate entries, take the maximum count
+                if ($3 > count[key]) {
+                    count[key] = $3
+                    lines[key] = $1 " " $2 " " $3
+                }
+            }
+        }
+        END {
+            for (key in lines) {
+                print lines[key]
+            }
+        }
+        ' | sort >> "$combined_coverage"
+    
+    echo "Combined coverage report generated in: $combined_coverage"
+    
+    # Generate HTML coverage report for combined coverage
+    cd "$BACKEND_BASE_DIR" || exit 1
+    go tool cover -html="../$combined_coverage" -o="../$TARGET_DIR/coverage_combined.html"
+    echo "Combined coverage HTML report generated in: $TARGET_DIR/coverage_combined.html"
+    
+    # Display combined coverage summary
+    echo ""
+    echo "================================================================"
+    echo "Combined Test Coverage Summary:"
+    go tool cover -func="../$combined_coverage" | tail -n 1
+    echo "================================================================"
+    echo ""
+    
+    cd "$SCRIPT_DIR" || exit 1
     echo "================================================================"
 }
 
@@ -456,6 +634,9 @@ case "$1" in
     test_integration)
         test_integration
         ;;
+    merge_coverage)
+        merge_coverage
+        ;;
     test)
         test_unit
         test_integration
@@ -466,15 +647,16 @@ case "$1" in
     *)
         echo "Usage: ./build.sh {clean|build|test|run} [OS] [ARCH]"
         echo ""
-        echo "  clean            - Clean build artifacts"
-        echo "  clean_all        - Clean all build artifacts including distributions"
-        echo "  build            - Build the Thunder server only"
-        echo "  build_backend    - Build the Thunder backend server"
-        echo "  build_samples    - Build the sample applications"
-        echo "  test_unit        - Run unit tests"
-        echo "  test_integration - Run integration tests"
-        echo "  test             - Run all tests (unit and integration)"
-        echo "  run              - Run the Thunder server for development"
+        echo "  clean                    - Clean build artifacts"
+        echo "  clean_all                - Clean all build artifacts including distributions"
+        echo "  build                    - Build the Thunder server only"
+        echo "  build_backend            - Build the Thunder backend server"
+        echo "  build_samples            - Build the sample applications"
+        echo "  test_unit                - Run unit tests with coverage"
+        echo "  test_integration         - Run integration tests"
+        echo "  merge_coverage           - Merge unit and integration test coverage reports"
+        echo "  test                     - Run all tests (unit and integration)"
+        echo "  run                      - Run the Thunder server for development"
         exit 1
         ;;
 esac
