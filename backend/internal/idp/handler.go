@@ -37,10 +37,10 @@ type IDPHandler struct {
 	idpService IDPServiceInterface
 }
 
-// NewIDPHandler creates a new instance of IDPHandler.
-func NewIDPHandler() *IDPHandler {
+// newIDPHandler creates a new instance of IDPHandler.
+func newIDPHandler(idpService IDPServiceInterface) *IDPHandler {
 	return &IDPHandler{
-		idpService: NewIDPService(),
+		idpService: idpService,
 	}
 }
 

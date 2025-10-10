@@ -39,11 +39,13 @@ type MessageNotificationSenderHandler struct {
 	otpService OTPServiceInterface
 }
 
-// NewMessageNotificationSenderHandler creates a new instance of MessageNotificationSenderHandler
-func NewMessageNotificationSenderHandler() *MessageNotificationSenderHandler {
+// newMessageNotificationSenderHandler creates a new instance of MessageNotificationSenderHandler
+func newMessageNotificationSenderHandler(
+	mgtService NotificationSenderMgtSvcInterface,
+	otpService OTPServiceInterface) *MessageNotificationSenderHandler {
 	return &MessageNotificationSenderHandler{
-		mgtService: getNotificationSenderMgtService(),
-		otpService: getOTPService(),
+		mgtService: mgtService,
+		otpService: otpService,
 	}
 }
 
