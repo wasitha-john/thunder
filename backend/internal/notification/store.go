@@ -19,7 +19,6 @@
 package notification
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/asgardeo/thunder/internal/notification/common"
@@ -27,7 +26,6 @@ import (
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
-	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // notificationStoreInterface defines the interface for notification sender storage operations.
@@ -50,29 +48,24 @@ func getNotificationStore() notificationStoreInterface {
 
 // createSender creates a new notification sender.
 func (s *notificationStore) createSender(sender common.NotificationSenderDTO) error {
-	queries := []func(tx dbmodel.TxInterface) error{
-		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(queryCreateNotificationSender.Query, sender.Name, sender.ID,
-				sender.Description, string(sender.Type), string(sender.Provider))
-			return err
-		},
-	}
-	for _, prop := range sender.Properties {
-		queries = append(queries, func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(
-				queryCreateNotificationSenderProperty.Query,
-				sender.ID,
-				prop.GetName(),
-				prop.GetStorageValue(),
-				sysutils.BoolToNumString(prop.IsSecret()),
-				sysutils.BoolToNumString(prop.IsEncrypted()),
-			)
-			return err
-		})
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
+	if err != nil {
+		return fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	if err := executeTransaction(queries); err != nil {
-		return fmt.Errorf("failed to execute transaction: %w", err)
+	// Serialize properties to JSON
+	var propertiesJSON string
+	if len(sender.Properties) > 0 {
+		propertiesJSON, err = cmodels.SerializePropertiesToJSONArray(sender.Properties)
+		if err != nil {
+			return fmt.Errorf("failed to serialize properties to JSON: %w", err)
+		}
+	}
+
+	_, err = dbClient.Execute(queryCreateNotificationSender, sender.Name, sender.ID,
+		sender.Description, string(sender.Type), string(sender.Provider), propertiesJSON)
+	if err != nil {
+		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	return nil
@@ -97,36 +90,19 @@ func (s *notificationStore) listSenders() ([]common.NotificationSenderDTO, error
 			return nil, fmt.Errorf("failed to build sender from result row: %w", err)
 		}
 
-		// Get properties for the sender
-		properties, err := s.GetSenderProperties(sender.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get properties for sender %s: %w", sender.ID, err)
+		propertiesJSON, ok := row["properties"].(string)
+		if ok && propertiesJSON != "" {
+			properties, err := cmodels.DeserializePropertiesFromJSON(propertiesJSON)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize properties from JSON: %w", err)
+			}
+			sender.Properties = properties
 		}
 
-		sender.Properties = properties
 		senders = append(senders, *sender)
 	}
 
 	return senders, nil
-}
-
-// GetSenderProperties retrieves all properties of a notification sender by ID.
-func (s *notificationStore) GetSenderProperties(id string) ([]cmodels.Property, error) {
-	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get database client: %w", err)
-	}
-
-	results, err := dbClient.Query(queryGetNotificationSenderProperties, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute query: %w", err)
-	}
-
-	props, err := buildSenderPropertiesFromResultSet(results, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build sender properties from result set: %w", err)
-	}
-	return props, nil
 }
 
 // getSenderByID retrieves a notification sender by ID.
@@ -166,45 +142,38 @@ func (s *notificationStore) getSender(query dbmodel.DBQuery,
 		return nil, fmt.Errorf("failed to build sender from result row: %w", err)
 	}
 
-	// Get properties for the sender
-	properties, err := s.GetSenderProperties(sender.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get properties for sender %s: %w", sender.ID, err)
+	propertiesJSON, ok := results[0]["properties"].(string)
+	if ok && propertiesJSON != "" {
+		properties, err := cmodels.DeserializePropertiesFromJSON(propertiesJSON)
+		if err != nil {
+			return nil, fmt.Errorf("failed to deserialize properties from JSON: %w", err)
+		}
+		sender.Properties = properties
 	}
-	sender.Properties = properties
 
 	return sender, nil
 }
 
 // updateSender updates an existing notification sender.
 func (s *notificationStore) updateSender(id string, sender common.NotificationSenderDTO) error {
-	queries := []func(tx dbmodel.TxInterface) error{
-		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(queryUpdateNotificationSender.Query, sender.Name, sender.Description,
-				string(sender.Provider), id, string(sender.Type))
-			return err
-		},
-		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(queryDeleteNotificationSenderProperties.Query, id)
-			return err
-		},
-	}
-	for _, prop := range sender.Properties {
-		queries = append(queries, func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(
-				queryCreateNotificationSenderProperty.Query,
-				id,
-				prop.GetName(),
-				prop.GetStorageValue(),
-				sysutils.BoolToNumString(prop.IsSecret()),
-				sysutils.BoolToNumString(prop.IsEncrypted()),
-			)
-			return err
-		})
+	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
+	if err != nil {
+		return fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	if err := executeTransaction(queries); err != nil {
-		return fmt.Errorf("failed to execute transaction: %w", err)
+	// Serialize properties to JSON
+	var propertiesJSON string
+	if len(sender.Properties) > 0 {
+		propertiesJSON, err = cmodels.SerializePropertiesToJSONArray(sender.Properties)
+		if err != nil {
+			return fmt.Errorf("failed to serialize properties to JSON: %w", err)
+		}
+	}
+
+	_, err = dbClient.Execute(queryUpdateNotificationSender, sender.Name, sender.Description,
+		string(sender.Provider), propertiesJSON, id, string(sender.Type))
+	if err != nil {
+		return fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	return nil
@@ -225,34 +194,6 @@ func (s *notificationStore) deleteSender(id string) error {
 	}
 	if rowsAffected == 0 {
 		logger.Debug("No sender found to delete", log.String("id", id))
-	}
-
-	return nil
-}
-
-// executeTransaction is a helper function to handle database transactions.
-func executeTransaction(queries []func(tx dbmodel.TxInterface) error) error {
-	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
-	if err != nil {
-		return fmt.Errorf("failed to get database client: %w", err)
-	}
-
-	tx, err := dbClient.BeginTx()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
-	for _, query := range queries {
-		if err := query(tx); err != nil {
-			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				err = errors.Join(err, fmt.Errorf("failed to rollback transaction: %s", rollbackErr.Error()))
-			}
-			return err
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
@@ -296,38 +237,4 @@ func (s *notificationStore) buildSenderFromResultRow(
 	}
 
 	return sender, nil
-}
-
-// buildSenderPropertiesFromResultSet builds a list of SenderProperty from the result set.
-func buildSenderPropertiesFromResultSet(results []map[string]interface{}, id string) ([]cmodels.Property, error) {
-	properties := make([]cmodels.Property, 0, len(results))
-
-	for _, row := range results {
-		propName, ok := row["property_name"].(string)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse property_name as string for sender ID: %s", id)
-		}
-
-		propValue, ok := row["property_value"].(string)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse property_value as string for sender ID: %s", id)
-		}
-
-		isSecretStr, ok := row["is_secret"].(string)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse is_secret as string for sender ID: %s", id)
-		}
-		isSecret := sysutils.NumStringToBool(isSecretStr)
-
-		isEncryptedStr, ok := row["is_encrypted"].(string)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse is_encrypted as string for sender ID: %s", id)
-		}
-		isEncrypted := sysutils.NumStringToBool(isEncryptedStr)
-
-		property := cmodels.NewRawProperty(propName, propValue, isSecret, isEncrypted)
-		properties = append(properties, *property)
-	}
-
-	return properties, nil
 }

@@ -24,48 +24,28 @@ var (
 	// queryCreateNotificationSender is the query to create a new notification sender.
 	queryCreateNotificationSender = dbmodel.DBQuery{
 		ID: "NMQ-SM-01",
-		Query: "INSERT INTO NOTIFICATION_SENDER (NAME, SENDER_ID, DESCRIPTION, TYPE, PROVIDER) " +
-			"VALUES ($1, $2, $3, $4, $5)",
-	}
-
-	// queryCreateNotificationSenderProperty is the query to create a notification sender property.
-	queryCreateNotificationSenderProperty = dbmodel.DBQuery{
-		ID: "NMQ-SM-02",
-		Query: "INSERT INTO NOTIFICATION_SENDER_PROPERTY " +
-			"(SENDER_ID, PROPERTY_NAME, PROPERTY_VALUE, IS_SECRET, IS_ENCRYPTED) " +
-			"VALUES ($1, $2, $3, $4, $5)",
+		Query: "INSERT INTO NOTIFICATION_SENDER (NAME, SENDER_ID, DESCRIPTION, TYPE, PROVIDER, PROPERTIES) " +
+			"VALUES ($1, $2, $3, $4, $5, $6)",
 	}
 
 	// queryGetNotificationSenderByID is the query to get a notification sender by its ID.
 	queryGetNotificationSenderByID = dbmodel.DBQuery{
-		ID:    "NMQ-SM-03",
-		Query: "SELECT SENDER_ID, NAME, DESCRIPTION, TYPE, PROVIDER FROM NOTIFICATION_SENDER WHERE SENDER_ID = $1",
-	}
-
-	// queryGetNotificationSenderProperties is the query to get properties of a notification sender.
-	queryGetNotificationSenderProperties = dbmodel.DBQuery{
-		ID: "NMQ-SM-04",
-		Query: "SELECT PROPERTY_NAME, PROPERTY_VALUE, IS_SECRET, IS_ENCRYPTED " +
-			"FROM NOTIFICATION_SENDER_PROPERTY WHERE SENDER_ID = $1",
+		ID: "NMQ-SM-03",
+		Query: "SELECT SENDER_ID, NAME, DESCRIPTION, TYPE, PROVIDER, PROPERTIES " +
+			"FROM NOTIFICATION_SENDER WHERE SENDER_ID = $1",
 	}
 
 	// queryGetAllNotificationSenders is the query to get all notification senders.
 	queryGetAllNotificationSenders = dbmodel.DBQuery{
 		ID:    "NMQ-SM-05",
-		Query: "SELECT SENDER_ID, NAME, DESCRIPTION, TYPE, PROVIDER FROM NOTIFICATION_SENDER",
+		Query: "SELECT SENDER_ID, NAME, DESCRIPTION, TYPE, PROVIDER, PROPERTIES FROM NOTIFICATION_SENDER",
 	}
 
 	// queryUpdateNotificationSender is the query to update a notification sender.
 	queryUpdateNotificationSender = dbmodel.DBQuery{
 		ID: "NMQ-SM-06",
-		Query: "UPDATE NOTIFICATION_SENDER SET NAME = $1, DESCRIPTION = $2, PROVIDER = $3, " +
-			"UPDATED_AT = datetime('now') WHERE SENDER_ID = $4 AND TYPE = $5",
-	}
-
-	// queryDeleteNotificationSenderProperties is the query to delete all properties of a notification sender.
-	queryDeleteNotificationSenderProperties = dbmodel.DBQuery{
-		ID:    "NMQ-SM-07",
-		Query: "DELETE FROM NOTIFICATION_SENDER_PROPERTY WHERE SENDER_ID = $1",
+		Query: "UPDATE NOTIFICATION_SENDER SET NAME = $1, DESCRIPTION = $2, PROVIDER = $3, PROPERTIES = $4, " +
+			"UPDATED_AT = datetime('now') WHERE SENDER_ID = $5 AND TYPE = $6",
 	}
 
 	// queryDeleteNotificationSender is the query to delete a notification sender
@@ -77,6 +57,6 @@ var (
 	// queryGetNotificationSenderByName is the query to get a notification sender by name
 	queryGetNotificationSenderByName = dbmodel.DBQuery{
 		ID:    "NMQ-SM-09",
-		Query: "SELECT SENDER_ID, NAME, DESCRIPTION, TYPE, PROVIDER FROM NOTIFICATION_SENDER WHERE NAME = $1",
+		Query: "SELECT SENDER_ID, NAME, DESCRIPTION, TYPE, PROVIDER, PROPERTIES FROM NOTIFICATION_SENDER WHERE NAME = $1",
 	}
 )

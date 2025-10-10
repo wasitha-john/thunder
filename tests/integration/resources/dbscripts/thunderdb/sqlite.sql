@@ -83,19 +83,9 @@ CREATE TABLE IDP (
     NAME VARCHAR(255) NOT NULL,
     DESCRIPTION VARCHAR(500),
     TYPE VARCHAR(20) NOT NULL,
+    PROPERTIES TEXT,
     CREATED_AT TEXT DEFAULT (datetime('now')),
     UPDATED_AT TEXT DEFAULT (datetime('now'))
-);
-
--- Table to store identity provider properties.
-CREATE TABLE IDP_PROPERTY (
-    IDP_ID VARCHAR(36) NOT NULL,
-    PROPERTY_NAME VARCHAR(255) NOT NULL,
-    PROPERTY_VALUE VARCHAR(500) NOT NULL,
-    IS_SECRET CHAR(1) DEFAULT '0',
-    IS_ENCRYPTED CHAR(1) DEFAULT '0',
-    PRIMARY KEY (IDP_ID, PROPERTY_NAME),
-    FOREIGN KEY (IDP_ID) REFERENCES IDP(IDP_ID) ON DELETE CASCADE
 );
 
 -- Table to store notification senders.
@@ -106,20 +96,9 @@ CREATE TABLE NOTIFICATION_SENDER (
     DESCRIPTION VARCHAR(500),
     TYPE VARCHAR(20) NOT NULL,
     PROVIDER VARCHAR(20) NOT NULL,
+    PROPERTIES TEXT,
     CREATED_AT TEXT DEFAULT (datetime('now')),
     UPDATED_AT TEXT DEFAULT (datetime('now'))
-);
-
--- Table to store notification sender properties.
-CREATE TABLE NOTIFICATION_SENDER_PROPERTY (
-    ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    SENDER_ID INTEGER NOT NULL,
-    PROPERTY_NAME VARCHAR(255) NOT NULL,
-    PROPERTY_VALUE VARCHAR(500),
-    IS_SECRET CHAR(1) DEFAULT '0',
-    IS_ENCRYPTED CHAR(1) DEFAULT '0',
-    UNIQUE (SENDER_ID, PROPERTY_NAME),
-    FOREIGN KEY (SENDER_ID) REFERENCES NOTIFICATION_SENDER(SENDER_ID) ON DELETE CASCADE
 );
 
 -- Table to store certificates associated with various entities.
@@ -145,10 +124,6 @@ CREATE TABLE USER_SCHEMAS (
     UPDATED_AT TEXT DEFAULT (datetime('now'))
 );
 
-INSERT INTO NOTIFICATION_SENDER (NAME, SENDER_ID, DESCRIPTION, TYPE, PROVIDER) VALUES
-('Custom SMS Sender', 'test-sms-sender-id', 'Custom SMS sender for integration tests', 'MESSAGE', 'custom');
-
-INSERT INTO NOTIFICATION_SENDER_PROPERTY (SENDER_ID, PROPERTY_NAME, PROPERTY_VALUE) VALUES
-('test-sms-sender-id', 'url', 'http://localhost:8098/send-sms'),
-('test-sms-sender-id', 'http_method', 'POST'),
-('test-sms-sender-id', 'content_type', 'JSON');
+INSERT INTO NOTIFICATION_SENDER (NAME, SENDER_ID, DESCRIPTION, TYPE, PROVIDER, PROPERTIES) VALUES
+('Custom SMS Sender', 'test-sms-sender-id', 'Custom SMS sender for integration tests', 'MESSAGE', 'custom', 
+'[{"name":"url","value":"http://localhost:8098/send-sms","is_secret":false},{"name":"http_method","value":"POST","is_secret":false},{"name":"content_type","value":"JSON","is_secret":false}]');

@@ -24,22 +24,22 @@ var (
 	// queryCreateIdentityProvider is the query to create a new IdP.
 	queryCreateIdentityProvider = model.DBQuery{
 		ID:    "IPQ-IDP_MGT-01",
-		Query: "INSERT INTO IDP (IDP_ID, NAME, DESCRIPTION, TYPE) VALUES ($1, $2, $3, $4)",
+		Query: "INSERT INTO IDP (IDP_ID, NAME, DESCRIPTION, TYPE, PROPERTIES) VALUES ($1, $2, $3, $4, $5)",
 	}
 	// queryGetIdentityProviderByID is the query to get a IdP by IdP ID.
 	queryGetIdentityProviderByID = model.DBQuery{
 		ID:    "IPQ-IDP_MGT-02",
-		Query: "SELECT IDP_ID, NAME, DESCRIPTION, TYPE FROM IDP WHERE IDP_ID = $1",
+		Query: "SELECT IDP_ID, NAME, DESCRIPTION, TYPE, PROPERTIES FROM IDP WHERE IDP_ID = $1",
 	}
 	// queryGetIdentityProviderList is the query to get a list of IdPs.
 	queryGetIdentityProviderList = model.DBQuery{
 		ID:    "IPQ-IDP_MGT-03",
-		Query: "SELECT IDP_ID, NAME, DESCRIPTION, TYPE FROM IDP",
+		Query: "SELECT IDP_ID, NAME, DESCRIPTION, TYPE, PROPERTIES FROM IDP",
 	}
 	// queryUpdateIdentityProviderByID is the query to update a IdP by IdP ID.
 	queryUpdateIdentityProviderByID = model.DBQuery{
 		ID:    "IPQ-IDP_MGT-04",
-		Query: "UPDATE IDP SET NAME = $2, DESCRIPTION = $3, TYPE = $4 WHERE IDP_ID = $1",
+		Query: "UPDATE IDP SET NAME = $2, DESCRIPTION = $3, TYPE = $4, PROPERTIES = $5 WHERE IDP_ID = $1",
 	}
 	// queryDeleteIdentityProviderByID is the query to delete a IdP by IdP ID.
 	queryDeleteIdentityProviderByID = model.DBQuery{
@@ -49,21 +49,6 @@ var (
 	// queryGetIdentityProviderByName is the query to get a IdP by IdP name.
 	queryGetIdentityProviderByName = model.DBQuery{
 		ID:    "IPQ-IDP_MGT-06",
-		Query: "SELECT IDP_ID, NAME, DESCRIPTION, TYPE FROM IDP WHERE NAME = $1",
-	}
-	// queryInsertIDPProperties is the query to insert properties for a specific IdP.
-	queryInsertIDPProperties = model.DBQuery{
-		ID:    "IPQ-IDP_MGT-07",
-		Query: "INSERT INTO IDP_PROPERTY (IDP_ID, PROPERTY_NAME, PROPERTY_VALUE, IS_SECRET, IS_ENCRYPTED) VALUES %s",
-	}
-	// queryGetIDPProperties is the query to get properties for a specific IdP.
-	queryGetIDPProperties = model.DBQuery{
-		ID:    "IPQ-IDP_MGT-08",
-		Query: "SELECT PROPERTY_NAME, PROPERTY_VALUE, IS_SECRET, IS_ENCRYPTED FROM IDP_PROPERTY WHERE IDP_ID = $1",
-	}
-	// queryDeleteIDPProperties is the query to delete all properties for a specific IdP.
-	queryDeleteIDPProperties = model.DBQuery{
-		ID:    "IPQ-IDP_MGT-10",
-		Query: "DELETE FROM IDP_PROPERTY WHERE IDP_ID = $1",
+		Query: "SELECT IDP_ID, NAME, DESCRIPTION, TYPE, PROPERTIES FROM IDP WHERE NAME = $1",
 	}
 )
