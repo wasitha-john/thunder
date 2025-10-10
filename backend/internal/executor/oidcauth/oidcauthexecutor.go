@@ -465,7 +465,7 @@ func (o *OIDCAuthExecutor) resolveUser(sub string, ctx *flowmodel.NodeContext,
 
 	user, svcErr := o.authService.GetInternalUser(sub)
 	if svcErr != nil {
-		if svcErr.Code == authnoauth.ErrorUserNotFound.Code {
+		if svcErr.Code == authncm.ErrorUserNotFound.Code {
 			if ctx.FlowType == flowconst.FlowTypeRegistration {
 				logger.Debug("User not found for the provided sub claim. Proceeding with registration flow.")
 				execResp.Status = flowconst.ExecComplete

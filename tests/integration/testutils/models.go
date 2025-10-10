@@ -91,3 +91,10 @@ type ErrorResponse struct {
 	Message     string `json:"message"`
 	Description string `json:"description"`
 }
+
+// AuthenticationResponse represents the response from an authentication request
+type AuthenticationResponse struct {
+	ID               string `json:"id"`
+	Type             string `json:"type"`
+	OrganizationUnit string `json:"organization_unit"`
+}

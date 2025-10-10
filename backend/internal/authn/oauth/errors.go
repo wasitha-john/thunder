@@ -64,24 +64,17 @@ var (
 		Error:            "Empty sub claim",
 		ErrorDescription: "The sub claim cannot be empty",
 	}
-	// ErrorUserNotFound is the error when the user is not found.
-	ErrorUserNotFound = serviceerror.ServiceError{
-		Type:             serviceerror.ClientErrorType,
-		Code:             "AUTH-OAUTH-1007",
-		Error:            "User not found",
-		ErrorDescription: "No user found for the provided sub claim",
-	}
 	// ErrorClientErrorWhileRetrievingUser is the error when there is a client error while retrieving the user.
 	ErrorClientErrorWhileRetrievingUser = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "AUTH-OAUTH-1008",
+		Code:             "AUTH-OAUTH-1007",
 		Error:            "Failed to retrieve user",
 		ErrorDescription: "A client error occurred while retrieving the internal user",
 	}
 	// ErrorInvalidTokenResponse is the error when the token response is invalid.
 	ErrorInvalidTokenResponse = serviceerror.ServiceError{
 		Type:             serviceerror.ServerErrorType,
-		Code:             "AUTH-OAUTH-1009",
+		Code:             "AUTH-OAUTH-1008",
 		Error:            "Invalid token response",
 		ErrorDescription: "The token response received from the identity provider is invalid",
 	}

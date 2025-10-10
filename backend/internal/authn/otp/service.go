@@ -24,6 +24,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/notification"
 	notifcommon "github.com/asgardeo/thunder/internal/notification/common"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
@@ -165,7 +166,7 @@ func (s *otpAuthnService) validateOTPVerifyRequest(sessionToken, otp string) *se
 func (s *otpAuthnService) handleVerifyOTPResponse(result *notifcommon.VerifyOTPResultDTO,
 	logger *log.Logger) (*usermodel.User, *serviceerror.ServiceError) {
 	if result.Status != notifcommon.OTPVerifyStatusVerified {
-		return nil, &ErrorInvalidOTP
+		return nil, &ErrorIncorrectOTP
 	}
 
 	if result.Recipient == "" {
@@ -202,7 +203,7 @@ func (s *otpAuthnService) resolveUser(recipient string, channel notifcommon.Chan
 	}
 	if userID == nil || *userID == "" {
 		logger.Debug("No user found for recipient", log.String("recipient", log.MaskString(recipient)))
-		return nil, &ErrorUserNotFound
+		return nil, &common.ErrorUserNotFound
 	}
 
 	user, svcErr := s.userService.GetUser(*userID)
@@ -219,7 +220,7 @@ func (s *otpAuthnService) handleUserServiceError(svcErr *serviceerror.ServiceErr
 	logger *log.Logger) *serviceerror.ServiceError {
 	if svcErr.Type == serviceerror.ClientErrorType {
 		if svcErr.Code == userconst.ErrorUserNotFound.Code {
-			return &ErrorUserNotFound
+			return &common.ErrorUserNotFound
 		}
 		return serviceerror.CustomServiceError(ErrorClientErrorWhileResolvingUser,
 			fmt.Sprintf("An error occurred while retrieving user: %s", svcErr.ErrorDescription))

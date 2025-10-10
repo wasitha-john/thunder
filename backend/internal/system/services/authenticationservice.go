@@ -48,6 +48,12 @@ func (s *AuthenticationService) RegisterRoutes(mux *http.ServeMux) {
 		AllowCredentials: true,
 	}
 
+	// Credentials authentication route
+	mux.HandleFunc(middleware.WithCORS("POST /auth/credentials/authenticate",
+		s.authHandler.HandleCredentialsAuthRequest, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /auth/credentials/authenticate",
+		optionsNoContentHandler, opts))
+
 	// SMS OTP routes
 	mux.HandleFunc(middleware.WithCORS("POST /auth/otp/sms/send",
 		s.authHandler.HandleSendSMSOTPRequest, opts))

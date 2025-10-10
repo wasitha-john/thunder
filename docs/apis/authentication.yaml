@@ -17,6 +17,63 @@ servers:
         default: "8090"
 
 paths:
+  /auth/credentials/authenticate:
+    post:
+      summary: Authenticate with credentials
+      description: Authenticate a user by providing user attributes and credentials.
+      tags:
+        - Credentials
+      requestBody:
+        description: Credentials authentication request data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialAuthRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationResponse'
+        "400":
+          description: 'Bad Request: The request body is malformed or contains invalid data'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientErrorResponse'
+              examples:
+                code: "AUTH-CRED-1001"
+                message: "Empty attributes or credentials"
+                description: "The user attributes or credentials cannot be empty"
+        "401":
+          description: 'Unauthorized: Authentication failed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "AUTH-CRED-1002"
+                message: "Invalid credentials"
+                description: "The provided credentials are invalid"
+        "404":
+          description: 'Not Found: The user could not be found'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "AUTHN-1008"
+                message: "User not found"
+                description: "No user found with the provided attributes"
+        "500":
+          description: 'Internal Server Error: An unexpected error occurred while processing the request'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorResponse'
+
   /auth/otp/sms/send:
     post:
       summary: Send a SMS OTP
@@ -80,10 +137,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClientErrorResponse'
-              example:
+              examples:
                 code: "AUTHN-OTP-1005"
                 message: "Invalid OTP"
                 description: "The provided OTP is invalid or empty"
+        "401":
+          description: 'Unauthorized: OTP verification failed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "AUTHN-OTP-1006"
+                message: "Incorrect OTP"
+                description: "The provided OTP is incorrect or has expired"
+        "404":
+          description: 'Not Found: The user could not be found'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientErrorResponse'
+              example:
+                code: "AUTHN-1008"
+                message: "User not found"
+                description: "No user found with the provided attributes"
         "500":
           description: 'Internal Server Error: An unexpected error occurred while processing the request'
           content:
@@ -327,6 +404,13 @@ paths:
 
 components:
   schemas:
+    CredentialAuthRequest:
+      type: object
+      additionalProperties: true
+      example:
+        email: "jane.doe@example.com"
+        password: "SecurePassword123!"
+    
     SendOtpAuthRequest:
       type: object
       properties:
