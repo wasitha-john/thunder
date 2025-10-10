@@ -22,20 +22,18 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/oauth/jwks/handler"
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // JWKSAPIService defines the API service for handling JWKS requests.
 type JWKSAPIService struct {
-	ServerOpsService server.ServerOperationServiceInterface
-	jwksHandler      *handler.JWKSHandler
+	jwksHandler *handler.JWKSHandler
 }
 
 // NewJWKSAPIService creates a new instance of JWKSAPIService.
 func NewJWKSAPIService(mux *http.ServeMux) ServiceInterface {
 	instance := &JWKSAPIService{
-		ServerOpsService: server.NewServerOperationService(),
-		jwksHandler:      handler.NewJWKSHandler(),
+		jwksHandler: handler.NewJWKSHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -44,17 +42,15 @@ func NewJWKSAPIService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for the JWKSAPIService.
 func (s *JWKSAPIService) RegisterRoutes(mux *http.ServeMux) {
-	opts := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, OPTIONS",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts := middleware.CORSOptions{
+		AllowedMethods:   "GET, OPTIONS",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /oauth2/jwks", &opts,
-		s.jwksHandler.HandleJWKSRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /oauth2/jwks", &opts,
+	mux.HandleFunc(middleware.WithCORS("GET /oauth2/jwks",
+		s.jwksHandler.HandleJWKSRequest, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /oauth2/jwks",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
+		}, opts))
 }

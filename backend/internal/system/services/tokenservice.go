@@ -22,20 +22,18 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/token"
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // TokenService defines the service for handling OAuth2 token requests.
 type TokenService struct {
-	ServerOpsService server.ServerOperationServiceInterface
-	tokenHandler     token.TokenHandlerInterface
+	tokenHandler token.TokenHandlerInterface
 }
 
 // NewTokenService creates a new instance of TokenService.
 func NewTokenService(mux *http.ServeMux) ServiceInterface {
 	instance := &TokenService{
-		ServerOpsService: server.NewServerOperationService(),
-		tokenHandler:     token.NewTokenHandler(),
+		tokenHandler: token.NewTokenHandler(),
 	}
 	instance.RegisterRoutes(mux)
 
@@ -44,12 +42,10 @@ func NewTokenService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for the TokenService.
 func (s *TokenService) RegisterRoutes(mux *http.ServeMux) {
-	opts := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts := middleware.CORSOptions{
+		AllowedMethods:   "POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /oauth2/token", &opts, s.tokenHandler.HandleTokenRequest)
+	mux.HandleFunc(middleware.WithCORS("POST /oauth2/token", s.tokenHandler.HandleTokenRequest, opts))
 }

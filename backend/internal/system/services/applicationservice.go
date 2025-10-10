@@ -25,19 +25,17 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/application/handler"
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // ApplicationService defines the service for handling application-related requests.
 type ApplicationService struct {
-	ServerOpsService   server.ServerOperationServiceInterface
 	applicationHandler *handler.ApplicationHandler
 }
 
 // NewApplicationService creates a new instance of ApplicationService.
 func NewApplicationService(mux *http.ServeMux) ServiceInterface {
 	instance := &ApplicationService{
-		ServerOpsService:   server.NewServerOperationService(),
 		applicationHandler: handler.NewApplicationHandler(),
 	}
 	instance.RegisterRoutes(mux)
@@ -47,37 +45,33 @@ func NewApplicationService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for the ApplicationService.
 func (s *ApplicationService) RegisterRoutes(mux *http.ServeMux) {
-	opts1 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts1 := middleware.CORSOptions{
+		AllowedMethods:   "GET, POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /applications", &opts1,
-		s.applicationHandler.HandleApplicationPostRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /applications", &opts1,
-		s.applicationHandler.HandleApplicationListRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /applications", &opts1,
+	mux.HandleFunc(middleware.WithCORS("POST /applications",
+		s.applicationHandler.HandleApplicationPostRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("GET /applications",
+		s.applicationHandler.HandleApplicationListRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /applications",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
+		}, opts1))
 
-	opts2 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, PUT, DELETE",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts2 := middleware.CORSOptions{
+		AllowedMethods:   "GET, PUT, DELETE",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /applications/{id}", &opts2,
-		s.applicationHandler.HandleApplicationGetRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "PUT /applications/{id}", &opts2,
-		s.applicationHandler.HandleApplicationPutRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /applications/{id}", &opts2,
-		s.applicationHandler.HandleApplicationDeleteRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /applications/", &opts2,
+	mux.HandleFunc(middleware.WithCORS("GET /applications/{id}",
+		s.applicationHandler.HandleApplicationGetRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("PUT /applications/{id}",
+		s.applicationHandler.HandleApplicationPutRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("DELETE /applications/{id}",
+		s.applicationHandler.HandleApplicationDeleteRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /applications/",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
+		}, opts2))
 }

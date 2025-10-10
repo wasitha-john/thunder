@@ -23,7 +23,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/introspect"
 	"github.com/asgardeo/thunder/internal/system/jwt"
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // TODO: Introspection endpoint MUST require authentication and authorization.
@@ -31,7 +31,6 @@ import (
 
 // TokenIntrospectionAPIService defines the API service for handling OAuth 2.0 token introspection requests.
 type TokenIntrospectionAPIService struct {
-	ServerOpsService  server.ServerOperationServiceInterface
 	introspectHandler *introspect.TokenIntrospectionHandler
 }
 
@@ -41,7 +40,6 @@ func NewIntrospectionAPIService(mux *http.ServeMux) ServiceInterface {
 	introspectionService := introspect.NewTokenIntrospectionService(jwtService)
 
 	instance := &TokenIntrospectionAPIService{
-		ServerOpsService:  server.NewServerOperationService(),
 		introspectHandler: introspect.NewTokenIntrospectionHandler(introspectionService),
 	}
 	instance.RegisterRoutes(mux)
@@ -51,18 +49,16 @@ func NewIntrospectionAPIService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for the IntrospectionAPIService.
 func (s *TokenIntrospectionAPIService) RegisterRoutes(mux *http.ServeMux) {
-	opts := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "POST, OPTIONS",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts := middleware.CORSOptions{
+		AllowedMethods:   "POST, OPTIONS",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
 
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /oauth2/introspect", &opts,
-		s.introspectHandler.HandleIntrospect)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /oauth2/introspect", &opts,
+	mux.HandleFunc(middleware.WithCORS("POST /oauth2/introspect",
+		s.introspectHandler.HandleIntrospect, opts))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /oauth2/introspect",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
+		}, opts))
 }

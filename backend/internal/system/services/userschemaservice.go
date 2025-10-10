@@ -24,20 +24,18 @@ package services
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 	"github.com/asgardeo/thunder/internal/userschema/handler"
 )
 
 // UserSchemaService is the service for user schema management operations.
 type UserSchemaService struct {
-	ServerOpsService  server.ServerOperationServiceInterface
 	userSchemaHandler *handler.UserSchemaHandler
 }
 
 // NewUserSchemaService creates a new instance of UserSchemaService.
 func NewUserSchemaService(mux *http.ServeMux) ServiceInterface {
 	instance := &UserSchemaService{
-		ServerOpsService:  server.NewServerOperationService(),
 		userSchemaHandler: handler.NewUserSchemaHandler(),
 	}
 	instance.RegisterRoutes(mux)
@@ -47,37 +45,33 @@ func NewUserSchemaService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the routes for user schema management operations.
 func (s *UserSchemaService) RegisterRoutes(mux *http.ServeMux) {
-	opts1 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts1 := middleware.CORSOptions{
+		AllowedMethods:   "GET, POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /user-schemas", &opts1,
-		s.userSchemaHandler.HandleUserSchemaPostRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /user-schemas", &opts1,
-		s.userSchemaHandler.HandleUserSchemaListRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /user-schemas", &opts1,
+	mux.HandleFunc(middleware.WithCORS("POST /user-schemas",
+		s.userSchemaHandler.HandleUserSchemaPostRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("GET /user-schemas",
+		s.userSchemaHandler.HandleUserSchemaListRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /user-schemas",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
+		}, opts1))
 
-	opts2 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, PUT, DELETE",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts2 := middleware.CORSOptions{
+		AllowedMethods:   "GET, PUT, DELETE",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /user-schemas/{id}", &opts2,
-		s.userSchemaHandler.HandleUserSchemaGetRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "PUT /user-schemas/{id}", &opts2,
-		s.userSchemaHandler.HandleUserSchemaPutRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /user-schemas/{id}", &opts2,
-		s.userSchemaHandler.HandleUserSchemaDeleteRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "OPTIONS /user-schemas/{id}", &opts2,
+	mux.HandleFunc(middleware.WithCORS("GET /user-schemas/{id}",
+		s.userSchemaHandler.HandleUserSchemaGetRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("PUT /user-schemas/{id}",
+		s.userSchemaHandler.HandleUserSchemaPutRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("DELETE /user-schemas/{id}",
+		s.userSchemaHandler.HandleUserSchemaDeleteRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /user-schemas/{id}",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
-		})
+		}, opts2))
 }

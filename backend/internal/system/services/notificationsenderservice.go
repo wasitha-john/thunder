@@ -22,19 +22,17 @@ import (
 	"net/http"
 
 	"github.com/asgardeo/thunder/internal/notification"
-	"github.com/asgardeo/thunder/internal/system/server"
+	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // NotificationSenderService provides HTTP endpoints for managing message notification senders.
 type NotificationSenderService struct {
-	ServerOpsService           server.ServerOperationServiceInterface
 	messageNotificationHandler *notification.MessageNotificationSenderHandler
 }
 
 // NewNotificationSenderService creates a new instance of NotificationSenderService.
 func NewNotificationSenderService(mux *http.ServeMux) ServiceInterface {
 	instance := &NotificationSenderService{
-		ServerOpsService:           server.NewServerOperationService(),
 		messageNotificationHandler: notification.NewMessageNotificationSenderHandler(),
 	}
 	instance.RegisterRoutes(mux)
@@ -44,41 +42,35 @@ func NewNotificationSenderService(mux *http.ServeMux) ServiceInterface {
 
 // RegisterRoutes registers the HTTP routes for the NotificationSenderService.
 func (s *NotificationSenderService) RegisterRoutes(mux *http.ServeMux) {
-	opts1 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts1 := middleware.CORSOptions{
+		AllowedMethods:   "GET, POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /notification-senders/message", &opts1,
-		s.messageNotificationHandler.HandleSenderListRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /notification-senders/message", &opts1,
-		s.messageNotificationHandler.HandleSenderCreateRequest)
+	mux.HandleFunc(middleware.WithCORS("GET /notification-senders/message",
+		s.messageNotificationHandler.HandleSenderListRequest, opts1))
+	mux.HandleFunc(middleware.WithCORS("POST /notification-senders/message",
+		s.messageNotificationHandler.HandleSenderCreateRequest, opts1))
 
-	opts2 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "GET, PUT, DELETE",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts2 := middleware.CORSOptions{
+		AllowedMethods:   "GET, PUT, DELETE",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "GET /notification-senders/message/{id}", &opts2,
-		s.messageNotificationHandler.HandleSenderGetRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "PUT /notification-senders/message/{id}", &opts2,
-		s.messageNotificationHandler.HandleSenderUpdateRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "DELETE /notification-senders/message/{id}", &opts2,
-		s.messageNotificationHandler.HandleSenderDeleteRequest)
+	mux.HandleFunc(middleware.WithCORS("GET /notification-senders/message/{id}",
+		s.messageNotificationHandler.HandleSenderGetRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("PUT /notification-senders/message/{id}",
+		s.messageNotificationHandler.HandleSenderUpdateRequest, opts2))
+	mux.HandleFunc(middleware.WithCORS("DELETE /notification-senders/message/{id}",
+		s.messageNotificationHandler.HandleSenderDeleteRequest, opts2))
 
-	opts3 := server.RequestWrapOptions{
-		Cors: &server.Cors{
-			AllowedMethods:   "POST",
-			AllowedHeaders:   "Content-Type, Authorization",
-			AllowCredentials: true,
-		},
+	opts3 := middleware.CORSOptions{
+		AllowedMethods:   "POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
 	}
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /notification-senders/otp/send", &opts3,
-		s.messageNotificationHandler.HandleOTPSendRequest)
-	s.ServerOpsService.WrapHandleFunction(mux, "POST /notification-senders/otp/verify", &opts3,
-		s.messageNotificationHandler.HandleOTPVerifyRequest)
+	mux.HandleFunc(middleware.WithCORS("POST /notification-senders/otp/send",
+		s.messageNotificationHandler.HandleOTPSendRequest, opts3))
+	mux.HandleFunc(middleware.WithCORS("POST /notification-senders/otp/verify",
+		s.messageNotificationHandler.HandleOTPVerifyRequest, opts3))
 }
