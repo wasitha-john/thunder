@@ -277,13 +277,14 @@ func (suite *GoogleAuthTestSuite) TestGoogleAuthCompleteFlowSuccess() {
 
 	suite.Equal(http.StatusOK, resp.StatusCode)
 
-	var authResponse map[string]interface{}
+	var authResponse testutils.AuthenticationResponse
 	err = json.NewDecoder(resp.Body).Decode(&authResponse)
 	suite.Require().NoError(err)
 
-	suite.Contains(authResponse, "id")
-	suite.Contains(authResponse, "type")
-	suite.Contains(authResponse, "organization_unit")
+	suite.NotEmpty(authResponse.ID, "Response should contain user ID")
+	suite.NotEmpty(authResponse.Type, "Response should contain user type")
+	suite.NotEmpty(authResponse.OrganizationUnit, "Response should contain organization unit")
+	suite.Equal(suite.userID, authResponse.ID, "Response should contain the correct user ID")
 }
 
 func (suite *GoogleAuthTestSuite) TestGoogleAuthFinishInvalidSessionToken() {

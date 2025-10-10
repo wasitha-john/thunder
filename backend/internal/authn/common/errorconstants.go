@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package authn
+package common
 
 import (
 	"github.com/asgardeo/thunder/internal/system/error/apierror"
@@ -82,6 +82,13 @@ var (
 		Code:             "AUTHN-1007",
 		Error:            "user subject not found",
 		ErrorDescription: "The 'sub' claim is not found in the ID token claims",
+	}
+	// ErrorUserNotFound is the error when no user is found with the provided attributes.
+	ErrorUserNotFound = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "AUTHN-1008",
+		Error:            "User not found",
+		ErrorDescription: "No user found with the provided attributes",
 	}
 )
 

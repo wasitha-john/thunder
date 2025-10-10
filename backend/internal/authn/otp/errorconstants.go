@@ -57,12 +57,12 @@ var (
 		Error:            "Invalid OTP",
 		ErrorDescription: "The provided OTP is invalid or empty",
 	}
-	// ErrorUserNotFound is the error returned when no user is found for the recipient.
-	ErrorUserNotFound = serviceerror.ServiceError{
+	// ErrorIncorrectOTP is the error returned when the provided OTP is incorrect or has expired.
+	ErrorIncorrectOTP = serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
 		Code:             "AUTHN-OTP-1006",
-		Error:            "User not found",
-		ErrorDescription: "No user found for the provided recipient",
+		Error:            "Incorrect OTP",
+		ErrorDescription: "The provided OTP is incorrect or has expired",
 	}
 	// ErrorClientErrorFromOTPService is the error returned when there is a client error from the OTP service.
 	ErrorClientErrorFromOTPService = serviceerror.ServiceError{

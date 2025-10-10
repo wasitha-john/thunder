@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/asgardeo/thunder/internal/authn/common"
+	"github.com/asgardeo/thunder/internal/authn/credentials"
 	"github.com/asgardeo/thunder/internal/authn/github"
 	"github.com/asgardeo/thunder/internal/authn/google"
 	"github.com/asgardeo/thunder/internal/authn/oauth"
@@ -48,6 +49,8 @@ var crossAllowedIDPTypes = []idp.IDPType{idp.IDPTypeOAuth, idp.IDPTypeOIDC}
 
 // AuthenticationServiceInterface defines the interface for the authentication service.
 type AuthenticationServiceInterface interface {
+	AuthenticateWithCredentials(attributes map[string]interface{}) (
+		*common.AuthenticationResponse, *serviceerror.ServiceError)
 	SendOTP(senderID string, channel notifcommon.ChannelType, recipient string) (string, *serviceerror.ServiceError)
 	VerifyOTP(sessionToken, otp string) (*common.AuthenticationResponse, *serviceerror.ServiceError)
 	StartIDPAuthentication(requestedType idp.IDPType, idpID string) (
@@ -58,26 +61,43 @@ type AuthenticationServiceInterface interface {
 
 // authenticationService is the default implementation of the AuthenticationServiceInterface.
 type authenticationService struct {
-	idpService    idp.IDPServiceInterface
-	jwtService    jwt.JWTServiceInterface
-	otpService    otp.OTPAuthnServiceInterface
-	oauthService  oauth.OAuthAuthnServiceInterface
-	oidcService   oidc.OIDCAuthnServiceInterface
-	googleService google.GoogleOIDCAuthnServiceInterface
-	githubService github.GithubOAuthAuthnServiceInterface
+	idpService         idp.IDPServiceInterface
+	jwtService         jwt.JWTServiceInterface
+	credentialsService credentials.CredentialsAuthnServiceInterface
+	otpService         otp.OTPAuthnServiceInterface
+	oauthService       oauth.OAuthAuthnServiceInterface
+	oidcService        oidc.OIDCAuthnServiceInterface
+	googleService      google.GoogleOIDCAuthnServiceInterface
+	githubService      github.GithubOAuthAuthnServiceInterface
 }
 
 // NewAuthenticationService creates a new instance of AuthenticationService.
 func NewAuthenticationService() AuthenticationServiceInterface {
 	return &authenticationService{
-		idpService:    idp.NewIDPService(),
-		jwtService:    jwt.GetJWTService(),
-		otpService:    otp.NewOTPAuthnService(nil, nil),
-		oauthService:  oauth.NewOAuthAuthnService(nil, nil, oauth.OAuthEndpoints{}),
-		oidcService:   oidc.NewOIDCAuthnService(nil, nil),
-		googleService: google.NewGoogleOIDCAuthnService(nil),
-		githubService: github.NewGithubOAuthAuthnService(nil, nil),
+		idpService:         idp.NewIDPService(),
+		jwtService:         jwt.GetJWTService(),
+		credentialsService: credentials.NewCredentialsAuthnService(nil),
+		otpService:         otp.NewOTPAuthnService(nil, nil),
+		oauthService:       oauth.NewOAuthAuthnService(nil, nil, oauth.OAuthEndpoints{}),
+		oidcService:        oidc.NewOIDCAuthnService(nil, nil),
+		googleService:      google.NewGoogleOIDCAuthnService(nil),
+		githubService:      github.NewGithubOAuthAuthnService(nil, nil),
 	}
+}
+
+// AuthenticateWithCredentials authenticates a user using credentials.
+func (as *authenticationService) AuthenticateWithCredentials(
+	attributes map[string]interface{}) (*common.AuthenticationResponse, *serviceerror.ServiceError) {
+	user, svcErr := as.credentialsService.Authenticate(attributes)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+
+	return &common.AuthenticationResponse{
+		ID:               user.ID,
+		Type:             user.Type,
+		OrganizationUnit: user.OrganizationUnit,
+	}, nil
 }
 
 // SendOTP sends an OTP to the specified recipient for authentication.
@@ -108,7 +128,7 @@ func (as *authenticationService) StartIDPAuthentication(requestedType idp.IDPTyp
 	logger.Debug("Starting IDP authentication", log.String("idpId", idpID))
 
 	if strings.TrimSpace(idpID) == "" {
-		return nil, &ErrorInvalidIDPID
+		return nil, &common.ErrorInvalidIDPID
 	}
 
 	identityProvider, svcErr := as.idpService.GetIdentityProvider(idpID)
@@ -134,7 +154,7 @@ func (as *authenticationService) StartIDPAuthentication(requestedType idp.IDPTyp
 	default:
 		logger.Error("Unsupported IDP type", log.String("idpId", idpID),
 			log.String("type", string(identityProvider.Type)))
-		return nil, &ErrorInternalServerError
+		return nil, &common.ErrorInternalServerError
 	}
 
 	if svcErr != nil {
@@ -145,7 +165,7 @@ func (as *authenticationService) StartIDPAuthentication(requestedType idp.IDPTyp
 	sessionToken, err := as.createSessionToken(idpID, identityProvider.Type)
 	if err != nil {
 		logger.Error("Failed to create session token", log.String("idpId", idpID), log.Error(err))
-		return nil, &ErrorInternalServerError
+		return nil, &common.ErrorInternalServerError
 	}
 
 	return &IDPAuthInitData{
@@ -161,10 +181,10 @@ func (as *authenticationService) FinishIDPAuthentication(requestedType idp.IDPTy
 	logger.Debug("Finishing IDP authentication")
 
 	if strings.TrimSpace(sessionToken) == "" {
-		return nil, &ErrorEmptySessionToken
+		return nil, &common.ErrorEmptySessionToken
 	}
 	if strings.TrimSpace(code) == "" {
-		return nil, &ErrorEmptyAuthCode
+		return nil, &common.ErrorEmptyAuthCode
 	}
 
 	// Verify and decode session token
@@ -191,7 +211,7 @@ func (as *authenticationService) FinishIDPAuthentication(requestedType idp.IDPTy
 	default:
 		logger.Error("Unsupported IDP type in session", log.String("idpId", sessionData.IDPID),
 			log.String("type", string(sessionData.IDPType)))
-		return nil, &ErrorInternalServerError
+		return nil, &common.ErrorInternalServerError
 	}
 
 	if svcErr != nil {
@@ -319,13 +339,13 @@ func (as *authenticationService) finishGithubAuthentication(idpID, code string, 
 func (as *authenticationService) handleIDPServiceError(idpID string, svcErr *serviceerror.ServiceError,
 	logger *log.Logger) *serviceerror.ServiceError {
 	if svcErr.Type == serviceerror.ClientErrorType {
-		return serviceerror.CustomServiceError(ErrorClientErrorWhileRetrievingIDP,
+		return serviceerror.CustomServiceError(common.ErrorClientErrorWhileRetrievingIDP,
 			fmt.Sprintf("An error occurred while retrieving the identity provider with ID %s: %s",
 				idpID, svcErr.ErrorDescription))
 	}
 
 	logger.Error("Error occurred while retrieving IDP", log.String("idpId", idpID), log.Any("error", svcErr))
-	return &ErrorInternalServerError
+	return &common.ErrorInternalServerError
 }
 
 // validateIDPType validates that the requested IDP type matches the actual IDP type.
@@ -340,7 +360,7 @@ func (as *authenticationService) validateIDPType(requestedType, actualType idp.I
 
 		logger.Debug("IDP type mismatch", log.String("requested", string(requestedType)),
 			log.String("actual", string(actualType)))
-		return &ErrorInvalidIDPType
+		return &common.ErrorInvalidIDPType
 	}
 
 	return nil
@@ -373,33 +393,33 @@ func (as *authenticationService) verifyAndDecodeSessionToken(token string, logge
 	err := as.jwtService.VerifyJWT(token, "auth-svc", jwtConfig.Issuer)
 	if err != nil {
 		logger.Debug("Error verifying session token", log.Error(err))
-		return nil, &ErrorInvalidSessionToken
+		return nil, &common.ErrorInvalidSessionToken
 	}
 
 	// Parse and extract authentication session data
 	payload, err := jwt.DecodeJWTPayload(token)
 	if err != nil {
 		logger.Debug("Error decoding session token payload", log.Error(err))
-		return nil, &ErrorInvalidSessionToken
+		return nil, &common.ErrorInvalidSessionToken
 	}
 
 	authDataClaim, ok := payload["auth_data"]
 	if !ok {
 		logger.Debug("auth_data claim not found in session token")
-		return nil, &ErrorInvalidSessionToken
+		return nil, &common.ErrorInvalidSessionToken
 	}
 
 	authDataBytes, err := json.Marshal(authDataClaim)
 	if err != nil {
 		logger.Debug("Error marshaling auth_data claim", log.Error(err))
-		return nil, &ErrorInvalidSessionToken
+		return nil, &common.ErrorInvalidSessionToken
 	}
 
 	var sessionData AuthSessionData
 	err = json.Unmarshal(authDataBytes, &sessionData)
 	if err != nil {
 		logger.Debug("Error marshaling auth_data claim", log.Error(err))
-		return nil, &ErrorInvalidSessionToken
+		return nil, &common.ErrorInvalidSessionToken
 	}
 
 	return &sessionData, nil
@@ -424,5 +444,5 @@ func (as *authenticationService) getSubClaim(userClaims map[string]interface{}, 
 	}
 
 	logger.Debug("sub claim not found in user info claims")
-	return "", &ErrorSubClaimNotFound
+	return "", &common.ErrorSubClaimNotFound
 }

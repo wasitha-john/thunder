@@ -22,6 +22,7 @@ package oauth
 import (
 	"strings"
 
+	"github.com/asgardeo/thunder/internal/authn/common"
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/idp"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
@@ -272,7 +273,7 @@ func (s *oAuthAuthnService) GetInternalUser(sub string) (*usermodel.User, *servi
 	if svcErr != nil {
 		if svcErr.Code == userconst.ErrorUserNotFound.Code {
 			logger.Debug("No user found for the provided sub claim")
-			return nil, &ErrorUserNotFound
+			return nil, &common.ErrorUserNotFound
 		}
 		if svcErr.Type == serviceerror.ClientErrorType {
 			return nil, &ErrorClientErrorWhileRetrievingUser
@@ -284,7 +285,7 @@ func (s *oAuthAuthnService) GetInternalUser(sub string) (*usermodel.User, *servi
 
 	if userID == nil {
 		logger.Debug("User id is nil, no user found for the provided sub claim")
-		return nil, &ErrorUserNotFound
+		return nil, &common.ErrorUserNotFound
 	}
 
 	user, svcErr := s.userService.GetUser(*userID)

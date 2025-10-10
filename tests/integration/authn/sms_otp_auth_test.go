@@ -255,14 +255,14 @@ func (suite *SMSOTPAuthTestSuite) TestVerifyOTPSuccess() {
 
 	suite.Equal(http.StatusOK, resp.StatusCode)
 
-	var authResponse map[string]interface{}
+	var authResponse testutils.AuthenticationResponse
 	err = json.NewDecoder(resp.Body).Decode(&authResponse)
 	suite.Require().NoError(err)
 
-	suite.Contains(authResponse, "id")
-	suite.Equal(suite.userID, authResponse["id"])
-	suite.Contains(authResponse, "type")
-	suite.Contains(authResponse, "organization_unit")
+	suite.NotEmpty(authResponse.ID, "Response should contain user ID")
+	suite.Equal(suite.userID, authResponse.ID, "Response should contain the correct user ID")
+	suite.NotEmpty(authResponse.Type, "Response should contain user type")
+	suite.NotEmpty(authResponse.OrganizationUnit, "Response should contain organization unit")
 }
 
 func (suite *SMSOTPAuthTestSuite) TestVerifyOTPInvalidCode() {
@@ -283,7 +283,7 @@ func (suite *SMSOTPAuthTestSuite) TestVerifyOTPInvalidCode() {
 	suite.Require().NoError(err)
 	defer resp.Body.Close()
 
-	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+	suite.Equal(http.StatusUnauthorized, resp.StatusCode)
 }
 
 func (suite *SMSOTPAuthTestSuite) TestVerifyOTPInvalidSessionToken() {
@@ -352,7 +352,7 @@ func (suite *SMSOTPAuthTestSuite) TestVerifyOTPMissingFields() {
 			suite.Require().NoError(err)
 			defer resp.Body.Close()
 
-			suite.Equal(http.StatusBadRequest, resp.StatusCode)
+			suite.Equal(http.StatusBadRequest, resp.StatusCode, "Unexpected status code")
 		})
 	}
 }
