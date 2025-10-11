@@ -51,10 +51,14 @@ func (suite *ConfigTestSuite) TestLoadConfigWithDefaults() {
     "login_path": "/default-login",
     "error_path": "/default-error"
   },
+  "jwt": {
+    "issuer": "default-issuer",
+    "validity_period": 7200
+  },
   "oauth": {
-    "jwt": {
-      "issuer": "default-issuer",
-      "validity_period": 7200
+    "refresh_token": {
+      "renew_on_grant": false,
+      "validity_period": 86400
     }
   },
   "crypto": {
@@ -68,9 +72,8 @@ server:
   hostname: "user-host"
   port: 8090
 
-oauth:
-  jwt:
-    issuer: "user-issuer"
+jwt:
+  issuer: "user-issuer"
 `
 
 	tempDir := suite.T().TempDir()
@@ -97,8 +100,8 @@ oauth:
 	assert.Equal(suite.T(), "http", config.GateClient.Scheme)
 	assert.Equal(suite.T(), "/default-login", config.GateClient.LoginPath)
 	assert.Equal(suite.T(), "/default-error", config.GateClient.ErrorPath)
-	assert.Equal(suite.T(), "user-issuer", config.OAuth.JWT.Issuer)       // User override
-	assert.Equal(suite.T(), int64(7200), config.OAuth.JWT.ValidityPeriod) // Default value
+	assert.Equal(suite.T(), "user-issuer", config.JWT.Issuer)       // User override
+	assert.Equal(suite.T(), int64(7200), config.JWT.ValidityPeriod) // Default value
 	assert.Equal(suite.T(), "default-crypto-key", config.Crypto.Key)
 }
 
@@ -166,11 +169,11 @@ func (suite *ConfigTestSuite) TestMergeStructs() {
 			LoginPath: "/base-login",
 			ErrorPath: "/base-error",
 		},
+		JWT: JWTConfig{
+			Issuer:         "base-issuer",
+			ValidityPeriod: 3600,
+		},
 		OAuth: OAuthConfig{
-			JWT: JWTConfig{
-				Issuer:         "base-issuer",
-				ValidityPeriod: 3600,
-			},
 			RefreshToken: RefreshTokenConfig{
 				RenewOnGrant:   false,
 				ValidityPeriod: 7200,
@@ -209,11 +212,11 @@ func (suite *ConfigTestSuite) TestMergeStructs() {
 			Hostname: "user-gate", // Override
 			// Other fields are zero values, should not override
 		},
+		JWT: JWTConfig{
+			Issuer: "user-issuer", // Override
+			// ValidityPeriod: 0 (zero value, should not override)
+		},
 		OAuth: OAuthConfig{
-			JWT: JWTConfig{
-				Issuer: "user-issuer", // Override
-				// ValidityPeriod: 0 (zero value, should not override)
-			},
 			RefreshToken: RefreshTokenConfig{
 				RenewOnGrant: true, // Override
 				// ValidityPeriod: 0 (zero value, should not override)
@@ -244,8 +247,8 @@ func (suite *ConfigTestSuite) TestMergeStructs() {
 	assert.Equal(suite.T(), "http", base.GateClient.Scheme)                      // Not overridden (zero value)
 	assert.Equal(suite.T(), "/base-login", base.GateClient.LoginPath)            // Not overridden (zero value)
 	assert.Equal(suite.T(), "/base-error", base.GateClient.ErrorPath)            // Not overridden (zero value)
-	assert.Equal(suite.T(), "user-issuer", base.OAuth.JWT.Issuer)                // Overridden
-	assert.Equal(suite.T(), int64(3600), base.OAuth.JWT.ValidityPeriod)          // Not overridden (zero value)
+	assert.Equal(suite.T(), "user-issuer", base.JWT.Issuer)                      // Overridden
+	assert.Equal(suite.T(), int64(3600), base.JWT.ValidityPeriod)                // Not overridden (zero value)
 	assert.Equal(suite.T(), true, base.OAuth.RefreshToken.RenewOnGrant)          // Overridden
 	assert.Equal(suite.T(), int64(7200), base.OAuth.RefreshToken.ValidityPeriod) // Not overridden (zero value)
 

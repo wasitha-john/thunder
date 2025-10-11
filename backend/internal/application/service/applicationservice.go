@@ -1037,7 +1037,7 @@ func (as *ApplicationService) rollbackApplicationCertificateUpdate(appID string,
 
 // getDefaultTokenConfigFromDeployment creates a default token configuration from deployment settings.
 func getDefaultTokenConfigFromDeployment() *model.TokenConfig {
-	jwtConfig := config.GetThunderRuntime().Config.OAuth.JWT
+	jwtConfig := config.GetThunderRuntime().Config.JWT
 	tokenConfig := &model.TokenConfig{
 		Issuer:         jwtConfig.Issuer,
 		ValidityPeriod: jwtConfig.ValidityPeriod,

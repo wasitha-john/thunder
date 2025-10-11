@@ -1,14 +1,6 @@
 server:
   hostname: "localhost"
   port: 8090
-  # http_only: false
-
-gate_client:
-  hostname: "localhost"
-  port: 9090
-  scheme: "https"
-  login_path: "/login"
-  error_path: "/error"
 
 security:
   cert_file: "repository/resources/security/server.cert"
@@ -30,33 +22,6 @@ database:
     max_open_conns: 500
     max_idle_conns: 100
     conn_max_lifetime: 3600
-
-cache:
-  disabled: false
-  type: "inmemory"
-  size: 1000
-  ttl: 3600
-  eviction_policy: "LRU"
-  cleanup_interval: 300
-  # properties:
-  #   - name: "ApplicationByIDCache"
-  #     disabled: false
-  #     size: 1000
-  #     ttl: 3600
-  #     eviction_policy: "LRU"
-
-oauth:
-  jwt:
-    issuer: "thunder"
-    validity_period: 3600
-  refresh_token:
-    renew_on_grant: false
-    validity_period: 86400
-
-flow:
-  graph_directory: "repository/resources/graphs/"
-  authn:
-    default_flow: "auth_flow_config_basic"
 
 cors:
   allowed_origins:

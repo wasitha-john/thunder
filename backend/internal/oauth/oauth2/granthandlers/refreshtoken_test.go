@@ -57,10 +57,10 @@ func (suite *RefreshTokenGrantHandlerTestSuite) SetupTest() {
 
 	// Initialize Thunder Runtime config with basic test config
 	testConfig := &config.Config{
+		JWT: config.JWTConfig{
+			ValidityPeriod: 3600,
+		},
 		OAuth: config.OAuthConfig{
-			JWT: config.JWTConfig{
-				ValidityPeriod: 3600,
-			},
 			RefreshToken: config.RefreshTokenConfig{
 				ValidityPeriod: 86400,
 				RenewOnGrant:   false,

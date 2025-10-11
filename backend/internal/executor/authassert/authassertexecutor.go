@@ -139,7 +139,7 @@ func (a *AuthAssertExecutor) generateAuthAssertion(ctx *flowmodel.NodeContext, l
 	}
 
 	jwtClaims := make(map[string]interface{})
-	jwtConfig := config.GetThunderRuntime().Config.OAuth.JWT
+	jwtConfig := config.GetThunderRuntime().Config.JWT
 	iss := ""
 	validityPeriod := int64(0)
 

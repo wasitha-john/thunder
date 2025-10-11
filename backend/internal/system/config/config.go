@@ -108,7 +108,6 @@ type RefreshTokenConfig struct {
 
 // OAuthConfig holds the OAuth configuration details.
 type OAuthConfig struct {
-	JWT          JWTConfig          `yaml:"jwt" json:"jwt"`
 	RefreshToken RefreshTokenConfig `yaml:"refresh_token" json:"refresh_token"`
 }
 
@@ -145,6 +144,7 @@ type Config struct {
 	Security   SecurityConfig   `yaml:"security" json:"security"`
 	Database   DatabaseConfig   `yaml:"database" json:"database"`
 	Cache      CacheConfig      `yaml:"cache" json:"cache"`
+	JWT        JWTConfig        `yaml:"jwt" json:"jwt"`
 	OAuth      OAuthConfig      `yaml:"oauth" json:"oauth"`
 	Flow       FlowConfig       `yaml:"flow" json:"flow"`
 	Crypto     CryptoConfig     `yaml:"crypto" json:"crypto"`
