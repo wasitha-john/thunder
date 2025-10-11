@@ -341,7 +341,7 @@ func (as *UserService) IdentifyUser(filters map[string]interface{}) (*string, *s
 
 	userID, err := store.IdentifyUser(filters)
 	if err != nil {
-		if errors.Is(err, model.ErrUserNotFound) {
+		if errors.Is(err, constants.ErrUserNotFound) {
 			logger.Debug("User not found with provided filters")
 			return nil, &constants.ErrorUserNotFound
 		}
