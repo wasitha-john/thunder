@@ -802,7 +802,7 @@ components:
           default: false
         public_client:
           type: boolean
-          description: Whether this is a public client (cannot securely store client secrets).
+          description: Whether the application is a public client (Mobile apps, SPAs, etc.), which cannot store secrets securely.
           example: false
           default: false
         token:
@@ -857,7 +857,7 @@ components:
           default: false
         public_client:
           type: boolean
-          description: Whether this is a public client (cannot securely store client secrets).
+          description: Whether the application is a public client (Mobile apps, SPAs, etc.), which cannot store secrets securely.
           example: false
           default: false
         token:

@@ -21,6 +21,7 @@ package service
 
 import (
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/asgardeo/thunder/internal/application/constants"
@@ -141,7 +142,7 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 			OAuthAppConfig: &model.OAuthAppConfigProcessedDTO{
 				AppID:                   appID,
 				ClientID:                inboundAuthConfig.OAuthAppConfig.ClientID,
-				HashedClientSecret:      getHashedClientSecret(inboundAuthConfig.OAuthAppConfig),
+				HashedClientSecret:      getProcessedClientSecret(inboundAuthConfig.OAuthAppConfig),
 				RedirectURIs:            inboundAuthConfig.OAuthAppConfig.RedirectURIs,
 				GrantTypes:              inboundAuthConfig.OAuthAppConfig.GrantTypes,
 				ResponseTypes:           inboundAuthConfig.OAuthAppConfig.ResponseTypes,
@@ -414,7 +415,7 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 			OAuthAppConfig: &model.OAuthAppConfigProcessedDTO{
 				AppID:                   appID,
 				ClientID:                inboundAuthConfig.OAuthAppConfig.ClientID,
-				HashedClientSecret:      getHashedClientSecret(inboundAuthConfig.OAuthAppConfig),
+				HashedClientSecret:      getProcessedClientSecret(inboundAuthConfig.OAuthAppConfig),
 				RedirectURIs:            inboundAuthConfig.OAuthAppConfig.RedirectURIs,
 				GrantTypes:              inboundAuthConfig.OAuthAppConfig.GrantTypes,
 				ResponseTypes:           inboundAuthConfig.OAuthAppConfig.ResponseTypes,
@@ -1103,24 +1104,25 @@ func processTokenConfiguration(app *model.ApplicationDTO) (*model.TokenConfig, *
 func validatePublicClientConfiguration(oauthConfig *model.OAuthAppConfigDTO) *serviceerror.ServiceError {
 	if len(oauthConfig.TokenEndpointAuthMethod) != 1 ||
 		oauthConfig.TokenEndpointAuthMethod[0] != oauth2const.TokenEndpointAuthMethodNone {
-		return &constants.ErrorPublicClientInvalidAuthMethod
+		return serviceerror.CustomServiceError(constants.ErrorPublicClientInvalidConfiguration,
+			"Public clients must use only 'none' as token endpoint authentication method")
 	}
 
-	for _, grantType := range oauthConfig.GrantTypes {
-		if grantType == oauth2const.GrantTypeClientCredentials {
-			return &constants.ErrorPublicClientCannotUseClientCredentials
-		}
+	if slices.Contains(oauthConfig.GrantTypes, oauth2const.GrantTypeClientCredentials) {
+		return serviceerror.CustomServiceError(constants.ErrorPublicClientInvalidConfiguration,
+			"Public clients cannot use the client_credentials grant type")
 	}
 
 	if oauthConfig.ClientSecret != "" {
-		return &constants.ErrorPublicClientCannotHaveClientSecret
+		return serviceerror.CustomServiceError(constants.ErrorPublicClientInvalidConfiguration,
+			"Public clients cannot have client secrets")
 	}
 
 	return nil
 }
 
-// getHashedClientSecret returns the hashed client secret for confidential clients, empty string for public clients.
-func getHashedClientSecret(oauthConfig *model.OAuthAppConfigDTO) string {
+// getProcessedClientSecret returns the hashed client secret for confidential clients, empty string for public clients.
+func getProcessedClientSecret(oauthConfig *model.OAuthAppConfigDTO) string {
 	if oauthConfig.PublicClient {
 		return ""
 	}
