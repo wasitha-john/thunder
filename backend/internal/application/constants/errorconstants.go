@@ -187,6 +187,27 @@ var (
 		Error:            "Application with client ID already exists",
 		ErrorDescription: "An application with the same client ID already exists",
 	}
+	// ErrorPublicClientInvalidAuthMethod is the error returned when a public client uses invalid authentication methods.
+	ErrorPublicClientInvalidAuthMethod = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "APP-1024",
+		Error:            "Public client has invalid authentication method",
+		ErrorDescription: "Public clients cannot use client credentials authentication method",
+	}
+	// ErrorPublicClientCannotUseClientCredentials is the error returned when a public client tries to use client_credentials grant.
+	ErrorPublicClientCannotUseClientCredentials = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "APP-1025",
+		Error:            "Public client cannot use client credentials grant",
+		ErrorDescription: "Public clients cannot use the client_credentials grant type",
+	}
+	// ErrorPublicClientCannotHaveClientSecret is the error returned when a public client is provided with a client secret.
+	ErrorPublicClientCannotHaveClientSecret = serviceerror.ServiceError{
+		Type:             serviceerror.ClientErrorType,
+		Code:             "APP-1026",
+		Error:            "Public client cannot have client secret",
+		ErrorDescription: "Public clients cannot have client secrets",
+	}
 )
 
 // Server errors for application operations.

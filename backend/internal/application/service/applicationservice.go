@@ -30,6 +30,7 @@ import (
 	certconst "github.com/asgardeo/thunder/internal/cert/constants"
 	certmodel "github.com/asgardeo/thunder/internal/cert/model"
 	"github.com/asgardeo/thunder/internal/flow/flowmgt"
+	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	oauthutils "github.com/asgardeo/thunder/internal/oauth/oauth2/utils"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
@@ -140,12 +141,13 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 			OAuthAppConfig: &model.OAuthAppConfigProcessedDTO{
 				AppID:                   appID,
 				ClientID:                inboundAuthConfig.OAuthAppConfig.ClientID,
-				HashedClientSecret:      hash.GenerateThumbprintFromString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
+				HashedClientSecret:      getHashedClientSecret(inboundAuthConfig.OAuthAppConfig),
 				RedirectURIs:            inboundAuthConfig.OAuthAppConfig.RedirectURIs,
 				GrantTypes:              inboundAuthConfig.OAuthAppConfig.GrantTypes,
 				ResponseTypes:           inboundAuthConfig.OAuthAppConfig.ResponseTypes,
 				TokenEndpointAuthMethod: inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod,
 				PKCERequired:            inboundAuthConfig.OAuthAppConfig.PKCERequired,
+				PublicClient:            inboundAuthConfig.OAuthAppConfig.PublicClient,
 				Token:                   oAuthTokenConfig,
 			},
 		}
@@ -206,6 +208,7 @@ func (as *ApplicationService) CreateApplication(app *model.ApplicationDTO) (*mod
 				ResponseTypes:           inboundAuthConfig.OAuthAppConfig.ResponseTypes,
 				TokenEndpointAuthMethod: inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod,
 				PKCERequired:            inboundAuthConfig.OAuthAppConfig.PKCERequired,
+				PublicClient:            inboundAuthConfig.OAuthAppConfig.PublicClient,
 				Token:                   returnTokenConfig,
 			},
 		}
@@ -411,12 +414,13 @@ func (as *ApplicationService) UpdateApplication(appID string, app *model.Applica
 			OAuthAppConfig: &model.OAuthAppConfigProcessedDTO{
 				AppID:                   appID,
 				ClientID:                inboundAuthConfig.OAuthAppConfig.ClientID,
-				HashedClientSecret:      hash.GenerateThumbprintFromString(inboundAuthConfig.OAuthAppConfig.ClientSecret),
+				HashedClientSecret:      getHashedClientSecret(inboundAuthConfig.OAuthAppConfig),
 				RedirectURIs:            inboundAuthConfig.OAuthAppConfig.RedirectURIs,
 				GrantTypes:              inboundAuthConfig.OAuthAppConfig.GrantTypes,
 				ResponseTypes:           inboundAuthConfig.OAuthAppConfig.ResponseTypes,
 				TokenEndpointAuthMethod: inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod,
 				PKCERequired:            inboundAuthConfig.OAuthAppConfig.PKCERequired,
+				PublicClient:            inboundAuthConfig.OAuthAppConfig.PublicClient,
 				Token:                   oAuthTokenConfig,
 			},
 		}
@@ -588,6 +592,13 @@ func validateOAuthParamsForCreateAndUpdate(app *model.ApplicationDTO) (*model.In
 		}
 	}
 
+	// Validate public client configurations
+	if oauthAppConfig.PublicClient {
+		if err := validatePublicClientConfiguration(oauthAppConfig); err != nil {
+			return nil, err
+		}
+	}
+
 	return &inboundAuthConfig, nil
 }
 
@@ -653,7 +664,8 @@ func validateAndProcessInboundAuthConfig(appStore store.ApplicationStoreInterfac
 	}
 
 	// Generate OAuth 2.0 compliant client secret with high entropy for security
-	if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" {
+	// Only generate client secret for confidential clients
+	if inboundAuthConfig.OAuthAppConfig.ClientSecret == "" && !inboundAuthConfig.OAuthAppConfig.PublicClient {
 		generatedClientSecret, err := oauthutils.GenerateOAuth2ClientSecret()
 		if err != nil {
 			logger.Error("Failed to generate OAuth client secret", log.Error(err))
@@ -1085,4 +1097,32 @@ func processTokenConfiguration(app *model.ApplicationDTO) (*model.TokenConfig, *
 	}
 
 	return rootToken, oauthAccessToken
+}
+
+// validatePublicClientConfiguration validates that public client configurations are correct.
+func validatePublicClientConfiguration(oauthConfig *model.OAuthAppConfigDTO) *serviceerror.ServiceError {
+	if len(oauthConfig.TokenEndpointAuthMethod) != 1 ||
+		oauthConfig.TokenEndpointAuthMethod[0] != oauth2const.TokenEndpointAuthMethodNone {
+		return &constants.ErrorPublicClientInvalidAuthMethod
+	}
+
+	for _, grantType := range oauthConfig.GrantTypes {
+		if grantType == oauth2const.GrantTypeClientCredentials {
+			return &constants.ErrorPublicClientCannotUseClientCredentials
+		}
+	}
+
+	if oauthConfig.ClientSecret != "" {
+		return &constants.ErrorPublicClientCannotHaveClientSecret
+	}
+
+	return nil
+}
+
+// getHashedClientSecret returns the hashed client secret for confidential clients, empty string for public clients.
+func getHashedClientSecret(oauthConfig *model.OAuthAppConfigDTO) string {
+	if oauthConfig.PublicClient {
+		return ""
+	}
+	return hash.GenerateThumbprintFromString(oauthConfig.ClientSecret)
 }
