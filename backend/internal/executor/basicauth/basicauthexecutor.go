@@ -21,14 +21,15 @@ package basicauth
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
+	authncreds "github.com/asgardeo/thunder/internal/authn/credentials"
 	"github.com/asgardeo/thunder/internal/executor/identify"
 	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
 	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/internal/user/service"
 )
 
 const (
@@ -40,8 +41,8 @@ const (
 // BasicAuthExecutor implements the ExecutorInterface for basic authentication.
 type BasicAuthExecutor struct {
 	*identify.IdentifyingExecutor
-	internal    flowmodel.Executor
-	userService service.UserServiceInterface
+	internal     flowmodel.Executor
+	credsAuthSvc authncreds.CredentialsAuthnServiceInterface
 }
 
 var _ flowmodel.ExecutorInterface = (*BasicAuthExecutor)(nil)
@@ -63,7 +64,7 @@ func NewBasicAuthExecutor(id, name string, properties map[string]string) *BasicA
 	return &BasicAuthExecutor{
 		IdentifyingExecutor: identify.NewIdentifyingExecutor(id, name, properties),
 		internal:            *flowmodel.NewExecutor(id, name, defaultInputs, []flowmodel.InputData{}, properties),
-		userService:         service.GetUserService(),
+		credsAuthSvc:        authncreds.NewCredentialsAuthnService(nil),
 	}
 }
 
@@ -207,36 +208,34 @@ func (b *BasicAuthExecutor) getAuthenticatedUser(ctx *flowmodel.NodeContext,
 		return nil, nil
 	}
 
-	credentials := map[string]interface{}{
+	// Prepare authentication attributes with user identifier and credentials.
+	authAttributes := map[string]interface{}{
+		userAttributeUsername: username,
 		userAttributePassword: ctx.UserInputData[userAttributePassword],
 	}
 
-	user, svcErr := b.userService.VerifyUser(*userID, credentials)
+	user, svcErr := b.credsAuthSvc.Authenticate(authAttributes)
 	if svcErr != nil {
-		logger.Error("Failed to verify user credentials",
-			log.String("userID", *userID),
-			log.String("error", svcErr.Error),
-			log.String("code", svcErr.Code))
-		return nil, fmt.Errorf("failed to verify user credentials: %s", svcErr.Error)
+		if svcErr.Type == serviceerror.ClientErrorType {
+			execResp.Status = flowconst.ExecFailure
+			execResp.FailureReason = "Failed to authenticate user: " + svcErr.ErrorDescription
+			return nil, nil
+		}
+		logger.Error("Failed to authenticate user", log.String("userID", *userID),
+			log.String("errorCode", svcErr.Code), log.String("errorDescription", svcErr.ErrorDescription))
+		return nil, errors.New("failed to authenticate user")
 	}
 
-	var authenticatedUser authncm.AuthenticatedUser
-	if user == nil {
-		authenticatedUser = authncm.AuthenticatedUser{
-			IsAuthenticated: false,
-		}
-	} else {
-		var attrs map[string]interface{}
-		if err := json.Unmarshal(user.Attributes, &attrs); err != nil {
-			logger.Error("Failed to unmarshal user attributes", log.Error(err))
-			return nil, err
-		}
+	var attrs map[string]interface{}
+	if err := json.Unmarshal(user.Attributes, &attrs); err != nil {
+		logger.Error("Failed to unmarshal user attributes", log.Error(err))
+		return nil, err
+	}
 
-		authenticatedUser = authncm.AuthenticatedUser{
-			IsAuthenticated: true,
-			UserID:          user.ID,
-			Attributes:      attrs,
-		}
+	authenticatedUser := authncm.AuthenticatedUser{
+		IsAuthenticated: true,
+		UserID:          user.ID,
+		Attributes:      attrs,
 	}
 	return &authenticatedUser, nil
 }
