@@ -1,0 +1,122 @@
+name: 🐘 PostgreSQL Compatibility Tests  
+  
+on:  
+  workflow_dispatch:  
+  schedule:  
+    - cron: '0 0 * * *'  
+  release:  
+    types: [created]   
+  
+env:  
+  GOFLAGS: "-mod=readonly"  
+  
+jobs:  
+  postgres-test:  
+    name: 🐘 PostgreSQL Tests  
+    runs-on: ubuntu-latest  
+      
+    services:  
+      postgres:  
+        image: postgres:latest  
+        env:  
+          POSTGRES_USER: asgthunder  
+          POSTGRES_PASSWORD: asgthunder  
+          POSTGRES_DB: thunderdb  
+        ports:  
+          - 5432:5432  
+        options: >-  
+          --health-cmd pg_isready  
+          --health-interval 10s  
+          --health-timeout 5s  
+          --health-retries 5  
+  
+    steps:  
+      - name: 📥 Checkout Code  
+        uses: actions/checkout@v4  
+  
+      - name: ⚙️ Set up Go Environment  
+        uses: ./.github/actions/setup-go  
+  
+      - name: 🗄️ Cache Go Modules  
+        uses: actions/cache@v4  
+        with:  
+          path: |  
+            ~/.cache/go-build  
+            ~/go/pkg/mod  
+          key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}  
+          restore-keys: |  
+            ${{ runner.os }}-go-modules-  
+  
+      - name: 📦 Install Dependencies  
+        run: |  
+          cd backend  
+          go mod download  
+          cd ../tests/integration  
+          go mod download  
+  
+      - name: 🗄️ Setup PostgreSQL Databases  
+        run: |  
+          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb -c "CREATE DATABASE runtimedb;"  
+          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb < backend/dbscripts/thunderdb/postgres.sql  
+          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d runtimedb < backend/dbscripts/runtimedb/postgres.sql  
+  
+      - name: 📝 Generate PostgreSQL Test Configuration  
+        run: |  
+          cat > backend/tests/resources/deployment.yaml << 'EOF'  
+          server:  
+            hostname: localhost  
+            port: 8080  
+  
+          gate_client:  
+            hostname: localhost  
+            port: 9090  
+            scheme: https  
+            login_path: /login  
+            error_path: /error  
+  
+          security:  
+            cert_file: /path/to/cert.pem  
+            key_file: /path/to/key.pem  
+  
+          database:  
+            identity:  
+              type: postgres  
+              hostname: localhost  
+              port: 5432  
+              name: thunderdb  
+              username: asgthunder  
+              password: asgthunder  
+              sslmode: disable  
+              path: ""  
+              options: ""  
+            runtime:  
+              type: postgres  
+              hostname: localhost  
+              port: 5432  
+              name: runtimedb  
+              username: asgthunder  
+              password: asgthunder  
+              sslmode: disable  
+              path: ""  
+              options: ""  
+  
+          oauth:  
+            jwt:  
+              issuer: thunder  
+              validity_period: 3600  
+  
+          flow:  
+            graph_directory: "repository/resources/graphs/"  
+            authn:  
+              default_flow: "auth_flow_config_basic"  
+          EOF  
+  
+      - name: 🧹 Clean Previous Builds  
+        run: make clean_all  
+  
+      - name: 🔨 Build and Run Tests  
+        env:  
+          LOG_LEVEL: debug  
+        run: |  
+          set -e  
+          make all OS=$(go env GOOS) ARCH=$(go env GOARCH)
