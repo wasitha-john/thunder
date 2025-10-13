@@ -7,83 +7,118 @@ name: 🚀 Release Builder
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version (e.g., v1.0.0)'
-        required: true
-        type: string
-      prerelease:
-        description: 'Set as a pre-release'
-        required: false
-        type: boolean
-        default: false
-      run_performance_test:
-        description: 'Run performance tests after release'
-        required: false
-        type: boolean
-        default: false
+    # inputs:
+    #   version:
+    #     description: 'Release version (e.g., v1.0.0)'
+    #     required: true
+    #     type: string
+    #   prerelease:
+    #     description: 'Set as a pre-release'
+    #     required: false
+    #     type: boolean
+    #     default: false
+    #   run_performance_test:
+    #     description: 'Run performance tests after release'
+    #     required: false
+    #     type: boolean
+    #     default: false
 
 # Add permissions to allow pushing tags and packages
-permissions:
-  contents: write
-  packages: write
+# permissions:
+#   contents: write
+#   packages: write
 
 env:
   GOFLAGS: "-mod=readonly"
 
 jobs:
-  build-thunder:
-    name: ⚡ Build Thunder
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Need full history for tagging
-
-      - name: ✅ Validate Release Version
-        run: |
-          if ! [[ ${{ github.event.inputs.version }} =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then
-            echo "❌ Error: Version '${{ github.event.inputs.version }}' does not follow format vX.Y[.Z][-PRERELEASE][+BUILD]"
-            echo "❌ Version must start with 'v'"
-            exit 1
-          fi
-          echo "✅ Version '${{ github.event.inputs.version }}' is valid"
-
-      - name: 🏷️ Update Product Version
-        run: |
-          # Store version with v prefix in version.txt
-          VERSION="${{ github.event.inputs.version }}"
-          echo "$VERSION" > version.txt
-
-      - name: ⚙️ Set up Go Environment
-        uses: ./.github/actions/setup-go
-
-      - name: 🗄️ Cache Go Modules
-        uses: actions/cache@v4
-        id: cache-go-modules
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-modules-
-
-      - name: 📦 Install Dependencies
-        run: |
-          cd backend
-          go mod download
-          cd ../tests/integration
-          go mod download
-
-      - name: 🛠️ Build and Run Tests
-        run: |
-            set -e
-            make all OS=$(go env GOOS) ARCH=$(go env GOARCH)
-
-      - name: 🧹 Clean Previous Builds
-        run: make clean_all
+  build-thunder:  
+    name: ⚡ Build Thunder  
+    runs-on: ubuntu-latest  
+    strategy:  
+      matrix:  
+        database: [sqlite, postgres]  
+      fail-fast: false  
+      
+    services:  
+      postgres:  
+        image: postgres:latest  
+        env:  
+          POSTGRES_USER: asgthunder  
+          POSTGRES_PASSWORD: asgthunder  
+          POSTGRES_DB: thunderdb  
+        ports:  
+          - 5432:5432  
+        options: >-  
+          --health-cmd pg_isready  
+          --health-interval 10s  
+          --health-timeout 5s  
+          --health-retries 5  
+      
+    steps:  
+      - name: 📥 Checkout Code  
+        uses: actions/checkout@v4  
+        with:  
+          fetch-depth: 0  
+  
+      - name: ✅ Validate Release Version  
+        run: |  
+          if ! [[ ${{ github.event.inputs.version }} =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then  
+            echo "❌ Error: Version '${{ github.event.inputs.version }}' does not follow format vX.Y[.Z][-PRERELEASE][+BUILD]"  
+            echo "❌ Version must start with 'v'"  
+            exit 1  
+          fi  
+          echo "✅ Version '${{ github.event.inputs.version }}' is valid"  
+  
+      - name: 🏷️ Update Product Version  
+        run: |  
+          VERSION="${{ github.event.inputs.version }}"  
+          echo "$VERSION" > version.txt  
+  
+      - name: ⚙️ Set up Go Environment  
+        uses: ./.github/actions/setup-go  
+  
+      - name: 🗄️ Cache Go Modules  
+        uses: actions/cache@v4  
+        id: cache-go-modules  
+        with:  
+          path: |  
+            ~/.cache/go-build  
+            ~/go/pkg/mod  
+          key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}  
+          restore-keys: |  
+            ${{ runner.os }}-go-modules-  
+  
+      - name: 📦 Install Dependencies  
+        run: |  
+          cd backend  
+          go mod download  
+          cd ../tests/integration  
+          go mod download  
+  
+      - name: 🗄️ Setup PostgreSQL Databases  
+        if: matrix.database == 'postgres'  
+        run: |  
+          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb -c "CREATE DATABASE runtimedb;"  
+          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb < backend/dbscripts/thunderdb/postgres.sql  
+          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d runtimedb < backend/dbscripts/runtimedb/postgres.sql  
+  
+      - name: 📝 Configure Test Database  
+        run: |  
+          chmod +x backend/tests/scripts/setup-test-config.sh  
+          ./backend/tests/scripts/setup-test-config.sh  
+        env:  
+          DB_TYPE: ${{ matrix.database }}  
+  
+      - name: 🛠️ Build and Run Tests (${{ matrix.database }})  
+        env:  
+          DB_TYPE: ${{ matrix.database }}  
+        run: |  
+          set -e  
+          make all OS=$(go env GOOS) ARCH=$(go env GOARCH)  
+  
+      - name: 🧹 Clean Previous Builds  
+        run: make clean_all  
 
       - name: 🔐 Generate Shared Certificates
         run: |
@@ -102,592 +137,590 @@ jobs:
           echo "📄 Certificate info:"
           openssl x509 -in target/out/.cert/server.cert -text -noout | head -10
 
-      - name: 📦 Upload Shared Certificates 
-        uses: actions/upload-artifact@v4
-        with:
-          name: thunder-certificates
-          path: |
-            target/out/.cert/server.cert
-            target/out/.cert/server.key
-          if-no-files-found: error
+  #     - name: 📦 Upload Shared Certificates 
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: thunder-certificates
+  #         path: |
+  #           target/out/.cert/server.cert
+  #           target/out/.cert/server.key
+  #         if-no-files-found: error
 
-      - name: 🔨 Build Thunder Release Artifacts
-        run: |
-          # Define platform matrix as arrays
-          PLATFORMS=(
-            "windows:amd64"
-            "linux:amd64"
-            "linux:arm64"
-            "darwin:amd64"
-            "darwin:arm64"
-          )
+  #     - name: 🔨 Build Thunder Release Artifacts
+  #       run: |
+  #         # Define platform matrix as arrays
+  #         PLATFORMS=(
+  #           "windows:amd64"
+  #           "linux:amd64"
+  #           "linux:arm64"
+  #           "darwin:amd64"
+  #           "darwin:arm64"
+  #         )
           
-          echo "🏗️ Building Thunder for ${#PLATFORMS[@]} platforms..."
+  #         echo "🏗️ Building Thunder for ${#PLATFORMS[@]} platforms..."
           
-          # Loop through the platform matrix
-          for platform in "${PLATFORMS[@]}"; do
-            # Split the platform string into OS and ARCH
-            OS="${platform%%:*}"
-            ARCH="${platform#*:}"
+  #         # Loop through the platform matrix
+  #         for platform in "${PLATFORMS[@]}"; do
+  #           # Split the platform string into OS and ARCH
+  #           OS="${platform%%:*}"
+  #           ARCH="${platform#*:}"
             
-            echo "🔨 Building Thunder backend for $OS/$ARCH..."
-            make build_backend OS=$OS ARCH=$ARCH
+  #           echo "🔨 Building Thunder backend for $OS/$ARCH..."
+  #           make build_backend OS=$OS ARCH=$ARCH
             
-            # Optional: Add a small delay to prevent resource contention
-            sleep 1
-          done
+  #           # Optional: Add a small delay to prevent resource contention
+  #           sleep 1
+  #         done
           
-          echo "✅ Thunder built for all platforms successfully!"
+  #         echo "✅ Thunder built for all platforms successfully!"
 
-      - name: 📝 Read Updated Version
-        id: version
-        run: echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
+  #     - name: 📝 Read Updated Version
+  #       id: version
+  #       run: echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
 
-      - name: 📦 Upload Backend Distribution Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: thunder-distribution
-          path: target/dist/*.zip
-          if-no-files-found: error
+  #     - name: 📦 Upload Backend Distribution Artifacts
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: thunder-distribution
+  #         path: target/dist/*.zip
+  #         if-no-files-found: error
 
-      - name: 🏷️ Create Git Tag
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+  #     - name: 🏷️ Create Git Tag
+  #       run: |
+  #         git config --local user.email "action@github.com"
+  #         git config --local user.name "GitHub Action"
 
-          TAG_VERSION="${{ github.event.inputs.version }}"
-          if [[ ! $TAG_VERSION == v* ]]; then
-            TAG_VERSION="v$TAG_VERSION"
-          fi
+  #         TAG_VERSION="${{ github.event.inputs.version }}"
+  #         if [[ ! $TAG_VERSION == v* ]]; then
+  #           TAG_VERSION="v$TAG_VERSION"
+  #         fi
 
-          git tag -a "$TAG_VERSION" -m "Release $TAG_VERSION"
-          git push origin "$TAG_VERSION"
+  #         git tag -a "$TAG_VERSION" -m "Release $TAG_VERSION"
+  #         git push origin "$TAG_VERSION"
 
-      - name: 🐳 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+  #     - name: 🐳 Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v3
 
-      - name: 🔐 Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: 🔐 Log in to GitHub Container Registry
+  #       uses: docker/login-action@v3
+  #       with:
+  #         registry: ghcr.io
+  #         username: ${{ github.actor }}
+  #         password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 📥 Download Shared Certificates for Docker
-        uses: actions/download-artifact@v4
-        with:
-          name: thunder-certificates
-          path: target/out/.cert/
+  #     - name: 📥 Download Shared Certificates for Docker
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: thunder-certificates
+  #         path: target/out/.cert/
 
-      - name: 📋 Prepare Docker Build Context
-        run: |
-          # Copy certificates into the Docker build context
-          mkdir -p docker-certs
-          cp target/out/.cert/server.cert docker-certs/
-          cp target/out/.cert/server.key docker-certs/
-          echo "✅ Certificates prepared for Docker build context"
+  #     - name: 📋 Prepare Docker Build Context
+  #       run: |
+  #         # Copy certificates into the Docker build context
+  #         mkdir -p docker-certs
+  #         cp target/out/.cert/server.cert docker-certs/
+  #         cp target/out/.cert/server.key docker-certs/
+  #         echo "✅ Certificates prepared for Docker build context"
 
-      - name: 🐳 Build and Push Multi-Arch Docker Image
-        run: |
-          # Convert repository name to lowercase for GHCR
-          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          IMAGE_NAME="ghcr.io/${REPO_NAME}"
+  #     - name: 🐳 Build and Push Multi-Arch Docker Image
+  #       run: |
+  #         # Convert repository name to lowercase for GHCR
+  #         REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+  #         IMAGE_NAME="ghcr.io/${REPO_NAME}"
           
-          # Get version without 'v' prefix for Docker tags
-          DOCKER_VERSION="${{ github.event.inputs.version }}"
-          if [[ $DOCKER_VERSION == v* ]]; then
-            DOCKER_VERSION="${DOCKER_VERSION#v}"
-          fi
+  #         # Get version without 'v' prefix for Docker tags
+  #         DOCKER_VERSION="${{ github.event.inputs.version }}"
+  #         if [[ $DOCKER_VERSION == v* ]]; then
+  #           DOCKER_VERSION="${DOCKER_VERSION#v}"
+  #         fi
           
-          echo "🐳 Building and pushing Docker image: ${IMAGE_NAME}:${DOCKER_VERSION}"
+  #         echo "🐳 Building and pushing Docker image: ${IMAGE_NAME}:${DOCKER_VERSION}"
           
-          # Build and push multi-arch image with version and latest tags
-          # Pass shared certificates as build context with paths relative to build context
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            --tag "${IMAGE_NAME}:${DOCKER_VERSION}" \
-            --tag "${IMAGE_NAME}:latest" \
-            --build-arg CERT_FILE=docker-certs/server.cert \
-            --build-arg KEY_FILE=docker-certs/server.key \
-            --push \
-            .
+  #         # Build and push multi-arch image with version and latest tags
+  #         # Pass shared certificates as build context with paths relative to build context
+  #         docker buildx build \
+  #           --platform linux/amd64,linux/arm64 \
+  #           --tag "${IMAGE_NAME}:${DOCKER_VERSION}" \
+  #           --tag "${IMAGE_NAME}:latest" \
+  #           --build-arg CERT_FILE=docker-certs/server.cert \
+  #           --build-arg KEY_FILE=docker-certs/server.key \
+  #           --push \
+  #           .
           
-          echo "✅ Docker image pushed successfully!"
-          echo "📦 Image available at: ${IMAGE_NAME}:${DOCKER_VERSION}"
-          echo "📦 Image available at: ${IMAGE_NAME}:latest"
+  #         echo "✅ Docker image pushed successfully!"
+  #         echo "📦 Image available at: ${IMAGE_NAME}:${DOCKER_VERSION}"
+  #         echo "📦 Image available at: ${IMAGE_NAME}:latest"
 
-      - name: 📝 Calculate Next Version
-        id: next_version
-        run: |
-          # Get the current release version and remove 'v' prefix
-          RELEASE_VERSION="${{ github.event.inputs.version }}"
-          if [[ $RELEASE_VERSION == v* ]]; then
-            RELEASE_VERSION="${RELEASE_VERSION#v}"
-          fi
+  #     - name: 📝 Calculate Next Version
+  #       id: next_version
+  #       run: |
+  #         # Get the current release version and remove 'v' prefix
+  #         RELEASE_VERSION="${{ github.event.inputs.version }}"
+  #         if [[ $RELEASE_VERSION == v* ]]; then
+  #           RELEASE_VERSION="${RELEASE_VERSION#v}"
+  #         fi
           
-          # Parse version components (handle both X.Y and X.Y.Z formats)
-          if [[ $RELEASE_VERSION =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
-            # X.Y.Z format
-            MAJOR="${BASH_REMATCH[1]}"
-            MINOR="${BASH_REMATCH[2]}"
-            PATCH="${BASH_REMATCH[3]}"
-          elif [[ $RELEASE_VERSION =~ ^([0-9]+)\.([0-9]+) ]]; then
-            # X.Y format
-            MAJOR="${BASH_REMATCH[1]}"
-            MINOR="${BASH_REMATCH[2]}"
-            PATCH="0"
-          else
-            echo "❌ Error: Unable to parse version format: $RELEASE_VERSION"
-            exit 1
-          fi
+  #         # Parse version components (handle both X.Y and X.Y.Z formats)
+  #         if [[ $RELEASE_VERSION =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+  #           # X.Y.Z format
+  #           MAJOR="${BASH_REMATCH[1]}"
+  #           MINOR="${BASH_REMATCH[2]}"
+  #           PATCH="${BASH_REMATCH[3]}"
+  #         elif [[ $RELEASE_VERSION =~ ^([0-9]+)\.([0-9]+) ]]; then
+  #           # X.Y format
+  #           MAJOR="${BASH_REMATCH[1]}"
+  #           MINOR="${BASH_REMATCH[2]}"
+  #           PATCH="0"
+  #         else
+  #           echo "❌ Error: Unable to parse version format: $RELEASE_VERSION"
+  #           exit 1
+  #         fi
           
-          # Bump minor version
-          NEXT_MINOR=$((MINOR + 1))
-          NEXT_VERSION="${MAJOR}.${NEXT_MINOR}.0"
+  #         # Bump minor version
+  #         NEXT_MINOR=$((MINOR + 1))
+  #         NEXT_VERSION="${MAJOR}.${NEXT_MINOR}.0"
           
-          echo "✅ Next development version: $NEXT_VERSION"
-          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+  #         echo "✅ Next development version: $NEXT_VERSION"
+  #         echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
 
-      - name: 🏷️ Update Product Version
-        run: |
-          NEXT_VERSION="v${{ steps.next_version.outputs.next_version }}"
-          echo "$NEXT_VERSION" > version.txt
-          echo "✅ Updated version.txt to $NEXT_VERSION"
+  #     - name: 🏷️ Update Product Version
+  #       run: |
+  #         NEXT_VERSION="v${{ steps.next_version.outputs.next_version }}"
+  #         echo "$NEXT_VERSION" > version.txt
+  #         echo "✅ Updated version.txt to $NEXT_VERSION"
 
-      - name: ⚙️ Set up Node.js for Version Update
-        uses: ./.github/actions/setup-node
-        with:
-          node-version: '20'
-          package-manager: 'npm'
-          dependency-path: 'samples/apps/oauth'
+  #     - name: ⚙️ Set up Node.js for Version Update
+  #       uses: ./.github/actions/setup-node
+  #       with:
+  #         node-version: '20'
+  #         package-manager: 'npm'
+  #         dependency-path: 'samples/apps/oauth'
 
-      - name: 🏷️ Update Sample Apps Version
-        run: |
-          NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
-          echo "📝 Setting sample apps version to $NEXT_VERSION"
+  #     - name: 🏷️ Update Sample Apps Version
+  #       run: |
+  #         NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
+  #         echo "📝 Setting sample apps version to $NEXT_VERSION"
           
-          # Update the main sample app package.json
-          cd samples/apps/oauth
-          npm version $NEXT_VERSION --no-git-tag-version --allow-same-version
+  #         # Update the main sample app package.json
+  #         cd samples/apps/oauth
+  #         npm version $NEXT_VERSION --no-git-tag-version --allow-same-version
           
-          # Update the server package.json
-          cd server
-          npm version $NEXT_VERSION --no-git-tag-version --allow-same-version
+  #         # Update the server package.json
+  #         cd server
+  #         npm version $NEXT_VERSION --no-git-tag-version --allow-same-version
           
-          cd ../../../..
-          echo "✅ Updated sample apps version to $NEXT_VERSION"
+  #         cd ../../../..
+  #         echo "✅ Updated sample apps version to $NEXT_VERSION"
 
-      # - name: 📈 Commit and Push Version Update
-      #   run: |
-      #     git config --local user.email "action@github.com"
-      #     git config --local user.name "GitHub Action"
+  #     # - name: 📈 Commit and Push Version Update
+  #     #   run: |
+  #     #     git config --local user.email "action@github.com"
+  #     #     git config --local user.name "GitHub Action"
           
-      #     NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
+  #     #     NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
           
-      #     # Add and commit the version changes
-      #     git add version.txt samples/apps/oauth/package.json samples/apps/oauth/server/package.json
+  #     #     # Add and commit the version changes
+  #     #     git add version.txt samples/apps/oauth/package.json samples/apps/oauth/server/package.json
 
-      #     if ! git diff --cached --quiet; then
-      #         git commit -m "[Release] Update version to ${NEXT_VERSION} for the next development iteration"
-      #         git push origin HEAD:main
-      #         echo "✅ Pushed version update to main branch"
-      #     else
-      #       echo "✅ No changes to commit"
-      #     fi
+  #     #     if ! git diff --cached --quiet; then
+  #     #         git commit -m "[Release] Update version to ${NEXT_VERSION} for the next development iteration"
+  #     #         git push origin HEAD:main
+  #     #         echo "✅ Pushed version update to main branch"
+  #     #     else
+  #     #       echo "✅ No changes to commit"
+  #     #     fi
 
-  package-samples-linux:
-    name: 📦 Package Linux & Windows Samples
-    runs-on: ubuntu-latest
-    needs: build-thunder
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # package-samples-linux:
+  #   name: 📦 Package Linux & Windows Samples
+  #   runs-on: ubuntu-latest
+  #   needs: build-thunder
+  #   steps:
+  #     - name: 📥 Checkout Code
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: ⚙️ Set up Go Environment
-        uses: ./.github/actions/setup-go
+  #     - name: ⚙️ Set up Go Environment
+  #       uses: ./.github/actions/setup-go
 
-      - name: ⚙️ Set up Node.js Environment
-        uses: ./.github/actions/setup-node
-        with:
-          node-version: '20'
-          package-manager: 'npm'
-          dependency-path: 'samples/apps/oauth'
+  #     - name: ⚙️ Set up Node.js Environment
+  #       uses: ./.github/actions/setup-node
+  #       with:
+  #         node-version: '20'
+  #         package-manager: 'npm'
+  #         dependency-path: 'samples/apps/oauth'
 
-      - name: 📥 Download Shared Certificates
-        uses: actions/download-artifact@v4
-        with:
-          name: thunder-certificates
-          path: target/out/.cert/
+  #     - name: 📥 Download Shared Certificates
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: thunder-certificates
+  #         path: target/out/.cert/
 
-      - name: 🏷️ Set Sample Apps Version
-        run: |
-          # Get the product version from the previous job
-          SAMPLE_VERSION="${{ github.event.inputs.version }}"
+  #     - name: 🏷️ Set Sample Apps Version
+  #       run: |
+  #         # Get the product version from the previous job
+  #         SAMPLE_VERSION="${{ github.event.inputs.version }}"
           
-          # Remove 'v' prefix if present
-          if [[ $SAMPLE_VERSION == v* ]]; then
-            SAMPLE_VERSION="${SAMPLE_VERSION#v}"
-          fi
+  #         # Remove 'v' prefix if present
+  #         if [[ $SAMPLE_VERSION == v* ]]; then
+  #           SAMPLE_VERSION="${SAMPLE_VERSION#v}"
+  #         fi
           
-          echo "✅ Sample version set to '$SAMPLE_VERSION'"
-          echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
+  #         echo "✅ Sample version set to '$SAMPLE_VERSION'"
+  #         echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
 
-      - name: 📝 Update Sample Apps Version
-        run: |
-          # Get the clean sample version without v prefix
-          SAMPLE_VERSION="${{ env.SAMPLE_VERSION }}"
-          echo "📝 Setting sample apps version to $SAMPLE_VERSION"
+  #     - name: 📝 Update Sample Apps Version
+  #       run: |
+  #         # Get the clean sample version without v prefix
+  #         SAMPLE_VERSION="${{ env.SAMPLE_VERSION }}"
+  #         echo "📝 Setting sample apps version to $SAMPLE_VERSION"
           
-          # Update the main sample app package.json
-          cd samples/apps/oauth
-          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+  #         # Update the main sample app package.json
+  #         cd samples/apps/oauth
+  #         npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
           
-          # Update the server package.json
-          cd server
-          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+  #         # Update the server package.json
+  #         cd server
+  #         npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
           
-          cd ../../../..
-          echo "✅ Updated sample apps version to $SAMPLE_VERSION"
+  #         cd ../../../..
+  #         echo "✅ Updated sample apps version to $SAMPLE_VERSION"
 
-      - name: 🔨 Build Sample Apps (Once)
-        run: |
-          echo "🔨 Building sample apps (shared for all platforms)..."
-          make build_samples
+  #     - name: 🔨 Build Sample Apps (Once)
+  #       run: |
+  #         echo "🔨 Building sample apps (shared for all platforms)..."
+  #         make build_samples
 
-      - name: 📦 Package Linux Samples
-        run: |
-          echo "📦 Packaging Linux samples..."
-          make package_samples OS=linux ARCH=x64
-          make package_samples OS=linux ARCH=arm64
+  #     - name: 📦 Package Linux Samples
+  #       run: |
+  #         echo "📦 Packaging Linux samples..."
+  #         make package_samples OS=linux ARCH=x64
+  #         make package_samples OS=linux ARCH=arm64
 
-      - name: 📦 Package Windows Samples
-        run: |
-          echo "📦 Packaging Windows samples..."
-          make package_samples OS=win ARCH=x64
+  #     - name: 📦 Package Windows Samples
+  #       run: |
+  #         echo "📦 Packaging Windows samples..."
+  #         make package_samples OS=win ARCH=x64
 
-      - name: 📦 Upload Linux & Windows Sample Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: thunder-samples-linux-windows
-          path: target/dist/*.zip
-          if-no-files-found: error
+  #     - name: 📦 Upload Linux & Windows Sample Artifacts
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: thunder-samples-linux-windows
+  #         path: target/dist/*.zip
+  #         if-no-files-found: error
 
-  package-samples-macos:
-    name: 📦 Package macOS Samples
-    runs-on: macos-latest
-    needs: build-thunder
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # package-samples-macos:
+  #   name: 📦 Package macOS Samples
+  #   runs-on: macos-latest
+  #   needs: build-thunder
+  #   steps:
+  #     - name: 📥 Checkout Code
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: ⚙️ Set up Go Environment
-        uses: ./.github/actions/setup-go
+  #     - name: ⚙️ Set up Go Environment
+  #       uses: ./.github/actions/setup-go
 
-      - name: ⚙️ Set up Node.js Environment
-        uses: ./.github/actions/setup-node
-        with:
-          node-version: '20'
-          package-manager: 'npm'
-          dependency-path: 'samples/apps/oauth'
+  #     - name: ⚙️ Set up Node.js Environment
+  #       uses: ./.github/actions/setup-node
+  #       with:
+  #         node-version: '20'
+  #         package-manager: 'npm'
+  #         dependency-path: 'samples/apps/oauth'
 
-      - name: 📥 Download Shared Certificates
-        uses: actions/download-artifact@v4
-        with:
-          name: thunder-certificates
-          path: target/out/.cert/
+  #     - name: 📥 Download Shared Certificates
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: thunder-certificates
+  #         path: target/out/.cert/
 
-      - name: 🏷️ Set Sample Apps Version
-        run: |
-          # Get the product version from the previous job
-          SAMPLE_VERSION="${{ github.event.inputs.version }}"
+  #     - name: 🏷️ Set Sample Apps Version
+  #       run: |
+  #         # Get the product version from the previous job
+  #         SAMPLE_VERSION="${{ github.event.inputs.version }}"
           
-          # Remove 'v' prefix if present
-          if [[ $SAMPLE_VERSION == v* ]]; then
-            SAMPLE_VERSION="${SAMPLE_VERSION#v}"
-          fi
+  #         # Remove 'v' prefix if present
+  #         if [[ $SAMPLE_VERSION == v* ]]; then
+  #           SAMPLE_VERSION="${SAMPLE_VERSION#v}"
+  #         fi
           
-          echo "✅ Sample version set to '$SAMPLE_VERSION'"
-          echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
+  #         echo "✅ Sample version set to '$SAMPLE_VERSION'"
+  #         echo "SAMPLE_VERSION=$SAMPLE_VERSION" >> $GITHUB_ENV
 
-      - name: 📝 Update Sample Apps Version
-        run: |
-          # Get the clean sample version without v prefix
-          SAMPLE_VERSION="${{ env.SAMPLE_VERSION }}"
-          echo "📝 Setting sample apps version to $SAMPLE_VERSION"
+  #     - name: 📝 Update Sample Apps Version
+  #       run: |
+  #         # Get the clean sample version without v prefix
+  #         SAMPLE_VERSION="${{ env.SAMPLE_VERSION }}"
+  #         echo "📝 Setting sample apps version to $SAMPLE_VERSION"
           
-          # Update the main sample app package.json
-          cd samples/apps/oauth
-          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+  #         # Update the main sample app package.json
+  #         cd samples/apps/oauth
+  #         npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
           
-          # Update the server package.json
-          cd server
-          npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
+  #         # Update the server package.json
+  #         cd server
+  #         npm version $SAMPLE_VERSION --no-git-tag-version --allow-same-version
           
-          cd ../../../..
-          echo "✅ Updated sample apps version to $SAMPLE_VERSION"
+  #         cd ../../../..
+  #         echo "✅ Updated sample apps version to $SAMPLE_VERSION"
 
-      - name: 🔨 Build and Package macOS Samples
-        run: |
-          make build_samples
+  #     - name: 🔨 Build and Package macOS Samples
+  #       run: |
+  #         make build_samples
           
-          # Package for both x64 and arm64
-          make package_samples OS=macos ARCH=x64
-          make package_samples OS=macos ARCH=arm64
+  #         # Package for both x64 and arm64
+  #         make package_samples OS=macos ARCH=x64
+  #         make package_samples OS=macos ARCH=arm64
 
-      - name: 📦 Upload macOS Sample Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: thunder-samples-macos
-          path: target/dist/*.zip
-          if-no-files-found: error
+  #     - name: 📦 Upload macOS Sample Artifacts
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: thunder-samples-macos
+  #         path: target/dist/*.zip
+  #         if-no-files-found: error
 
-  release:
-    name: 🚀 Release
-    runs-on: ubuntu-latest
-    needs: [build-thunder, package-samples-linux, package-samples-macos]
-    outputs:
-      release_tag: ${{ steps.release_info.outputs.release_tag }}
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # release:
+  #   name: 🚀 Release
+  #   runs-on: ubuntu-latest
+  #   needs: [build-thunder, package-samples-linux, package-samples-macos]
+  #   outputs:
+  #     release_tag: ${{ steps.release_info.outputs.release_tag }}
+  #   steps:
+  #     - name: 📥 Checkout Code
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: 📥 Download Backend Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: thunder-distribution
-          path: ./backend-artifacts
+  #     - name: 📥 Download Backend Artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: thunder-distribution
+  #         path: ./backend-artifacts
 
-      - name: 📥 Download Linux & Windows Sample Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: thunder-samples-linux-windows
-          path: ./linux-windows-artifacts
+  #     - name: 📥 Download Linux & Windows Sample Artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: thunder-samples-linux-windows
+  #         path: ./linux-windows-artifacts
 
-      - name: 📥 Download macOS Sample Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: thunder-samples-macos
-          path: ./macos-artifacts
+  #     - name: 📥 Download macOS Sample Artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: thunder-samples-macos
+  #         path: ./macos-artifacts
 
-      - name: 📦 Combine All Distribution Artifacts
-        run: |
-          mkdir -p target/dist
+  #     - name: 📦 Combine All Distribution Artifacts
+  #       run: |
+  #         mkdir -p target/dist
           
-          # Copy backend artifacts
-          cp ./backend-artifacts/*.zip target/dist/ || true
+  #         # Copy backend artifacts
+  #         cp ./backend-artifacts/*.zip target/dist/ || true
           
-          # Copy sample artifacts from each platform
-          cp ./linux-windows-artifacts/*.zip target/dist/ || true
-          cp ./macos-artifacts/*.zip target/dist/ || true
+  #         # Copy sample artifacts from each platform
+  #         cp ./linux-windows-artifacts/*.zip target/dist/ || true
+  #         cp ./macos-artifacts/*.zip target/dist/ || true
           
-          echo "✅ Combined all artifacts:"
-          ls -la target/dist/
+  #         echo "✅ Combined all artifacts:"
+  #         ls -la target/dist/
 
-      - name: 📦 Upload Final Combined Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: thunder-final-distribution
-          path: target/dist/*.zip
-          if-no-files-found: error
+  #     - name: 📦 Upload Final Combined Artifacts
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: thunder-final-distribution
+  #         path: target/dist/*.zip
+  #         if-no-files-found: error
 
-      - name: 📝 Read Version
-        id: version
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+  #     - name: 📝 Read Version
+  #       id: version
+  #       run: |
+  #         VERSION="${{ github.event.inputs.version }}"
+  #         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: 📝 Generate Changelog (Release Drafter)
-        id: changelog
-        uses: release-drafter/release-drafter@v5
-        with:
-          config-name: release-drafter.yml
-          name: Thunder ${{ github.event.inputs.version }}
-          tag: ${{ github.event.inputs.version }}
-          prerelease: ${{ github.event.inputs.prerelease }}
-          publish: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: 📝 Generate Changelog (Release Drafter)
+  #       id: changelog
+  #       uses: release-drafter/release-drafter@v5
+  #       with:
+  #         config-name: release-drafter.yml
+  #         name: Thunder ${{ github.event.inputs.version }}
+  #         tag: ${{ github.event.inputs.version }}
+  #         prerelease: ${{ github.event.inputs.prerelease }}
+  #         publish: false
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: ⏳ Wait for Release Drafter to Complete
-        run: |
-          echo "⏳ Waiting for release-drafter to fully create the draft release..."
-          sleep 10
-          echo "✅ Proceeding with release creation"
+  #     - name: ⏳ Wait for Release Drafter to Complete
+  #       run: |
+  #         echo "⏳ Waiting for release-drafter to fully create the draft release..."
+  #         sleep 10
+  #         echo "✅ Proceeding with release creation"
 
-      - name: 📝 Extract README Content for Release
-        id: readme_extract
-        run: |
-          # Get the release version without v prefix for replacement
-          RELEASE_VERSION="${{ github.event.inputs.version }}"
-          if [[ $RELEASE_VERSION == v* ]]; then
-            RELEASE_VERSION="${RELEASE_VERSION#v}"
-          fi
+  #     - name: 📝 Extract README Content for Release
+  #       id: readme_extract
+  #       run: |
+  #         # Get the release version without v prefix for replacement
+  #         RELEASE_VERSION="${{ github.event.inputs.version }}"
+  #         if [[ $RELEASE_VERSION == v* ]]; then
+  #           RELEASE_VERSION="${RELEASE_VERSION#v}"
+  #         fi
           
-          # Extract introduction (everything before first --- divider)
-          INTRO=$(awk 'BEGIN{flag=1} /^---$/{flag=0; exit} flag{print}' README.md)
+  #         # Extract introduction (everything before first --- divider)
+  #         INTRO=$(awk 'BEGIN{flag=1} /^---$/{flag=0; exit} flag{print}' README.md)
           
-          # Extract Quick Start section
-          QUICKSTART=$(sed -n '/^## ⚡ Quickstart/,/^---$/p' README.md | head -n -1)
+  #         # Extract Quick Start section
+  #         QUICKSTART=$(sed -n '/^## ⚡ Quickstart/,/^---$/p' README.md | head -n -1)
           
-          # Extract license section including header
-          LICENSE=$(grep -A 5 "^## License" README.md)
+  #         # Extract license section including header
+  #         LICENSE=$(grep -A 5 "^## License" README.md)
 
-          # Replace <version> placeholders with actual version
-          INTRO=$(echo "$INTRO" | sed "s/<version>/$RELEASE_VERSION/g")
-          QUICKSTART=$(echo "$QUICKSTART" | sed "s/<version>/$RELEASE_VERSION/g")
+  #         # Replace <version> placeholders with actual version
+  #         INTRO=$(echo "$INTRO" | sed "s/<version>/$RELEASE_VERSION/g")
+  #         QUICKSTART=$(echo "$QUICKSTART" | sed "s/<version>/$RELEASE_VERSION/g")
           
-          # Replace 'latest' placeholders with actual version for release notes
-          INTRO=$(echo "$INTRO" | sed "s/:latest/:$RELEASE_VERSION/g")
-          QUICKSTART=$(echo "$QUICKSTART" | sed "s/:latest/:$RELEASE_VERSION/g")
-          INTRO=$(echo "$INTRO" | sed "s/latest release/$RELEASE_VERSION release/g")
-          QUICKSTART=$(echo "$QUICKSTART" | sed "s/latest release/$RELEASE_VERSION release/g")
-          # Handle other 'latest' references
-          INTRO=$(echo "$INTRO" | sed "s/latest release of WSO2 Thunder/$RELEASE_VERSION release of WSO2 Thunder/g")
-          QUICKSTART=$(echo "$QUICKSTART" | sed "s/latest release of WSO2 Thunder/$RELEASE_VERSION release of WSO2 Thunder/g")
+  #         # Replace 'latest' placeholders with actual version for release notes
+  #         INTRO=$(echo "$INTRO" | sed "s/:latest/:$RELEASE_VERSION/g")
+  #         QUICKSTART=$(echo "$QUICKSTART" | sed "s/:latest/:$RELEASE_VERSION/g")
+  #         INTRO=$(echo "$INTRO" | sed "s/latest release/$RELEASE_VERSION release/g")
+  #         QUICKSTART=$(echo "$QUICKSTART" | sed "s/latest release/$RELEASE_VERSION release/g")
+  #         # Handle other 'latest' references
+  #         INTRO=$(echo "$INTRO" | sed "s/latest release of WSO2 Thunder/$RELEASE_VERSION release of WSO2 Thunder/g")
+  #         QUICKSTART=$(echo "$QUICKSTART" | sed "s/latest release of WSO2 Thunder/$RELEASE_VERSION release of WSO2 Thunder/g")
           
-          # Add direct download links for Thunder server - replace download instruction and example paragraph
-          # Create the Thunder downloads table with proper newlines using printf
-          THUNDER_TABLE=$(printf "%s\n%s\n%s\n%s\n%s\n%s\n%s" \
-            "| OS | Architecture | Download Link |" \
-            "|-------|-------------|-------------|" \
-            "| macOS | ARM64 (Apple Silicon) | [thunder-${RELEASE_VERSION}-macos-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-macos-arm64.zip) |" \
-            "| macOS | x64 (Intel) | [thunder-${RELEASE_VERSION}-macos-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-macos-x64.zip) |" \
-            "| Linux | x64 | [thunder-${RELEASE_VERSION}-linux-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-linux-x64.zip) |" \
-            "| Linux | ARM64 | [thunder-${RELEASE_VERSION}-linux-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-linux-arm64.zip) |" \
-            "| Windows | x64 | [thunder-${RELEASE_VERSION}-win-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-win-x64.zip) |")
+  #         # Add direct download links for Thunder server - replace download instruction and example paragraph
+  #         # Create the Thunder downloads table with proper newlines using printf
+  #         THUNDER_TABLE=$(printf "%s\n%s\n%s\n%s\n%s\n%s\n%s" \
+  #           "| OS | Architecture | Download Link |" \
+  #           "|-------|-------------|-------------|" \
+  #           "| macOS | ARM64 (Apple Silicon) | [thunder-${RELEASE_VERSION}-macos-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-macos-arm64.zip) |" \
+  #           "| macOS | x64 (Intel) | [thunder-${RELEASE_VERSION}-macos-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-macos-x64.zip) |" \
+  #           "| Linux | x64 | [thunder-${RELEASE_VERSION}-linux-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-linux-x64.zip) |" \
+  #           "| Linux | ARM64 | [thunder-${RELEASE_VERSION}-linux-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-linux-arm64.zip) |" \
+  #           "| Windows | x64 | [thunder-${RELEASE_VERSION}-win-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/thunder-${RELEASE_VERSION}-win-x64.zip) |")
           
-          # Replace the download instruction with the table using awk for proper handling
-          QUICKSTART=$(echo "$QUICKSTART" | awk -v table="$THUNDER_TABLE" '
-            /Download `thunder-.*-<os>-<arch>\.zip` from the \[.*release\]/ {
-              print table
-              next
-            }
-            { print }
-          ')
+  #         # Replace the download instruction with the table using awk for proper handling
+  #         QUICKSTART=$(echo "$QUICKSTART" | awk -v table="$THUNDER_TABLE" '
+  #           /Download `thunder-.*-<os>-<arch>\.zip` from the \[.*release\]/ {
+  #             print table
+  #             next
+  #           }
+  #           { print }
+  #         ')
           
-          # Remove the example paragraph that follows (it's now redundant with the table)
-          QUICKSTART=$(echo "$QUICKSTART" | sed '/For example, if you are using a MacOS machine with a Apple Silicon (ARM64) processor, you would download `thunder-'"$RELEASE_VERSION"'-macos-arm64\.zip`\./d')
+  #         # Remove the example paragraph that follows (it's now redundant with the table)
+  #         QUICKSTART=$(echo "$QUICKSTART" | sed '/For example, if you are using a MacOS machine with a Apple Silicon (ARM64) processor, you would download `thunder-'"$RELEASE_VERSION"'-macos-arm64\.zip`\./d')
           
-          # Create the Sample App downloads table with proper newlines using printf
-          SAMPLE_TABLE=$(printf "%s\n%s\n%s\n%s\n%s\n%s\n%s" \
-            "| OS | Architecture | Download Link |" \
-            "|-------|-------------|-------------|" \
-            "| macOS | ARM64 (Apple Silicon) | [sample-app-${RELEASE_VERSION}-macos-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-macos-arm64.zip) |" \
-            "| macOS | x64 (Intel) | [sample-app-${RELEASE_VERSION}-macos-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-macos-x64.zip) |" \
-            "| Linux | x64 | [sample-app-${RELEASE_VERSION}-linux-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-linux-x64.zip) |" \
-            "| Linux | ARM64 | [sample-app-${RELEASE_VERSION}-linux-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-linux-arm64.zip) |" \
-            "| Windows | x64 | [sample-app-${RELEASE_VERSION}-win-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-win-x64.zip) |")
+  #         # Create the Sample App downloads table with proper newlines using printf
+  #         SAMPLE_TABLE=$(printf "%s\n%s\n%s\n%s\n%s\n%s\n%s" \
+  #           "| OS | Architecture | Download Link |" \
+  #           "|-------|-------------|-------------|" \
+  #           "| macOS | ARM64 (Apple Silicon) | [sample-app-${RELEASE_VERSION}-macos-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-macos-arm64.zip) |" \
+  #           "| macOS | x64 (Intel) | [sample-app-${RELEASE_VERSION}-macos-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-macos-x64.zip) |" \
+  #           "| Linux | x64 | [sample-app-${RELEASE_VERSION}-linux-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-linux-x64.zip) |" \
+  #           "| Linux | ARM64 | [sample-app-${RELEASE_VERSION}-linux-arm64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-linux-arm64.zip) |" \
+  #           "| Windows | x64 | [sample-app-${RELEASE_VERSION}-win-x64.zip](https://github.com/${{ github.repository }}/releases/download/v${RELEASE_VERSION}/sample-app-${RELEASE_VERSION}-win-x64.zip) |")
           
-          # Replace the sample app download instruction with the table using awk
-          QUICKSTART=$(echo "$QUICKSTART" | awk -v table="$SAMPLE_TABLE" '
-            /Download `sample-app-.*-<os>-<arch>\.zip` from the \[.*release\]/ {
-              print table
-              next
-            }
-            { print }
-          ')
+  #         # Replace the sample app download instruction with the table using awk
+  #         QUICKSTART=$(echo "$QUICKSTART" | awk -v table="$SAMPLE_TABLE" '
+  #           /Download `sample-app-.*-<os>-<arch>\.zip` from the \[.*release\]/ {
+  #             print table
+  #             next
+  #           }
+  #           { print }
+  #         ')
 
-          # Get changelog from Release Drafter
-          CHANGELOG="${{ steps.changelog.outputs.body }}"
+  #         # Get changelog from Release Drafter
+  #         CHANGELOG="${{ steps.changelog.outputs.body }}"
 
-          # Combine for release description
-          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-          echo "$INTRO" >> $GITHUB_ENV
-          echo "" >> $GITHUB_ENV
-          echo "## 🔀 What's Changed" >> $GITHUB_ENV
-          echo "$CHANGELOG" >> $GITHUB_ENV
-          echo "" >> $GITHUB_ENV
-          echo "$QUICKSTART" >> $GITHUB_ENV
-          echo "" >> $GITHUB_ENV
-          echo "$LICENSE" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+  #         # Combine for release description
+  #         echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+  #         echo "$INTRO" >> $GITHUB_ENV
+  #         echo "" >> $GITHUB_ENV
+  #         echo "## 🔀 What's Changed" >> $GITHUB_ENV
+  #         echo "$CHANGELOG" >> $GITHUB_ENV
+  #         echo "" >> $GITHUB_ENV
+  #         echo "$QUICKSTART" >> $GITHUB_ENV
+  #         echo "" >> $GITHUB_ENV
+  #         echo "$LICENSE" >> $GITHUB_ENV
+  #         echo "EOF" >> $GITHUB_ENV
 
-      - name: 📦 Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: Thunder ${{ steps.version.outputs.version }}
-          draft: false
-          prerelease: ${{ github.event.inputs.prerelease }}
-          files: target/dist/*.zip
-          body: ${{ env.RELEASE_BODY }}
-          generate_release_notes: false
+  #     - name: 📦 Create GitHub Release
+  #       id: create_release
+  #       uses: softprops/action-gh-release@v2
+  #       with:
+  #         tag_name: ${{ steps.version.outputs.version }}
+  #         name: Thunder ${{ steps.version.outputs.version }}
+  #         draft: false
+  #         prerelease: ${{ github.event.inputs.prerelease }}
+  #         files: target/dist/*.zip
+  #         body: ${{ env.RELEASE_BODY }}
+  #         generate_release_notes: false
 
-      - name: 🔔 Set Release Info
-        id: release_info
-        run: |
-          RELEASE_VERSION="${{ steps.version.outputs.version }}"
-          echo "release_name=Thunder ${RELEASE_VERSION}" >> $GITHUB_OUTPUT
-          echo "release_tag=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
-          echo "release_url=https://github.com/${{ github.repository }}/releases/tag/${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+  #     - name: 🔔 Set Release Info
+  #       id: release_info
+  #       run: |
+  #         RELEASE_VERSION="${{ steps.version.outputs.version }}"
+  #         echo "release_name=Thunder ${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+  #         echo "release_tag=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+  #         echo "release_url=https://github.com/${{ github.repository }}/releases/tag/${RELEASE_VERSION}" >> $GITHUB_OUTPUT
       
-      - name: 🔔 Send Release Notification
-        uses: ./.github/actions/release-notification
-        with:
-          webhook: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
-          release-name: ${{ steps.release_info.outputs.release_name }}
-          release-tag: ${{ steps.release_info.outputs.release_tag }}
-          release-url: ${{ steps.release_info.outputs.release_url }}
+  #     - name: 🔔 Send Release Notification
+  #       uses: ./.github/actions/release-notification
+  #       with:
+  #         webhook: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+  #         release-name: ${{ steps.release_info.outputs.release_name }}
+  #         release-tag: ${{ steps.release_info.outputs.release_tag }}
+  #         release-url: ${{ steps.release_info.outputs.release_url }}
 
-  trigger-performance-test:
-    name: 🧪 Trigger Performance Test
-    runs-on: ubuntu-latest
-    needs: release
-    if: ${{ github.event.inputs.run_performance_test == 'true' }}
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
+  # trigger-performance-test:
+  #   name: 🧪 Trigger Performance Test
+  #   runs-on: ubuntu-latest
+  #   needs: release
+  #   if: ${{ github.event.inputs.run_performance_test == 'true' }}
+  #   steps:
+  #     - name: 📥 Checkout Code
+  #       uses: actions/checkout@v4
 
-      - name: ⚡ Trigger Performance Test Workflows
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.THUNDER_GITHUB_BOT_TOKEN }}
-          script: |
-            // Construct the Thunder pack URL using the release version
-            const releaseTag = '${{ needs.release.outputs.release_tag }}';
-            const thunderPackUrl = `https://github.com/${{ github.repository }}/releases/download/${releaseTag}/thunder-${releaseTag.replace('v', '')}-linux-x64.zip`;
-            const pushBenchmarkToGitHub = ${{ github.repository == 'asgardeo/thunder' }};
+  #     - name: ⚡ Trigger Performance Test Workflows
+  #       uses: actions/github-script@v7
+  #       with:
+  #         github-token: ${{ secrets.THUNDER_GITHUB_BOT_TOKEN }}
+  #         script: |
+  #           // Construct the Thunder pack URL using the release version
+  #           const releaseTag = '${{ needs.release.outputs.release_tag }}';
+  #           const thunderPackUrl = `https://github.com/${{ github.repository }}/releases/download/${releaseTag}/thunder-${releaseTag.replace('v', '')}-linux-x64.zip`;
             
+  #           // Define CPU core configurations to test
+  #           const cpuCoreConfigs = ['4', '8'];
             
-            // Define CPU core configurations to test
-            const cpuCoreConfigs = ['4', '8'];
-            
-            // Loop through each CPU core configuration and trigger a separate workflow
-            for (const cpuCores of cpuCoreConfigs) {
-              console.log(`🔄 Triggering performance test with ${cpuCores} CPU cores`);
+  #           // Loop through each CPU core configuration and trigger a separate workflow
+  #           for (const cpuCores of cpuCoreConfigs) {
+  #             console.log(`🔄 Triggering performance test with ${cpuCores} CPU cores`);
               
-              try {
-                const result = await github.rest.actions.createWorkflowDispatch({
-                  owner: 'asgardeo',
-                  repo: 'thunder-performance',
-                  workflow_id: 'vm-perf-workflow.yml',
-                  ref: 'main',
-                  inputs: {
-                    THUNDER_PACK_URL: thunderPackUrl,
-                    DEPLOYMENT: 'single-node',
-                    CPU_CORES: cpuCores,
-                    ADDITIONAL_PARAMS_TO_RUN_PERFORMANCE_SCRIPT: '-d 15 -w 5 -x false -y JWT',
-                    PERFORMANCE_REPO: 'https://github.com/asgardeo/thunder-performance',
-                    BRANCH: 'main',
-                    MODE: 'FULL',
-                    USE_DELAYS: 'true',
-                    CONCURRENCY: '50-3000',
-                    PUSH_BENCHMARKS_TO_GITHUB: pushBenchmarkToGitHub
-                  }
-                });
-                console.log(`✅ Performance test workflow with ${cpuCores} CPU cores triggered successfully`);
-              } catch (error) {
-                console.error(`❌ Failed to trigger performance test workflow with ${cpuCores} CPU cores:`, error);
-                // Continue with next configuration even if one fails
-              }
-            }
+  #             try {
+  #               const result = await github.rest.actions.createWorkflowDispatch({
+  #                 owner: 'asgardeo',
+  #                 repo: 'thunder-performance',
+  #                 workflow_id: 'vm-perf-workflow.yml',
+  #                 ref: 'main',
+  #                 inputs: {
+  #                   THUNDER_PACK_URL: thunderPackUrl,
+  #                   DEPLOYMENT: 'single-node',
+  #                   CPU_CORES: cpuCores,
+  #                   ADDITIONAL_PARAMS_TO_RUN_PERFORMANCE_SCRIPT: '-d 15 -w 5 -x false -y JWT',
+  #                   PERFORMANCE_REPO: 'https://github.com/asgardeo/thunder-performance',
+  #                   BRANCH: 'main',
+  #                   MODE: 'FULL',
+  #                   USE_DELAYS: 'true',
+  #                   CONCURRENCY: '50-3000',
+  #                   DB_TYPE: 'postgres'
+  #                 }
+  #               });
+  #               console.log(`✅ Performance test workflow with ${cpuCores} CPU cores triggered successfully`);
+  #             } catch (error) {
+  #               console.error(`❌ Failed to trigger performance test workflow with ${cpuCores} CPU cores:`, error);
+  #               // Continue with next configuration even if one fails
+  #             }
+  #           }
             
-            // Return success
-            return {success: true};
+  #           // Return success
+  #           return {success: true};
