@@ -1,72 +1,108 @@
-# This workflow will build the project on pull requests with tests
-# Uses:
-#   OS: ubuntu-latest
-#   Go: go 1.x
-
-name: 👷🛠️ PR Builder
-
-on:
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-
-env:
-  GOFLAGS: "-mod=readonly"
-
-jobs:
-  lint:
-    name: 🧹 Lint Code
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: ⚙️ Set up Go Environment
-        uses: ./.github/actions/setup-go
-
-      - name: 📦 Prepare golangci-lint Locally
-        run: make golangci-lint
-
-      - name: 🔍 Run Linter
-        run: make lint
-
-  build:
-    name: 🛠️ Build and Test
-    if: ${{ github.event.label.name == 'trigger-pr-builder' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: ⚙️ Set up Go Environment
-        uses: ./.github/actions/setup-go
-
-      - name: 🗄️ Cache Go Modules
-        uses: actions/cache@v4
-        id: cache-go-modules
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-modules-
-
-      - name: 📦 Install Dependencies
-        run: |
-          cd backend
-          go mod download
-          cd ../tests/integration
-          go mod download
-
-      - name: 🧹 Clean Previous Builds
-        run: |
-          set -e
-          make clean_all
-
-      - name: 🔨 Build and Run Tests
-        run: |
-          set -e
-          export LOG_LEVEL=debug
+# This workflow will build the project on pull requests with tests  
+# Uses:  
+#   OS: ubuntu-latest  
+#   Go: go 1.x  
+  
+name: 👷🛠️ PR Builder  
+  
+on:  
+  pull_request:  
+    branches: [main]  
+  workflow_dispatch:  
+  
+env:  
+  GOFLAGS: "-mod=readonly"  
+  
+jobs:  
+  lint:  
+    name: 🧹 Lint Code  
+    if: ${{ github.event_name == 'pull_request' }}  
+    runs-on: ubuntu-latest  
+    steps:  
+      - name: 📥 Checkout Code  
+        uses: actions/checkout@v4  
+  
+      - name: ⚙️ Set up Go Environment  
+        uses: ./.github/actions/setup-go  
+  
+      - name: 📦 Prepare golangci-lint Locally  
+        run: make golangci-lint  
+  
+      - name: 🔍 Run Linter  
+        run: make lint  
+  
+  build:  
+    name: 🛠️ Build and Test  
+    if: ${{ github.event.label.name == 'trigger-pr-builder' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'}}  
+    runs-on: ubuntu-latest  
+    strategy:  
+      matrix:  
+        database: [sqlite, postgres]  
+      fail-fast: false  
+      
+    services:  
+      postgres:  
+        image: postgres:latest  
+        env:  
+          POSTGRES_USER: asgthunder  
+          POSTGRES_PASSWORD: asgthunder  
+          POSTGRES_DB: thunderdb  
+        ports:  
+          - 5432:5432  
+        options: >-  
+          --health-cmd pg_isready  
+          --health-interval 10s  
+          --health-timeout 5s  
+          --health-retries 5  
+      
+    steps:  
+      - name: 📥 Checkout Code  
+        uses: actions/checkout@v4  
+  
+      - name: ⚙️ Set up Go Environment  
+        uses: ./.github/actions/setup-go  
+  
+      - name: 🗄️ Cache Go Modules  
+        uses: actions/cache@v4  
+        id: cache-go-modules  
+        with:  
+          path: |  
+            ~/.cache/go-build  
+            ~/go/pkg/mod  
+          key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}  
+          restore-keys: |  
+            ${{ runner.os }}-go-modules-  
+  
+      - name: 📦 Install Dependencies  
+        run: |  
+          cd backend  
+          go mod download  
+          cd ../tests/integration  
+          go mod download  
+  
+      - name: 🗄️ Setup PostgreSQL Databases  
+        if: matrix.database == 'postgres'  
+        run: |  
+          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb -c "CREATE DATABASE runtimedb;"  
+          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb < backend/dbscripts/thunderdb/postgres.sql  
+          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d runtimedb < backend/dbscripts/runtimedb/postgres.sql  
+  
+      - name: 📝 Configure Test Database  
+        run: |  
+          chmod +x backend/tests/scripts/setup-test-config.sh  
+          ./backend/tests/scripts/setup-test-config.sh  
+        env:  
+          DB_TYPE: ${{ matrix.database }}  
+  
+      - name: 🧹 Clean Previous Builds  
+        run: |  
+          set -e  
+          make clean_all  
+  
+      - name: 🔨 Build and Run Tests (${{ matrix.database }})  
+        env:  
+          DB_TYPE: ${{ matrix.database }}  
+        run: |  
+          set -e  
+          export LOG_LEVEL=debug  
           make all OS=$(go env GOOS) ARCH=$(go env GOARCH)
