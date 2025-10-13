@@ -1,4 +1,5 @@
 #!/bin/bash
+
 DB_TYPE=${DB_TYPE:-sqlite}
 
 cat > backend/tests/resources/deployment.yaml <<EOF
@@ -18,11 +19,11 @@ security:
   key_file: /path/to/key.pem
 
 database:
-  identity:
 EOF
 
 if [ "$DB_TYPE" = "postgres" ]; then
   cat >> backend/tests/resources/deployment.yaml <<EOF
+  identity:
     type: postgres
     hostname: localhost
     port: 5432
@@ -32,9 +33,21 @@ if [ "$DB_TYPE" = "postgres" ]; then
     sslmode: disable
     path: ""
     options: ""
+
+  runtime:
+    type: postgres
+    hostname: localhost
+    port: 5432
+    name: runtime_db
+    username: postgres
+    password: postgres
+    sslmode: disable
+    path: ""
+    options: ""
 EOF
 else
   cat >> backend/tests/resources/deployment.yaml <<EOF
+  identity:
     type: sqlite
     hostname: ""
     port: 0
@@ -44,10 +57,6 @@ else
     sslmode: ""
     path: ":memory:"
     options: "cache=shared"
-EOF
-fi
-
-cat >> backend/tests/resources/deployment.yaml <<EOF
 
   runtime:
     type: sqlite
@@ -59,6 +68,10 @@ cat >> backend/tests/resources/deployment.yaml <<EOF
     sslmode: ""
     path: "/data/runtime.db"
     options: "cache=shared"
+EOF
+fi
+
+cat >> backend/tests/resources/deployment.yaml <<EOF
 
 oauth:
   jwt:
