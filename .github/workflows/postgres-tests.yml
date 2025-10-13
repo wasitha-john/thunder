@@ -3,7 +3,7 @@ name: 🐘 PostgreSQL Compatibility Tests
 on:  
   workflow_dispatch:  
   schedule:  
-    - cron: '42 19 * * *'  
+    - cron: '30 18 * * *'  
   release:  
     types: [created]   
   
