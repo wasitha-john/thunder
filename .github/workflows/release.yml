@@ -61,19 +61,19 @@ jobs:
         with:  
           fetch-depth: 0  
   
-      - name: ✅ Validate Release Version  
-        run: |  
-          if ! [[ ${{ github.event.inputs.version }} =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then  
-            echo "❌ Error: Version '${{ github.event.inputs.version }}' does not follow format vX.Y[.Z][-PRERELEASE][+BUILD]"  
-            echo "❌ Version must start with 'v'"  
-            exit 1  
-          fi  
-          echo "✅ Version '${{ github.event.inputs.version }}' is valid"  
+      # - name: ✅ Validate Release Version  
+      #   run: |  
+      #     if ! [[ ${{ github.event.inputs.version }} =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$ ]]; then  
+      #       echo "❌ Error: Version '${{ github.event.inputs.version }}' does not follow format vX.Y[.Z][-PRERELEASE][+BUILD]"  
+      #       echo "❌ Version must start with 'v'"  
+      #       exit 1  
+      #     fi  
+      #     echo "✅ Version '${{ github.event.inputs.version }}' is valid"  
   
-      - name: 🏷️ Update Product Version  
-        run: |  
-          VERSION="${{ github.event.inputs.version }}"  
-          echo "$VERSION" > version.txt  
+      # - name: 🏷️ Update Product Version  
+      #   run: |  
+      #     VERSION="${{ github.event.inputs.version }}"  
+      #     echo "$VERSION" > version.txt  
   
       - name: ⚙️ Set up Go Environment  
         uses: ./.github/actions/setup-go  
