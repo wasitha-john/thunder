@@ -16,16 +16,14 @@
  * under the License.
  */
 
-// Package handler provides HTTP handlers for managing flow related API requests.
-package handler
+package flowexec
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/flow"
-	"github.com/asgardeo/thunder/internal/flow/constants"
-	"github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/flow/common/constants"
+	"github.com/asgardeo/thunder/internal/flow/common/model"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/error/apierror"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
@@ -34,15 +32,18 @@ import (
 )
 
 // FlowExecutionHandler handles flow execution requests.
-type FlowExecutionHandler struct{}
+type flowExecutionHandler struct {
+	flowExecService FlowExecServiceInterface
+}
 
-// NewFlowExecutionHandler creates a new instance of FlowExecutionHandler.
-func NewFlowExecutionHandler() *FlowExecutionHandler {
-	return &FlowExecutionHandler{}
+func newFlowExecutionHandler(flowExecService FlowExecServiceInterface) *flowExecutionHandler {
+	return &flowExecutionHandler{
+		flowExecService: flowExecService,
+	}
 }
 
 // HandleFlowExecutionRequest handles the flow execution request.
-func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter, r *http.Request) {
+func (h *flowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowExecutionHandler"))
 
 	flowR, err := sysutils.DecodeJSONBody[model.FlowRequest](r)
@@ -65,8 +66,7 @@ func (h *FlowExecutionHandler) HandleFlowExecutionRequest(w http.ResponseWriter,
 	inputs := sysutils.SanitizeStringMap(flowR.Inputs)
 	flowTypeStr := sysutils.SanitizeString(flowR.FlowType)
 
-	svc := flow.GetFlowExecService()
-	flowStep, flowErr := svc.Execute(appID, flowID, actionID, flowTypeStr, inputs)
+	flowStep, flowErr := h.flowExecService.Execute(appID, flowID, actionID, flowTypeStr, inputs)
 
 	if flowErr != nil {
 		handleFlowError(w, logger, flowErr)

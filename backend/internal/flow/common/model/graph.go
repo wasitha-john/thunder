@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/asgardeo/thunder/internal/flow/constants"
+	"github.com/asgardeo/thunder/internal/flow/common/constants"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 

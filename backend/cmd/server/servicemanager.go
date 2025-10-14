@@ -22,7 +22,9 @@ package main
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/flow"
+	appservice "github.com/asgardeo/thunder/internal/application/service"
+	"github.com/asgardeo/thunder/internal/flow/flowexec"
+	"github.com/asgardeo/thunder/internal/flow/flowmgt"
 	"github.com/asgardeo/thunder/internal/group"
 	"github.com/asgardeo/thunder/internal/idp"
 	"github.com/asgardeo/thunder/internal/notification"
@@ -51,6 +53,13 @@ func registerServices(mux *http.ServeMux) {
 
 	_ = idp.Initialize(mux)
 	_ = notification.Initialize(mux, jwtService)
+	flowMgtService, err := flowmgt.Initialize()
+	if err != nil {
+		logger.Fatal("Failed to initialize FlowMgtService", log.Error(err))
+	}
+	// TODO: this needs to be removed once the application service is refactored to use DI.
+	applicationService := appservice.GetApplicationService()
+	_ = flowexec.Initialize(mux, flowMgtService, applicationService)
 
 	// TODO: Legacy way of initializing services. These need to be refactored in the future aligning to the
 	// dependency injection pattern used above.
@@ -73,14 +82,6 @@ func registerServices(mux *http.ServeMux) {
 	// Register the Application service.
 	services.NewApplicationService(mux)
 
-	// Register the flow execution service.
-	services.NewFlowExecutionService(mux)
-
 	// Register the authentication service.
 	services.NewAuthenticationService(mux)
-
-	svc := flow.GetFlowExecService()
-	if err := svc.Init(); err != nil {
-		logger.Fatal("Failed to initialize flow service", log.Error(err))
-	}
 }

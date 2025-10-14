@@ -16,14 +16,13 @@
  * under the License.
  */
 
-// Package store provides the implementation for flow context persistence operations.
-package store
+package flowexec
 
 import (
 	"errors"
 	"fmt"
 
-	"github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/flow/common/model"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 )
