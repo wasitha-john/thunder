@@ -22,8 +22,8 @@ package identify
 import (
 	"slices"
 
-	flowconst "github.com/asgardeo/thunder/internal/flow/constants"
-	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
+	flowconst "github.com/asgardeo/thunder/internal/flow/common/constants"
+	flowmodel "github.com/asgardeo/thunder/internal/flow/common/model"
 	"github.com/asgardeo/thunder/internal/system/log"
 
 	"github.com/asgardeo/thunder/internal/user"

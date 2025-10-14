@@ -22,7 +22,7 @@ package model
 import (
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
-	"github.com/asgardeo/thunder/internal/flow/constants"
+	"github.com/asgardeo/thunder/internal/flow/common/constants"
 )
 
 // EngineContext holds the overall context used by the flow engine during execution.

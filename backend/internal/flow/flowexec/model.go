@@ -16,15 +16,14 @@
  * under the License.
  */
 
-// Package store provides the implementation for flow context persistence operations.
-package store
+package flowexec
 
 import (
 	"encoding/json"
 	"time"
 
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
-	"github.com/asgardeo/thunder/internal/flow/model"
+	"github.com/asgardeo/thunder/internal/flow/common/model"
 )
 
 // FlowContextWithUserDataDB represents the combined flow context and user data.

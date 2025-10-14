@@ -16,44 +16,34 @@
  * under the License.
  */
 
-// Package engine provides the flow engine for orchestrating flow executions.
-package engine
+package flowexec
 
 import (
 	"errors"
-	"sync"
 
-	"github.com/asgardeo/thunder/internal/flow/constants"
-	"github.com/asgardeo/thunder/internal/flow/model"
-	"github.com/asgardeo/thunder/internal/flow/utils"
+	"github.com/asgardeo/thunder/internal/flow/common/constants"
+	"github.com/asgardeo/thunder/internal/flow/common/model"
+	"github.com/asgardeo/thunder/internal/flow/common/utils"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
-var (
-	instance *FlowEngine
-	once     sync.Once
-)
-
-// FlowEngineInterface defines the interface for the flow engine.
-type FlowEngineInterface interface {
+// flowEngineInterface defines the interface for the flow engine.
+type flowEngineInterface interface {
 	Execute(ctx *model.EngineContext) (model.FlowStep, *serviceerror.ServiceError)
 }
 
 // FlowEngine is the main engine implementation for orchestrating flow executions.
-type FlowEngine struct{}
+type flowEngine struct{}
 
 // GetFlowEngine returns a singleton instance of FlowEngine.
-func GetFlowEngine() FlowEngineInterface {
-	once.Do(func() {
-		instance = &FlowEngine{}
-	})
-	return instance
+func newFlowEngine() flowEngineInterface {
+	return &flowEngine{}
 }
 
 // Execute executes a step in the flow
-func (fe *FlowEngine) Execute(ctx *model.EngineContext) (model.FlowStep, *serviceerror.ServiceError) {
+func (fe *flowEngine) Execute(ctx *model.EngineContext) (model.FlowStep, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowEngine"))
 
 	flowStep := model.FlowStep{
@@ -212,7 +202,7 @@ func updateContextWithNodeResponse(engineCtx *model.EngineContext, nodeResp *mod
 // - The next node to execute.
 // - Whether to continue execution.
 // - Any service error.
-func (fe *FlowEngine) processNodeResponse(ctx *model.EngineContext, currentNode model.NodeInterface,
+func (fe *flowEngine) processNodeResponse(ctx *model.EngineContext, currentNode model.NodeInterface,
 	nodeResp *model.NodeResponse, flowStep *model.FlowStep) (model.NodeInterface, bool, *serviceerror.ServiceError) {
 	if nodeResp.Status == "" {
 		return nil, false, &constants.ErrorNodeResponseStatusNotFound
@@ -241,7 +231,7 @@ func (fe *FlowEngine) processNodeResponse(ctx *model.EngineContext, currentNode 
 }
 
 // handleCompletedResponse handles the completed node and returns the next node to execute.
-func (fe *FlowEngine) handleCompletedResponse(ctx *model.EngineContext, currentNode model.NodeInterface,
+func (fe *flowEngine) handleCompletedResponse(ctx *model.EngineContext, currentNode model.NodeInterface,
 	nodeResp *model.NodeResponse) (model.NodeInterface, *serviceerror.ServiceError) {
 	nextNode, err := fe.resolveToNextNode(ctx.Graph, currentNode, nodeResp)
 	if err != nil {
@@ -256,7 +246,7 @@ func (fe *FlowEngine) handleCompletedResponse(ctx *model.EngineContext, currentN
 // handleIncompleteResponse handles the node response when the status is incomplete.
 // It resolves the flow step details based on the type of node response. The same node will be executed again
 // in the next request with the required data.
-func (fe *FlowEngine) handleIncompleteResponse(nodeResp *model.NodeResponse,
+func (fe *flowEngine) handleIncompleteResponse(nodeResp *model.NodeResponse,
 	flowStep *model.FlowStep) *serviceerror.ServiceError {
 	if nodeResp.Type == constants.NodeResponseTypeRedirection {
 		err := fe.resolveStepForRedirection(nodeResp, flowStep)
@@ -283,7 +273,7 @@ func (fe *FlowEngine) handleIncompleteResponse(nodeResp *model.NodeResponse,
 }
 
 // resolveToNextNode resolves the next node to execute based on the current node.
-func (fe *FlowEngine) resolveToNextNode(graph model.GraphInterface, currentNode model.NodeInterface,
+func (fe *flowEngine) resolveToNextNode(graph model.GraphInterface, currentNode model.NodeInterface,
 	nodeResp *model.NodeResponse) (model.NodeInterface, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowEngine"))
 
@@ -318,7 +308,7 @@ func (fe *FlowEngine) resolveToNextNode(graph model.GraphInterface, currentNode 
 }
 
 // resolveStepForRedirection resolves the flow step details for a redirection response.
-func (fe *FlowEngine) resolveStepForRedirection(nodeResp *model.NodeResponse, flowStep *model.FlowStep) error {
+func (fe *flowEngine) resolveStepForRedirection(nodeResp *model.NodeResponse, flowStep *model.FlowStep) error {
 	if nodeResp == nil {
 		return errors.New("node response is nil")
 	}
@@ -352,7 +342,7 @@ func (fe *FlowEngine) resolveStepForRedirection(nodeResp *model.NodeResponse, fl
 }
 
 // resolveStepDetailsForPrompt resolves the step details for a user prompt response.
-func (fe *FlowEngine) resolveStepDetailsForPrompt(nodeResp *model.NodeResponse, flowStep *model.FlowStep) error {
+func (fe *flowEngine) resolveStepDetailsForPrompt(nodeResp *model.NodeResponse, flowStep *model.FlowStep) error {
 	if nodeResp == nil {
 		return errors.New("node response is nil")
 	}
