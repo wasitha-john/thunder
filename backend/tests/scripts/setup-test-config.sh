@@ -7,16 +7,10 @@ server:
   hostname: localhost
   port: 8080
 
-gate_client:
-  hostname: localhost
-  port: 9090
-  scheme: https
-  login_path: /login
-  error_path: /error
 
 security:
-  cert_file: /path/to/cert.pem
-  key_file: /path/to/key.pem
+  cert_file: "repository/resources/security/server.cert"
+  key_file: "repository/resources/security/server.key"
 
 database:
 EOF
@@ -73,10 +67,6 @@ fi
 
 cat >> tests/integration/resources/deployment.yaml <<EOF
 
-oauth:
-  jwt:
-    issuer: thunder
-    validity_period: 3600
 
 flow:
   graph_directory: "repository/resources/graphs/"
