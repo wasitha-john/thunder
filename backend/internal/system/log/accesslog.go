@@ -42,9 +42,9 @@ func AccessLogHandler(logger *Logger, next http.Handler) http.Handler {
 			host = r.RemoteAddr
 		}
 
-		// Standard CLF format with additional fields. Last %d is the response time in milliseconds.
+		// Apache CLF-style format with additional fields. Last %d is the response time in milliseconds.
 		logger.Info(fmt.Sprintf(
-			`%s - - [%s] "%s %s %s" %d %d %d`,
+			"%s - - [%s] %s %s %s %d %d %d",
 			host,
 			start.Format("02/Jan/2006:15:04:05 -0700"),
 			r.Method,

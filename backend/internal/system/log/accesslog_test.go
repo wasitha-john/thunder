@@ -78,6 +78,8 @@ func (suite *AccessLogTestSuite) TestAccessLogHandler() {
 	assert.Contains(suite.T(), output, "192.168.1.1")
 	assert.Contains(suite.T(), output, "GET /test")
 	assert.Contains(suite.T(), output, "200")
+	// Verify that escape characters are not present in the log output
+	assert.NotContains(suite.T(), output, `\"`)
 }
 
 func (suite *AccessLogTestSuite) TestLoggingResponseWriter() {
