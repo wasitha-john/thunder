@@ -22,8 +22,8 @@ if [ "$DB_TYPE" = "postgres" ]; then
     hostname: localhost
     port: 5432
     name: identitydb
-    username: postgres
-    password: postgres
+    username: asgthunder
+    password: asgthunder
     sslmode: disable
     path: ""
     options: ""
@@ -33,8 +33,8 @@ if [ "$DB_TYPE" = "postgres" ]; then
     hostname: localhost
     port: 5432
     name: runtimedb
-    username: postgres
-    password: postgres
+    username: asgthunder
+    password: asgthunder
     sslmode: disable
     path: ""
     options: ""
