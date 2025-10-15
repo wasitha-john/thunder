@@ -77,16 +77,4 @@ func registerRoutes(mux *http.ServeMux, userHandler *userHandler) {
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 		}, opts3))
-
-	opts4 := middleware.CORSOptions{
-		AllowedMethods:   "POST",
-		AllowedHeaders:   "Content-Type, Authorization",
-		AllowCredentials: true,
-	}
-	mux.HandleFunc(middleware.WithCORS("POST /users/authenticate",
-		userHandler.HandleUserAuthenticateRequest, opts4))
-	mux.HandleFunc(middleware.WithCORS("OPTIONS /users/authenticate",
-		func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusNoContent)
-		}, opts4))
 }

@@ -16,41 +16,34 @@
  * under the License.
  */
 
-package services
+package flowexec
 
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/flow/handler"
+	appservice "github.com/asgardeo/thunder/internal/application/service"
+	"github.com/asgardeo/thunder/internal/flow/flowmgt"
 	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
-// FlowExecutionService defines the service for handling flow execution requests.
-type FlowExecutionService struct {
-	flowExecutionHandler *handler.FlowExecutionHandler
+// Initialize creates and configures the flow execution service components.
+func Initialize(mux *http.ServeMux, flowMgtService flowmgt.FlowMgtServiceInterface,
+	applicationService appservice.ApplicationServiceInterface) FlowExecServiceInterface {
+	flowEngine := newFlowEngine()
+	flowExecService := newFlowExecService(flowMgtService, applicationService, flowEngine)
+	handler := newFlowExecutionHandler(flowExecService)
+	registerRoutes(mux, handler)
+	return flowExecService
 }
 
-// NewFlowExecutionService creates a new instance of FlowExecutionService.
-func NewFlowExecutionService(mux *http.ServeMux) ServiceInterface {
-	instance := &FlowExecutionService{
-		flowExecutionHandler: handler.NewFlowExecutionHandler(),
-	}
-	instance.RegisterRoutes(mux)
-
-	return instance
-}
-
-// RegisterRoutes registers the routes for the FlowExecutionService.
-func (s *FlowExecutionService) RegisterRoutes(mux *http.ServeMux) {
-	// TODO: Ideally this should be renamed to "/flow/authn". Keeping it as "/flow/execute" until the
-	//  previous authenticator implementation is removed.
+func registerRoutes(mux *http.ServeMux, handler *flowExecutionHandler) {
 	opts := middleware.CORSOptions{
 		AllowedMethods:   "POST",
 		AllowedHeaders:   "Content-Type, Authorization",
 		AllowCredentials: true,
 	}
 	mux.HandleFunc(middleware.WithCORS("POST /flow/execute",
-		s.flowExecutionHandler.HandleFlowExecutionRequest, opts))
+		handler.HandleFlowExecutionRequest, opts))
 	mux.HandleFunc(middleware.WithCORS("OPTIONS /flow/execute",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
