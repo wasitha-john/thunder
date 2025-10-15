@@ -5,7 +5,7 @@ DB_TYPE=${DB_TYPE:-sqlite}
 cat > tests/integration/resources/deployment.yaml <<EOF
 server:
   hostname: localhost
-  port: 8080
+  port: 8095
 
 
 security:
