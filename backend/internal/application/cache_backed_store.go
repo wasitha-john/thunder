@@ -16,37 +16,36 @@
  * under the License.
  */
 
-package store
+package application
 
 import (
 	"errors"
 
-	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 // CachedBackedApplicationStore is the implementation of ApplicationStoreInterface that uses caching.
-type CachedBackedApplicationStore struct {
+type cachedBackedApplicationStore struct {
 	AppByIDCache   cache.CacheInterface[*model.ApplicationProcessedDTO]
 	AppByNameCache cache.CacheInterface[*model.ApplicationProcessedDTO]
 	OAuthAppCache  cache.CacheInterface[*model.OAuthAppConfigProcessedDTO]
-	Store          ApplicationStoreInterface
+	Store          applicationStoreInterface
 }
 
-// NewCachedBackedApplicationStore creates a new instance of CachedBackedApplicationStore.
-func NewCachedBackedApplicationStore() ApplicationStoreInterface {
-	return &CachedBackedApplicationStore{
+// newCachedBackedApplicationStore creates a new instance of CachedBackedApplicationStore.
+func newCachedBackedApplicationStore() applicationStoreInterface {
+	return &cachedBackedApplicationStore{
 		AppByIDCache:   cache.GetCache[*model.ApplicationProcessedDTO]("ApplicationByIDCache"),
 		AppByNameCache: cache.GetCache[*model.ApplicationProcessedDTO]("ApplicationByNameCache"),
 		OAuthAppCache:  cache.GetCache[*model.OAuthAppConfigProcessedDTO]("OAuthAppCache"),
-		Store:          NewApplicationStore(),
+		Store:          newApplicationStore(),
 	}
 }
 
 // CreateApplication creates a new application and caches it.
-func (as *CachedBackedApplicationStore) CreateApplication(app model.ApplicationProcessedDTO) error {
+func (as *cachedBackedApplicationStore) CreateApplication(app model.ApplicationProcessedDTO) error {
 	if err := as.Store.CreateApplication(app); err != nil {
 		return err
 	}
@@ -55,17 +54,17 @@ func (as *CachedBackedApplicationStore) CreateApplication(app model.ApplicationP
 }
 
 // GetTotalApplicationCount returns the total count of applications.
-func (as *CachedBackedApplicationStore) GetTotalApplicationCount() (int, error) {
+func (as *cachedBackedApplicationStore) GetTotalApplicationCount() (int, error) {
 	return as.Store.GetTotalApplicationCount()
 }
 
 // GetApplicationList returns a list of basic application DTOs.
-func (as *CachedBackedApplicationStore) GetApplicationList() ([]model.BasicApplicationDTO, error) {
+func (as *cachedBackedApplicationStore) GetApplicationList() ([]model.BasicApplicationDTO, error) {
 	return as.Store.GetApplicationList()
 }
 
 // GetOAuthApplication retrieves an OAuth application by client ID, using cache if available.
-func (as *CachedBackedApplicationStore) GetOAuthApplication(clientID string) (
+func (as *cachedBackedApplicationStore) GetOAuthApplication(clientID string) (
 	*model.OAuthAppConfigProcessedDTO, error) {
 	cacheKey := cache.CacheKey{
 		Key: clientID,
@@ -85,7 +84,7 @@ func (as *CachedBackedApplicationStore) GetOAuthApplication(clientID string) (
 }
 
 // GetApplicationByID retrieves an application by ID, using cache if available.
-func (as *CachedBackedApplicationStore) GetApplicationByID(id string) (*model.ApplicationProcessedDTO, error) {
+func (as *cachedBackedApplicationStore) GetApplicationByID(id string) (*model.ApplicationProcessedDTO, error) {
 	cacheKey := cache.CacheKey{
 		Key: id,
 	}
@@ -104,7 +103,7 @@ func (as *CachedBackedApplicationStore) GetApplicationByID(id string) (*model.Ap
 }
 
 // GetApplicationByName retrieves an application by name, using cache if available.
-func (as *CachedBackedApplicationStore) GetApplicationByName(name string) (*model.ApplicationProcessedDTO, error) {
+func (as *cachedBackedApplicationStore) GetApplicationByName(name string) (*model.ApplicationProcessedDTO, error) {
 	cacheKey := cache.CacheKey{
 		Key: name,
 	}
@@ -123,7 +122,7 @@ func (as *CachedBackedApplicationStore) GetApplicationByName(name string) (*mode
 }
 
 // UpdateApplication updates an existing application and caches the updated version.
-func (as *CachedBackedApplicationStore) UpdateApplication(existingApp,
+func (as *cachedBackedApplicationStore) UpdateApplication(existingApp,
 	updatedApp *model.ApplicationProcessedDTO) error {
 	if err := as.Store.UpdateApplication(existingApp, updatedApp); err != nil {
 		return err
@@ -145,7 +144,7 @@ func (as *CachedBackedApplicationStore) UpdateApplication(existingApp,
 }
 
 // DeleteApplication deletes an application by ID and invalidates the caches.
-func (as *CachedBackedApplicationStore) DeleteApplication(id string) error {
+func (as *cachedBackedApplicationStore) DeleteApplication(id string) error {
 	cacheKey := cache.CacheKey{
 		Key: id,
 	}
@@ -154,7 +153,7 @@ func (as *CachedBackedApplicationStore) DeleteApplication(id string) error {
 		var err error
 		existingApp, err = as.Store.GetApplicationByID(id)
 		if err != nil {
-			if errors.Is(err, constants.ApplicationNotFoundError) {
+			if errors.Is(err, model.ApplicationNotFoundError) {
 				return nil
 			}
 			return err
@@ -178,7 +177,7 @@ func (as *CachedBackedApplicationStore) DeleteApplication(id string) error {
 }
 
 // cacheApplication caches the application and OAuth application configuration if it exists.
-func (as *CachedBackedApplicationStore) cacheApplication(app *model.ApplicationProcessedDTO) {
+func (as *cachedBackedApplicationStore) cacheApplication(app *model.ApplicationProcessedDTO) {
 	if app == nil {
 		return
 	}
@@ -209,7 +208,7 @@ func (as *CachedBackedApplicationStore) cacheApplication(app *model.ApplicationP
 }
 
 // cacheOAuthApplication caches the OAuth application configuration if it exists.
-func (as *CachedBackedApplicationStore) cacheOAuthApplication(oAuthAppConfig *model.OAuthAppConfigProcessedDTO) {
+func (as *cachedBackedApplicationStore) cacheOAuthApplication(oAuthAppConfig *model.OAuthAppConfigProcessedDTO) {
 	if oAuthAppConfig == nil || oAuthAppConfig.ClientID == "" {
 		return
 	}
@@ -225,7 +224,7 @@ func (as *CachedBackedApplicationStore) cacheOAuthApplication(oAuthAppConfig *mo
 }
 
 // InvalidateApplicationCache invalidates all application caches.
-func (as *CachedBackedApplicationStore) invalidateApplicationCache(appID, appName, clientID string) {
+func (as *cachedBackedApplicationStore) invalidateApplicationCache(appID, appName, clientID string) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "CachedBackedApplicationStore"))
 
 	if appID != "" {

@@ -27,7 +27,7 @@ import (
 	"net/url"
 	"time"
 
-	appprovider "github.com/asgardeo/thunder/internal/application/provider"
+	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/authz/store"
@@ -55,7 +55,7 @@ type AuthorizeHandlerInterface interface {
 
 // AuthorizeHandler implements the AuthorizeHandlerInterface for handling OAuth2 authorization requests.
 type AuthorizeHandler struct {
-	AppProvider    appprovider.ApplicationProviderInterface
+	AppProvider    application.ApplicationProviderInterface
 	AuthZValidator AuthorizationValidatorInterface
 	AuthZStore     store.AuthorizationCodeStoreInterface
 	SessionStore   sessionstore.SessionDataStoreInterface
@@ -65,7 +65,7 @@ type AuthorizeHandler struct {
 // NewAuthorizeHandler creates a new instance of AuthorizeHandler.
 func NewAuthorizeHandler() AuthorizeHandlerInterface {
 	return &AuthorizeHandler{
-		AppProvider:    appprovider.NewApplicationProvider(),
+		AppProvider:    application.NewApplicationProvider(),
 		AuthZValidator: NewAuthorizationValidator(),
 		AuthZStore:     store.NewAuthorizationCodeStore(),
 		SessionStore:   sessionstore.GetSessionDataStore(),

@@ -22,8 +22,7 @@ package flowexec
 import (
 	"fmt"
 
-	appconst "github.com/asgardeo/thunder/internal/application/constants"
-	appservice "github.com/asgardeo/thunder/internal/application/service"
+	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/flow/common/constants"
 	"github.com/asgardeo/thunder/internal/flow/common/model"
 	"github.com/asgardeo/thunder/internal/flow/flowmgt"
@@ -44,11 +43,11 @@ type flowExecService struct {
 	flowEngine     flowEngineInterface
 	flowMgtService flowmgt.FlowMgtServiceInterface
 	flowStore      FlowStoreInterface
-	appService     appservice.ApplicationServiceInterface
+	appService     application.ApplicationServiceInterface
 }
 
 func newFlowExecService(flowMgtService flowmgt.FlowMgtServiceInterface,
-	applicationService appservice.ApplicationServiceInterface,
+	applicationService application.ApplicationServiceInterface,
 	flowEngine flowEngineInterface) FlowExecServiceInterface {
 	return &flowExecService{
 		flowMgtService: flowMgtService,
@@ -218,7 +217,7 @@ func (s *flowExecService) loadContextFromStore(flowID string) (*model.EngineCont
 func (s *flowExecService) setApplicationToContext(ctx *model.EngineContext) *serviceerror.ServiceError {
 	app, err := s.appService.GetApplication(ctx.AppID)
 	if err != nil {
-		if err.Code == appconst.ErrorApplicationNotFound.Code {
+		if err.Code == application.ErrorApplicationNotFound.Code {
 			return &constants.ErrorInvalidAppID
 		}
 		if err.Type == serviceerror.ClientErrorType {
@@ -298,7 +297,7 @@ func (s *flowExecService) getFlowGraph(appID string, flowType constants.FlowType
 
 	app, err := s.appService.GetApplication(appID)
 	if err != nil {
-		if err.Code == appconst.ErrorApplicationNotFound.Code {
+		if err.Code == application.ErrorApplicationNotFound.Code {
 			return "", &constants.ErrorInvalidAppID
 		}
 		if err.Type == serviceerror.ClientErrorType {

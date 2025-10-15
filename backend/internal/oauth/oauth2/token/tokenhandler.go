@@ -25,10 +25,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/utils"
 
-	appprovider "github.com/asgardeo/thunder/internal/application/provider"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/granthandlers"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
@@ -44,7 +44,7 @@ type TokenHandlerInterface interface {
 // TokenHandler implements the TokenHandlerInterface.
 type TokenHandler struct {
 	GrantHandlerProvider   granthandlers.GrantHandlerProviderInterface
-	ApplicationProvider    appprovider.ApplicationProviderInterface
+	ApplicationProvider    application.ApplicationProviderInterface
 	ScopeValidatorProvider scopeprovider.ScopeValidatorProviderInterface
 }
 
@@ -52,7 +52,7 @@ type TokenHandler struct {
 func NewTokenHandler() TokenHandlerInterface {
 	return &TokenHandler{
 		GrantHandlerProvider:   granthandlers.NewGrantHandlerProvider(),
-		ApplicationProvider:    appprovider.NewApplicationProvider(),
+		ApplicationProvider:    application.NewApplicationProvider(),
 		ScopeValidatorProvider: scopeprovider.NewScopeValidatorProvider(),
 	}
 }

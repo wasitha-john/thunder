@@ -16,22 +16,19 @@
  * under the License.
  */
 
-// Package store provides functionality for handling application data persistence.
-package store
+package application
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 
-	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/utils"
-	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
 // oAuthConfig is the structure for unmarshaling OAuth configuration JSON.
@@ -58,7 +55,7 @@ type tokenConfig struct {
 }
 
 // ApplicationStoreInterface defines the interface for application data persistence operations.
-type ApplicationStoreInterface interface {
+type applicationStoreInterface interface {
 	CreateApplication(app model.ApplicationProcessedDTO) error
 	GetTotalApplicationCount() (int, error)
 	GetApplicationList() ([]model.BasicApplicationDTO, error)
@@ -69,16 +66,16 @@ type ApplicationStoreInterface interface {
 	DeleteApplication(id string) error
 }
 
-// ApplicationStore implements the ApplicationStoreInterface for handling application data persistence.
-type ApplicationStore struct{}
+// applicationStore implements the applicationStoreInterface for handling application data persistence.
+type applicationStore struct{}
 
-// NewApplicationStore creates a new instance of ApplicationStore.
-func NewApplicationStore() ApplicationStoreInterface {
-	return &ApplicationStore{}
+// NewApplicationStore creates a new instance of applicationStore.
+func newApplicationStore() applicationStoreInterface {
+	return &applicationStore{}
 }
 
 // CreateApplication creates a new application in the database.
-func (st *ApplicationStore) CreateApplication(app model.ApplicationProcessedDTO) error {
+func (st *applicationStore) CreateApplication(app model.ApplicationProcessedDTO) error {
 	jsonDataBytes, err := getAppJSONDataBytes(&app)
 	if err != nil {
 		return err
@@ -101,7 +98,7 @@ func (st *ApplicationStore) CreateApplication(app model.ApplicationProcessedDTO)
 }
 
 // GetTotalApplicationCount retrieves the total count of applications from the database.
-func (st *ApplicationStore) GetTotalApplicationCount() (int, error) {
+func (st *applicationStore) GetTotalApplicationCount() (int, error) {
 	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get database client: %w", err)
@@ -125,7 +122,7 @@ func (st *ApplicationStore) GetTotalApplicationCount() (int, error) {
 }
 
 // GetApplicationList retrieves a list of applications from the database.
-func (st *ApplicationStore) GetApplicationList() ([]model.BasicApplicationDTO, error) {
+func (st *applicationStore) GetApplicationList() ([]model.BasicApplicationDTO, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationPersistence"))
 
 	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
@@ -155,7 +152,7 @@ func (st *ApplicationStore) GetApplicationList() ([]model.BasicApplicationDTO, e
 }
 
 // GetOAuthApplication retrieves an OAuth application by its client ID.
-func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessedDTO, error) {
+func (st *applicationStore) GetOAuthApplication(clientID string) (*model.OAuthAppConfigProcessedDTO, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
 	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
@@ -169,7 +166,7 @@ func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAp
 		return nil, err
 	}
 	if len(results) == 0 {
-		return nil, constants.ApplicationNotFoundError
+		return nil, model.ApplicationNotFoundError
 	}
 
 	row := results[0]
@@ -244,17 +241,17 @@ func (st *ApplicationStore) GetOAuthApplication(clientID string) (*model.OAuthAp
 }
 
 // GetApplicationByID retrieves a specific application by its ID from the database.
-func (st *ApplicationStore) GetApplicationByID(id string) (*model.ApplicationProcessedDTO, error) {
+func (st *applicationStore) GetApplicationByID(id string) (*model.ApplicationProcessedDTO, error) {
 	return st.getApplicationByQuery(QueryGetApplicationByAppID, id)
 }
 
 // GetApplicationByName retrieves a specific application by its name from the database.
-func (st *ApplicationStore) GetApplicationByName(name string) (*model.ApplicationProcessedDTO, error) {
+func (st *applicationStore) GetApplicationByName(name string) (*model.ApplicationProcessedDTO, error) {
 	return st.getApplicationByQuery(QueryGetApplicationByName, name)
 }
 
 // getApplicationByQuery retrieves a specific application from the database using the provided query and parameter.
-func (st *ApplicationStore) getApplicationByQuery(query dbmodel.DBQuery, param string) (
+func (st *applicationStore) getApplicationByQuery(query dbmodel.DBQuery, param string) (
 	*model.ApplicationProcessedDTO, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
@@ -271,7 +268,7 @@ func (st *ApplicationStore) getApplicationByQuery(query dbmodel.DBQuery, param s
 	}
 
 	if len(results) == 0 {
-		return nil, constants.ApplicationNotFoundError
+		return nil, model.ApplicationNotFoundError
 	}
 	if len(results) != 1 {
 		logger.Error("unexpected number of results")
@@ -289,7 +286,7 @@ func (st *ApplicationStore) getApplicationByQuery(query dbmodel.DBQuery, param s
 }
 
 // UpdateApplication updates an existing application in the database.
-func (st *ApplicationStore) UpdateApplication(existingApp, updatedApp *model.ApplicationProcessedDTO) error {
+func (st *applicationStore) UpdateApplication(existingApp, updatedApp *model.ApplicationProcessedDTO) error {
 	jsonDataBytes, err := getAppJSONDataBytes(updatedApp)
 	if err != nil {
 		return err
@@ -321,7 +318,7 @@ func (st *ApplicationStore) UpdateApplication(existingApp, updatedApp *model.App
 }
 
 // DeleteApplication deletes an application from the database by its ID.
-func (st *ApplicationStore) DeleteApplication(id string) error {
+func (st *applicationStore) DeleteApplication(id string) error {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationStore"))
 
 	dbClient, err := provider.GetDBProvider().GetDBClient("identity")
@@ -374,9 +371,9 @@ func getAppJSONDataBytes(app *model.ApplicationProcessedDTO) ([]byte, error) {
 func getOAuthConfigJSONBytes(inboundAuthConfig model.InboundAuthConfigProcessedDTO) ([]byte, error) {
 	oauthConfig := oAuthConfig{
 		RedirectURIs:  inboundAuthConfig.OAuthAppConfig.RedirectURIs,
-		GrantTypes:    sysutils.ConvertToStringSlice(inboundAuthConfig.OAuthAppConfig.GrantTypes),
-		ResponseTypes: sysutils.ConvertToStringSlice(inboundAuthConfig.OAuthAppConfig.ResponseTypes),
-		TokenEndpointAuthMethod: sysutils.ConvertToStringSlice(
+		GrantTypes:    utils.ConvertToStringSlice(inboundAuthConfig.OAuthAppConfig.GrantTypes),
+		ResponseTypes: utils.ConvertToStringSlice(inboundAuthConfig.OAuthAppConfig.ResponseTypes),
+		TokenEndpointAuthMethod: utils.ConvertToStringSlice(
 			inboundAuthConfig.OAuthAppConfig.TokenEndpointAuthMethod),
 		PKCERequired: inboundAuthConfig.OAuthAppConfig.PKCERequired,
 		PublicClient: inboundAuthConfig.OAuthAppConfig.PublicClient,
@@ -474,7 +471,7 @@ func buildBasicApplicationFromResultRow(row map[string]interface{}) (model.Basic
 		return model.BasicApplicationDTO{},
 			fmt.Errorf("failed to parse is_registration_flow_enabled as string or []byte")
 	}
-	isRegistrationFlowEnabled := sysutils.NumStringToBool(isRegistrationFlowEnabledStr)
+	isRegistrationFlowEnabled := utils.NumStringToBool(isRegistrationFlowEnabledStr)
 
 	application := model.BasicApplicationDTO{
 		ID:                        appID,
@@ -626,7 +623,7 @@ func buildApplicationFromResultRow(row map[string]interface{}) (model.Applicatio
 
 		// TODO: Need to refactor when supporting other/multiple inbound auth types.
 		inboundAuthConfig := model.InboundAuthConfigProcessedDTO{
-			Type: constants.OAuthInboundAuthType,
+			Type: model.OAuthInboundAuthType,
 			OAuthAppConfig: &model.OAuthAppConfigProcessedDTO{
 				AppID:                   basicApp.ID,
 				ClientID:                basicApp.ClientID,

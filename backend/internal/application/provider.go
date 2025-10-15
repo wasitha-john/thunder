@@ -16,16 +16,13 @@
  * under the License.
  */
 
-// Package provider provides functionality for managing application service instances.
-package provider
+package application
 
-import (
-	"github.com/asgardeo/thunder/internal/application/service"
-)
+// TODO: Need to remove once the authz service and token service are refactored to use DI.
 
 // ApplicationProviderInterface defines the interface for the application provider.
 type ApplicationProviderInterface interface {
-	GetApplicationService() service.ApplicationServiceInterface
+	GetApplicationService() ApplicationServiceInterface
 }
 
 // ApplicationProvider is the default implementation of the ApplicationProviderInterface.
@@ -37,6 +34,6 @@ func NewApplicationProvider() ApplicationProviderInterface {
 }
 
 // GetApplicationService returns the application service instance.
-func (ap *ApplicationProvider) GetApplicationService() service.ApplicationServiceInterface {
-	return service.GetApplicationService()
+func (ap *ApplicationProvider) GetApplicationService() ApplicationServiceInterface {
+	return GetApplicationService()
 }

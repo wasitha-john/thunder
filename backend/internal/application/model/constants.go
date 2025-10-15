@@ -16,8 +16,7 @@
  * under the License.
  */
 
-// Package constants defines the constants used across the application module.
-package constants
+package model
 
 import "errors"
 
