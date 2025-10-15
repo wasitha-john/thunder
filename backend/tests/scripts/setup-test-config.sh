@@ -49,7 +49,7 @@ else
     username: ""
     password: ""
     sslmode: ""
-    path: ":memory:"
+    path: "repository/database/thunderdb.db"
     options: "cache=shared"
 
   runtime:
@@ -60,7 +60,7 @@ else
     username: ""
     password: ""
     sslmode: ""
-    path: "/data/runtime.db"
+    path: "repository/database/runtimedb.db"
     options: "cache=shared"
 EOF
 fi
