@@ -85,7 +85,7 @@ jobs:
         run: |  
           PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb -c "CREATE DATABASE identitydb;"
           PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb -c "CREATE DATABASE runtimedb;"
-          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb < backend/dbscripts/thunderdb/postgres.sql  
+          PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d identitydb < backend/dbscripts/thunderdb/postgres.sql  
           PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d runtimedb < backend/dbscripts/runtimedb/postgres.sql  
   
       - name: 📝 Configure Test Database  
