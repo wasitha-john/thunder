@@ -124,11 +124,9 @@ func (suite *JWTServiceTestSuite) SetupTest() {
 		Security: config.SecurityConfig{
 			KeyFile: suite.testKeyPath,
 		},
-		OAuth: config.OAuthConfig{
-			JWT: config.JWTConfig{
-				Issuer:         "https://test.thunder.io",
-				ValidityPeriod: 3600, // Default validity period
-			},
+		JWT: config.JWTConfig{
+			Issuer:         "https://test.thunder.io",
+			ValidityPeriod: 3600, // Default validity period
 		},
 	}
 	err := config.InitializeThunderRuntime("", testConfig)

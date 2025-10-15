@@ -51,11 +51,9 @@ func TestClientCredentialsGrantHandlerSuite(t *testing.T) {
 func (suite *ClientCredentialsGrantHandlerTestSuite) SetupTest() {
 	// Initialize Thunder Runtime for tests
 	testConfig := &config.Config{
-		OAuth: config.OAuthConfig{
-			JWT: config.JWTConfig{
-				Issuer:         "https://test.thunder.io",
-				ValidityPeriod: 3600,
-			},
+		JWT: config.JWTConfig{
+			Issuer:         "https://test.thunder.io",
+			ValidityPeriod: 3600,
 		},
 	}
 	err := config.InitializeThunderRuntime("", testConfig)

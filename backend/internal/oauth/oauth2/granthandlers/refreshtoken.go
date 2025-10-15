@@ -125,10 +125,10 @@ func (h *refreshTokenGrantHandler) HandleGrant(tokenRequest *model.TokenRequest,
 		validityPeriod = oauthApp.Token.AccessToken.ValidityPeriod
 	}
 	if iss == "" {
-		iss = conf.OAuth.JWT.Issuer
+		iss = conf.JWT.Issuer
 	}
 	if validityPeriod == 0 {
-		validityPeriod = conf.OAuth.JWT.ValidityPeriod
+		validityPeriod = conf.JWT.ValidityPeriod
 	}
 
 	// Issue new access token
@@ -225,10 +225,10 @@ func (h *refreshTokenGrantHandler) IssueRefreshToken(tokenResponse *model.TokenR
 		validityPeriod = oauthApp.Token.AccessToken.ValidityPeriod
 	}
 	if iss == "" {
-		iss = config.GetThunderRuntime().Config.OAuth.JWT.Issuer
+		iss = config.GetThunderRuntime().Config.JWT.Issuer
 	}
 	if validityPeriod == 0 {
-		validityPeriod = config.GetThunderRuntime().Config.OAuth.JWT.ValidityPeriod
+		validityPeriod = config.GetThunderRuntime().Config.JWT.ValidityPeriod
 	}
 
 	// Generate a JWT token for the refresh token.
