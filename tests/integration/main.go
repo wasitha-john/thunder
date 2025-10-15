@@ -79,6 +79,13 @@ func main() {
 }
 
 func initTests() {
+	// Read database type from environment variable  
+	dbType := os.Getenv("DB_TYPE")  
+	if dbType == "" {  
+		dbType = "sqlite" // Default to SQLite  
+	}  
+	fmt.Printf("Database type: %s\n", dbType)
+	
 	zipFilePattern = testutils.GetZipFilePattern()
 	if zipFilePattern == "" {
 		fmt.Println("Failed to determine the zip file pattern.")
@@ -86,7 +93,7 @@ func initTests() {
 	}
 
 	// Initialize test context with the detected configuration
-	testutils.InitializeTestContext(serverPort, zipFilePattern)
+	testutils.InitializeTestContext(serverPort, zipFilePattern, dbType)
 
 	fmt.Printf("Using zip file pattern: %s\n", zipFilePattern)
 }
