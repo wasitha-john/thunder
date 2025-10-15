@@ -23,7 +23,7 @@ import (
 	"errors"
 	"strings"
 
-	flowmodel "github.com/asgardeo/thunder/internal/flow/model"
+	flowmodel "github.com/asgardeo/thunder/internal/flow/common/model"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 

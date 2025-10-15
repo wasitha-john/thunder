@@ -1821,6 +1821,12 @@ make test_unit
 make test_integration
 ```
 
+**Note:** This command will run integration tests on an already built product. If you need to build the product before running integration tests, use:
+
+```bash
+make build_backend test_integration
+```
+
 #### Run Tests with Coverage
 
 ```bash

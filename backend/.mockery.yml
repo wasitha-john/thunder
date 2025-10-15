@@ -172,3 +172,83 @@ packages:
       structname: '{{.InterfaceName}}Mock'
       pkgname: usermock
       filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/authn:
+    config:
+      all: true
+      dir: tests/mocks/authn/authnmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: authnmock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/authn/credentials:
+    config:
+      all: true
+      dir: tests/mocks/authn/credentialsmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: credentialsmock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/authn/otp:
+    config:
+      all: true
+      dir: tests/mocks/authn/otpmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: otpmock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/authn/oauth:
+    config:
+      all: true
+      dir: tests/mocks/authn/oauthmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: oauthmock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/authn/oidc:
+    config:
+      all: true
+      dir: tests/mocks/authn/oidcmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: oidcmock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/authn/google:
+    config:
+      all: true
+      dir: tests/mocks/authn/googlemock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: googlemock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/authn/github:
+    config:
+      all: true
+      dir: tests/mocks/authn/githubmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: githubmock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/idp:
+    config:
+      all: true
+      dir: tests/mocks/idp/idpmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: idpmock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/notification:
+    config:
+      all: true
+      dir: tests/mocks/notification/notificationmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: notificationmock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/system/http:
+    config:
+      all: true
+      dir: tests/mocks/httpmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: httpmock
+      filename: "{{.InterfaceName}}_mock.go"

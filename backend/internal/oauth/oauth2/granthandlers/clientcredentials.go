@@ -86,10 +86,10 @@ func (h *clientCredentialsGrantHandler) HandleGrant(tokenRequest *model.TokenReq
 		validityPeriod = oauthApp.Token.AccessToken.ValidityPeriod
 	}
 	if iss == "" {
-		iss = config.GetThunderRuntime().Config.OAuth.JWT.Issuer
+		iss = config.GetThunderRuntime().Config.JWT.Issuer
 	}
 	if validityPeriod == 0 {
-		validityPeriod = config.GetThunderRuntime().Config.OAuth.JWT.ValidityPeriod
+		validityPeriod = config.GetThunderRuntime().Config.JWT.ValidityPeriod
 	}
 
 	token, _, err := h.JWTService.GenerateJWT(tokenRequest.ClientID, tokenRequest.ClientID, iss,

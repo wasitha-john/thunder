@@ -271,8 +271,7 @@ func (as *authenticationService) appendAuthAssertion(user *user.User,
 		jwtClaims["organizationUnit"] = user.OrganizationUnit
 	}
 
-	// TODO: Fix the usage after merging config refactoring PR (I.e. remove OAuth from config)
-	jwtConfig := config.GetThunderRuntime().Config.OAuth.JWT
+	jwtConfig := config.GetThunderRuntime().Config.JWT
 
 	token, _, err := as.jwtService.GenerateJWT(user.ID, "application", jwtConfig.Issuer,
 		jwtConfig.ValidityPeriod, jwtClaims)
@@ -436,7 +435,7 @@ func (as *authenticationService) createSessionToken(idpID string, idpType idp.ID
 		"auth_data": sessionData,
 	}
 
-	jwtConfig := config.GetThunderRuntime().Config.OAuth.JWT
+	jwtConfig := config.GetThunderRuntime().Config.JWT
 	token, _, err := as.jwtService.GenerateJWT("auth-svc", "auth-svc", jwtConfig.Issuer, 600, claims)
 	if err != nil {
 		return "", err
@@ -449,7 +448,7 @@ func (as *authenticationService) createSessionToken(idpID string, idpType idp.ID
 func (as *authenticationService) verifyAndDecodeSessionToken(token string, logger *log.Logger) (
 	*AuthSessionData, *serviceerror.ServiceError) {
 	// Verify JWT signature and claims
-	jwtConfig := config.GetThunderRuntime().Config.OAuth.JWT
+	jwtConfig := config.GetThunderRuntime().Config.JWT
 	err := as.jwtService.VerifyJWT(token, "auth-svc", jwtConfig.Issuer)
 	if err != nil {
 		logger.Debug("Error verifying session token", log.Error(err))

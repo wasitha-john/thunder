@@ -162,12 +162,12 @@ func (js *JWTService) GenerateJWT(sub, aud, iss string, validityPeriod int64, cl
 
 	tokenIssuer := iss
 	if tokenIssuer == "" {
-		tokenIssuer = thunderRuntime.Config.OAuth.JWT.Issuer
+		tokenIssuer = thunderRuntime.Config.JWT.Issuer
 	}
 
 	// Calculate the expiration time based on the validity period.
 	if validityPeriod == 0 {
-		validityPeriod = thunderRuntime.Config.OAuth.JWT.ValidityPeriod
+		validityPeriod = thunderRuntime.Config.JWT.ValidityPeriod
 	}
 	iat := time.Now()
 	expirationTime := iat.Add(time.Duration(validityPeriod) * time.Second).Unix()

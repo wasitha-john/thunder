@@ -299,46 +299,6 @@ func (uh *userHandler) HandleUserPostByPathRequest(w http.ResponseWriter, r *htt
 	logger.Debug("Successfully created user by path", log.String("path", path), log.String("userType", user.Type))
 }
 
-// HandleUserAuthenticateRequest handles the user authentication request.
-func (uh *userHandler) HandleUserAuthenticateRequest(w http.ResponseWriter, r *http.Request) {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, handlerLoggerComponentName))
-
-	authenticateRequest, err := sysutils.DecodeJSONBody[AuthenticateUserRequest](r)
-	if err != nil {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-
-		errResp := apierror.ErrorResponse{
-			Code:        ErrorInvalidRequestFormat.Code,
-			Message:     ErrorInvalidRequestFormat.Error,
-			Description: "The request body is malformed or contains invalid data",
-		}
-
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	authResponse, svcErr := uh.userService.AuthenticateUser(*authenticateRequest)
-	if svcErr != nil {
-		handleError(w, logger, svcErr)
-		return
-	}
-
-	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(authResponse); err != nil {
-		logger.Error("Error encoding response", log.Error(err))
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
-
-	logger.Debug("User authentication successful", log.String("userID", authResponse.ID))
-}
-
 // parsePaginationParams parses limit and offset query parameters from the request.
 func parsePaginationParams(query url.Values) (int, int, *serviceerror.ServiceError) {
 	limit := 0

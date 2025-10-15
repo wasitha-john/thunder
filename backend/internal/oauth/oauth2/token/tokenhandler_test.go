@@ -43,10 +43,8 @@ func TestTokenHandlerSuite(t *testing.T) {
 func (suite *TokenHandlerTestSuite) SetupTest() {
 	// Initialize Thunder Runtime config with basic test config
 	testConfig := &config.Config{
-		OAuth: config.OAuthConfig{
-			JWT: config.JWTConfig{
-				ValidityPeriod: 3600,
-			},
+		JWT: config.JWTConfig{
+			ValidityPeriod: 3600,
 		},
 	}
 	_ = config.InitializeThunderRuntime("test", testConfig)

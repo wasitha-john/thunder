@@ -277,7 +277,7 @@ func (s *otpService) createSessionToken(sessionData common.OTPSessionData) (stri
 
 	// Use a short validity period for the token (same as OTP expiry)
 	validityPeriod := (sessionData.ExpiryTime - time.Now().UnixMilli()) / 1000
-	jwtConfig := config.GetThunderRuntime().Config.OAuth.JWT
+	jwtConfig := config.GetThunderRuntime().Config.JWT
 
 	token, _, err := s.jwtSvc.GenerateJWT("otp-svc", "otp-svc", jwtConfig.Issuer, validityPeriod, claims)
 	if err != nil {
@@ -291,7 +291,7 @@ func (s *otpService) createSessionToken(sessionData common.OTPSessionData) (stri
 func (s *otpService) verifyAndDecodeSessionToken(token string, logger *log.Logger) (
 	*common.OTPSessionData, *serviceerror.ServiceError) {
 	// Verify JWT signature
-	jwtConfig := config.GetThunderRuntime().Config.OAuth.JWT
+	jwtConfig := config.GetThunderRuntime().Config.JWT
 	err := s.jwtSvc.VerifyJWT(token, "otp-svc", jwtConfig.Issuer)
 	if err != nil {
 		logger.Debug("Invalid session token", log.Error(err))
