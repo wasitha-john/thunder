@@ -2,7 +2,7 @@
 
 DB_TYPE=${DB_TYPE:-sqlite}
 
-cat > backend/tests/resources/deployment.yaml <<EOF
+cat > tests/integration/resources/deployment.yaml <<EOF
 server:
   hostname: localhost
   port: 8080
@@ -22,7 +22,7 @@ database:
 EOF
 
 if [ "$DB_TYPE" = "postgres" ]; then
-  cat >> backend/tests/resources/deployment.yaml <<EOF
+  cat >> tests/integration/resources/deployment.yaml <<EOF
   identity:
     type: postgres
     hostname: localhost
@@ -46,7 +46,7 @@ if [ "$DB_TYPE" = "postgres" ]; then
     options: ""
 EOF
 else
-  cat >> backend/tests/resources/deployment.yaml <<EOF
+  cat >> tests/integration/resources/deployment.yaml <<EOF
   identity:
     type: sqlite
     hostname: ""
@@ -71,7 +71,7 @@ else
 EOF
 fi
 
-cat >> backend/tests/resources/deployment.yaml <<EOF
+cat >> tests/integration/resources/deployment.yaml <<EOF
 
 oauth:
   jwt:
