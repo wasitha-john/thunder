@@ -27,7 +27,7 @@ if [ "$DB_TYPE" = "postgres" ]; then
     type: postgres
     hostname: localhost
     port: 5432
-    name: identity_db
+    name: identitydb
     username: postgres
     password: postgres
     sslmode: disable
@@ -38,7 +38,7 @@ if [ "$DB_TYPE" = "postgres" ]; then
     type: postgres
     hostname: localhost
     port: 5432
-    name: runtime_db
+    name: runtimedb
     username: postgres
     password: postgres
     sslmode: disable
