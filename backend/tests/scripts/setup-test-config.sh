@@ -2,34 +2,28 @@
 
 DB_TYPE=${DB_TYPE:-sqlite}
 
-cat > backend/tests/resources/deployment.yaml <<EOF
+cat > tests/integration/resources/deployment.yaml <<EOF
 server:
   hostname: localhost
-  port: 8080
+  port: 8095
 
-gate_client:
-  hostname: localhost
-  port: 9090
-  scheme: https
-  login_path: /login
-  error_path: /error
 
 security:
-  cert_file: /path/to/cert.pem
-  key_file: /path/to/key.pem
+  cert_file: "repository/resources/security/server.cert"
+  key_file: "repository/resources/security/server.key"
 
 database:
 EOF
 
 if [ "$DB_TYPE" = "postgres" ]; then
-  cat >> backend/tests/resources/deployment.yaml <<EOF
+  cat >> tests/integration/resources/deployment.yaml <<EOF
   identity:
     type: postgres
     hostname: localhost
     port: 5432
-    name: identity_db
-    username: postgres
-    password: postgres
+    name: identitydb
+    username: asgthunder
+    password: asgthunder
     sslmode: disable
     path: ""
     options: ""
@@ -38,15 +32,15 @@ if [ "$DB_TYPE" = "postgres" ]; then
     type: postgres
     hostname: localhost
     port: 5432
-    name: runtime_db
-    username: postgres
-    password: postgres
+    name: runtimedb
+    username: asgthunder
+    password: asgthunder
     sslmode: disable
     path: ""
     options: ""
 EOF
 else
-  cat >> backend/tests/resources/deployment.yaml <<EOF
+  cat >> tests/integration/resources/deployment.yaml <<EOF
   identity:
     type: sqlite
     hostname: ""
@@ -55,7 +49,7 @@ else
     username: ""
     password: ""
     sslmode: ""
-    path: ":memory:"
+    path: "repository/database/thunderdb.db"
     options: "cache=shared"
 
   runtime:
@@ -66,17 +60,13 @@ else
     username: ""
     password: ""
     sslmode: ""
-    path: "/data/runtime.db"
+    path: "repository/database/runtimedb.db"
     options: "cache=shared"
 EOF
 fi
 
-cat >> backend/tests/resources/deployment.yaml <<EOF
+cat >> tests/integration/resources/deployment.yaml <<EOF
 
-oauth:
-  jwt:
-    issuer: thunder
-    validity_period: 3600
 
 flow:
   graph_directory: "repository/resources/graphs/"
