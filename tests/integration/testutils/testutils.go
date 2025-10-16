@@ -182,10 +182,14 @@ func ReplaceResources(zipFilePattern string) error {
 		return fmt.Errorf("failed to replace deployment.yaml: %v", err)
 	}
 
-	destPath = filepath.Join(extractedProductHome, "dbscripts")
-	err = copyDirectory(TestDatabaseSchemaDirectory, destPath)
-	if err != nil {
-		return fmt.Errorf("failed to replace database schema files: %v", err)
+	if dbType == "postgres" {
+		log.Println("Skipping replacement of dbscripts for PostgreSQL.")
+	} else {
+		destPath = filepath.Join(extractedProductHome, "dbscripts")
+		err = copyDirectory(TestDatabaseSchemaDirectory, destPath)
+		if err != nil {
+			return fmt.Errorf("failed to replace database schema files: %v", err)
+		}
 	}
 
 	// copy graphs from the target directory to the product home
