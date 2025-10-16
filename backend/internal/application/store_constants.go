@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package store
+package application
 
 import dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 

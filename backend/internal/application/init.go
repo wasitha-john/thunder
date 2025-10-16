@@ -16,44 +16,35 @@
  * under the License.
  */
 
-// Package services provides HTTP service implementations for various domain operations.
-//
-//nolint:dupl // ApplicationService has similar structure to GroupService but they serve different domains
-package services
+// Package application provides functionality for managing applications.
+package application
 
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/application/handler"
+	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
-// ApplicationService defines the service for handling application-related requests.
-type ApplicationService struct {
-	applicationHandler *handler.ApplicationHandler
+// Initialize initializes the application service and registers its routes.
+func Initialize(mux *http.ServeMux, certService cert.CertificateServiceInterface) ApplicationServiceInterface {
+	appStore := newCachedBackedApplicationStore()
+	appService := newApplicationService(appStore, certService)
+	appHandler := newApplicationHandler(appService)
+	registerRoutes(mux, appHandler)
+	return appService
 }
 
-// NewApplicationService creates a new instance of ApplicationService.
-func NewApplicationService(mux *http.ServeMux) ServiceInterface {
-	instance := &ApplicationService{
-		applicationHandler: handler.NewApplicationHandler(),
-	}
-	instance.RegisterRoutes(mux)
-
-	return instance
-}
-
-// RegisterRoutes registers the routes for the ApplicationService.
-func (s *ApplicationService) RegisterRoutes(mux *http.ServeMux) {
+func registerRoutes(mux *http.ServeMux, appHandler *applicationHandler) {
 	opts1 := middleware.CORSOptions{
 		AllowedMethods:   "GET, POST",
 		AllowedHeaders:   "Content-Type, Authorization",
 		AllowCredentials: true,
 	}
 	mux.HandleFunc(middleware.WithCORS("POST /applications",
-		s.applicationHandler.HandleApplicationPostRequest, opts1))
+		appHandler.HandleApplicationPostRequest, opts1))
 	mux.HandleFunc(middleware.WithCORS("GET /applications",
-		s.applicationHandler.HandleApplicationListRequest, opts1))
+		appHandler.HandleApplicationListRequest, opts1))
 	mux.HandleFunc(middleware.WithCORS("OPTIONS /applications",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
@@ -65,11 +56,11 @@ func (s *ApplicationService) RegisterRoutes(mux *http.ServeMux) {
 		AllowCredentials: true,
 	}
 	mux.HandleFunc(middleware.WithCORS("GET /applications/{id}",
-		s.applicationHandler.HandleApplicationGetRequest, opts2))
+		appHandler.HandleApplicationGetRequest, opts2))
 	mux.HandleFunc(middleware.WithCORS("PUT /applications/{id}",
-		s.applicationHandler.HandleApplicationPutRequest, opts2))
+		appHandler.HandleApplicationPutRequest, opts2))
 	mux.HandleFunc(middleware.WithCORS("DELETE /applications/{id}",
-		s.applicationHandler.HandleApplicationDeleteRequest, opts2))
+		appHandler.HandleApplicationDeleteRequest, opts2))
 	mux.HandleFunc(middleware.WithCORS("OPTIONS /applications/",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)

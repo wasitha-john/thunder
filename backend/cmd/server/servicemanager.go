@@ -22,7 +22,8 @@ package main
 import (
 	"net/http"
 
-	appservice "github.com/asgardeo/thunder/internal/application/service"
+	"github.com/asgardeo/thunder/internal/application"
+	"github.com/asgardeo/thunder/internal/cert"
 	"github.com/asgardeo/thunder/internal/flow/flowexec"
 	"github.com/asgardeo/thunder/internal/flow/flowmgt"
 	"github.com/asgardeo/thunder/internal/group"
@@ -58,7 +59,9 @@ func registerServices(mux *http.ServeMux) {
 		logger.Fatal("Failed to initialize FlowMgtService", log.Error(err))
 	}
 	// TODO: this needs to be removed once the application service is refactored to use DI.
-	applicationService := appservice.GetApplicationService()
+	certservice := cert.NewCertificateService()
+	applicationService := application.Initialize(mux, certservice)
+
 	_ = flowexec.Initialize(mux, flowMgtService, applicationService)
 
 	// TODO: Legacy way of initializing services. These need to be refactored in the future aligning to the
@@ -78,9 +81,6 @@ func registerServices(mux *http.ServeMux) {
 
 	// Register the introspection service.
 	services.NewIntrospectionAPIService(mux)
-
-	// Register the Application service.
-	services.NewApplicationService(mux)
 
 	// Register the authentication service.
 	services.NewAuthenticationService(mux)

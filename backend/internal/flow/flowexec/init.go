@@ -21,14 +21,14 @@ package flowexec
 import (
 	"net/http"
 
-	appservice "github.com/asgardeo/thunder/internal/application/service"
+	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/flow/flowmgt"
 	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // Initialize creates and configures the flow execution service components.
 func Initialize(mux *http.ServeMux, flowMgtService flowmgt.FlowMgtServiceInterface,
-	applicationService appservice.ApplicationServiceInterface) FlowExecServiceInterface {
+	applicationService application.ApplicationServiceInterface) FlowExecServiceInterface {
 	flowEngine := newFlowEngine()
 	flowExecService := newFlowExecService(flowMgtService, applicationService, flowEngine)
 	handler := newFlowExecutionHandler(flowExecService)

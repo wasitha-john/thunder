@@ -20,7 +20,6 @@
 package model
 
 import (
-	"github.com/asgardeo/thunder/internal/application/constants"
 	certconst "github.com/asgardeo/thunder/internal/cert/constants"
 )
 
@@ -84,14 +83,14 @@ type ApplicationProcessedDTO struct {
 // InboundAuthConfigDTO represents the data transfer object for inbound authentication configuration.
 // TODO: Need to refactor when supporting other/multiple inbound auth types.
 type InboundAuthConfigDTO struct {
-	Type           constants.InboundAuthType `json:"type"`
-	OAuthAppConfig *OAuthAppConfigDTO        `json:"oauth_app_config,omitempty"`
+	Type           InboundAuthType    `json:"type"`
+	OAuthAppConfig *OAuthAppConfigDTO `json:"oauth_app_config,omitempty"`
 }
 
 // InboundAuthConfigProcessedDTO represents the processed data transfer object for inbound authentication
 // configuration.
 type InboundAuthConfigProcessedDTO struct {
-	Type           constants.InboundAuthType   `json:"type"`
+	Type           InboundAuthType             `json:"type"`
 	OAuthAppConfig *OAuthAppConfigProcessedDTO `json:"oauth_app_config,omitempty"`
 }
 
@@ -167,12 +166,12 @@ type ApplicationListResponse struct {
 
 // InboundAuthConfig represents the structure for inbound authentication configuration.
 type InboundAuthConfig struct {
-	Type           constants.InboundAuthType `json:"type"`
-	OAuthAppConfig *OAuthAppConfig           `json:"config,omitempty"`
+	Type           InboundAuthType `json:"type"`
+	OAuthAppConfig *OAuthAppConfig `json:"config,omitempty"`
 }
 
 // InboundAuthConfigComplete represents the complete structure for inbound authentication configuration.
 type InboundAuthConfigComplete struct {
-	Type           constants.InboundAuthType `json:"type"`
-	OAuthAppConfig *OAuthAppConfigComplete   `json:"config,omitempty"`
+	Type           InboundAuthType         `json:"type"`
+	OAuthAppConfig *OAuthAppConfigComplete `json:"config,omitempty"`
 }

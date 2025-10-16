@@ -16,16 +16,13 @@
  * under the License.
  */
 
-// Package handler provides HTTP handlers for managing application-related API requests.
-package handler
+package application
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/application/constants"
 	"github.com/asgardeo/thunder/internal/application/model"
-	appprovider "github.com/asgardeo/thunder/internal/application/provider"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/error/apierror"
@@ -35,19 +32,18 @@ import (
 )
 
 // ApplicationHandler defines the handler for managing application API requests.
-type ApplicationHandler struct {
-	ApplicationProvider appprovider.ApplicationProviderInterface
+type applicationHandler struct {
+	service ApplicationServiceInterface
 }
 
-// NewApplicationHandler creates a new instance of ApplicationHandler.
-func NewApplicationHandler() *ApplicationHandler {
-	return &ApplicationHandler{
-		ApplicationProvider: appprovider.NewApplicationProvider(),
+func newApplicationHandler(service ApplicationServiceInterface) *applicationHandler {
+	return &applicationHandler{
+		service: service,
 	}
 }
 
 // HandleApplicationPostRequest handles the application request.
-func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter, r *http.Request) {
+func (ah *applicationHandler) HandleApplicationPostRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
 	appRequest, err := sysutils.DecodeJSONBody[model.ApplicationRequest](r)
@@ -56,9 +52,9 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidRequestFormat.Code,
-			Message:     constants.ErrorInvalidRequestFormat.Error,
-			Description: constants.ErrorInvalidRequestFormat.ErrorDescription,
+			Code:        ErrorInvalidRequestFormat.Code,
+			Message:     ErrorInvalidRequestFormat.Error,
+			Description: ErrorInvalidRequestFormat.ErrorDescription,
 		}
 		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 			logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -81,7 +77,7 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 	if len(appRequest.InboundAuthConfig) > 0 {
 		inboundAuthConfigDTOs := make([]model.InboundAuthConfigDTO, 0)
 		for _, config := range appRequest.InboundAuthConfig {
-			if config.Type != constants.OAuthInboundAuthType || config.OAuthAppConfig == nil {
+			if config.Type != model.OAuthInboundAuthType || config.OAuthAppConfig == nil {
 				continue
 			}
 
@@ -105,8 +101,7 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 	}
 
 	// Create the app using the application service.
-	appService := ah.ApplicationProvider.GetApplicationService()
-	createdAppDTO, svcErr := appService.CreateApplication(&appDTO)
+	createdAppDTO, svcErr := ah.service.CreateApplication(&appDTO)
 	if svcErr != nil {
 		ah.handleError(w, logger, svcErr)
 		return
@@ -133,9 +128,9 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 			w.WriteHeader(http.StatusInternalServerError)
 
 			errResp := apierror.ErrorResponse{
-				Code:        constants.ErrorInternalServerError.Code,
-				Message:     constants.ErrorInternalServerError.Error,
-				Description: constants.ErrorInternalServerError.ErrorDescription,
+				Code:        ErrorInternalServerError.Code,
+				Message:     ErrorInternalServerError.Error,
+				Description: ErrorInternalServerError.ErrorDescription,
 			}
 			if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 				logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -156,11 +151,10 @@ func (ah *ApplicationHandler) HandleApplicationPostRequest(w http.ResponseWriter
 }
 
 // HandleApplicationListRequest handles the application request.
-func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter, r *http.Request) {
+func (ah *applicationHandler) HandleApplicationListRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
-	appService := ah.ApplicationProvider.GetApplicationService()
-	listResponse, svcErr := appService.GetApplicationList()
+	listResponse, svcErr := ah.service.GetApplicationList()
 	if svcErr != nil {
 		ah.handleError(w, logger, svcErr)
 		return
@@ -177,7 +171,7 @@ func (ah *ApplicationHandler) HandleApplicationListRequest(w http.ResponseWriter
 }
 
 // HandleApplicationGetRequest handles the application request.
-func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter, r *http.Request) {
+func (ah *applicationHandler) HandleApplicationGetRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
 	id := r.PathValue("id")
@@ -186,9 +180,9 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidApplicationID.Code,
-			Message:     constants.ErrorInvalidApplicationID.Error,
-			Description: constants.ErrorInvalidApplicationID.ErrorDescription,
+			Code:        ErrorInvalidApplicationID.Code,
+			Message:     ErrorInvalidApplicationID.Error,
+			Description: ErrorInvalidApplicationID.ErrorDescription,
 		}
 		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 			logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -197,8 +191,7 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 		return
 	}
 
-	appService := ah.ApplicationProvider.GetApplicationService()
-	appDTO, svcErr := appService.GetApplication(id)
+	appDTO, svcErr := ah.service.GetApplication(id)
 	if svcErr != nil {
 		ah.handleError(w, logger, svcErr)
 		return
@@ -219,7 +212,7 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 
 	// TODO: Need to refactor when supporting other/multiple inbound auth types.
 	if len(appDTO.InboundAuthConfig) > 0 {
-		if appDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		if appDTO.InboundAuthConfig[0].Type != model.OAuthInboundAuthType {
 			logger.Error("Unsupported inbound authentication type returned",
 				log.String("type", string(appDTO.InboundAuthConfig[0].Type)))
 
@@ -227,9 +220,9 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 			w.WriteHeader(http.StatusInternalServerError)
 
 			errResp := apierror.ErrorResponse{
-				Code:        constants.ErrorInternalServerError.Code,
-				Message:     constants.ErrorInternalServerError.Error,
-				Description: constants.ErrorInternalServerError.ErrorDescription,
+				Code:        ErrorInternalServerError.Code,
+				Message:     ErrorInternalServerError.Error,
+				Description: ErrorInternalServerError.ErrorDescription,
 			}
 			if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 				logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -246,9 +239,9 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 			w.WriteHeader(http.StatusInternalServerError)
 
 			errResp := apierror.ErrorResponse{
-				Code:        constants.ErrorInternalServerError.Code,
-				Message:     constants.ErrorInternalServerError.Error,
-				Description: constants.ErrorInternalServerError.ErrorDescription,
+				Code:        ErrorInternalServerError.Code,
+				Message:     ErrorInternalServerError.Error,
+				Description: ErrorInternalServerError.ErrorDescription,
 			}
 			if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 				logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -306,7 +299,7 @@ func (ah *ApplicationHandler) HandleApplicationGetRequest(w http.ResponseWriter,
 }
 
 // HandleApplicationPutRequest handles the application request.
-func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter, r *http.Request) {
+func (ah *applicationHandler) HandleApplicationPutRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
 	id := r.PathValue("id")
@@ -315,9 +308,9 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidApplicationID.Code,
-			Message:     constants.ErrorInvalidApplicationID.Error,
-			Description: constants.ErrorInvalidApplicationID.ErrorDescription,
+			Code:        ErrorInvalidApplicationID.Code,
+			Message:     ErrorInvalidApplicationID.Error,
+			Description: ErrorInvalidApplicationID.ErrorDescription,
 		}
 		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 			logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -332,9 +325,9 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidRequestFormat.Code,
-			Message:     constants.ErrorInvalidRequestFormat.Error,
-			Description: constants.ErrorInvalidRequestFormat.ErrorDescription,
+			Code:        ErrorInvalidRequestFormat.Code,
+			Message:     ErrorInvalidRequestFormat.Error,
+			Description: ErrorInvalidRequestFormat.ErrorDescription,
 		}
 		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 			logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -358,7 +351,7 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 	if len(appRequest.InboundAuthConfig) > 0 {
 		inboundAuthConfigDTOs := make([]model.InboundAuthConfigDTO, 0)
 		for _, config := range appRequest.InboundAuthConfig {
-			if config.Type != constants.OAuthInboundAuthType || config.OAuthAppConfig == nil {
+			if config.Type != model.OAuthInboundAuthType || config.OAuthAppConfig == nil {
 				continue
 			}
 
@@ -382,8 +375,7 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 	}
 
 	// Update the application using the application service.
-	appService := ah.ApplicationProvider.GetApplicationService()
-	updatedAppDTO, svcErr := appService.UpdateApplication(id, &updateReqAppDTO)
+	updatedAppDTO, svcErr := ah.service.UpdateApplication(id, &updateReqAppDTO)
 	if svcErr != nil {
 		ah.handleError(w, logger, svcErr)
 		return
@@ -410,9 +402,9 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 			w.WriteHeader(http.StatusInternalServerError)
 
 			errResp := apierror.ErrorResponse{
-				Code:        constants.ErrorInternalServerError.Code,
-				Message:     constants.ErrorInternalServerError.Error,
-				Description: constants.ErrorInternalServerError.ErrorDescription,
+				Code:        ErrorInternalServerError.Code,
+				Message:     ErrorInternalServerError.Error,
+				Description: ErrorInternalServerError.ErrorDescription,
 			}
 			if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 				logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -433,7 +425,7 @@ func (ah *ApplicationHandler) HandleApplicationPutRequest(w http.ResponseWriter,
 }
 
 // HandleApplicationDeleteRequest handles the application request.
-func (ah *ApplicationHandler) HandleApplicationDeleteRequest(w http.ResponseWriter, r *http.Request) {
+func (ah *applicationHandler) HandleApplicationDeleteRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "ApplicationHandler"))
 
 	id := r.PathValue("id")
@@ -442,9 +434,9 @@ func (ah *ApplicationHandler) HandleApplicationDeleteRequest(w http.ResponseWrit
 		w.WriteHeader(http.StatusBadRequest)
 
 		errResp := apierror.ErrorResponse{
-			Code:        constants.ErrorInvalidApplicationID.Code,
-			Message:     constants.ErrorInvalidApplicationID.Error,
-			Description: constants.ErrorInvalidApplicationID.ErrorDescription,
+			Code:        ErrorInvalidApplicationID.Code,
+			Message:     ErrorInvalidApplicationID.Error,
+			Description: ErrorInvalidApplicationID.ErrorDescription,
 		}
 		if encodeErr := json.NewEncoder(w).Encode(errResp); encodeErr != nil {
 			logger.Error("Error encoding error response", log.Error(encodeErr))
@@ -453,8 +445,7 @@ func (ah *ApplicationHandler) HandleApplicationDeleteRequest(w http.ResponseWrit
 		return
 	}
 
-	appService := ah.ApplicationProvider.GetApplicationService()
-	svcErr := appService.DeleteApplication(id)
+	svcErr := ah.service.DeleteApplication(id)
 	if svcErr != nil {
 		ah.handleError(w, logger, svcErr)
 		return
@@ -464,10 +455,10 @@ func (ah *ApplicationHandler) HandleApplicationDeleteRequest(w http.ResponseWrit
 }
 
 // processInboundAuthConfig prepares the response for OAuth app configuration.
-func (ah *ApplicationHandler) processInboundAuthConfig(logger *log.Logger, appDTO *model.ApplicationDTO,
+func (ah *applicationHandler) processInboundAuthConfig(logger *log.Logger, appDTO *model.ApplicationDTO,
 	returnApp *model.ApplicationCompleteResponse) bool {
 	if len(appDTO.InboundAuthConfig) > 0 {
-		if appDTO.InboundAuthConfig[0].Type != constants.OAuthInboundAuthType {
+		if appDTO.InboundAuthConfig[0].Type != model.OAuthInboundAuthType {
 			logger.Error("Unsupported inbound authentication type returned",
 				log.String("type", string(appDTO.InboundAuthConfig[0].Type)))
 
@@ -523,7 +514,7 @@ func (ah *ApplicationHandler) processInboundAuthConfig(logger *log.Logger, appDT
 }
 
 // handleError handles service errors and returns appropriate HTTP responses.
-func (ah *ApplicationHandler) handleError(w http.ResponseWriter, logger *log.Logger,
+func (ah *applicationHandler) handleError(w http.ResponseWriter, logger *log.Logger,
 	svcErr *serviceerror.ServiceError) {
 	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
 
@@ -535,7 +526,7 @@ func (ah *ApplicationHandler) handleError(w http.ResponseWriter, logger *log.Log
 
 	statusCode := http.StatusInternalServerError
 	if svcErr.Type == serviceerror.ClientErrorType {
-		if svcErr.Code == constants.ErrorApplicationNotFound.Code {
+		if svcErr.Code == ErrorApplicationNotFound.Code {
 			statusCode = http.StatusNotFound
 		} else {
 			statusCode = http.StatusBadRequest
