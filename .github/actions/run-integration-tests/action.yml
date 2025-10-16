@@ -1,0 +1,70 @@
+name: 'Run Thunder Integration Tests'
+description: 'Downloads a pre-built Thunder distribution, sets up a database, and runs integration tests.'
+
+inputs:
+  database-type:
+    description: 'The type of database to test against (e.g., sqlite, postgres).'
+    required: true
+  distribution-artifact-name:
+    description: 'The name of the artifact containing the pre-built Thunder distribution.'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 📥 Download Pre-built Distribution
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.distribution-artifact-name }}
+        path: target/dist
+
+    - name: ⚙️ Set up Go Environment
+      uses: ./.github/actions/setup-go
+
+    - name: 🗄️ Cache Go Modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-modules-
+
+    - name: 📦 Install Dependencies
+      shell: bash
+      run: |
+        cd backend
+        go mod download
+        cd ../tests/integration
+        go mod download
+
+    - name: 🗄️ Setup PostgreSQL Databases
+      if: inputs.database-type == 'postgres'
+      shell: bash
+      run: |
+        PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb -c "CREATE DATABASE runtimedb;"
+        PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb < backend/dbscripts/thunderdb/postgres.sql
+        PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d runtimedb < backend/dbscripts/runtimedb/postgres.sql
+
+    - name: 📝 Configure Test Database
+      shell: bash
+      run: |
+        chmod +x backend/tests/scripts/setup-test-config.sh
+        ./backend/tests/scripts/setup-test-config.sh
+      env:
+        DB_TYPE: ${{ inputs.database-type }}
+
+    - name: 🧪 Run Integration Tests
+      shell: bash
+      run: make test_integration
+
+    - name: 📦 Upload Integration Test Coverage Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-integration-${{ inputs.database-type }}
+        path: target/coverage/coverage-integration.out
+        if-no-files-found: ignore
