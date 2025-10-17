@@ -174,7 +174,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: 🧩 Generate Combined Coverage Report
-        run: make merge_coverage
+        run: ./build.sh merge_coverage
 
       - name: 📊 Upload Combined Coverage Report to Codecov
         uses: codecov/codecov-action@v4
