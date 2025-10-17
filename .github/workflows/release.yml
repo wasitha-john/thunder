@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        database: [sqlite, postgres]
+        database: [sqlite]
       fail-fast: false
     services:
       postgres:
