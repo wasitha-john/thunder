@@ -74,6 +74,14 @@ build_with_coverage:
 	./build.sh merge_coverage $(OS) $(ARCH)
 	@echo "================================================================"
 
+build_with_coverage_only:
+	@echo "================================================================"
+	@echo "Building with coverage instrumentation (unit tests only)..."
+	@echo "================================================================"
+	./build.sh test_unit $(OS) $(ARCH)
+	ENABLE_COVERAGE=true ./build.sh build_backend $(OS) $(ARCH)
+	@echo "================================================================"
+
 run:
 	./build.sh run $(OS) $(ARCH)
 
@@ -108,6 +116,7 @@ help:
 	@echo "  test_unit                     - Run unit tests."
 	@echo "  test_integration              - Run integration tests."
 	@echo "  build_with_coverage  		   - Build with coverage flags, run unit and integration tests, and generate combined coverage report."
+	@echo "  build_with_coverage_only      - Build with coverage instrumentation (unit tests only, no integration tests)."
 	@echo "  test                          - Run all tests (unit and integration)."
 	@echo "  run                           - Build and run the application locally."
 	@echo "  docker-build                  - Build single-arch Docker image with version tag."
@@ -121,7 +130,7 @@ help:
 .PHONY: all prepare clean clean_all build build_samples package_samples run
 .PHONY: docker-build docker-build-latest docker-build-multiarch 
 .PHONY: docker-build-multiarch-latest docker-build-multiarch-push
-.PHONY: test_unit test_integration build_with_coverage test
+.PHONY: test_unit test_integration build_with_coverage build_with_coverage_only test
 .PHONY: lint help go_install_tool golangci-lint
 
 define go_install_tool
