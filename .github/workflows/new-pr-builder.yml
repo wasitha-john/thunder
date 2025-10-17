@@ -3,7 +3,7 @@
 #   OS: ubuntu-latest  
 #   Go: go 1.x  
   
-name: 👷🛠️ PR Builder  
+name: 👷🛠️ new PR Builder  
   
 on:  
   pull_request:  
