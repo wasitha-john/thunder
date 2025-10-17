@@ -1,13 +1,15 @@
-name: 'Run Thunder Integration Tests'
-description: 'Downloads a pre-built Thunder distribution, sets up a database, and runs integration tests.'
-
+name: Run Integration Tests
+description: Runs integration tests against a specific database type
 inputs:
   database-type:
-    description: 'The type of database to test against (e.g., sqlite, postgres).'
+    description: 'Database type to test against (sqlite or postgres)'
     required: true
-  distribution-artifact-name:
-    description: 'The name of the artifact containing the pre-built Thunder distribution.'
-    required: true
+    type: string
+  coverage-enabled:
+    description: 'Whether to enable coverage collection'
+    required: false
+    type: boolean
+    default: false
 
 runs:
   using: "composite"
@@ -15,17 +17,12 @@ runs:
     - name: 📥 Checkout Code
       uses: actions/checkout@v4
 
-    - name: 📥 Download Pre-built Distribution
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ inputs.distribution-artifact-name }}
-        path: target/dist
-
     - name: ⚙️ Set up Go Environment
       uses: ./.github/actions/setup-go
 
     - name: 🗄️ Cache Go Modules
       uses: actions/cache@v4
+      id: cache-go-modules
       with:
         path: |
           ~/.cache/go-build
@@ -35,23 +32,21 @@ runs:
           ${{ runner.os }}-go-modules-
 
     - name: 📦 Install Dependencies
-      shell: bash
       run: |
         cd backend
         go mod download
         cd ../tests/integration
         go mod download
 
-    - name: 🗄️ Setup PostgreSQL Databases
+    - name: 🗄️ Setup PostgreSQL Database
       if: inputs.database-type == 'postgres'
-      shell: bash
       run: |
+        PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb -c "CREATE DATABASE identitydb;"
         PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb -c "CREATE DATABASE runtimedb;"
-        PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb < backend/dbscripts/thunderdb/postgres.sql
+        PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d identitydb < backend/dbscripts/thunderdb/postgres.sql
         PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d runtimedb < backend/dbscripts/runtimedb/postgres.sql
 
     - name: 📝 Configure Test Database
-      shell: bash
       run: |
         chmod +x backend/tests/scripts/setup-test-config.sh
         ./backend/tests/scripts/setup-test-config.sh
@@ -59,12 +54,18 @@ runs:
         DB_TYPE: ${{ inputs.database-type }}
 
     - name: 🧪 Run Integration Tests
-      shell: bash
-      run: make test_integration
-
-    - name: 📦 Upload Integration Test Coverage Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-integration-${{ inputs.database-type }}
-        path: target/coverage/coverage-integration.out
-        if-no-files-found: ignore
+      run: |
+        echo "Running integration tests against ${{ inputs.database-type }} database..."
+        
+        # Set up coverage directory if coverage is enabled
+        if [ "${{ inputs.coverage-enabled }}" = "true" ]; then
+          export GOCOVERDIR="target/out/.test/integration"
+          mkdir -p "$GOCOVERDIR"
+          echo "Coverage collection enabled: GOCOVERDIR=$GOCOVERDIR"
+        fi
+        
+        # Run integration tests with database type
+        DB_TYPE=${{ inputs.database-type }} make test_integration
+      env:
+        DB_TYPE: ${{ inputs.database-type }}
+        GOCOVERDIR: ${{ inputs.coverage-enabled == 'true' && 'target/out/.test/integration' || '' }}
