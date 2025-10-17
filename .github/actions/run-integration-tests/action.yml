@@ -20,17 +20,6 @@ runs:
     - name: ⚙️ Set up Go Environment
       uses: ./.github/actions/setup-go
 
-    - name: 🗄️ Cache Go Modules
-      uses: actions/cache@v4
-      id: cache-go-modules
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-modules-
-
     - name: 📦 Install Dependencies
       shell: bash
       run: |
