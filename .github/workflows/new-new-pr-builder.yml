@@ -169,7 +169,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: target/coverage_integration.out
-          flags: integration-${{ matrix.database }}
+          flags: backend-integration-${{ matrix.database }}
           name: Backend Integration Tests (${{ matrix.database }})
           fail_ci_if_error: false
 
@@ -181,6 +181,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: target/coverage_combined.out
-          flags: combined-${{ matrix.database }}
-          name: Combined Coverage (${{ matrix.database }})
+          flags: backend-combined-${{ matrix.database }}
+          name: Backend-combined Coverage (${{ matrix.database }})
           fail_ci_if_error: false
