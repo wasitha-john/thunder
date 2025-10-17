@@ -32,6 +32,7 @@ runs:
           ${{ runner.os }}-go-modules-
 
     - name: 📦 Install Dependencies
+      shell: bash
       run: |
         cd backend
         go mod download
@@ -40,6 +41,7 @@ runs:
 
     - name: 🗄️ Setup PostgreSQL Database
       if: inputs.database-type == 'postgres'
+      shell: bash
       run: |
         PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb -c "CREATE DATABASE identitydb;"
         PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d thunderdb -c "CREATE DATABASE runtimedb;"
@@ -47,6 +49,7 @@ runs:
         PGPASSWORD=asgthunder psql -h localhost -p 5432 -U asgthunder -d runtimedb < backend/dbscripts/runtimedb/postgres.sql
 
     - name: 📝 Configure Test Database
+      shell: bash
       run: |
         chmod +x backend/tests/scripts/setup-test-config.sh
         ./backend/tests/scripts/setup-test-config.sh
@@ -54,6 +57,7 @@ runs:
         DB_TYPE: ${{ inputs.database-type }}
 
     - name: 🧪 Run Integration Tests
+      shell: bash
       run: |
         echo "Running integration tests against ${{ inputs.database-type }} database..."
         
