@@ -49,6 +49,11 @@ build: build_backend build_samples
 build_backend:
 	./build.sh build_backend $(OS) $(ARCH)
 
+build_backend_with_coverage:
+	@echo "Building backend with coverage instrumentation..."
+	./build.sh test_unit $(OS) $(ARCH)
+	ENABLE_COVERAGE=true ./build.sh build_backend $(OS) $(ARCH)
+
 package_samples:
 	./build.sh package_samples $(OS) $(ARCH)
 
