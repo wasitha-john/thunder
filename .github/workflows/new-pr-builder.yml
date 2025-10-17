@@ -1,0 +1,127 @@
+name: PR Builder 2
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: # This trigger was missing and is now included.
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: 🏗️ Build & Unit Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Set up Go Environment
+        uses: ./.github/actions/setup-go
+
+      - name: 🗄️ Cache Go Modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-modules-
+
+      - name: 📦 Install Dependencies
+        run: |
+          cd backend
+          go mod download
+
+      - name: ✨ Lint Code
+        run: make lint
+
+      # This uses the new Makefile target to build with coverage but skip integration tests.
+      - name: 🔨 Build Backend with Coverage
+        run: make build_backend_with_coverage
+
+      # Using a unique artifact name for PRs to avoid conflicts with release runs.
+      - name: 📦 Upload Untested Distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: untested-distribution-pr-${{ github.run_id }}
+          path: target/dist/*.zip
+
+      - name: 📦 Upload Unit Test Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit-pr-${{ github.run_id }}
+          path: target/coverage/coverage-unit.out
+
+  test:
+    name: 🧪 Test (${{ matrix.database }})
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: asgthunder
+          POSTGRES_PASSWORD: asgthunder
+          POSTGRES_DB: thunderdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      # This calls our new reusable action.
+      - name: Run Integration Tests
+        uses: ./.github/actions/run-integration-tests
+        with:
+          database-type: ${{ matrix.database }}
+          distribution-artifact-name: 'untested-distribution-pr-${{ github.run_id }}'
+
+  coverage:
+    name: 📈 Report Code Coverage
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4 # Needed for the Codecov action
+
+      - name: 📥 Download Unit Test Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-unit-pr-${{ github.run_id }}
+          path: target/coverage
+
+      - name: 📥 Download SQLite Integration Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-integration-sqlite
+          path: target/coverage
+      
+      - name: 📥 Download Postgres Integration Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-integration-postgres
+          path: target/coverage
+
+      - name: 📝 Merge Coverage Reports
+        run: |
+          mkdir -p target/coverage
+          # Combine all coverage files into one for reporting
+          cat target/coverage/coverage-unit.out >> target/coverage/coverage.out
+          cat target/coverage/coverage-integration-sqlite/coverage-integration.out >> target/coverage/coverage.out
+          cat target/coverage/coverage-integration-postgres/coverage-integration.out >> target/coverage/coverage.out
+
+      - name: 📤 Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: target/coverage/coverage.out
+          fail_ci_if_error: true
