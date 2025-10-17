@@ -20,6 +20,12 @@ runs:
     - name: ⚙️ Set up Go Environment
       uses: ./.github/actions/setup-go
 
+    - name: 📥 Download Built Distribution
+      uses: actions/download-artifact@v4
+      with:
+        name: thunder-distribution
+        path: target/dist/
+
     - name: 📦 Install Dependencies
       shell: bash
       run: |
