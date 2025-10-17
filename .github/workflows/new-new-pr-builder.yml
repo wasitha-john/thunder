@@ -3,7 +3,7 @@
 #   OS: ubuntu-latest
 #   Go: go 1.x
 
-name: 👷🛠️ new new PR Builder
+name: 👷🛠️ PR Builder
 
 on:
   pull_request:
@@ -33,7 +33,7 @@ jobs:
 
   build:
     name: 🛠️ Build Product
-    if: ${{ github.event.label.name == 'trigger-pr-builder' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
+    if: ${{ github.event.label.name == 'trigger-pr-builder' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'}}
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Code
@@ -70,7 +70,7 @@ jobs:
           set -e
           export LOG_LEVEL=debug
           make build_with_coverage_only OS=$(go env GOOS) ARCH=$(go env GOARCH)
-
+          
           # Find the built distribution
           DIST_PATH=$(find target/dist -name "thunder-*.zip" | head -1)
           echo "Built distribution: $DIST_PATH"
@@ -81,7 +81,8 @@ jobs:
           name: thunder-distribution
           path: target/dist/*.zip
           if-no-files-found: error
-
+          
+      # ------------------- NEW STEP FOR UNIT TEST COVERAGE -------------------
       - name: 📊 Upload Unit Test Coverage Report to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -90,15 +91,7 @@ jobs:
           flags: backend-unit
           name: Backend Unit Tests
           fail_ci_if_error: false
-
-      - name: 📊 Upload Combined Coverage Report to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: target/coverage_combined.out
-          flags: backend-combined
-          name: Backend Combined Coverage
-          fail_ci_if_error: false
+      # -----------------------------------------------------------------------
 
   test-integration:
     name: 🧪 Integration Tests (${{ matrix.database }})
@@ -159,12 +152,14 @@ jobs:
         with:
           database-type: ${{ matrix.database }}
           coverage-enabled: true
-
+          
+      # ---------------- NEW STEP FOR INTEGRATION TEST COVERAGE -----------------
       - name: 📊 Upload Integration Test Coverage Report to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: target/coverage_integration.out
-          flags: backend-integration
-          name: Backend Integration Tests
+          flags: backend-integration,${{ matrix.database }} # Creates flags like 'backend-integration,sqlite'
+          name: Backend Integration Tests (${{ matrix.database }})
           fail_ci_if_error: false
+      # -----------------------------------------------------------------------
