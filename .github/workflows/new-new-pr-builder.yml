@@ -15,14 +15,72 @@ env:
 
 jobs:
   lint:
-    # ... (this job remains unchanged)
+    name: 🧹 Lint Code
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Set up Go Environment
+        uses: ./.github/actions/setup-go
+
+      - name: 📦 Prepare golangci-lint Locally
+        run: make golangci-lint
+
+      - name: 🔍 Run Linter
+        run: make lint
 
   build:
     name: 🛠️ Build Product
     if: ${{ github.event.label.name == 'trigger-pr-builder' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'}}
     runs-on: ubuntu-latest
     steps:
-      # ... (all steps before this are the same)
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Set up Go Environment
+        uses: ./.github/actions/setup-go
+
+      - name: 🗄️ Cache Go Modules
+        uses: actions/cache@v4
+        id: cache-go-modules
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-modules-
+
+      - name: 📦 Install Dependencies
+        run: |
+          cd backend
+          go mod download
+          cd ../tests/integration
+          go mod download
+
+      - name: 🧹 Clean Previous Builds
+        run: |
+          set -e
+          make clean_all
+
+      - name: 🔨 Build Product with Coverage
+        run: |
+          set -e
+          export LOG_LEVEL=debug
+          make build_with_coverage_only OS=$(go env GOOS) ARCH=$(go env GOARCH)
+          
+          # Find the built distribution
+          DIST_PATH=$(find target/dist -name "thunder-*.zip" | head -1)
+          echo "Built distribution: $DIST_PATH"
+
+      - name: 📦 Upload Built Distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: thunder-distribution
+          path: target/dist/*.zip
+          if-no-files-found: error
 
       - name: 📊 Upload Unit Test Coverage Report to Codecov
         uses: codecov/codecov-action@v4
@@ -32,8 +90,7 @@ jobs:
           flags: backend-unit
           name: Backend Unit Tests
           fail_ci_if_error: false
-          
-      # --- NEW STEP TO ARCHIVE THE REPORT FOR THE NEXT JOB ---
+
       - name: 📦 Archive Unit Coverage Report
         uses: actions/upload-artifact@v4
         with:
@@ -50,7 +107,19 @@ jobs:
         database: [sqlite, postgres]
       fail-fast: false
     services:
-      # ... (services section is unchanged)
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: asgthunder
+          POSTGRES_PASSWORD: asgthunder
+          POSTGRES_DB: thunderdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
@@ -58,15 +127,36 @@ jobs:
       - name: ⚙️ Set up Go Environment
         uses: ./.github/actions/setup-go
 
-      # --- NEW STEP TO DOWNLOAD THE UNIT TEST REPORT ---
       - name: 📥 Download Unit Coverage Report
         uses: actions/download-artifact@v4
         with:
           name: unit-coverage-report
-          # This places the file at ./backend/coverage_unit.out, where 'make merge_coverage' expects it
           path: backend/
 
-      # ... (Cache, Install Dependencies, Configure Test Database steps are unchanged)
+      - name: 🗄️ Cache Go Modules
+        uses: actions/cache@v4
+        id: cache-go-modules
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-modules-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-modules-
+
+      - name: 📦 Install Dependencies
+        run: |
+          cd backend
+          go mod download
+          cd ../tests/integration
+          go mod download
+
+      - name: 📝 Configure Test Database
+        run: |
+          chmod +x backend/tests/scripts/setup-test-config.sh
+          ./backend/tests/scripts/setup-test-config.sh
+        env:
+          DB_TYPE: ${{ matrix.database }}
 
       - name: 🧪 Run Integration Tests (${{ matrix.database }})
         uses: ./.github/actions/run-integration-tests
@@ -82,12 +172,10 @@ jobs:
           flags: integration-${{ matrix.database }}
           name: Backend Integration Tests (${{ matrix.database }})
           fail_ci_if_error: false
-          
-      # --- NEW STEP TO MERGE THE REPORTS LOCALLY ---
+
       - name: 🧩 Generate Combined Coverage Report
         run: make merge_coverage
 
-      # --- NEW STEP TO UPLOAD THE COMBINED REPORT ---
       - name: 📊 Upload Combined Coverage Report to Codecov
         uses: codecov/codecov-action@v4
         with:
