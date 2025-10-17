@@ -250,6 +250,7 @@ jobs:
           name: thunder-distribution
           path: target/dist/*.zip
           if-no-files-found: error
+          overwrite: true
 
       - name: 🏷️ Create Git Tag
         run: |
