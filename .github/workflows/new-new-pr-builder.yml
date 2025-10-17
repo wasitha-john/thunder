@@ -159,7 +159,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: target/coverage_integration.out
-          flags: backend-integration,${{ matrix.database }} # Creates flags like 'backend-integration,sqlite'
+          flags: backend-integration-${{ matrix.database }} # Creates flags like 'backend-integration,sqlite'
           name: Backend Integration Tests (${{ matrix.database }})
           fail_ci_if_error: false
       # -----------------------------------------------------------------------
